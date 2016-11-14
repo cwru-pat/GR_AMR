@@ -1,0 +1,3 @@
+[submodule "SAMRAI"]
+	path = SAMRAI
+	url = https://github.com/LLNL/SAMRAI
