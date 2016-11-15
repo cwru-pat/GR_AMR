@@ -81,7 +81,8 @@ WaveSolv::WaveSolv(
   nx(database.getDouble("nx")),
   ny(database.getDouble("ny")),
   nz(database.getDouble("nz")),
-  d_adaption_threshold(2)
+  d_adaption_threshold(2),
+  d_finest_dbg_plot_ln(database.getIntegerWithDefault("finest_dbg_plot_ln", 99))
 {
   
   hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
@@ -595,7 +596,7 @@ void WaveSolv::applyGradientDetector(
    boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
      BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
        hierarchy.getGridGeometry()));
-   double max_lap = 0;
+   double max_der_norm = 0;
    hier::PatchLevel& level =
       (hier::PatchLevel &) * hierarchy.getPatchLevel(ln);
    size_t ntag = 0, ntotal = 0;
@@ -643,14 +644,6 @@ void WaveSolv::applyGradientDetector(
       {
 
          const pdat::CellIndex cell_index(*i);
-         //if(ln == 0 &&  hierarchy.getNumberOfLevels() > 1) std::cout<<weight(cell_index)<<"\n";
-         /*if( tbox::MathUtilities<double>::Abs(
-              _laplacian(
-              phi_data,
-              cell_index(0),
-              cell_index(1),
-              cell_index(2),
-              &(patch_geom->getDx())[0])) > d_adaption_threshold)*/
          if(_der_norm(
               phi_data,
               cell_index(0),
@@ -658,15 +651,7 @@ void WaveSolv::applyGradientDetector(
               cell_index(2),
               &(patch_geom->getDx())[0]) > d_adaption_threshold)
          {
-           /*max_lap = tbox::MathUtilities<double>::Max(
-             max_lap, tbox::MathUtilities<double>::Abs(
-             _laplacian(
-               phi_data,
-               cell_index(0),
-               cell_index(1),
-               cell_index(2),
-               &patch_geom->getDx()[0])));*/
-           max_lap = _der_norm(
+           max_der_norm = _der_norm(
               phi_data,
               cell_index(0),
               cell_index(1),
@@ -683,7 +668,7 @@ void WaveSolv::applyGradientDetector(
    tbox::plog << "Adaption threshold is " << d_adaption_threshold << "\n";
    tbox::plog << "Number of cells tagged on level " << ln << " is "
               << ntag << "/" << ntotal << "\n";
-   tbox::plog << "Max norm is " << max_lap << "\n";
+   tbox::plog << "Max norm is " << max_der_norm << "\n";
 }
 
 void WaveSolv::advanceLevel(
@@ -765,11 +750,6 @@ void WaveSolv::advanceLevel(
           pi_current_array(i,j,k) =
             pi_previous_array(i,j,k) +
             _laplacian(phi_previous, i,j,k, &patch_geom->getDx()[0]) * dt;
-                   if(from_t <= 0.05 && from_t >= 0.04 )
-          {
-            //std::cout<<phi_current_array(i,j,k)<<" "<<_laplacian(phi_previous, i,j,k, &patch_geom->getDx()[0])<<" "<<
-              //pi_current_array(i,j,k)<<"\n";
-          }
         }
       }
     }
@@ -905,4 +885,80 @@ void WaveSolv::advanceHierarchy(
     t_advance_hier->stop();
   }
 
+}
+
+#ifdef HAVE_HDF5
+int WaveSolv::registerVariablesWithPlotter(
+   appu::VisItDataWriter& visit_writer) {
+
+   visit_writer.registerPlotQuantity("var:phi",
+      "SCALAR",
+      d_phi_previous,
+      0,
+      1.0,
+      "CELL");
+   visit_writer.registerPlotQuantity("var:pi",
+      "SCALAR",
+      d_pi_previous);
+
+   std::vector<std::string> expression_keys(1);
+   std::vector<std::string> expressions(1);
+   std::vector<std::string> expression_types(1);
+   {
+      expression_keys[0] = "Error";
+      expression_types[0] = "scalar";
+      expressions[0] = "<Computed solution> - <Exact solution>";
+   }
+
+   visit_writer.registerVisItExpressions(expression_keys,
+      expressions,
+      expression_types);
+
+   return 0;
+}
+#endif
+
+bool WaveSolv::packDerivedDataIntoDoubleBuffer(
+   double* buffer,
+   const hier::Patch& patch,
+   const hier::Box& region,
+   const std::string& variable_name,
+   int depth_id,
+   double simulation_time) const
+{
+   NULL_USE(depth_id);
+   NULL_USE(simulation_time);
+
+   // begin debug code
+   // math::HierarchyCellDataOpsReal<double> hcellmath(d_hierarchy);
+   // hcellmath.printData( d_exact_persistent, pout, false );
+   // end debug code
+   /*
+   if (variable_name == "Gradient Function") {
+      boost::shared_ptr<pdat::CellData<double> > soln_cell_data_(
+         BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+            patch.getPatchData(d_scalar_persistent)));
+      TBOX_ASSERT(soln_cell_data_);
+      const pdat::CellData<double>& soln_cell_data = *soln_cell_data_;
+      pdat::CellData<double> estimate_data(region,
+                                           1,
+                                           hier::IntVector(d_dim, 0));
+      computeAdaptionEstimate(estimate_data,
+         soln_cell_data);
+      // tbox::plog << "estimate data: " << patch.getBox().size() << "\n";
+      // estimate_data.print(region,0,tbox::plog);
+      memcpy(buffer, estimate_data.getPointer(), sizeof(double) * region.size());
+   } else if (variable_name == "Patch level number") {
+      double pln = patch.getPatchLevelNumber();
+      for (size_t i = 0; i < region.size(); ++i) buffer[i] = pln;
+   } else {
+      // Did not register this name.
+      TBOX_ERROR(
+         "Unregistered variable name '" << variable_name << "' in\n"
+                                        << "AdaptivePoisson::packDerivedPatchDataIntoDoubleBuffer");
+   }*/
+
+   // Return TRUE if this patch has derived data on it.
+   // FALSE otherwise.
+   return true;
 }

@@ -11,9 +11,7 @@ mkdir obj
 
 cd obj
 
-./configure 
-
-sh ../SAMRAI/configure --with-boost= "...path of boost"
+sh ../SAMRAI/configure --with-boost= "...path of boost" --with-hdf5="...path of hdf5"
 
 make library
 

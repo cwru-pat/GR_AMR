@@ -46,7 +46,8 @@
 using namespace SAMRAI;
 
 class WaveSolv:
-   public mesh::StandardTagAndInitStrategy//   public appu::VisDerivedDataStrategy
+   public mesh::StandardTagAndInitStrategy,
+   public appu::VisDerivedDataStrategy
 {
 
  public:
@@ -76,6 +77,15 @@ class WaveSolv:
   void advanceHierarchy(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   double from_t, double to_t);
+
+  virtual bool
+   packDerivedDataIntoDoubleBuffer(
+      double* buffer,
+      const hier::Patch& patch,
+      const hier::Box& region,
+      const std::string& variable_name,
+      int depth_id,
+      double simulation_time) const;
   
   virtual void
     initializeLevelData(
@@ -120,6 +130,15 @@ class WaveSolv:
   boost::shared_ptr<appu::VisItDataWriter> d_visit_writer;
   #endif*/
 
+#ifdef HAVE_HDF5
+   /*!
+    * @brief Tell a plotter which data to write for this class.
+    */
+   int
+   registerVariablesWithPlotter(
+      appu::VisItDataWriter& visit_writer);
+#endif
+
 
   
  public:
@@ -144,7 +163,11 @@ class WaveSolv:
   
   double d_adaption_threshold;
 
-  
+#ifdef HAVE_HDF5
+   boost::shared_ptr<appu::VisItDataWriter> d_visit_writer;
+#endif
+   int d_finest_dbg_plot_ln;
+   //@}  
   
 
 };

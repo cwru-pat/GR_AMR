@@ -172,6 +172,11 @@ int main(int argc, char* argv[])
 
   int ln;
 
+  std::string vis_filename =
+    main_db->getStringWithDefault("vis_filename", base_name);
+  bool do_plot =
+    main_db->getBoolWithDefault("do_plot", false);
+
   
   double dt = grid_geometry->getDx()[0] / 10.0, cur_t = 0.0, fin_t;
 
@@ -180,32 +185,34 @@ int main(int argc, char* argv[])
   fin_t = main_db->getDouble("final_time");
 
   //  throw(-1);
+
+  int adaption_number = 0;
   
   while(cur_t < fin_t)
-  {    
+  {        
+    if (do_plot) {
+      boost::shared_ptr<appu::VisItDataWriter> visit_writer(
+        new appu::VisItDataWriter(
+          dim,
+          "VisIt Writer",
+          vis_filename + ".visit"));
+      solver.registerVariablesWithPlotter(*visit_writer);
+      visit_writer->writePlotData(patch_hierarchy,
+                                  adaption_number);
+      tbox::plog << "Wrote viz file " << vis_filename
+                 << " for grid number "
+                 << adaption_number << '\n';
+    }
     
-    /*for(int ln = 0; ln < 1; ln ++)
-    {
-      boost::shared_ptr<hier::PatchLevel> level(patch_hierarchy->getPatchLevel(ln));   
-         for (hier::PatchLevel::iterator pi(level->begin());
-        pi != level->end(); ++pi) {
-      hier::Patch& patch = **pi;
-      boost::shared_ptr<pdat::CellData<double> > current_solution(
-            BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
-               patch.getPatchData(solver.d_phi_previous)));
-      const hier::Box& ghost_box = current_solution->getGhostBox();
-      current_solution->print(ghost_box, 0, std::cout, 4);
-      }
-      }
-      std::cout<<"\n\n\n\n\n";*/
     if(step_cnt % 2 == 0)
     {
+      adaption_number++;
       std::vector<int> tag_buffer(patch_hierarchy->getMaxNumberOfLevels());
       for (ln = 0; ln < static_cast<int>(tag_buffer.size()); ++ln)
       {
         tag_buffer[ln] = 1;
       }
-      //if(step_cnt == 0)
+    
       gridding_algorithm->regridAllFinerLevels(
         0,
         tag_buffer,
@@ -221,23 +228,7 @@ int main(int argc, char* argv[])
     solver.advanceHierarchy(patch_hierarchy, cur_t, cur_t + dt);
     cur_t += dt;
     step_cnt++;
-        std::cout<<"Max error is "<<solver._maxError(patch_hierarchy)<<"\n";
-    /*for(int ln = 0; ln < 2; ln ++)
-    {
-      boost::shared_ptr<hier::PatchLevel> level(patch_hierarchy->getPatchLevel(ln));   
-         for (hier::PatchLevel::iterator pi(level->begin());
-        pi != level->end(); ++pi) {
-      hier::Patch& patch = **pi;
-      boost::shared_ptr<pdat::CellData<double> > current_solution(
-            BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
-               patch.getPatchData(solver.d_phi_previous)));
-      const hier::Box& ghost_box = current_solution->getGhostBox();
-      current_solution->print(ghost_box, 0, std::cout, 4);
-      }
-      }*/
-
-    
-    //      throw(-1);
+    std::cout<<"Max error is "<<solver._maxError(patch_hierarchy)<<"\n";
   }
   tbox::TimerManager::getManager()->print(tbox::plog);
   tbox::SAMRAIManager::shutdown();
