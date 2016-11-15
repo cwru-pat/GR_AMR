@@ -805,7 +805,7 @@ void WaveSolv::advanceLevel(
                            space_refine_op,
                            time_refine_op);
 
-    refine_schedule = refiner.createSchedule(level, level, ln-1, hierarchy, NULL, true, NULL);
+    refine_schedule = refiner.createSchedule(level, level, ln-1, hierarchy, NULL, true);
     
     refine_schedule->fillData(to_t);
   }
@@ -827,13 +827,13 @@ void WaveSolv::advanceLevel(
 
     coarsener.registerCoarsen(d_phi_current,
                               d_phi_current,
-                              space_coarsen_op,
-                              NULL);
+                              space_coarsen_op
+                             );
   
     coarsener.registerCoarsen(d_pi_current,
                               d_pi_current,
-                              space_coarsen_op,
-                              NULL);
+                              space_coarsen_op
+                              );
   
     coarsen_schedule = coarsener.createSchedule(level, hierarchy->getPatchLevel(ln+1));
     coarsen_schedule->coarsenData();

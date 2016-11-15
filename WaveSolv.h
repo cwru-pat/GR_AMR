@@ -2,11 +2,6 @@
 #include "SAMRAI/solv/PoissonSpecifications.h"
 #include "SAMRAI/solv/CellPoissonFACOps.h"
 #include "SAMRAI/tbox/Dimension.h"
-#include "PoissonSineSolution.h"
-#include "PoissonPolynomialSolution.h"
-#include "PoissonGaussianDiffcoefSolution.h"
-#include "PoissonGaussianSolution.h"
-#include "PoissonMultigaussianSolution.h"
 
 #include <string>
 
