@@ -154,6 +154,7 @@ int main(int argc, char* argv[])
       "Patch Hierarchy",
       grid_geometry,
       input_db->getDatabase("PatchHierarchy")));
+
   
   WaveSolv solver(dim,
                   *(input_db->getDatabase("WaveSolv")),
@@ -179,7 +180,11 @@ int main(int argc, char* argv[])
       "load balancer",
       input_db->getDatabase("TreeLoadBalancer")));
 
+
+
   load_balancer->setSAMRAI_MPI(tbox::SAMRAI_MPI::getSAMRAIWorld());
+
+
 
   boost::shared_ptr<mesh::GriddingAlgorithm> gridding_algorithm(
     new mesh::GriddingAlgorithm(
@@ -212,9 +217,10 @@ int main(int argc, char* argv[])
   
   fin_t = main_db->getDouble("final_time");
 
-  //  throw(-1);
 
   int adaption_number = 0;
+
+
   
   while(cur_t < fin_t)
   {        
@@ -256,11 +262,19 @@ int main(int argc, char* argv[])
     solver.advanceHierarchy(patch_hierarchy, cur_t, cur_t + dt);
     cur_t += dt;
     step_cnt++;
-    std::cout<<"Max error is "<<solver._maxError(patch_hierarchy)<<"\n";
+    tbox::pout<<"Max error is "<<solver._maxError(patch_hierarchy)<<"\n";
   }
+  
   tbox::TimerManager::getManager()->print(tbox::plog);
-  tbox::SAMRAIManager::shutdown();
+  
+ patch_hierarchy.reset();
+ load_balancer.reset();
+ gridding_algorithm.reset();
+ grid_geometry.reset();
+ box_generator.reset();
+ tbox::SAMRAIManager::shutdown();
   tbox::SAMRAIManager::finalize();
   tbox::SAMRAI_MPI::finalize();
 
+  return 0;
 }

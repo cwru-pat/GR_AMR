@@ -3,7 +3,7 @@ Main
   dim = 3
   base_name = "wave_eqn_3d"
   do_plot = TRUE
-  final_time = 0.2
+  final_time = 0.02
 }
 
 CartesianGridGeometry {

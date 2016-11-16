@@ -534,7 +534,7 @@ void WaveSolv::initializeLevelData(
       } else {
         //hcellmath.setToScalar(d_phi_current, 0.0, false);
         //hcellmath.setToScalar(d_pi_current, 0.0, false);
-        std::cout<<"Can not get refine schedul, check your code!\n";
+        tbox::pout<<"Can not get refine schedul, check your code!\n";
         throw(-1);
       }
 
