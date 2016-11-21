@@ -3,6 +3,7 @@
 #include "SAMRAI/solv/CellPoissonFACOps.h"
 #include "SAMRAI/tbox/Dimension.h"
 
+
 #include <string>
 
 #include "SAMRAI/tbox/Database.h"
@@ -10,6 +11,7 @@
 /*
  * SAMRAI classes
  */
+#include "SAMRAI/pdat/MDA_Access.h"
 #include "SAMRAI/appu/VisItDataWriter.h"
 #include "SAMRAI/appu/VisDerivedDataStrategy.h"
 #include "SAMRAI/geom/CartesianCellDoubleConservativeLinearRefine.h"
@@ -50,7 +52,7 @@ class WaveSolv:
            tbox::Database& database,
            std::ostream* log_stream);
 
-  double _laplacian(boost::shared_ptr<pdat::CellData<double>>& var, int i, int j, int k, const double dx[]);
+  double _laplacian(  MDA_Access<double, 3, MDA_OrderColMajor<3> > &var, int i, int j, int k, const double dx[]);
   double _der_norm(boost::shared_ptr<pdat::CellData<double>>& var, int i, int j, int k, const double dx[]);
   double _maxError(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
@@ -63,6 +65,27 @@ class WaveSolv:
 
 
 
+  void evolve_patch(
+   double* phi_p,
+   double* pi_p,
+   double* phi_c,
+   double* pi_c,
+   const int phigi,
+   const int phigj,
+   const int phigk,
+   const int pigi,
+   const int pigj,
+   const int pigk,
+   const int ifirst,
+   const int ilast,
+   const int jfirst,
+   const int jlast,
+   const int kfirst,
+   const int klast,
+   const double dx[],
+   const double dt);
+
+  
   void advanceLevel(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   int ln,

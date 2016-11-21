@@ -3,7 +3,7 @@ Main
   dim = 3
   base_name = "wave_eqn_3d"
   do_plot = TRUE
-  final_time = 0.02
+  final_time = 0.1
 }
 
 CartesianGridGeometry {
@@ -28,6 +28,11 @@ TreeLoadBalancer {
 BergerRigoutsos {
    combine_efficiency = 0.95
    efficiency_tolerance = 0.95
+}
+
+TimerManager{
+    print_exclusive      = TRUE
+    timer_list = "AdvanceHierTimeCost"
 }
 
 

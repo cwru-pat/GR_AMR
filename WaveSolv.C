@@ -61,7 +61,35 @@ using namespace SAMRAI;
 
 #define PW2(x) ((x) * (x))
 
+#define INDEX(x,y,z,nx,ny,nz) ( (z)*(ny)*(nx) + (y)*(nx) + (x))
+
 boost::shared_ptr<tbox::Timer> WaveSolv::t_advance_hier;
+
+extern "C" {
+#ifdef __INTEL_COMPILER
+#pragma warning (disable:1419)
+#endif
+
+  void SAMRAI_F77_FUNC(evolvepatch, EVOLEPATCH) (
+   double* phi_p,
+   double* pi_p,
+   double* phi_c,
+   double* pi_c,
+   const int* phigi,
+   const int* phigj,
+   const int* phigk,
+   const int* pigi,
+   const int* pigj,
+   const int* pigk,
+   const int* ifirst,
+   const int* ilast,
+   const int* jfirst,
+   const int* jlast,
+   const int* kfirst,
+   const int* klast,
+   const double* dx,
+   const double* dt);
+}
 
 WaveSolv::WaveSolv(
   const tbox::Dimension& dim,
@@ -69,7 +97,7 @@ WaveSolv::WaveSolv(
   std::ostream* log_stream = 0):
   d_lstream(log_stream),
   d_database(&database),
-  d_barrier_and_time(false),
+  d_barrier_and_time(true),
   d_dim(dim),
   d_omega(0),
   d_context_current(new hier::VariableContext("CURRENT")),
@@ -122,19 +150,85 @@ WaveSolv::WaveSolv(
       d_wt,
       d_context_current,
       hier::IntVector(d_dim, 0));
+  t_advance_hier = tbox::TimerManager::getManager()->
+      getTimer("AdvanceHierTimeCost");
 }
 
 
+  void WaveSolv::evolve_patch(
+   double* phi_p,
+   double* pi_p,
+   double* phi_c,
+   double* pi_c,
+   const int phigi,
+   const int phigj,
+   const int phigk,
+   const int pigi,
+   const int pigj,
+   const int pigk,
+   const int ifirst,
+   const int ilast,
+   const int jfirst,
+   const int jlast,
+   const int kfirst,
+   const int klast,
+   const double dx[],
+   const double dt)
+  {
+    int i, j, k, idx_phi, idx_pi;
+    double dxi, dyi, dzi, dxi2, dyi2, dzi2, lap;
+    dxi = 1.0/dx[0];
+    dyi = 1.0/dx[1];
+    dzi = 1.0/dx[2];
+    dxi2 = dxi*dxi;
+    dyi2 = dyi*dyi;
+    dzi2 = dzi*dzi;
+
+    int phinx = ilast - ifirst + 1 + 2 * phigi; 
+    int phiny = jlast - jfirst + 1 + 2 * phigj;
+    int phinz = klast - kfirst + 1 + 2 * phigk; 
+
+    int pinx = ilast - ifirst + 1 + 2 * pigi; 
+    int piny = jlast - jfirst + 1 + 2 * pigj;
+    int pinz = klast - kfirst + 1 + 2 * pigk; 
+    
+    for(i = ifirst; i <= ilast; i++ )
+      for(j = jfirst; j<= jlast; j++)
+        for(k = kfirst; k<=klast; k++)
+        {
+          idx_phi = INDEX(i-ifirst+phigi, j - jfirst + phigj, k-kfirst+phigk, phinx,phiny,phinz);
+          idx_pi = INDEX(i-ifirst+pigi, j - jfirst + pigj, k-kfirst+pigk, pinx,piny,pinz);
+          lap =
+            dxi2*(phi_p[INDEX(i-ifirst+phigi+1, j - jfirst + phigj, k-kfirst+phigk, phinx,phiny,phinz)]+
+                  phi_p[INDEX(i-ifirst+phigi-1, j - jfirst + phigj, k-kfirst+phigk, phinx,phiny,phinz)] -
+                  2.0 * phi_p[idx_phi])
+            +
+            dyi2*(phi_p[INDEX(i-ifirst+phigi, j - jfirst + phigj+1, k-kfirst+phigk, phinx,phiny,phinz)]+
+                  phi_p[INDEX(i-ifirst+phigi, j - jfirst + phigj-1, k-kfirst+phigk, phinx,phiny,phinz)] -
+                  2.0 * phi_p[idx_phi])
+            +
+            dzi2*(phi_p[INDEX(i-ifirst+phigi, j - jfirst + phigj, k-kfirst+phigk+1, phinx,phiny,phinz)]+
+                  phi_p[INDEX(i-ifirst+phigi, j - jfirst + phigj, k-kfirst+phigk-1, phinx,phiny,phinz)] -
+                  2.0 * phi_p[idx_phi]);
+
+            
+          phi_c[idx_phi] = phi_p[idx_phi] + pi_p[idx_pi] * dt;
+          pi_c[idx_pi] = pi_p[idx_pi] +  lap* dt;
+        }
+    return;
+  }
+
+
 double WaveSolv::_laplacian(
-  boost::shared_ptr<pdat::CellData<double>>& var,
+  MDA_Access<double, 3, MDA_OrderColMajor<3> > &var,
     int i, int j, int k, const double dx[])
 {
-  MDA_Access<double, 3, MDA_OrderColMajor<3> > va =
-    pdat::ArrayDataAccess::access<3, double>(var->getArrayData());
+  /* MDA_Access<double, 3, MDA_OrderColMajor<3> > va = */
+  /*   pdat::ArrayDataAccess::access<3, double>(var->getArrayData()); */
 
-  return (va(i+1,j,k) + va(i-1,j,k) - 2.0 * va(i,j,k)) / dx[0] / dx[0]
-    + (va(i,j+1,k) + va(i,j-1,k) - 2.0 * va(i,j,k)) / dx[1] / dx[1]
-    + (va(i,j,k+1) + va(i,j,k-1) - 2.0 * va(i,j,k)) / dx[2] / dx[2];
+  return (var(i+1,j,k) + var(i-1,j,k) - 2.0 * var(i,j,k)) / dx[0] / dx[0]
+    + (var(i,j+1,k) + var(i,j-1,k) - 2.0 * var(i,j,k)) / dx[1] / dx[1]
+    + (var(i,j,k+1) + var(i,j,k-1) - 2.0 * var(i,j,k)) / dx[2] / dx[2];
 }
 
 double WaveSolv::_der_norm(
@@ -165,7 +259,7 @@ double WaveSolv::_maxError(
    TBOX_ASSERT(grid_geometry_);
    geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
 
-    
+
     for( hier::PatchLevel::iterator pit(level->begin());
          pit != level->end(); ++pit)
     {
@@ -241,6 +335,12 @@ double WaveSolv::_maxError(
        }
 
     }
+    level->getBoxLevel()->getMPI().Barrier();
+  }
+
+  const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
+  if (mpi.getSize() > 1) {
+    mpi.AllReduce(&max_err, 1, MPI_MAX);
   }
   return max_err;
 }
@@ -497,7 +597,7 @@ void WaveSolv::initializeLevelData(
       boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
 
 
-      
+
       if (ln > 0) {
          /*
           * Include coarser levels in setting data
@@ -534,10 +634,10 @@ void WaveSolv::initializeLevelData(
       } else {
         //hcellmath.setToScalar(d_phi_current, 0.0, false);
         //hcellmath.setToScalar(d_pi_current, 0.0, false);
-        tbox::pout<<"Can not get refine schedul, check your code!\n";
+        std::cout<<"Can not get refine schedul, check your code!\n";
         throw(-1);
       }
-
+      
       if (0) {
          // begin debug code
          math::HierarchyCellDataOpsReal<double> hcellmath_debug(hierarchy);
@@ -548,6 +648,7 @@ void WaveSolv::initializeLevelData(
 
    /* Set vector weight. */
    computeVectorWeights(hierarchy);
+
 }
 
 void WaveSolv::resetHierarchyConfiguration(
@@ -665,6 +766,7 @@ void WaveSolv::applyGradientDetector(
       }
 
    }
+
    tbox::plog << "Adaption threshold is " << d_adaption_threshold << "\n";
    tbox::plog << "Number of cells tagged on level " << ln << " is "
               << ntag << "/" << ntotal << "\n";
@@ -686,7 +788,7 @@ void WaveSolv::advanceLevel(
     hierarchy->getPatchLevel(ln));
 
 
-  
+      level->getBoxLevel()->getMPI().Barrier();
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
@@ -737,25 +839,58 @@ void WaveSolv::advanceLevel(
     const int * lower = &box.lower()[0];
     const int * upper = &box.upper()[0];
 
-    for(int k = lower[2]; k <= upper[2]; k++)
-    {
-      for(int j = lower[1]; j <= upper[1]; j++)
-      {
-        for(int i = lower[0]; i <= upper[0]; i++)
-        {
+    //     for(int k = lower[2]; k <= upper[2]; k++)
+    // {
+    //   for(int j = lower[1]; j <= upper[1]; j++)
+    //   {
+    //     for(int i = lower[0]; i <= upper[0]; i++)
+    //     {
 
-          phi_current_array(i,j,k) =
-            phi_previous_array(i,j,k) + pi_previous_array(i,j,k) * dt;
+    //       phi_current_array(i,j,k) =
+    //         phi_previous_array(i,j,k) + pi_previous_array(i,j,k) * dt;
           
-          pi_current_array(i,j,k) =
-            pi_previous_array(i,j,k) +
-            _laplacian(phi_previous, i,j,k, &patch_geom->getDx()[0]) * dt;
-        }
-      }
-    }
+    //       pi_current_array(i,j,k) =
+    //         pi_previous_array(i,j,k) +
+    //         _laplacian(phi_previous_array, i,j,k, &patch_geom->getDx()[0]) * dt;
+    //     }
+    //   }
+    //   }
 
+     SAMRAI_F77_FUNC(evolvepatch, EVOLEPATCH) (
+                                              phi_previous->getPointer(),
+                                              pi_previous->getPointer(),
+                                              phi_current->getPointer(),
+                                              pi_current->getPointer(),
+                                              &phi_previous->getGhostCellWidth()[0],
+                                              &phi_previous->getGhostCellWidth()[1],
+                                              &phi_previous->getGhostCellWidth()[2],
+                                              &pi_previous->getGhostCellWidth()[0],
+                                              &pi_previous->getGhostCellWidth()[1],
+                                              &pi_previous->getGhostCellWidth()[2],
+                                              &lower[0], &upper[0],
+                                              &lower[1], &upper[1],
+                                              &lower[2], &upper[2],
+                                              &patch_geom->getDx()[0],
+                                              &dt);
+    /*    evolve_patch(phi_previous->getPointer(),
+                 pi_previous->getPointer(),
+                 phi_current->getPointer(),
+                 pi_current->getPointer(),
+                 phi_previous->getGhostCellWidth()[0],
+                 phi_previous->getGhostCellWidth()[1],
+                 phi_previous->getGhostCellWidth()[2],
+                 pi_previous->getGhostCellWidth()[0],
+                 pi_previous->getGhostCellWidth()[1],
+                 pi_previous->getGhostCellWidth()[2],
+                 lower[0], upper[0],
+                 lower[1], upper[1],
+                 lower[2], upper[2],
+                 &patch_geom->getDx()[0],
+                 dt);*/
+
+    
   }
-
+  
   xfer::RefineAlgorithm refiner;
   boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
     BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
@@ -772,7 +907,7 @@ void WaveSolv::advanceLevel(
   boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
 
   
-  
+
   if(ln ==0)
   {
     refiner.registerRefine(d_phi_current,
@@ -785,7 +920,7 @@ void WaveSolv::advanceLevel(
                            space_refine_op);
 
     refine_schedule = refiner.createSchedule(level, NULL);
-
+    level->getBoxLevel()->getMPI().Barrier();
     refine_schedule->fillData(to_t);
   }
   else
@@ -805,15 +940,15 @@ void WaveSolv::advanceLevel(
                            space_refine_op,
                            time_refine_op);
 
-    refine_schedule = refiner.createSchedule(level, level, ln-1, hierarchy, NULL, true);
-    
+    refine_schedule = refiner.createSchedule(level, level, ln-1, hierarchy, NULL, true, NULL);
+    level->getBoxLevel()->getMPI().Barrier();
     refine_schedule->fillData(to_t);
   }
 
   advanceLevel(hierarchy, ln+1, from_t, from_t + (to_t - from_t)/2.0);
 
   advanceLevel(hierarchy, ln+1, from_t + (to_t - from_t)/2.0, to_t);
-
+    level->getBoxLevel()->getMPI().Barrier();
   if(ln < hierarchy->getNumberOfLevels() -1 )
   {
     xfer::CoarsenAlgorithm coarsener(d_dim);
@@ -827,15 +962,16 @@ void WaveSolv::advanceLevel(
 
     coarsener.registerCoarsen(d_phi_current,
                               d_phi_current,
-                              space_coarsen_op
-                             );
+                              space_coarsen_op,
+                              NULL);
   
     coarsener.registerCoarsen(d_pi_current,
                               d_pi_current,
-                              space_coarsen_op
-                              );
+                              space_coarsen_op,
+                              NULL);
   
     coarsen_schedule = coarsener.createSchedule(level, hierarchy->getPatchLevel(ln+1));
+    level->getBoxLevel()->getMPI().Barrier();
     coarsen_schedule->coarsenData();
 
     /*    xfer::RefineAlgorithm refiner_after;
@@ -849,7 +985,7 @@ void WaveSolv::advanceLevel(
                            space_refine_op);
 
     refine_schedule = refiner_after.createSchedule(level, NULL);
-
+    level->getBoxLevel()->getMPI().Barrier();
     refine_schedule->fillData(to_t);*/
 
   }
@@ -865,25 +1001,20 @@ void WaveSolv::advanceLevel(
     pcellmath.swapData(patch, d_phi_current, d_phi_previous);
     pcellmath.swapData(patch, d_pi_current, d_pi_previous);
   }
-  
+      level->getBoxLevel()->getMPI().Barrier();
 }
 
 void WaveSolv::advanceHierarchy(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   double from_t, double to_t)
 {
-  //  t_advance_hier->start();
-  if(d_barrier_and_time)
-    t_advance_hier->barrierAndStart();
+  t_advance_hier->start();
 
   advanceLevel(hierarchy,
                0,
                from_t,
                to_t);
-  if (d_barrier_and_time)
-  {
-    t_advance_hier->stop();
-  }
+  t_advance_hier->stop();
 
 }
 
@@ -929,36 +1060,5 @@ bool WaveSolv::packDerivedDataIntoDoubleBuffer(
    NULL_USE(depth_id);
    NULL_USE(simulation_time);
 
-   // begin debug code
-   // math::HierarchyCellDataOpsReal<double> hcellmath(d_hierarchy);
-   // hcellmath.printData( d_exact_persistent, pout, false );
-   // end debug code
-   /*
-   if (variable_name == "Gradient Function") {
-      boost::shared_ptr<pdat::CellData<double> > soln_cell_data_(
-         BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
-            patch.getPatchData(d_scalar_persistent)));
-      TBOX_ASSERT(soln_cell_data_);
-      const pdat::CellData<double>& soln_cell_data = *soln_cell_data_;
-      pdat::CellData<double> estimate_data(region,
-                                           1,
-                                           hier::IntVector(d_dim, 0));
-      computeAdaptionEstimate(estimate_data,
-         soln_cell_data);
-      // tbox::plog << "estimate data: " << patch.getBox().size() << "\n";
-      // estimate_data.print(region,0,tbox::plog);
-      memcpy(buffer, estimate_data.getPointer(), sizeof(double) * region.size());
-   } else if (variable_name == "Patch level number") {
-      double pln = patch.getPatchLevelNumber();
-      for (size_t i = 0; i < region.size(); ++i) buffer[i] = pln;
-   } else {
-      // Did not register this name.
-      TBOX_ERROR(
-         "Unregistered variable name '" << variable_name << "' in\n"
-                                        << "AdaptivePoisson::packDerivedPatchDataIntoDoubleBuffer");
-   }*/
-
-   // Return TRUE if this patch has derived data on it.
-   // FALSE otherwise.
    return true;
 }
