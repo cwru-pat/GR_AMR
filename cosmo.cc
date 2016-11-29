@@ -1,11 +1,5 @@
-#include "SAMRAI/SAMRAI_config.h"
+#include "cosmo_includes.h"
 
-#include IOMANIP_HEADER_FILE
-#include <fstream>
-// using namespace std;
-
-#include "WaveSolv.h"
-#include "SAMRAI/source/test/testlib/get-input-filename.h"
 
 /*
  * Headers for basic SAMRAI objects used in this code.
@@ -39,12 +33,7 @@
 #include "SAMRAI/mesh/GriddingAlgorithm.h"
 #include "SAMRAI/mesh/TreeLoadBalancer.h"
 #include "SAMRAI/mesh/StandardTagAndInitialize.h"
-#include "SAMRAI/solv/FACPreconditioner.h"
 
-#include "boost/shared_ptr.hpp"
-
-#include <vector>
-#include <string>
 
 using namespace SAMRAI;
 using namespace cosmo;

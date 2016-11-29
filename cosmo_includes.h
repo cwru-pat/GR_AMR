@@ -11,12 +11,24 @@
 #include <cmath>
 #include <iostream>
 #include <iomanip>
-#include <map>
 #include <fstream>
 #include <algorithm>
 #include <string>
 #include <sstream>
 #include <random>
 #include <vector>
+
+/*basic SAMRAI and boost library*/
+#include "SAMRAI/SAMRAI_config.h"
+#include "SAMRAI/pdat/MDA_Access.h"
+#include "SAMRAI/pdat/ArrayDataAccess.h"
+#include "SAMRAI/tbox/SAMRAI_MPI.h"
+#include "SAMRAI/tbox/PIO.h"
+#include "SAMRAI/tbox/Utilities.h"
+#include "SAMRAI/tbox/TimerManager.h"
+#include "SAMRAI/tbox/SAMRAIManager.h"
+
+#include "boost/shared_ptr.hpp"
+
 
 #endif

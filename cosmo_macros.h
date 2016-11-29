@@ -7,22 +7,6 @@
 /* time using, eg, the -D option for gcc.       */
 /************************************************/
 
-// simulation size
-// Code runs much slower with global N (slow indexing?)
-#ifndef N
-  #define N 16
-#endif
-#ifndef NX
-  #define NX N
-#endif
-#ifndef NY
-  #define NY N
-#endif
-#ifndef NZ
-  #define NZ N
-#endif
-#define POINTS ((NX)*(NY)*(NZ))
-
 // physical box size (eg., in hubble units)
 // eg; L = H_LEN_FRAC = N*dx
 #ifndef H_LEN_FRAC
@@ -36,7 +20,11 @@
 
 // Stencil order
 #ifndef STENCIL_ORDER
-  #define STENCIL_ORDER 8
+  #define STENCIL_ORDER 4
+#endif
+
+#ifndef REFINEMENT_ORDER
+  #define REFINEMENT_ORDER 1
 #endif
 
 // evolve shift as well? (if not, assumed to be zero)
@@ -111,108 +99,65 @@
 #define C_IM(c) ((c)[1])
 #define ROUND_2_IDXT(f) ((idx_t)(f >= 0.0 ? (f + 0.5) : (f - 0.5)))
 
-#define RESTRICT __restrict__
-
-// standard index, implementing periodic boundary conditions
-#define INDEX(i,j,k) ( ((i+NX)%(NX))*(NY)*(NZ) + ((j+NY)%(NY))*(NZ) + (k+NZ)%(NZ) )
-// indexing without periodicity
-#define NP_INDEX(i,j,k) ((NZ)*(NY)*(i) + (NZ)*(j) + (k))
-// indexing of flux arrays; indexes cell boundaries with 'd' = 1,2,3, using periodic BCs
-#define F_INDEX(i,j,k,d) ( ((i+NX)%(NX))*(NY)*(NZ)*3 + ((j+NY)%(NY))*(NZ)*3 + (k+NZ)%(NZ)*3 + (d+2)%3 )
-// non-periodic indexing of flux arrays; indexes cell boundaries with 'd' = 1,2,3
-#define F_NP_INDEX(i,j,k,d) ( (NZ)*(NY)*(i)*3 + (NZ)*(j)*3 + (k)*3 + (d+2)%3 )
 
 // index with designated grid number
 #define H_INDEX(i,j,k,nx,ny,nz) (((i+nx)%(nx))*(ny)*(nz) + ((j+ny)%(ny))*(nz) + (k+(nz))%(nz))
 
-// map spatial (i,j) to array index
-#define aIDX(i,j) ( i <= j  ? (7-i)*i/2 - 4 + j : (7-j)*j/2 - 4 + i )
-// map spatial (i) to array index
-#define iIDX(i) ( i - 1 )
 
-
-#define LOOP3(i,j,k) \
-  for(i=0; i<NX; ++i) \
-    for(j=0; j<NY; ++j) \
-      for(k=0; k<NZ; ++k)
-
-#define AREA_LOOP(j,k) \
-  for(j=0; j<NY; ++j) \
-    for(k=0; k<NZ; ++k)
-
-#define DECLARE_REAL_T(name) real_t name
-
-// structure to store 27 immediately adjacent points
-#define DECLARE_ADJACENT_REAL_T(name) real_t name##_adj[3][3][3]
-// structure to store "faces" 2 points away (6 of them; _ext[dimension (x,y,z)][direction (-,+)])
-#define DECLARE_ADJ_ADJACENT_REAL_T(name) real_t name##_adj_ext[3][2]
 
 
 // RK4 method, using 4 "registers".  One for the "_p"revious step data, one
 // for the data being "_a"ctively used for calculation, one for the
 // Runge-Kutta "_c"oefficient being calculated, and lastly the "_f"inal
 // result of the calculation.
-#define RK4_ARRAY_ADDMAP(name) \
-        fields[#name "_a"] = & name->_array_a; \
-        fields[#name "_c"] = & name->_array_c; \
-        fields[#name "_p"] = & name->_array_p; \
-        fields[#name "_f"] = & name->_array_f
 
 #define VAR_CREATE(field)  \                                  
-        boost::shared_ptr<pdat::CellVariable<double>> field
-
+        boost::shared_ptr<pdat::CellVariable<real_t>> field
+        
+#define VAR_INIT(field)  \
+        field = boost::shared_ptr<pdat::CellData<real_t>> (  \
+          new pdat::CellVariable<real_t>(dim, "field",hier::IntVector::getOne(dim), 1))
+        
 
 #define RK4_PDATA_CREATE(field)  \                                  
-        boost::shared_ptr<pdat::CellData<double>> field##_a_pdata;  \
-        boost::shared_ptr<pdat::CellData<double>> field##_p_pdata;  \
-        boost::shared_ptr<pdat::CellData<double>> field##_c_pdata;  \
-        boost::shared_ptr<pdat::CellData<double>> field##_f_pdata
+        boost::shared_ptr<pdat::CellData<real_t>> field##_a_pdata;  \
+        boost::shared_ptr<pdat::CellData<real_t>> field##_p_pdata;  \
+        boost::shared_ptr<pdat::CellData<real_t>> field##_c_pdata;  \
+        boost::shared_ptr<pdat::CellData<real_t>> field##_f_pdata
 
 #define RK4_MDA_ACCESS_CREATE(field)                          \
-  MDA_Access<double, DIM, MDA_OrderColMajor<DIM>> field##_a;  \
-  MDA_Access<double, DIM, MDA_OrderColMajor<DIM>> field##_p;  \
-  MDA_Access<double, DIM, MDA_OrderColMajor<DIM>> field##_c;    \
-  MDA_Access<double, DIM, MDA_OrderColMajor<DIM>> field##_f
+  arr_t field##_a;  \
+  arr_t field##_p;  \
+  arr_t field##_c;  \
+  arr_t field##_f
 
-#define RK4_MDA_ACCESS_CREATE(field)  \                                  
-        boost::shared_ptr<pdat::CellData<double>> field##_pdata
         
 #define RK4_IDX_CREATE(name) \
-        int name##_a_idx, name##_c_idx, name##_p_idx, name##_s_idx
+        idx_t name##_a_idx, name##_c_idx, name##_p_idx, name##_s_idx
 
 
-#define RK4_ARRAY_ALLOC(name) \
-        name = new register_t(); \
-        name->init(NX, NY, NZ, dt)
+#define RK4_ARRAY_ALLOC(field) \
+        level->allocatePatchData(bssnSim->field##_a_idx);  \
+        level->allocatePatchData(bssnSim->field##_p_idx);  \
+        level->allocatePatchData(bssnSim->field##_f_idx);  \
+        level->allocatePatchData(bssnSim->field##_c_idx)
 
-#define RK4_ARRAY_DELETE(name) \
-        name->~RK4Register()
 
 #define RK4_SET_LOCAL_VALUES(name) \
         bd->name = name##_a(bd->i, bd->j, bd->k);
 
-// A GEN1 method; just declares one register.
-// Sets up an "_a" (active) register.
-#define GEN1_ARRAY_ADDMAP(name)         \
-        fields[#name "_a"] = &name##_a
 
 #define GEN1_IDX_CREATE(name) \
-        int name##_a_idx
+        idx_t name##_a_idx
 
 #define GEN1_PDATA_CREATE(field)  \                                  
-        boost::shared_ptr<pdat::CellData<double>> field##_a_pdata;  \
+        boost::shared_ptr<pdat::CellData<real_t>> field##_a_pdata;  \
 
 #define GEN1_MDA_ACCESS_CREATE(field)                          \
-  MDA_Access<double, DIM, MDA_OrderColMajor<DIM>> field##_a;   \
+  arr_t field##_a;   \
 
 
         
-#define GEN1_ARRAY_ALLOC(name) \
-        name##_a.init(NX, NY, NZ)
-
-#define GEN1_ARRAY_DELETE(name) \
-        name##_a.~CosmoArray()
-
 #define GEN1_SET_LOCAL_VALUES(name) \
         bd->name = name##_a(bd->i, bd->j, bd->k);
 

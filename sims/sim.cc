@@ -15,29 +15,39 @@
 
 using namespace SAMRAI;
 
+boost::shared_ptr<tbox::Timer> CosmoSim::t_loop;
+
+boost::shared_ptr<tbox::Timer> VacuumSim::t_init;
+boost::shared_ptr<tbox::Timer> VacuumSim::t_RK_steps;
+
 namespace cosmo
 {
 
-CosmoSim::CosmoSim()
+CosmoSim::CosmoSim(
+  const tbox::Dimension& dim_in,
+  boost::shared_ptr<tbox::InputDatabase>& input_db_in,
+  std::ostream* l_stream_in = 0,
+  std::string simulation_type_in):
+  input_db(input_db_in),
+  cosmo_sim_db((input_db->getDatabase("CosmoSim")),
+  variable_db(hier::VariableDatabase::getDatabase()),
+  lstream(l_stream_in),
+  dim(dim_in),
+  step(0),
+  num_steps(cosmo_sim_db->getInteger("steps")),
+  simulation_type(simulation_type_in)
 {
-  // Initialize iodata first
-  iodata = new IOData(_config["output_dir"]);
-  // save a copy of config.txt; print defines
-  log_defines(iodata);
-  iodata->backupFile(_config.getFileName());
-
-  // fix number of simulation steps
-  step = 0;
-  num_steps = stoi(_config["steps"]);
-
-
-  // Store simulation type
-  simulation_type = _config["simulation_type"];
+  t_loop = tbox::TimerManager::getManager()->
+    getTimer("loop");
+  t_init = tbox::TimerManager::getManager()->
+    getTimer("init");
+  t_RK_steps = tbox::TimerManager::getManager()->
+    getTimer("RK_steps");
 }
 
 CosmoSim::~CosmoSim()
 {
-  std::cout << std::flush;
+
 }
 
 /**
@@ -46,7 +56,7 @@ CosmoSim::~CosmoSim()
 void CosmoSim::simInit()
 {
   // Always use GR fields
-  bssnSim = new BSSN();
+  bssnSim = new BSSN(dim,input_db->getDatabase("BSSN"), lstream);
 }
 
 /**
@@ -56,18 +66,17 @@ void CosmoSim::run()
 {
   iodata->log("Running simulation...");
 
-  _timer["loop"].start();
+
+  t_loop->start();
   while(step <= num_steps)
   {
     runStep();
     step++;
   }
-  _timer["loop"].stop();
+  t_loop->stop();
 
-  iodata->log("\nEnding simulation.");
+  tbox::pout<<"\nEnding simulation.";
   outputStateInformation();
-  iodata->log(_timer.getStateString());
-  std::cout << std::flush;
 }
 
 void CosmoSim::runCommonStepTasks()
@@ -98,7 +107,7 @@ void CosmoSim::outputStateInformation()
 int CosmoSim::simNumNaNs() 
 {
   // check for NAN in a field
-  return numNaNs(*bssnSim->fields["DIFFphi_a"]);
+  return numNaNs(*bssnSim->chi_p);
 }
 
 

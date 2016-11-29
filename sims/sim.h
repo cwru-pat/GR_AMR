@@ -53,8 +53,10 @@ public:
 
   idx_t simNumNaNs();
 
-  boost::shared_ptr<tbox::InputDatabase> d_input_db;
-  boost::shared_ptr<tbox::Database> d_cosmo_sim_db;
+  boost::shared_ptr<tbox::InputDatabase> input_db;
+  boost::shared_ptr<tbox::Database> cosmo_sim_db;
+  hier::VariableDatabase* variable_db;
+  static boost::shared_ptr<tbox::Timer> t_advance_hier;
 };
 
 } /* namespace cosmo */
