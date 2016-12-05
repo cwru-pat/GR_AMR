@@ -151,40 +151,13 @@ int main(int argc, char* argv[])
       input_db->getDatabase("PatchHierarchy")));
  
  
-  boost::shared_ptr<mesh::StandardTagAndInitialize> tag_and_initializer(
-    new mesh::StandardTagAndInitialize(
-      "CellTaggingMethod",
-      &solver,
-      input_db->getDatabase("StandardTagAndInitialize")));
-  boost::shared_ptr<mesh::BergerRigoutsos> box_generator(
-    new mesh::BergerRigoutsos(
-      dim,
-      (input_db->isDatabase("BergerRigoutsos") ?
-       input_db->getDatabase("BergerRigoutsos") :
-       boost::shared_ptr<tbox::Database>())));
-  boost::shared_ptr<mesh::TreeLoadBalancer> load_balancer(
-    new mesh::TreeLoadBalancer(
-      dim,
-      "load balancer",
-      input_db->getDatabase("TreeLoadBalancer")));
-
-
-  load_balancer->setSAMRAI_MPI(tbox::SAMRAI_MPI::getSAMRAIWorld());
-
-
-
-  boost::shared_ptr<mesh::GriddingAlgorithm> gridding_algorithm(
-    new mesh::GriddingAlgorithm(
-      patch_hierarchy,
-      "Gridding Algorithm",
-      input_db->getDatabase("GriddingAlgorithm"),
-      tag_and_initializer,
-      box_generator,
-      load_balancer));
 
   tbox::plog << "Gridding algorithm:" << std::endl;
   gridding_algorithm->printClassData(tbox::plog);
+  
 
+  std::string vis_filename =
+    main_db->getStringWithDefault("vis_filename", base_name);
 
 
   CosmoSim * cosmoSim;
@@ -196,7 +169,8 @@ int main(int argc, char* argv[])
   }
   else if(simulation == "vacuum")
   {
-    cosmoSim = new VacuumSim();
+    cosmoSim = new VacuumSim(
+      dim, input_db, plog, simulation, vis_filename);
   }
   else
   {
@@ -207,7 +181,7 @@ int main(int argc, char* argv[])
   boost::shared_ptr<mesh::StandardTagAndInitialize> tag_and_initializer(
     new mesh::StandardTagAndInitialize(
       "CellTaggingMethod",
-      &solver,
+      &cosmoSim,
       input_db->getDatabase("StandardTagAndInitialize")));
   boost::shared_ptr<mesh::BergerRigoutsos> box_generator(
     new mesh::BergerRigoutsos(
@@ -237,31 +211,29 @@ int main(int argc, char* argv[])
       load_balancer));
 
   tbox::plog << "Gridding algorithm:" << std::endl;
-  gridding_algorithm->printClassData(tbox::plog);
-  /*
-   * Make the coarse patch level.
-   */
-
-  gridding_algorithm->makeCoarsestLevel(0.0);
-
-  int ln;
-
-  std::string vis_filename =
-    main_db->getStringWithDefault("vis_filename", base_name);
-  bool do_plot =
-    main_db->getBoolWithDefault("do_plot", false);
 
   
-  double dt = grid_geometry->getDx()[0] / 10.0, cur_t = 0.0, fin_t;
 
-  int step_cnt = 0;
+
+
+
+
+
   
-  fin_t = main_db->getDouble("final_time");
 
+  //deliver the gridding algorithm
+  cosmoSim->setGriddingAlgs(gridding_algorithm);
+  
+  // Initialize simulation 
+  cosmoSim->init();
 
-  int adaption_number = 0;
+  // Generate initial conditions
+  cosmoSim->setICs();
 
+  // Run simulation
+  cosmoSim->run(patch_hierarchy);
 
+  
   
   tbox::TimerManager::getManager()->print(tbox::plog);
   

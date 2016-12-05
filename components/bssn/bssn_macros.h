@@ -127,19 +127,19 @@
 
 
 #define BSSN_APPLY_TO_GEN1_EXTRAS(function) \
-  function(KDx);                            \
-  function(KDy);                            \
-  function(KDz);                            \
   function(ricci);                          \
   function(AijAij);                         \
-  function(K0);
+  function(Z1);                             \
+  function(Z2);                             \
+  function(Z3);                             
 
 #define BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(function, ...)    \
-  function(KDx, __VA_ARGS__);                            \
-  function(KDy, __VA_ARGS__);                            \
-  function(KDz, __VA_ARGS__);                            \
   function(ricci, __VA_ARGS__);                          \
-  function(AijAij, __VA_ARGS__);                         
+  function(AijAij, __VA_ARGS__);                         \
+  function(Zd1, __VA_ARGS__);                             \
+  function(Zd2, __VA_ARGS__);                             \
+  function(Zd3, __VA_ARGS__);                             
+
 
 
 #define BSSN_APPLY_TO_IJ_PERMS(function) \
@@ -234,7 +234,7 @@
 
 // Initialize all fields
 #define BSSN_RK_INITIALIZE_FIELD(field) \
-  field->stepInit();
+  field##_a
 
 #define BSSN_RK_INITIALIZE \
   BSSN_APPLY_TO_FIELDS(BSSN_RK_INITIALIZE_FIELD)
@@ -242,7 +242,7 @@
 
 // Evolve all fields
 #define BSSN_RK_EVOLVE_PT_FIELD(field) \
-    field_c(i,j,k) = ev_##field(bd);
+  field_c(i,j,k) = ev_##field(bd, dx);
 
 #define BSSN_RK_EVOLVE_PT \
   BSSN_APPLY_TO_FIELDS(BSSN_RK_EVOLVE_PT_FIELD)
@@ -361,8 +361,15 @@
 #define BSSN_SET_DT(dt) \
   BSSN_APPLY_TO_FIELDS_ARGS(BSSN_SET_DT_FIELD, dt)
 
-#define BSSN_SWAP(field, pcellmath)  \
-  pcellmath##.swapData(patch, field##_p_idx, field##_f_idx)  \ 
+#define BSSN_SWAP_PF(field)  \
+  hcellmath.swapData(field##_p_idx, field##_f_idx)  
+
+#define BSSN_COPY_P_TO_A(field)  \
+  hcellmath.copyData(field##_a_idx, field##_p_idx, 0)
+
+#define BSSN_SET_F_ZERO(field)                                           \
+  hcellmath.setToScalar(field##_f_idx, 0, false)
+
 
 /*
  * Aux. variable calculations
@@ -378,7 +385,7 @@
     bd->d##J##g##K##I + bd->d##K##g##J##I - bd->d##I##g##J##K \
   )
 
-#define BSSN_CALCULATE_DGAMMA(I, J, K) bd->d##I##g##J##K = derivative(bd->i, bd->j, bd->k, I, DIFFgamma##J##K->_array_a, &(patch_geom->getDx())[0]);
+#define BSSN_CALCULATE_DGAMMA(I, J, K) bd->d##I##g##J##K = derivative(bd->i, bd->j, bd->k, I, DIFFgamma##J##K->_array_a, dx);
 
 #define BSSN_CALCULATE_ACONT(I, J) bd->Acont##I##J = ( \
     bd->gammai##I##1*bd->gammai##J##1*bd->A11 + bd->gammai##I##2*bd->gammai##J##1*bd->A21 + bd->gammai##I##3*bd->gammai##J##1*bd->A31 \
@@ -388,7 +395,7 @@
 
 // needs the gamma*ldlphi vars defined:
 // not actually trace free yet!
-#define BSSN_CALCULATE_DIDJALPHA(I, J) bd->D##I##D##J##aTF = double_derivative(bd->i, bd->j, bd->k, I, J, DIFFalpha->_array_a, &(patch_geom->getDx())[0]) - ( \
+#define BSSN_CALCULATE_DIDJALPHA(I, J) bd->D##I##D##J##aTF = double_derivative(bd->i, bd->j, bd->k, I, J, DIFFalpha->_array_a, dx) - ( \
     (bd->G1##I##J + 2.0*( (1==I)*bd->d##J##phi + (1==J)*bd->d##I##phi - bd->gamma##I##J*gammai1ldlphi))*bd->d1a + \
     (bd->G2##I##J + 2.0*( (2==I)*bd->d##J##phi + (2==J)*bd->d##I##phi - bd->gamma##I##J*gammai2ldlphi))*bd->d2a + \
     (bd->G3##I##J + 2.0*( (3==I)*bd->d##J##phi + (3==J)*bd->d##I##phi - bd->gamma##I##J*gammai3ldlphi))*bd->d3a \
@@ -399,7 +406,7 @@
   bd->gammai##K##L*bd->d##K##d##L##g##I##J
 
 #define BSSN_CALCULATE_RICCI_UNITARY_TERM2(K, I, J) \
-  bd->gamma##K##I*derivative(bd->i, bd->j, bd->k, J, Gamma##K##_a, &(patch_geom->getDx())[0])
+  bd->gamma##K##I*derivative(bd->i, bd->j, bd->k, J, Gamma##K##_a, dx)
 
 #define BSSN_CALCULATE_RICCI_UNITARY_TERM3(K, I, J) \
   bd->Gammad##K*bd->GL##I##J##K
@@ -431,12 +438,12 @@
   );
 
 #define BSSN_CALCULATE_DIDJGAMMA_PERMS(I, J)           \
-  bd->d##I##d##J##g11 = double_derivative(bd->i, bd->j, bd->k, I, J, DIFFgamma11##_a, &(patch_geom->getDx())[0]); \
-  bd->d##I##d##J##g12 = double_derivative(bd->i, bd->j, bd->k, I, J, DIFFgamma12##_a, &(patch_geom->getDx())[0]); \
-  bd->d##I##d##J##g13 = double_derivative(bd->i, bd->j, bd->k, I, J, DIFFgamma13##_a, &(patch_geom->getDx())[0]); \
-  bd->d##I##d##J##g22 = double_derivative(bd->i, bd->j, bd->k, I, J, DIFFgamma22##_a, &(patch_geom->getDx())[0]); \
-  bd->d##I##d##J##g23 = double_derivative(bd->i, bd->j, bd->k, I, J, DIFFgamma23##_a, &(patch_geom->getDx())[0]); \
-  bd->d##I##d##J##g33 = double_derivative(bd->i, bd->j, bd->k, I, J, DIFFgamma33##_a, &(patch_geom->getDx())[0])
+  bd->d##I##d##J##g11 = double_derivative(bd->i, bd->j, bd->k, I, J, DIFFgamma11##_a, dx); \
+  bd->d##I##d##J##g12 = double_derivative(bd->i, bd->j, bd->k, I, J, DIFFgamma12##_a, dx); \
+  bd->d##I##d##J##g13 = double_derivative(bd->i, bd->j, bd->k, I, J, DIFFgamma13##_a, dx); \
+  bd->d##I##d##J##g22 = double_derivative(bd->i, bd->j, bd->k, I, J, DIFFgamma22##_a, dx); \
+  bd->d##I##d##J##g23 = double_derivative(bd->i, bd->j, bd->k, I, J, DIFFgamma23##_a, dx); \
+  bd->d##I##d##J##g33 = double_derivative(bd->i, bd->j, bd->k, I, J, DIFFgamma33##_a, dx)
 
 
 /*
@@ -446,9 +453,9 @@
 #if USE_BSSN_SHIFT
 #define BSSN_DT_DIFFGAMMAIJ(I, J) ( \
     - 2.0*bd->alpha*bd->A##I##J \
-    + upwind_derivative(bd->i, bd->j, bd->k, 1, DIFFgamma##I##J##_a, &(patch_geom->getDx())[0], bd->beta1) \
-    + upwind_derivative(bd->i, bd->j, bd->k, 2, DIFFgamma##I##J##_a, &(patch_geom->getDx())[0], bd->beta2) \
-    + upwind_derivative(bd->i, bd->j, bd->k, 3, DIFFgamma##I##J##_a, &(patch_geom->getDx())[0], bd->beta3) \
+    + upwind_derivative(bd->i, bd->j, bd->k, 1, DIFFgamma##I##J##_a, dx, bd->beta1) \
+    + upwind_derivative(bd->i, bd->j, bd->k, 2, DIFFgamma##I##J##_a, dx, bd->beta2) \
+    + upwind_derivative(bd->i, bd->j, bd->k, 3, DIFFgamma##I##J##_a, dx, bd->beta3) \
     + bd->gamma##I##1*bd->d##J##beta1 + bd->gamma##I##2*bd->d##J##beta2 + bd->gamma##I##3*bd->d##J##beta3 \
     + bd->gamma##J##1*bd->d##I##beta1 + bd->gamma##J##2*bd->d##I##beta2 + bd->gamma##J##3*bd->d##I##beta3 \
     - (2.0/3.0)*bd->gamma##I##J*(bd->d1beta1 + bd->d2beta2 + bd->d3beta3) \
@@ -475,17 +482,18 @@
   )
 #else
 # define BSSN_DT_AIJ_SECOND_ORDER_KA(I, J) ( \
-    (bd->K + 2.0*bd->theta)*bd->A##I##J \
+    (bd->K - 2.0*bd->theta)*bd->A##I##J \
   )
 #endif
 
 #if USE_BSSN_SHIFT
 #define BSSN_DT_AIJ(I, J) ( \
-    exp(-4.0*bd->phi)*( bd->alpha*(bd->ricciTF##I##J - 8.0*PI*bd->STF##I##J) - bd->D##I##D##J##aTF ) \
+    pw2(bd->chi)*( bd->alpha*(bd->ricciTF##I##J - 8.0*PI*bd->STF##I##J          \
+    + bd->D##I##Z##J##TF + bd->D##J##Z##I##TF) - bd->D##I##D##J##aTF )          \
     + bd->alpha*(BSSN_DT_AIJ_SECOND_ORDER_KA(I,J) - 2.0*BSSN_DT_AIJ_SECOND_ORDER_AA(I,J)) \
-    + upwind_derivative(bd->i, bd->j, bd->k, 1, A##I##J##_a, &(patch_geom->getDx())[0], bd->beta1)     \
-    + upwind_derivative(bd->i, bd->j, bd->k, 2, A##I##J##_a, &(patch_geom->getDx())[0], bd->beta2)     \
-    + upwind_derivative(bd->i, bd->j, bd->k, 3, A##I##J##_a, &(patch_geom->getDx())[0], bd->beta3)     \
+    + upwind_derivative(bd->i, bd->j, bd->k, 1, A##I##J##_a, dx, bd->beta1)     \
+    + upwind_derivative(bd->i, bd->j, bd->k, 2, A##I##J##_a, dx, bd->beta2)     \
+    + upwind_derivative(bd->i, bd->j, bd->k, 3, A##I##J##_a, dx, bd->beta3)     \
     + bd->A##I##1*bd->d##J##beta1 + bd->A##I##2*bd->d##J##beta2 + bd->A##I##3*bd->d##J##beta3 \
     + bd->A##J##1*bd->d##I##beta1 + bd->A##J##2*bd->d##I##beta2 + bd->A##J##3*bd->d##I##beta3 \
     - (2.0/3.0)*bd->A##I##J*(bd->d1beta1 + bd->d2beta2 + bd->d3beta3) \
@@ -505,7 +513,7 @@
 #define BSSN_DT_GAMMAI_SECOND_ORDER(I) ( \
   bd->G##I##11*bd->Acont11 + bd->G##I##22*bd->Acont22 + bd->G##I##33*bd->Acont33 \
   + 2.0*(bd->G##I##12*bd->Acont12 + bd->G##I##13*bd->Acont13 + bd->G##I##23*bd->Acont23) \
-  + 6.0*(bd->Acont##I##1*bd->d1phi + bd->Acont##I##2*bd->d2phi + bd->Acont##I##3*bd->d3phi) \
+  - 3.0/bd->chi*(bd->Acont##I##1*bd->d1chi + bd->Acont##I##2*bd->d2chi + bd->Acont##I##3*bd->d3chi) \
 )
 #endif
 
@@ -515,32 +523,44 @@
         + BSSN_DT_GAMMAI_SECOND_ORDER(I) \
         - (1.0/3.0) * ( \
             2.0*(bd->gammai##I##1*bd->d1K + bd->gammai##I##2*bd->d2K + bd->gammai##I##3*bd->d3K) \
-            + 4.0*bd->gammai##I##1*bd->d1theta + 4.0*bd->gammai##I##2*bd->d2theta + 4.0*bd->gammai##I##3*bd->d3theta \
           ) \
-        - 1.0*bd->alpha*Z4c_K1_DAMPING_AMPLITUDE*( \
-            bd->Gamma##I - bd->Gammad##I \
+        - 1.0*Z4c_K1_DAMPING_AMPLITUDE*( \
+            (bd->gammai##I##1*bd->Z1 + bd->gammai##I##2*bd->Z2 + bd->gammai##I##3*bd->Z3) \
           ) \
-        - 8.0*PI*(bd->gammai##I##1*bd->S1 + bd->gammai##I##2*bd->S2 + bd->gammai##I##3*bd->S3) \
-      ) \
+        - 8.0*PI*(bd->gammai##I##1*bd->S1 + bd->gammai##I##2*bd->S2 + bd->gammai##I##3*bd->S3))  \
+    + 2.0 * bd->gammai##I##1 * (bd->alpha * bd->d1theta - bd->theta * bd->d1a - 2.0/3.0*bd->alpha * bd->K*bd->Z1)  \
+    + 2.0 * bd->gammai##I##2 * (bd->alpha * bd->d2theta - bd->theta * bd->d2a - 2.0/3.0*bd->alpha * bd->K*bd->Z2)  \
+    + 2.0 * bd->gammai##I##3 * (bd->alpha * bd->d3theta - bd->theta * bd->d3a - 2.0/3.0*bd->alpha * bd->K*bd->Z3)  \
     )
 
 #if USE_BSSN_SHIFT
 #define BSSN_DT_GAMMAI_SHIFT(I) ( \
-    + upwind_derivative(bd->i, bd->j, bd->k, 1, Gamma##I##_a, &(patch_geom->getDx())[0], bd->beta1) \
-    + upwind_derivative(bd->i, bd->j, bd->k, 2, Gamma##I##_a, &(patch_geom->getDx())[0], bd->beta2) \
-    + upwind_derivative(bd->i, bd->j, bd->k, 3, Gamma##I##_a, &(patch_geom->getDx())[0], bd->beta3) \
+    + upwind_derivative(bd->i, bd->j, bd->k, 1, Gamma##I##_a, dx, bd->beta1) \
+    + upwind_derivative(bd->i, bd->j, bd->k, 2, Gamma##I##_a, dx, bd->beta2) \
+    + upwind_derivative(bd->i, bd->j, bd->k, 3, Gamma##I##_a, dx, bd->beta3) \
     - bd->Gamma1*bd->d1beta##I - bd->Gamma2*bd->d2beta##I - bd->Gamma3*bd->d3beta##I \
     + (2.0/3.0) * bd->Gamma##I * (bd->d1beta1 + bd->d2beta2 + bd->d3beta3) \
     + (1.0/3.0) * ( \
-        bd->gammai##I##1*double_derivative(bd->i, bd->j, bd->k, 1, 1, beta1##_a, &(patch_geom->getDx())[0]) + bd->gammai##I##1*double_derivative(bd->i, bd->j, bd->k, 2, 1, beta2##_a, &(patch_geom->getDx())[0]) + bd->gammai##I##1*double_derivative(bd->i, bd->j, bd->k, 3, 1, beta3##_a, &(patch_geom->getDx())[0]) +  \
-        bd->gammai##I##2*double_derivative(bd->i, bd->j, bd->k, 1, 2, beta1##_a, &(patch_geom->getDx())[0]) + bd->gammai##I##2*double_derivative(bd->i, bd->j, bd->k, 2, 2, beta2##_a, &(patch_geom->getDx())[0]) + bd->gammai##I##2*double_derivative(bd->i, bd->j, bd->k, 3, 2, beta3##_a, &(patch_geom->getDx())[0]) +  \
-        bd->gammai##I##3*double_derivative(bd->i, bd->j, bd->k, 1, 3, beta1##_a, &(patch_geom->getDx())[0]) + bd->gammai##I##3*double_derivative(bd->i, bd->j, bd->k, 2, 3, beta2##_a, &(patch_geom->getDx())[0]) + bd->gammai##I##3*double_derivative(bd->i, bd->j, bd->k, 3, 3, beta3##_a, &(patch_geom->getDx())[0]) \
+        bd->gammai##I##1*double_derivative(bd->i, bd->j, bd->k, 1, 1, beta1##_a, dx) + bd->gammai##I##1*double_derivative(bd->i, bd->j, bd->k, 2, 1, beta2##_a, dx) + bd->gammai##I##1*double_derivative(bd->i, bd->j, bd->k, 3, 1, beta3##_a, dx) +  \
+        bd->gammai##I##2*double_derivative(bd->i, bd->j, bd->k, 1, 2, beta1##_a, dx) + bd->gammai##I##2*double_derivative(bd->i, bd->j, bd->k, 2, 2, beta2##_a, dx) + bd->gammai##I##2*double_derivative(bd->i, bd->j, bd->k, 3, 2, beta3##_a, dx) +  \
+        bd->gammai##I##3*double_derivative(bd->i, bd->j, bd->k, 1, 3, beta1##_a, dx) + bd->gammai##I##3*double_derivative(bd->i, bd->j, bd->k, 2, 3, beta2##_a, dx) + bd->gammai##I##3*double_derivative(bd->i, bd->j, bd->k, 3, 3, beta3##_a, dx) \
       ) \
     + ( \
-        bd->gammai11*double_derivative(bd->i, bd->j, bd->k, 1, 1, beta##I##_a, &(patch_geom->getDx())[0]) + bd->gammai22*double_derivative(bd->i, bd->j, bd->k, 2, 2, beta##I##_a, &(patch_geom->getDx())[0]) + bd->gammai33*double_derivative(bd->i, bd->j, bd->k, 3, 3, beta##I##_a, &(patch_geom->getDx())[0]) \
-        + 2.0*(bd->gammai12*double_derivative(bd->i, bd->j, bd->k, 1, 2, beta##I##_a, &(patch_geom->getDx())[0]) + bd->gammai13*double_derivative(bd->i, bd->j, bd->k, 1, 3, beta##I##_a, &(patch_geom->getDx())[0]) + bd->gammai23*double_derivative(bd->i, bd->j, bd->k, 2, 3, beta##I##_a, &(patch_geom->getDx())[0])) \
+        bd->gammai11*double_derivative(bd->i, bd->j, bd->k, 1, 1, beta##I##_a, dx) + bd->gammai22*double_derivative(bd->i, bd->j, bd->k, 2, 2, beta##I##_a, dx) + bd->gammai33*double_derivative(bd->i, bd->j, bd->k, 3, 3, beta##I##_a, dx) \
+        + 2.0*(bd->gammai12*double_derivative(bd->i, bd->j, bd->k, 1, 2, beta##I##_a, dx) + bd->gammai13*double_derivative(bd->i, bd->j, bd->k, 1, 3, beta##I##_a, dx) + bd->gammai23*double_derivative(bd->i, bd->j, bd->k, 2, 3, beta##I##_a, dx)) \
       ) \
-  )
+    + 2.0 * Z4c_K3_DAMPING_AMPLITUDE * (  \
+      2.0/3.0 * (bd->d1beta1 + bd->d2beta2 + bd->d3beta3) * \
+                 (bd->gammai##I##1 * bd->Z1  \
+                 +bd->gammai##I##2 * bd->Z2  \
+                 +bd->gammai##I##3 * bd->Z3  \
+      ) \
+      - bd->gammai11*bd->Z1*bd->d1beta##I - bd->gammai22*bd->Z2*bd->d2beta##I  \
+      - bd->gammai33*bd->Z3*bd->d3beta##I - bd->gammai12*bd->Z1*bd->d2beta##I  \
+      - bd->gammai13*bd->Z1*bd->d3beta##I - bd->gammai23*bd->Z2*bd->d3beta##I  \
+      - bd->gammai21*bd->Z2*bd->d1beta##I - bd->gammai31*bd->Z3*bd->d1beta##I  \
+      - bd->gammai32*bd->Z3*bd->d2beta##I)                                     \
+)
 #else
 #define BSSN_DT_GAMMAI_SHIFT(I) 0.0
 #endif
@@ -621,7 +641,7 @@
 
 #define BSSN_RP_DK(I,J,L) \
   P*( \
-    4.0*(bd->A##I##J + 1.0/3.0*bd->gamma##I##J*bd->K)*bd->d##L##phi + derivative(bd->i, bd->j, bd->k, L, A##I##J##_a, &(patch_geom->getDx())[0]) \
+    4.0*(bd->A##I##J + 1.0/3.0*bd->gamma##I##J*bd->K)*bd->d##L##phi + derivative(bd->i, bd->j, bd->k, L, A##I##J##_a, dx) \
     + 1.0/3.0*bd->K*bd->d##L##g##I##J + 1.0/3.0*bd->gamma##I##J*bd->d##L##K \
   )
 
@@ -656,9 +676,9 @@
       + bd->gammai13*bd->A1##I*bd->d3phi + bd->gammai23*bd->A2##I*bd->d3phi + bd->gammai33*bd->A3##I*bd->d3phi \
     ) + ( \
       /* (gamma^jk D_j A_ki) */ \
-      bd->gammai11*derivative(bd->i, bd->j, bd->k, 1, A1##I##_a, &(patch_geom->getDx())[0]) + bd->gammai12*derivative(bd->i, bd->j, bd->k, 2, A1##I##_a, &(patch_geom->getDx())[0]) + bd->gammai13*derivative(bd->i, bd->j, bd->k, 3, A1##I##_a, &(patch_geom->getDx())[0]) \
-      + bd->gammai21*derivative(bd->i, bd->j, bd->k, 1, A2##I##_a, &(patch_geom->getDx())[0]) + bd->gammai22*derivative(bd->i, bd->j, bd->k, 2, A2##I##_a, &(patch_geom->getDx())[0]) + bd->gammai23*derivative(bd->i, bd->j, bd->k, 3, A2##I##_a, &(patch_geom->getDx())[0]) \
-      + bd->gammai31*derivative(bd->i, bd->j, bd->k, 1, A3##I##_a, &(patch_geom->getDx())[0]) + bd->gammai32*derivative(bd->i, bd->j, bd->k, 2, A3##I##_a, &(patch_geom->getDx())[0]) + bd->gammai33*derivative(bd->i, bd->j, bd->k, 3, A3##I##_a, &(patch_geom->getDx())[0]) \
+      bd->gammai11*derivative(bd->i, bd->j, bd->k, 1, A1##I##_a, dx) + bd->gammai12*derivative(bd->i, bd->j, bd->k, 2, A1##I##_a, dx) + bd->gammai13*derivative(bd->i, bd->j, bd->k, 3, A1##I##_a, dx) \
+      + bd->gammai21*derivative(bd->i, bd->j, bd->k, 1, A2##I##_a, dx) + bd->gammai22*derivative(bd->i, bd->j, bd->k, 2, A2##I##_a, dx) + bd->gammai23*derivative(bd->i, bd->j, bd->k, 3, A2##I##_a, dx) \
+      + bd->gammai31*derivative(bd->i, bd->j, bd->k, 1, A3##I##_a, dx) + bd->gammai32*derivative(bd->i, bd->j, bd->k, 2, A3##I##_a, dx) + bd->gammai33*derivative(bd->i, bd->j, bd->k, 3, A3##I##_a, dx) \
       - bd->Gamma1*bd->A1##I - bd->Gamma2*bd->A2##I - bd->Gamma3*bd->A3##I \
       - bd->GL11##I*bd->Acont11 - bd->GL21##I*bd->Acont21 - bd->GL31##I*bd->Acont31 \
       - bd->GL12##I*bd->Acont12 - bd->GL22##I*bd->Acont22 - bd->GL32##I*bd->Acont32 \
@@ -667,7 +687,7 @@
   )
 
 #define BSSN_MI_SCALE(I) exp(6.0*bd->phi)*( \
-                                           fabs(2.0/3.0*bd->d##I##K/*derivative(bd->i, bd->j, bd->k, I, DIFFK##_a, &(patch_geom->getDx())[0])*/) \
+                                           fabs(2.0/3.0*bd->d##I##K/*derivative(bd->i, bd->j, bd->k, I, DIFFK##_a, dx)*/) \
     + fabs(8*PI*(bd->S##I)) \
     + 6.0*fabs( \
       bd->gammai11*bd->A1##I*bd->d1phi + bd->gammai21*bd->A2##I*bd->d1phi + bd->gammai31*bd->A3##I*bd->d1phi \
@@ -675,9 +695,9 @@
       + bd->gammai13*bd->A1##I*bd->d3phi + bd->gammai23*bd->A2##I*bd->d3phi + bd->gammai33*bd->A3##I*bd->d3phi \
     ) + fabs( \
       /* (gamma^jk D_j A_ki) */ \
-      bd->gammai11*derivative(bd->i, bd->j, bd->k, 1, A1##I##_a, &(patch_geom->getDx())[0]) + bd->gammai12*derivative(bd->i, bd->j, bd->k, 2, A1##I##_a, &(patch_geom->getDx())[0]) + bd->gammai13*derivative(bd->i, bd->j, bd->k, 3, A1##I##_a, &(patch_geom->getDx())[0]) \
-      + bd->gammai21*derivative(bd->i, bd->j, bd->k, 1, A2##I##_a, &(patch_geom->getDx())[0]) + bd->gammai22*derivative(bd->i, bd->j, bd->k, 2, A2##I##_a, &(patch_geom->getDx())[0]) + bd->gammai23*derivative(bd->i, bd->j, bd->k, 3, A2##I##_a, &(patch_geom->getDx())[0]) \
-      + bd->gammai31*derivative(bd->i, bd->j, bd->k, 1, A3##I##_a, &(patch_geom->getDx())[0]) + bd->gammai32*derivative(bd->i, bd->j, bd->k, 2, A3##I##_a, &(patch_geom->getDx())[0]) + bd->gammai33*derivative(bd->i, bd->j, bd->k, 3, A3##I##_a, &(patch_geom->getDx())[0]) \
+      bd->gammai11*derivative(bd->i, bd->j, bd->k, 1, A1##I##_a, dx) + bd->gammai12*derivative(bd->i, bd->j, bd->k, 2, A1##I##_a, dx) + bd->gammai13*derivative(bd->i, bd->j, bd->k, 3, A1##I##_a, dx) \
+      + bd->gammai21*derivative(bd->i, bd->j, bd->k, 1, A2##I##_a, dx) + bd->gammai22*derivative(bd->i, bd->j, bd->k, 2, A2##I##_a, dx) + bd->gammai23*derivative(bd->i, bd->j, bd->k, 3, A2##I##_a, dx) \
+      + bd->gammai31*derivative(bd->i, bd->j, bd->k, 1, A3##I##_a, dx) + bd->gammai32*derivative(bd->i, bd->j, bd->k, 2, A3##I##_a, dx) + bd->gammai33*derivative(bd->i, bd->j, bd->k, 3, A3##I##_a, dx) \
       - bd->Gamma1*bd->A1##I - bd->Gamma2*bd->A2##I - bd->Gamma3*bd->A3##I \
       - bd->GL11##I*bd->Acont11 - bd->GL21##I*bd->Acont21 - bd->GL31##I*bd->Acont31 \
       - bd->GL12##I*bd->Acont12 - bd->GL22##I*bd->Acont22 - bd->GL32##I*bd->Acont32 \
@@ -784,6 +804,15 @@
 #define D2D1phi D1D2phi
 #define D3D1phi D1D3phi
 #define D3D2phi D2D3phi
+
+//covariant derivative of Z^i
+#define D2Z1 D1Z2
+#define D3Z1 D1Z3
+#define D3Z2 D2Z3
+
+#define D2Z1TF D1Z2TF
+#define D3Z1TF D1Z3TF
+#define D3Z2TF D2Z3TF
 
 // covariant double-derivatives of alpha
 #define D2D1aTF D1D2aTF

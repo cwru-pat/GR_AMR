@@ -57,6 +57,10 @@ public:
   boost::shared_ptr<tbox::Database> cosmo_sim_db;
   hier::VariableDatabase* variable_db;
   static boost::shared_ptr<tbox::Timer> t_advance_hier;
+
+  // patch strategy that managers boundary and refine
+  // && coarsen strategy
+  CosmoPatchStrategy * cosmoPS;
 };
 
 } /* namespace cosmo */

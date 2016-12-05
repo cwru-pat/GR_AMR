@@ -10,7 +10,7 @@ void VacuumSim::init()
   // initialize base class
   simInit();
 
-  
+  cosmo_vacuum_db = input_db->getDatabase("VacuumSim");
     
   //  iodata->log("Running 'vacuum' type simulation.");
 
@@ -28,15 +28,15 @@ void VacuumSim::setICs()
 {
   iodata->log("Setting initial conditions (ICs).");
 
-  // meh
-  // TODO: Set vacuum ICs (eg, AwA test)
-
+  gridding_algorithm->printClassData(tbox::plog);
+  gridding_algorithm->makeCoarsestLevel();
   iodata->log("Finished setting ICs.");
 }
 
-void VacuumSim::initVacuumStep()
+void VacuumSim::initVacuumStep(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy))
 {
-  bssnSim->stepInit();
+  bssnSim->stepInit(hierarchy);
 }
 
 void VaccumSim::registerVariablesWithPlotter(
@@ -58,91 +58,30 @@ void VaccumSim::registerVariablesWithPlotter(
     visit_writer.registerPlotQuantity(
       *it,
       "SCALAR",
-      d_phi_previous,
+      idx,
       0,
       1.0,
       "CELL");
-
   }
 }
   
 void VacuumSim::initCoarsest(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
-  boost::shared_ptr<hier::PatchLevel> level(
-    hierarchy->getPatchLevel(0));
+  std::string ic_type = cosmo_vacuum_db->getString("ic_type");
 
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-     BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
-       hierarchy->getGridGeometry()));
-   TBOX_ASSERT(grid_geometry_);
-   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
-  
-  for( hier::PatchLevel::iterator pit(level->begin());
-       pit != level->end(); ++pit)
+  TBOX_ASSERT(ic_type);
+
+
+  if(ic_type == "static_blackhole")
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
-
-    const hier::Box& box = patch->getBox();
-
-    const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
-        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
-          patch->getPatchGeometry()));
-    
-    boost::shared_ptr<pdat::CellData<double> > pi_previous(
-      BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
-        patch->getPatchData(d_pi_previous)));
-    boost::shared_ptr<pdat::CellData<double> > phi_previous(
-      BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
-        patch->getPatchData(d_phi_previous)));
-
-
-    MDA_Access<double, 3, MDA_OrderColMajor<3> > pi =
-      pdat::ArrayDataAccess::access<3, double>(
-        pi_previous->getArrayData());
-    MDA_Access<double, 3, MDA_OrderColMajor<3> > phi =
-      pdat::ArrayDataAccess::access<3, double>(
-        phi_previous->getArrayData());
-
-    const double * domain_lower = &grid_geometry.getXLower()[0];
-    const double * domain_upper = &grid_geometry.getXUpper()[0];
-
-    const double *dx = &grid_geometry.getDx()[0];
-
-      
-    double L[3];
-
-    for(int i = 0 ; i < 3; i++)
-      L[i] = domain_upper[i] - domain_lower[i];
-    
-    d_omega = sqrt( PW2(2.0 * PI * nx / L[0])
-                    + PW2(2.0 * PI * ny / L[1])
-                    + PW2(2.0 * PI * nz / L[2]));
-
-    const int * lower = &box.lower()[0];
-    const int * upper = &box.upper()[0];
-
-    for(int k = lower[2]; k <= upper[2]; k++)
-    {
-      for(int j = lower[1]; j <= upper[1]; j++)
-      {
-        for(int i = lower[0]; i <= upper[0]; i++)
-        {
-          phi(i,j,k) = sin(2.0 * PI * (double) i * dx[0] * nx / L[0] +
-                           2.0 * PI * (double) j * dx[1] * ny / L[1] +
-                           2.0 * PI * (double) k * dx[2] * nz / L[2]);
-          
-          pi(i,j,k) = d_omega *
-            cos(2.0 * PI * (double) i * dx[0] * nx / L[0] +
-                           2.0 * PI * (double) j * dx[1] * ny / L[1] +
-                           2.0 * PI * (double) k * dx[2] * nz / L[2]);
-        }
-      }
-    }
-
-        
+    bssn_ic_static_blackhole(
+      const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
   }
+  else
+    TBOX_ERROR("Undefined IC type!\n");
   
+  //already set _a = _p and _f = 0 
 
 }
 
@@ -290,33 +229,32 @@ void VacuumSim::initializeLevelData(
    /*
     * Refine solution data from coarser level and, if provided, old level.
     */
-   {
-     xfer::RefineAlgorithm refiner;
+   
+   xfer::RefineAlgorithm refiner;
 
-     boost::shared_ptr<hier::RefineOperator> accurate_refine_op =
-       bssnSim->space_refine_op;
+   boost::shared_ptr<hier::RefineOperator> accurate_refine_op =
+     bssnSim->space_refine_op;
      
-     TBOX_ASSERT(accurate_refine_op);
+   TBOX_ASSERT(accurate_refine_op);
 
-     //registering refine variables
-     BSSN_APPLY_TO_FIELDS(VAC_REGISTER_SPACE_REFINE_P);
+   //registering refine variables
+   BSSN_APPLY_TO_FIELDS(VAC_REGISTER_SPACE_REFINE_P);
       
-     boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
+   boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
 
-
-     level->getBoxLevel()->getMPI().Barrier();
-     if (ln > 0) {
-         /*
-          * Include coarser levels in setting data
-          */
-       refine_schedule =
-         refiner.createSchedule(
-           level,
-           old_level,
-           ln - 1,
-           hierarchy,
-           NULL);
-      }
+   level->getBoxLevel()->getMPI().Barrier();
+   if (ln > 0) {
+     /*
+      * Include coarser levels in setting data
+      */
+     refine_schedule =
+       refiner.createSchedule(
+         level,
+         old_level,
+         ln - 1,
+         hierarchy,
+         NULL);
+      
      else
      {
        /*
@@ -337,7 +275,8 @@ void VacuumSim::initializeLevelData(
                                   NULL);
      }
      level->getBoxLevel()->getMPI().Barrier();
-     math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
+     
+
      if (refine_schedule)
      {
        refine_schedule->fillData(0.0);
@@ -347,14 +286,22 @@ void VacuumSim::initializeLevelData(
      {
        TBOX_ERROR(
          "Can not get refine schedule, check your code!\n");
-      }
+     }
+
+     math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
+
+     BSSN_APPLY_TO_FIELDS(BSSN_SWAP_PF);
+     BSSN_APPLY_TO_FIELDS(BSSN_COPY_P_TO_A);
+     BSSN_APPLY_TO_FIELDS(BSSN_SET_F_ZERO);
+
       
-      if (0) {
-         // begin debug code
-         math::HierarchyCellDataOpsReal<double> hcellmath_debug(hierarchy);
-         hcellmath_debug.printData(d_phi_current, tbox::pout, false);
-         // end debug code
-      }
+     if (0)
+     {
+       // begin debug code
+       math::HierarchyCellDataOpsReal<double> hcellmath_debug(hierarchy);
+       //hcellmath_debug.printData(d_phi_current, tbox::pout, false);
+       // end debug code
+     }
    }
    level->getBoxLevel()->getMPI().Barrier();
    /* Set vector weight. */
@@ -410,7 +357,7 @@ void VacuumSim::applyGradientDetector(
       
       boost::shared_ptr<pdat::CellData<double>> K_data(
         BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
-          patch.getPatchData(bssnSim->K_p_idx)));
+          patch.getPatchData(bssnSim->DIFFK_p_idx)));
 
       boost::shared_ptr<pdat::CellData<double> > weight_(
         BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
@@ -476,13 +423,27 @@ void VacuumSim::runVacuumStep()
   t_RK_steps->stop();
 }
 
-void VacuumSim::runStep()
+double VaccumSim::getDt(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
-  runCommonStepTasks();
+  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+      hierarchy->getGridGeometry()));
+  geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
 
-  initVacuumStep();
-  outputVacuumStep();
-  runVacuumStep();
+  return grid_geometry->getDx()[0] * dt_frac;
+}
+
+void VacuumSim::runStep(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+{
+  runCommonStepTasks(hierarcy);
+
+  double dt = getDt(hierarchy);
+  initVacuumStep(hierarchy);
+  outputVacuumStep(hierarchy);
+  runVacuumStep(hierarchy, cur_t, cur_t + dt);
+  cur_t += dt;
 }
 
 } /* namespace cosmo */

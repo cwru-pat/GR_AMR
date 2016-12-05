@@ -27,7 +27,7 @@ typedef struct {
   BSSN_APPLY_TO_GEN1_EXTRAS(DECLARE_REAL_T)
 
   // non-differenced quantities
-  real_t phi; ///< conformal factor \f$\phi\f$
+  real_t chi; ///< conformal factor \f$\phi\f$
   real_t K; ///< extrinsic curvature \f$K\f$
   real_t r; ///< density \f$\rho\f$
   real_t S; ///< "pressure" (trace of \f$S_{ij}\f$, or \f$\gamma^{ij} S_{ij}\f$)
