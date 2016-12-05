@@ -244,9 +244,15 @@
 #define BSSN_RK_EVOLVE_PT_FIELD(field) \
   field_c(i,j,k) = ev_##field(bd, dx);
 
+// Evolve all fields
+#define BSSN_RK_EVOLVE_BD_FIELD(field) \
+  field_c(i,j,k) = ev_##field##_bd(bd, dx, l_idx, codim);
+
 #define BSSN_RK_EVOLVE_PT \
   BSSN_APPLY_TO_FIELDS(BSSN_RK_EVOLVE_PT_FIELD)
 
+#define BSSN_RK_EVOLVE_BD \
+  BSSN_APPLY_TO_FIELDS(BSSN_RK_EVOLVE_BD_FIELD)
 
 // Finalize an RK step for all BSSN fields
 #define BSSN_FINALIZE_FIELD_1(field) \

@@ -1,5 +1,3 @@
-#ifndef COSMO_BD_H
-#define COSMO_BD_H
 
 #include "cosmo_includes.h"
 #include "../cosmo_bd.h"

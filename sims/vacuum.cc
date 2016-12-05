@@ -414,11 +414,16 @@ void VacuumSim::outputVacuumStep()
     // io_bssn_constraint_violation(iodata, step, bssnSim);
 }
 
-void VacuumSim::runVacuumStep()
+void VacuumSim::runVacuumStep(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  double from_t, double to_t))
 {
   t_RK_steps->start();
     // Full RK step minus init()
-  bssnSim->step();
+  advanceLevel(hierarchy,
+               0,
+               from_t,
+               to_t);
 
   t_RK_steps->stop();
 }
@@ -445,5 +450,205 @@ void VacuumSim::runStep(
   runVacuumStep(hierarchy, cur_t, cur_t + dt);
   cur_t += dt;
 }
+
+
+void VaccumSim::RKEvolveLevel(
+  const boost::shared_ptr<hier::PatchLevel> & level,
+  double from_t,
+  double to_t)
+{
+  xfer::RefineAlgorithm refiner;
+  boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
+
+  bssnSim->registerSameLevelRefinerActive(refiner, space_refine_op);
+  
+  //BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_SAME_LEVEL_REFINE_A,refiner,space_refine_op);
+
+  refine_schedule = refiner.createSchedule(level, NULL);
+  
+  for( hier::PatchLevel::iterator pit(level->begin());
+       pit != level->end(); ++pit)
+  {
+    const boost::shared_ptr<hier::Patch> & patch = *pit;
+
+    //BSSN_APPLY_TO_FIELDS(BSSN_PDATA_ALL_INIT);
+    //BSSN_APPLY_TO_FIELDS(BSSN_MDA_ACCESS_ALL_INIT);
+
+    bssnSim->initPData(patch);
+    bssnSim->initMDA(patch);
+    
+    bssnSim->RKEvolvePatch(patch);
+    bssnSim->K1FinalizePatch(patch, to_t - from_t);  
+  }
+
+  level->getBoxLevel()->getMPI().Barrier();
+  refine_schedule->fillData(to_t);
+
+  for( hier::PatchLevel::iterator pit(level->begin());
+       pit != level->end(); ++pit)
+  {
+    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    patch_geom = 
+      BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+        patch.getPatchGeometry());
+
+    //BSSN_APPLY_TO_FIELDS(BSSN_PDATA_ALL_INIT);
+    //BSSN_APPLY_TO_FIELDS(BSSN_MDA_ACCESS_ALL_INIT);
+
+    bssnSim->initPData(patch);
+    bssnSim->initMDA(patch);
+    
+    bssnSim->RKEvolvePatch(patch);
+    bssnSim->K2FinalizePatch(patch, to_t - from_t);
+  }
+
+  
+  level->getBoxLevel()->getMPI().Barrier();
+  refine_schedule->fillData(to_t);
+
+  
+  for( hier::PatchLevel::iterator pit(level->begin());
+       pit != level->end(); ++pit)
+  {
+    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    patch_geom = 
+      BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+        patch.getPatchGeometry());
+
+    //BSSN_APPLY_TO_FIELDS(BSSN_PDATA_ALL_INIT);
+    //BSSN_APPLY_TO_FIELDS(BSSN_MDA_ACCESS_ALL_INIT);
+
+    bssnSim->initPData(patch);
+    bssnSim->initMDA(patch);
+    
+    bssnSim->RKEvolvePatch(patch);
+    bssnSim->K3FinalizePatch(patch, to_t - from_t);
+    
+  }
+
+  level->getBoxLevel()->getMPI().Barrier();
+  refine_schedule->fillData(to_t);
+
+  for( hier::PatchLevel::iterator pit(level->begin());
+       pit != level->end(); ++pit)
+  {
+    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    patch_geom = 
+      BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+        patch.getPatchGeometry());
+
+    //BSSN_APPLY_TO_FIELDS(BSSN_PDATA_ALL_INIT);
+    //BSSN_APPLY_TO_FIELDS(BSSN_MDA_ACCESS_ALL_INIT);
+
+    bssnSim->initPData(pathc);
+    bssnSim->initMDA(patch);
+    
+    bssnSim->RKEvolvePatch(patch);
+    bssnSim->K4FinalizePatch(patch, to_t - from_t);  
+  }
+
+  //BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_SAME_LEVEL_REFINE_F,refiner,space_refine_op);
+
+  bssnSim->registerSameLevelRefinerFinal(refiner,space_refine_op);
+  
+  refine_schedule = refiner.createSchedule(level, NULL);
+
+  level->getBoxLevel()->getMPI().Barrier();
+  refine_schedule->fillData(to_t);
+}
+
+void VacuumSim::advanceLevel(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  int ln,
+  double from_t,
+  double to_t)
+{
+  if( ln >= hierarchy->getNumberOfLevels())
+    return;
+  
+  double dt = to_t - from_t;
+  const boost::shared_ptr<hier::PatchLevel> level(
+    hierarchy->getPatchLevel(ln));
+
+  //RK advance interior(including innner ghost cells) of level
+  RKEvolveLevel(level, from_t, to_t);
+
+  setLevelTime(level, from_t, to_t);
+  
+  if(ln > 0)
+  {
+    boost::shared_ptr<xfer::PatchLevelBorderFillPattern> border_fill_pattern (
+      new xfer::PatchLevelBorderFillPattern());
+
+    xfer::RefineAlgorithm refiner;
+    boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
+
+    bssnSim->registerInterLevelRefinerFinal(
+      refiner,
+      space_refine_op,
+      time_refine_op);
+    //BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_INTER_LEVEL_REFINE_F,refiner,space_refine_op,time_refine_op);
+
+    refine_schedule = refiner.createSchedule(
+      border_fill_pattern,
+      level,
+      level,
+      ln-1
+      hierarchy,
+      (cosmoPS->is_time_depent)?NULL:PS,
+      TRUE,
+      NULL);
+
+    level->getBoxLevel()->getMPI().Barrier();
+    refine_schedule->fillData(to_t);
+
+  }
+  
+  advanceLevel(hierarchy, ln+1, from_t, from_t + (to_t - from_t)/2.0);
+
+  advanceLevel(hierarchy, ln+1, from_t + (to_t - from_t)/2.0, to_t);
+
+
+  if(ln < hierarchy->getNumberOfLevels() -1 )
+  {
+    xfer::CoarsenAlgorithm coarsener(dim);
+  
+
+    boost::shared_ptr<xfer::CoarsenSchedule> coarsen_schedule;
+
+    //BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_COARSEN_F, coarsener, coarsen_op);
+    bssnSim->registerCoarsenFinal()
+      
+    coarsen_schedule = coarsener.createSchedule(level, hierarchy->getPatchLevel(ln+1));
+    level->getBoxLevel()->getMPI().Barrier();
+    coarsen_schedule->coarsenData();
+
+    xfer::RefineAlgorithm post_refiner;
+
+    boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
+
+    
+    //BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_SAME_LEVEL_REFINE_F,post_refiner,space_refine_op);
+
+    bssnSim->registerSameLevelRefiner(post_refiner, space_refine_op);
+    
+    refine_schedule = post_refiner.createSchedule(level, NULL);
+
+    level->getBoxLevel()->getMPI().Barrier();
+    refine_schedule->fillData(to_t);
+  }
+
+  // swap _p and _f patches, so all recent data is stored
+  // in _p arrays rather than _f arrays 
+
+  math::HierarchyCellDataOpsReal<real_t> hcellmath(hierarchy,ln,ln);
+
+  bssnSim->swapPF(hcellmath);
+  bssnSim->copyPToA(hcellmath);
+  bssnSim->setFZero(hcellmath);
+  
+}
+  
+
 
 } /* namespace cosmo */

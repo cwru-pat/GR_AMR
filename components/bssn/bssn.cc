@@ -13,7 +13,8 @@ namespace cosmo
 BSSN::BSSN(
   const tbox::Dimension& dim_in,
   tbox::Database& database_in,
-  std::ostream* l_stream_in = 0):
+  std::ostream* l_stream_in = 0
+  xfer::RefinePatchStrategy* PS_in):
   lstream(l_stream),
   database(&database),
   barrier_and_time(true),
@@ -24,7 +25,9 @@ BSSN::BSSN(
   gd_eta(database.getDoubleWithDefault("gd_eta", 0.0)),
   variable_db(hier::VariableDatabase::getDatabase()),
   gaugeHandler(new BSSNGaugeHandler(config)),
-{  
+  PS(PS_in)
+{
+  
   BSSN_APPLY_TO_FIELDS(VAR_INIT);
   BSSN_APPLY_TO_SOURCES(VAR_INIT);
   BSSN_APPLY_TO_GEN1_EXTRAS(VAR_INIT);
@@ -113,6 +116,145 @@ void BSSN::stepInit(
 // # endif
 }
 
+void BSSN::RKEvolvePatchBD(const boost::shared_ptr<hier::Patch> & patch)
+{
+  boost::shared_ptr<hier::PatchGeometry> geom (patch->getPatchGeometry());
+
+  idx_t codim = 1;
+  const std::vector<hier::BoundaryBox> & codim1_boxes =
+    cfbd->getBoundaries(patch.getGlobalId(),codim);
+
+  const idx_t n_codim1_boxes = static_cast<idx_t>(codim1_boxes.size());
+
+  if(n_codim1_boxes == 0) return;
+
+  const hier::Box& patch_box = patch->getBox();
+
+  hier::Box & boundary_fill_box;
+
+  for(int i = 0 ; i < n_codim1_boxes; i++)
+  {
+    boundary_fill_box =
+      geom->getBoundaryFillBox(
+        codim1_boxes[i], patch_box, DIFFchi_a_pdata->getGhostCellWidth());
+  
+
+    const idx_t * lower = &boundary_fill_box.lower()[0];
+    const idx_t * upper = &boundary_fill_box.upper()[0];
+
+    idx_t l_idx = boundary_fill_box.getLocationIndex();
+    
+    BSSNData bd = {0};
+
+
+    //initialize dx for each patch
+    const real_t * dx = &(patch_geom->getDx())[0];
+  
+    for(int k = lower[2]; k <= upper[2]; k++)
+    {
+      for(int j = lower[1]; j <= upper[1]; j++)
+      {
+        for(int i = lower[0]; i <= upper[0]; i++)
+        {
+          set_bd_values(i, j, k, &bd, dx);
+          BSSN_RK_EVOLVE_BD;
+        }
+      }
+    }
+  }
+  /************************updating codim = 2 boundaries****************/
+  codim = 2;
+
+  const std::vector<hier::BoundaryBox> & codim2_boxes =
+    cfbd->getBoundaries(patch.getGlobalId(),codim);
+
+  const idx_t n_codim2_boxes = static_cast<idx_t>(codim2_boxes.size());
+
+  if(n_codim1_boxes == 0) return;
+
+  const hier::Box& patch_box = patch->getBox();
+
+  hier::Box & boundary_fill_box;
+
+  for(int i = 0 ; i < n_codim2_boxes; i++)
+  {
+    boundary_fill_box =
+      geom->getBoundaryFillBox(
+        codim2_boxes[i], patch_box, DIFFchi_a_pdata->getGhostCellWidth());
+  
+
+    const idx_t * lower = &boundary_fill_box.lower()[0];
+    const idx_t * upper = &boundary_fill_box.upper()[0];
+
+    idx_t l_idx = boundary_fill_box.getLocationIndex();
+    
+    BSSNData bd = {0};
+
+
+    //initialize dx for each patch
+    const real_t * dx = &(patch_geom->getDx())[0];
+  
+    for(int k = lower[2]; k <= upper[2]; k++)
+    {
+      for(int j = lower[1]; j <= upper[1]; j++)
+      {
+        for(int i = lower[0]; i <= upper[0]; i++)
+        {
+          set_bd_values(i, j, k, &bd, dx);
+          BSSN_RK_EVOLVE_BD;
+        }
+      }
+    }
+  }
+
+  /************************updating codim = 3 boundaries****************/
+  codim = 3;
+
+  const std::vector<hier::BoundaryBox> & codim3_boxes =
+    cfbd->getBoundaries(patch.getGlobalId(),codim);
+
+  const idx_t n_codim3_boxes = static_cast<idx_t>(codim3_boxes.size());
+
+  if(n_codim1_boxes == 0) return;
+
+  const hier::Box& patch_box = patch->getBox();
+
+  hier::Box & boundary_fill_box;
+
+  for(int i = 0 ; i < n_codim3_boxes; i++)
+  {
+    boundary_fill_box =
+      geom->getBoundaryFillBox(
+        codim3_boxes[i], patch_box, DIFFchi_a_pdata->getGhostCellWidth());
+  
+
+    const idx_t * lower = &boundary_fill_box.lower()[0];
+    const idx_t * upper = &boundary_fill_box.upper()[0];
+
+    idx_t l_idx = boundary_fill_box.getLocationIndex();
+    
+    BSSNData bd = {0};
+
+
+    //initialize dx for each patch
+    const real_t * dx = &(patch_geom->getDx())[0];
+  
+    for(int k = lower[2]; k <= upper[2]; k++)
+    {
+      for(int j = lower[1]; j <= upper[1]; j++)
+      {
+        for(int i = lower[0]; i <= upper[0]; i++)
+        {
+          set_bd_values(i, j, k, &bd, dx);
+          BSSN_RK_EVOLVE_BD;
+        }
+      }
+    }
+  }
+  
+}
+
+  
 /**
  * @brief Call BSSN::RKEvolvePt for all points
  */
@@ -127,7 +269,7 @@ void BSSN::RKEvolvePatch(const boost::shared_ptr<hier::Patch> & patch)
 
   patch_geom = 
     BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
-      patch.getPatchGeometry());
+      patch->getPatchGeometry());
 
   //initialize dx for each patch
   const real_t * dx = &(patch_geom->getDx())[0];
@@ -145,6 +287,89 @@ void BSSN::RKEvolvePatch(const boost::shared_ptr<hier::Patch> & patch)
   }
 }
 
+void BSSN::registerSameLevelRefinerActive(
+  xfer::RefineAlgorithm& refiner,
+  boost::shared_ptr<hier::RefineOperator> &space_refine_op)
+{
+  BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_SAME_LEVEL_REFINE_A,refiner,space_refine_op);
+}
+
+void BSSN::registerSameLevelRefinerFinal(
+  xfer::RefineAlgorithm& refiner,
+  boost::shared_ptr<hier::RefineOperator> &space_refine_op)
+{
+  BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_SAME_LEVEL_REFINE_F,refiner,space_refine_op);
+}
+
+
+void BSSN::registerInterLevelRefinerActive(
+  xfer::RefineAlgorithm& refiner,
+  boost::shared_ptr<hier::RefineOperator> &space_refine_op
+  boost::shared_ptr<hier::TimeInterpolateOperator> & time_refine_op )
+{
+  BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_INTER_LEVEL_REFINE_A,refiner,space_refine_op,time_refine_op);
+}
+
+void BSSN::registerInterLevelRefinerFinal(
+  xfer::RefineAlgorithm& refiner,
+  boost::shared_ptr<hier::RefineOperator>& space_refine_op)
+  boost::shared_ptr<hier::TimeInterpolateOperator> & time_refine_op )
+{
+  BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_INTER_LEVEL_REFINE_F,refiner,space_refine_op,time_refine_op);
+}
+
+
+void BSSN::registerCoarsenActive(
+  xfer::CoarsenAlgorithm& coarsener,
+  boost::shared_ptr<hier::CoarsenOperator>& coarsen_op)
+{
+  BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_COARSEN_A, coarsener, coarsen_op);
+}
+
+void BSSN::registerCoarsenFinal(
+  xfer::CoarsenAlgorithm& coarsener,
+  boost::shared_ptr<xfer::CoarsenOperator>& coarsen_op)
+{
+  BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_COARSEN_F, coarsener, coarsen_op);
+}
+
+
+
+
+void BSSN::swapPF(
+math::HierarchyCellDataOpsReal<real_t> & hcellmath)
+{
+  BSSN_APPLY_TO_FIELDS(BSSN_SWAP_PF);
+}
+
+
+void BSSN::copyPToA(
+math::HierarchyCellDataOpsReal<real_t> & hcellmath)
+{
+  BSSN_APPLY_TO_FIELDS(BSSN_COPY_P_TO_A);
+}
+
+
+void BSSN::setFZero(
+math::HierarchyCellDataOpsReal<real_t> & hcellmath)
+{
+  BSSN_APPLY_TO_FIELDS(BSSN_SET_F_ZERO);
+}
+
+
+void BSSN::initPData(
+  const boost::shared_ptr<hier::Patch> & patch)
+{
+  BSSN_APPLY_TO_FIELDS(BSSN_PDATA_ALL_INIT);
+}
+
+void BSSN::initMDA(
+  const boost::shared_ptr<hier::Patch> & patch)
+{
+  BSSN_APPLY_TO_FIELDS(BSSN_MDA_ACCESS_ALL_INIT);
+}
+  
+    
 void BSSN::setLevelTime(
   const boost::shared_ptr<hier::PatchLevel> & level,
   double from_t, double to_t)
@@ -157,95 +382,6 @@ void BSSN::setLevelTime(
   }
 }
   
-void BSSN::RKEvolveLevel(
-  const boost::shared_ptr<hier::PatchLevel> & level,
-  double from_t,
-  double to_t)
-{
-  xfer::RefineAlgorithm refiner;
-  boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
-  
-  BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_SAME_LEVEL_REFINE_A,refiner,space_refine_op);
-
-  refine_schedule = refiner.createSchedule(level, NULL);
-  
-  for( hier::PatchLevel::iterator pit(level->begin());
-       pit != level->end(); ++pit)
-  {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
-
-    BSSN_APPLY_TO_FIELDS(BSSN_PDATA_ALL_INIT);
-    BSSN_APPLY_TO_FIELDS(BSSN_MDA_ACCESS_ALL_INIT);
-    
-    RKEvolvePatch(patch);
-    K1FinalizePatch(patch, to_t - from_t);  
-  }
-
-  level->getBoxLevel()->getMPI().Barrier();
-  refine_schedule->fillData(to_t);
-
-  for( hier::PatchLevel::iterator pit(level->begin());
-       pit != level->end(); ++pit)
-  {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
-    patch_geom = 
-      BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
-        patch.getPatchGeometry());
-
-    BSSN_APPLY_TO_FIELDS(BSSN_PDATA_ALL_INIT);
-    BSSN_APPLY_TO_FIELDS(BSSN_MDA_ACCESS_ALL_INIT);
-    
-    RKEvolvePatch(patch);
-    K2FinalizePatch(patch, to_t - from_t);
-  }
-
-  
-  level->getBoxLevel()->getMPI().Barrier();
-  refine_schedule->fillData(to_t);
-
-  
-  for( hier::PatchLevel::iterator pit(level->begin());
-       pit != level->end(); ++pit)
-  {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
-    patch_geom = 
-      BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
-        patch.getPatchGeometry());
-
-    BSSN_APPLY_TO_FIELDS(BSSN_PDATA_ALL_INIT);
-    BSSN_APPLY_TO_FIELDS(BSSN_MDA_ACCESS_ALL_INIT);
-
-    RKEvolvePatch(patch);
-    K3FinalizePatch(patch, to_t - from_t);
-    
-  }
-
-  level->getBoxLevel()->getMPI().Barrier();
-  refine_schedule->fillData(to_t);
-
-  for( hier::PatchLevel::iterator pit(level->begin());
-       pit != level->end(); ++pit)
-  {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
-    patch_geom = 
-      BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
-        patch.getPatchGeometry());
-
-    BSSN_APPLY_TO_FIELDS(BSSN_PDATA_ALL_INIT);
-    BSSN_APPLY_TO_FIELDS(BSSN_MDA_ACCESS_ALL_INIT);
-    
-    RKEvolvePatch(patch);
-    K4FinalizePatch(patch, to_t - from_t);  
-  }
-
-  BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_SAME_LEVEL_REFINE_F,refiner,space_refine_op);
-
-  refine_schedule = refiner.createSchedule(level, NULL);
-
-  level->getBoxLevel()->getMPI().Barrier();
-  refine_schedule->fillData(to_t);
-
-}
 void BSSN::K1FinalizePatch(
   const boost::shared_ptr<hier::Patch> & patch, double dt)
 {
@@ -338,114 +474,6 @@ void BSSN::K4FinalizePatch(
 void BSSN::clearSrc()
 {
   
-}
-
-
-  
-void BSSN::advanceLevel(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
-  int ln,
-  double from_t,
-  double to_t)
-{
-  if( ln >= hierarchy->getNumberOfLevels())
-    return;
-  
-  double dt = to_t - from_t;
-  const boost::shared_ptr<hier::PatchLevel> level(
-    hierarchy->getPatchLevel(ln));
-
-  //RK advance interior(including innner ghost cells) of level
-  RKEvolveLevel(level, from_t, to_t);
-
-  setLevelTime(level, from_t, to_t);
-  
-  if(ln > 0)
-  {
-    boost::shared_ptr<xfer::PatchLevelBorderFillPattern> border_fill_pattern (
-      new xfer::PatchLevelBorderFillPattern());
-
-    xfer::RefineAlgorithm refiner;
-    boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
-  
-    BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_INTER_LEVEL_REFINE_F,refiner,space_refine_op,time_refine_op);
-
-    refine_schedule = refiner.createSchedule(
-      border_fill_pattern,
-      level,
-      level,
-      ln-1
-      hierarchy,
-      NULL, TRUE, NULL);
-
-    level->getBoxLevel()->getMPI().Barrier();
-    refine_schedule->fillData(to_t);
-
-  }
-  
-  advanceLevel(hierarchy, ln+1, from_t, from_t + (to_t - from_t)/2.0);
-
-  advanceLevel(hierarchy, ln+1, from_t + (to_t - from_t)/2.0, to_t);
-
-
-  if(ln < hierarchy->getNumberOfLevels() -1 )
-  {
-    xfer::CoarsenAlgorithm coarsener(dim);
-  
-
-    boost::shared_ptr<xfer::CoarsenSchedule> coarsen_schedule;
-
-    BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_COARSEN_F, coarsener, coarsen_op);
-    
-      
-    coarsen_schedule = coarsener.createSchedule(level, hierarchy->getPatchLevel(ln+1));
-    level->getBoxLevel()->getMPI().Barrier();
-    coarsen_schedule->coarsenData();
-
-    xfer::RefineAlgorithm post_refiner;
-
-    boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
-
-    
-    BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_SAME_LEVEL_REFINE_F,post_refiner,space_refine_op);
-
-    refine_schedule = post_refiner.createSchedule(level, NULL);
-
-    level->getBoxLevel()->getMPI().Barrier();
-    refine_schedule->fillData(to_t);
-  }
-
-  // swap _p and _f patches, so all recent data is stored
-  // in _p arrays rather than _f arrays 
-
-  math::HierarchyCellDataOpsReal<real_t> hcellmath(hierarchy,ln,ln);
-
-  BSSN_APPLY_TO_FIELDS(BSSN_SWAP_PF);
-  BSSN_APPLY_TO_FIELDS(BSSN_COPY_P_TO_A);
-  BSSN_APPLY_TO_FIELDS(BSSN_SET_F_ZERO);
-  
-}
-  
-/**
- * @brief Call Perform a full RK4 step, minus initialization.
- * @details Calls:
- * BSSN::RKEvolve, BSSN::K1Finalize, BSSN::RKEvolve, BSSN::K2Finalize,
- * BSSN::RKEvolve, BSSN::K3Finalize, BSSN::RKEvolve, BSSN::K4Finalize
- */
-void BSSN::step(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, double from_t, double to_t)
-{
-  // stepInit must still be called
-  // see RK4 pdf in docs
-
-  t_advance_hier->start();
-
-  advanceLevel(hierarchy,
-               0,
-               from_t,
-               to_t);
-  t_advance_hier->stop();
-
 }
 
 

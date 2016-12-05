@@ -1066,28 +1066,98 @@ inline real_t upwind_derivative(idx_t i, idx_t j, idx_t k, int d,
   else return c * backward_derivative(i,j,k,d,field, dx);
 }
 
-inline real_t bd_derivative(idx_t i, idx_t j, idx_t k, int d,
-    arr_t & field, const double dx[])
+inline real_t bd_derivative(
+  idx_t i, idx_t j, idx_t k, int d,
+  arr_t & field, const double dx[], idx_t l_idx, idx_t codim)
 {
-  switch (d) {
+  if(codim == 1)
+  {
+    switch (d) {
     case 1:
-      if( (NX-i-1) < bd_nx/2 )
-        return forward_derivative(i,j,k,d,field, dx);
+      if(l_idx==0  )
+        return forward_derivative(i,j,k,d,field,dx);
+      else if(l_idx == 1)
+        return backward_derivative(i,j,k,d,field,dx);
       else
-        return backward_derivative(i,j,k,d,field, dx);
+        return derivative(i,j,k,d,field,dx);
       break;
     case 2:
-      if( (NY-j-1) < bd_ny/2 )
+      if(l_idx == 2)
         return forward_derivative(i,j,k,d,field, dx);
-      else
+      else if(l_idx == 3)
         return backward_derivative(i,j,k,d,field, dx);
+      else
+        return derivative(i,j,k,d,field,dx);
       break;
     case 3:
-      if( (NZ-k-1) < bd_nz/2 )
+      if( l_idx == 4)
         return forward_derivative(i,j,k,d,field, dx);
-      else
+      else if(l_idx == 5)
         return backward_derivative(i,j,k,d,field, dx);
+      else
+        return derivative(i,j,k,d,field,dx);
       break;
+    }
+  }
+  else if(codim == 2)
+  {
+    switch (d) {
+    case 1:
+      if(l_idx == 0 || l_idx == 2 || l_idx == 4 || l_idx == 6)
+        return forward_derivative(i,j,k,d,field,dx);
+      else if(l_idx == 1 || l_idx == 3 || l_idx == 5 || l_idx == 7)
+        return backward_derivative(i,j,k,d,field,dx);
+      else
+        return derivative(i,j,k,d,field,dx);
+      break;
+    case 2:
+      if(l_idx == 0 || l_idx == 1 || l_idx == 8 || l_idx == 10)
+        return forward_derivative(i,j,k,d,field, dx);
+      else if(l_idx == 2 || l_idx == 3 || l_idx ==9 || l_idx == 11)
+        return backward_derivative(i,j,k,d,field, dx);
+      else
+        return derivative(i,j,k,d,field,dx);
+      break;
+    case 3:
+      if( l_idx == 4 || l_idx == 5 || l_idx == 8 || l_idx == 9)
+        return forward_derivative(i,j,k,d,field, dx);
+      else if(l_idx == 6 || l_idx == 7 || l_idx == 10 || l_idx == 11)
+        return backward_derivative(i,j,k,d,field, dx);
+      else
+        return derivative(i,j,k,d,field,dx);
+      break;
+    }
+    
+  }
+  else if(codim == 3)
+  {
+    switch (d) {
+    case 1:
+      if(l_idx == 0 || l_idx == 2 || l_idx == 4 || l_idx == 6)
+        return forward_derivative(i,j,k,d,field,dx);
+      else if(l_idx == 1 || l_idx == 3 || l_idx == 5 || l_idx == 7)
+        return backward_derivative(i,j,k,d,field,dx);
+      else
+        return derivative(i,j,k,d,field,dx);
+      break;
+    case 2:
+      if(l_idx == 0 || l_idx == 1 || l_idx == 4 || l_idx == 5)
+        return forward_derivative(i,j,k,d,field, dx);
+      else if(l_idx == 2 || l_idx == 3 || l_idx ==6 || l_idx == 7)
+        return backward_derivative(i,j,k,d,field, dx);
+      else
+        return derivative(i,j,k,d,field,dx);
+      break;
+    case 3:
+      if( l_idx == 0 || l_idx == 1 || l_idx == 2 || l_idx == 3)
+        return forward_derivative(i,j,k,d,field, dx);
+      else if(l_idx == 4 || l_idx == 5 || l_idx == 6 || l_idx == 7)
+        return backward_derivative(i,j,k,d,field, dx);
+      else
+        return derivative(i,j,k,d,field,dx);
+      break;
+    }
+    
   }
 
   /* XXX */
