@@ -7,35 +7,6 @@
 /*
  * Headers for basic SAMRAI objects used in this code.
  */
-#include "SAMRAI/tbox/BalancedDepthFirstTree.h"
-#include "SAMRAI/tbox/Database.h"
-#include "SAMRAI/tbox/InputManager.h"
-#include "SAMRAI/tbox/SAMRAI_MPI.h"
-#include "SAMRAI/tbox/PIO.h"
-#include "SAMRAI/tbox/SAMRAIManager.h"
-#include "SAMRAI/tbox/TimerManager.h"
-#include "SAMRAI/tbox/Utilities.h"
-#include "SAMRAI/hier/TimeInterpolateOperator.h"
-#include "SAMRAI/xfer/PatchLevelFillPattern.h"
-#include "SAMRAI/xfer/PatchLevelBorderFillPattern.h"
-#include "SAMRAI/xfer/PatchLevelFullFillPattern.h"
-#include "SAMRAI/xfer/PatchLevelInteriorFillPattern.h"
-#include "SAMRAI/math/HierarchyCellDataOpsReal.h"
-#include "SAMRAI/math/PatchCellDataOpsReal.h"
-#include "SAMRAI/geom/CartesianCellDoubleLinearRefine.h"
-
-/*
- * Headers for major algorithm/data structure objects from SAMRAI
- */
-#include "SAMRAI/appu/VisItDataWriter.h"
-#include "SAMRAI/geom/CartesianGridGeometry.h"
-#include "SAMRAI/hier/BaseGridGeometry.h"
-#include "SAMRAI/hier/PatchHierarchy.h"
-#include "SAMRAI/hier/VariableDatabase.h"
-#include "SAMRAI/mesh/BergerRigoutsos.h"
-#include "SAMRAI/mesh/GriddingAlgorithm.h"
-#include "SAMRAI/mesh/TreeLoadBalancer.h"
-#include "SAMRAI/mesh/StandardTagAndInitialize.h"
 
 using namespace SAMRAI;
 
@@ -54,16 +25,18 @@ class CosmoPatchStrategy:public xfer::RefinePatchStrategy
     * @param object_name Name of the object, for general referencing.
     * @param coef_strategy Coefficients strategy being helped.
     */
-   explicit CosmoPatchStrategy(
-      const tbox::Dimension& dim,
-      std::string object_name = std::string());
-
+  CosmoPatchStrategy();
    /*!
     * @brief Destructor.
     */
-   virtual ~CartesianRobinBcHelper(
+   virtual ~CosmoPatchStrategy(
       void);
 
+   
+   hier::IntVector getRefineOpStencilWidth(
+      const tbox::Dimension& dim);
+
+   void addTarget(idx_t idx);
    //@{ @name xfer::RefinePatchStrategy virtuals
 
    virtual void
@@ -99,8 +72,11 @@ class CosmoPatchStrategy:public xfer::RefinePatchStrategy
       const hier::Box& fine_box,
       const hier::IntVector& ratio);
 
-   vector<int> target_id_list;
+   vector<idx_t> target_id_list;
 
+   bool is_time_dependent;
+
+   std::string object_name;
    const tbox::Dimension dim;
 };
 

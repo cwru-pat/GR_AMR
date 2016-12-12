@@ -293,7 +293,7 @@ typedef struct {
     real_t beta3; ///< shift, \f$\beta^3\f$
   #endif
 
-  #if USE_BSSN_SHIFT
+  #if USE_EXPANSION
   real_t d1expN,
          d2expN,
          d3expN;

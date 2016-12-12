@@ -7,16 +7,6 @@
 /* time using, eg, the -D option for gcc.       */
 /************************************************/
 
-// physical box size (eg., in hubble units)
-// eg; L = H_LEN_FRAC = N*dx
-#ifndef H_LEN_FRAC
-  #define H_LEN_FRAC 0.5
-#endif
-
-// compile using reference integrator?
-#ifndef USE_REFERENCE_FRW
-  #define USE_REFERENCE_FRW true
-#endif
 
 // Stencil order
 #ifndef STENCIL_ORDER
@@ -37,10 +27,6 @@
   #define USE_GAMMA_DRIVER false
 #endif
 
-// normalize conformal metric and time-derivative
-#ifndef NORMALIZE_GAMMAIJ_AIJ
-  #define NORMALIZE_GAMMAIJ_AIJ true
-#endif
 
 // Numerical Error Damping strength parameters
 #ifndef BS_H_DAMPING_AMPLITUDE
@@ -79,13 +65,18 @@
 /*****************************************/
 
 // not really tested:
-#define USE_Z4c_DAMPING false
-#if USE_Z4c_DAMPING
+#ifndef USE_CCZ4 
+  #define USE_CCZ4 false
+#endif
+
+#if USE_CCZ4
   #define Z4c_K1_DAMPING_AMPLITUDE 0.01
   #define Z4c_K2_DAMPING_AMPLITUDE 0.0
+  #define Z4c_K3_DAMPING_AMPLITUDE 0.0
 #else
   #define Z4c_K1_DAMPING_AMPLITUDE 0.0
   #define Z4c_K2_DAMPING_AMPLITUDE 0.0
+  #define Z4c_K3_DAMPING_AMPLITUDE 0.0
 #endif
 
 #define STENCIL_CONCATENATOR(function, order) function ## order
@@ -95,14 +86,10 @@
 #define PI (4.0*atan(1.0))
 #define SIGN(x) (((x) < 0.0) ? -1 : ((x) > 0.0))
 #define pw2(x) ((x)*(x))
+#define pw3(x) ((x)*(x)*(x))
 #define C_RE(c) ((c)[0])
 #define C_IM(c) ((c)[1])
 #define ROUND_2_IDXT(f) ((idx_t)(f >= 0.0 ? (f + 0.5) : (f - 0.5)))
-
-
-// index with designated grid number
-#define H_INDEX(i,j,k,nx,ny,nz) (((i+nx)%(nx))*(ny)*(nz) + ((j+ny)%(ny))*(nz) + (k+(nz))%(nz))
-
 
 
 
@@ -116,31 +103,58 @@
         
 #define VAR_INIT(field)  \
         field = boost::shared_ptr<pdat::CellData<real_t>> (  \
-          new pdat::CellVariable<real_t>(dim, "field",hier::IntVector::getOne(dim), 1))
-        
+          new pdat::CellVariable<real_t>(dim, "field", 1))
 
-#define RK4_PDATA_CREATE(field)  \                                  
+#define RK4_PDATA_CREATE(field, type)                \
+        boost::shared_ptr<pdat::CellData<real_t>> field##_##type##_pdata
+#define RK4_MDA_ACCESS_CREATE(field,type)           \
+        arr_t field##_##type
+        
+#define RK4_PDATA_ALL_CREATE(field)  \                                  
         boost::shared_ptr<pdat::CellData<real_t>> field##_a_pdata;  \
+        boost::shared_ptr<pdat::CellData<real_t>> field##_s_pdata;  \
         boost::shared_ptr<pdat::CellData<real_t>> field##_p_pdata;  \
-        boost::shared_ptr<pdat::CellData<real_t>> field##_c_pdata;  \
-        boost::shared_ptr<pdat::CellData<real_t>> field##_f_pdata
-
-#define RK4_MDA_ACCESS_CREATE(field)                          \
+        boost::shared_ptr<pdat::CellData<real_t>> field##_k1_pdata;             \
+        boost::shared_ptr<pdat::CellData<real_t>> field##_k2_pdata;             \
+        boost::shared_ptr<pdat::CellData<real_t>> field##_k3_pdata;             \
+        boost::shared_ptr<pdat::CellData<real_t>> field##_k4_pdata
+        
+#define RK4_MDA_ACCESS_ALL_CREATE(field)                          \
   arr_t field##_a;  \
+  arr_t field##_s;  \
   arr_t field##_p;  \
-  arr_t field##_c;  \
-  arr_t field##_f
+  arr_t field##_k1; \
+  arr_t field##_k2; \
+  arr_t field##_k3; \
+  arr_t field##_k4
 
         
-#define RK4_IDX_CREATE(name) \
-        idx_t name##_a_idx, name##_c_idx, name##_p_idx, name##_s_idx
-
+#define RK4_IDX_ALL_CREATE(name) \
+        idx_t name##_a_idx, name##_s_idx, name##_p_idx, name##_k1_idx, \
+          name##_k2_idx, name##_k3_idx, name##_k4_idx
+#define RK4_IDX_CREATE(name, type)                   \
+        idx_t name##_##type##_idx
 
 #define RK4_ARRAY_ALLOC(field) \
         level->allocatePatchData(bssnSim->field##_a_idx);  \
+        level->allocatePatchData(bssnSim->field##_s_idx);  \
         level->allocatePatchData(bssnSim->field##_p_idx);  \
-        level->allocatePatchData(bssnSim->field##_f_idx);  \
-        level->allocatePatchData(bssnSim->field##_c_idx)
+        level->allocatePatchData(bssnSim->field##_k1_idx); \
+        level->allocatePatchData(bssnSim->field##_k2_idx); \
+        level->allocatePatchData(bssnSim->field##_k3_idx); \
+        level->allocatePatchData(bssnSim->field##_k4_idx)
+        
+#define RK4_B1(theta) \
+        (theta - 3.0 * pw2(theta) /2.0 + 2.0 * pw3(theta) / 3.0)
+
+#define RK4_B2(theta)                                                   \
+        (pw2(theta) -  2.0 * pw3(theta) / 3.0)
+
+#define RK4_B3(theta)                                                   \
+        (pw2(theta) -  2.0 * pw3(theta) / 3.0)
+
+#define RK4_B4(theta)
+        (-pw2(theta)/2.0 + 2.0 * pw3(theta) / 3.0)
 
 
 #define RK4_SET_LOCAL_VALUES(name) \

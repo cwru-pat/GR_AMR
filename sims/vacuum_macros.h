@@ -79,3 +79,4 @@
                               coarsen_op,     \
                               NULL)
 
+#define VAC_ADD_REFINE_TARGET(field)

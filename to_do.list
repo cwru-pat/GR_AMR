@@ -1,0 +1,7 @@
+1. MAY NOT OK for time independent boundary, should add extra entry for finalize function.
+
+2. may need high order space interpolation function
+
+3. initialize PDATA and MDA_ACCESS for all contexts whenever call patch operation function, anyway to reduce the initialization operation?
+
+4. interpolating from coarser level on boundary using a VERY naive way for sommerfield boundary, how to imporove this?

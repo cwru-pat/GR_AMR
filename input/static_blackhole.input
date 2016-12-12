@@ -7,7 +7,7 @@ Main
 }
 
 CartesianGridGeometry {
-  domain_boxes = [(0,0,0), (15,15,15)]
+  domain_boxes = [(0,0,0), (7,7,7)]
   x_lo         = 0, 0, 0
   x_up         = 1, 1, 1
   periodic_dimension = 1, 1, 1
@@ -38,6 +38,7 @@ TimerManager{
 
 PatchHierarchy {
    max_levels = 4
+   proper_nesting_buffer = 2, 2, 2, 2, 2, 2   
    largest_patch_size {
       level_0 = -1, -1, -1
       // all finer levels will use same values as level_0...
@@ -61,7 +62,7 @@ PatchHierarchy {
 
 GriddingAlgorithm {
    enforce_proper_nesting = TRUE
-   DEV_extend_to_domain_boundary = TRUE
+   DEV_extend_to_domain_boundary = FALSE
    // DEV_load_balance = FALSE
    check_nonrefined_tags = "IGNORE"
    sequentialize_patch_indices = TRUE
@@ -71,9 +72,14 @@ CosmoSim{
   steps = 1
   do_plot = 1
   dt_frac = 0.1
+  regridding_interval = 10
 }
 
 VacuumSim{
   ic_type = "static_blackhole"
-  output_list = "DIFFchi","DIFFK"
+}
+
+IO{
+  output_list = "DIFFchi","DIFFK"     
+  output_interval = 10, 10
 }

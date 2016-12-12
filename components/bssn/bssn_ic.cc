@@ -398,12 +398,16 @@ void bssn_ic_static_blackhole(
     arr_t chi_p =
       pdat::ArrayDataAccess::access<DIM, real_t>(
         chi_p_pdata->getArrayData());
-    
+
+    arr_t chi_a =
+      pdat::ArrayDataAccess::access<DIM, real_t>(
+        chi_a_pdata->getArrayData());
+
     const double * domain_lower = &grid_geometry.getXLower()[0];
     const double * domain_upper = &grid_geometry.getXUpper()[0];
 
-    const double *dx = &grid_geometry.getDx()[0];
-
+    //const double *dx = &grid_geometry.getDx()[0];
+    const double *dx = &patch_geom->getDx()[0];
       
     double L[3];
 
@@ -420,36 +424,20 @@ void bssn_ic_static_blackhole(
       {
         for(int i = lower[0]; i <= upper[0]; i++)
         {
-          real_t x = (dx[0] * (real_t)(((i+(N-INNER_N)/2)%N)+0.5)) - L[0] / 2.0 ;
-          real_t y = (dx[1] * (real_t)(((j+(N-INNER_N)/2)%N)+0.5)) - L[1] / 2.0 ;
-          real_t z = (dx[2] * (real_t)(((k+(N-INNER_N)/2)%N)+0.5)) - L[2] / 2.0 ;
+          real_t x = (dx[0] * ((real_t)i + 0.5)) - L[0] / 2.0 ;
+          real_t y = (dx[1] * ((real_t)j + 0.5)) - L[1] / 2.0 ;
+          real_t z = (dx[2] * ((real_t)k + 0.5)) - L[2] / 2.0 ;
 
           real_t norm = sqrt(x*x + y*y + z*z);
 
-          chi_p(i,j,k) = log(1.0 + 1.0/(2.0*norm));
-
+          chi_p(i,j,k) =chi_a(i,j,k)
+            = 1/pw2((1.0 + 1.0/(2.0*norm)));
         }
       }
     }
-    
-            
+                
   }
   
-
-
-
-
-  
-  LOOP3(i,j,k)
-  {
-    real_t x = (dx * (real_t)(((i+(N-INNER_N)/2)%N)+0.5)) - H_LEN_FRAC / 2.0 ;
-    real_t y = (dx * (real_t)(((j+(N-INNER_N)/2)%N)+0.5)) - H_LEN_FRAC / 2.0 ;
-    real_t z = (dx * (real_t)(((k+(N-INNER_N)/2)%N)+0.5)) - H_LEN_FRAC / 2.0 ;
-
-    real_t norm = sqrt(x*x + y*y + z*z);
-
-    DIFFphi_p[NP_INDEX(i,j,k)] = log(1.0 + 1.0/(2.0*norm));
-  }
 }
   
 } // namespace cosmo

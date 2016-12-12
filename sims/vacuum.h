@@ -2,6 +2,12 @@
 #define COSMO_VACUUM_SIM_H
 
 #include "sim.h"
+#include "../cosmo_includes.h"
+#include "../cosmo_macros.h"
+#include "../components/boundaries/sommerfield.h"
+#include "../components/bssn/bssn.h"
+#include "../components/bssn/bssn_ic.h"
+#include "vacuum_macros.h"
 
 namespace cosmo
 {
@@ -12,10 +18,15 @@ namespace cosmo
 class VacuumSim:
   public CosmoSim,
   public mesh::StandardTagAndInitStrategy,
-  public appu::VisDerivedDataStrategy
 {
 public:
-  VacuumSim(){}
+  VacuumSim(
+  const tbox::Dimension& dim_in,
+  //boost::shared_ptr<tbox::InputDatabase>& input_db_in,
+  std::ostream* l_stream_in = 0,
+  std::string simulation_type_in,
+  std::string vis_filename_in);
+
   ~VacuumSim(){}
 
   void init();
@@ -26,14 +37,6 @@ public:
   void runStep();
   
 
-  virtual bool
-   packDerivedDataIntoDoubleBuffer(
-      double* buffer,
-      const hier::Patch& patch,
-      const hier::Box& region,
-      const std::string& variable_name,
-      int depth_id,
-      double simulation_time) const;
   
   virtual void
     initializeLevelData(
@@ -68,6 +71,23 @@ public:
       const bool uses_richardson_extrapolation);
  private:
   boost::shared_ptr<tbox::Database> cosmo_vacuum_db;
+
+  void computeVectorWeights(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
+  void addBSSNExtras(
+    const boost::shared_ptr<hier::PatchLevel> & level);
+  void RKEvolveLevel(
+    const boost::shared_ptr<hier::PatchLevel> & level,
+    const boost::shared_ptr<hier::PatchLevel> & coarser_level,
+    double from_t,
+    double to_t);
+  void advanceLevel(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    int ln,
+    double from_t,
+    double to_t);
+
+  
 };
 
 } /* namespace cosmo */

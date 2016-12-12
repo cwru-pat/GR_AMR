@@ -1,5 +1,6 @@
 #include "cosmo_includes.h"
-
+#include "sim/sim.h"
+#include "sim/vaccum.h"
 
 /*
  * Headers for basic SAMRAI objects used in this code.
@@ -152,8 +153,6 @@ int main(int argc, char* argv[])
  
  
 
-  tbox::plog << "Gridding algorithm:" << std::endl;
-  gridding_algorithm->printClassData(tbox::plog);
   
 
   std::string vis_filename =
@@ -167,10 +166,10 @@ int main(int argc, char* argv[])
     //cosmoSim = new ScalarSim();
     TBOX_ERROR("Have not finished scalar part yet.");
   }
-  else if(simulation == "vacuum")
+  else if(simulation_type == "vacuum")
   {
     cosmoSim = new VacuumSim(
-      dim, input_db, plog, simulation, vis_filename);
+      dim, input_db, plog, simulation_type, vis_filename);
   }
   else
   {
@@ -225,7 +224,7 @@ int main(int argc, char* argv[])
   cosmoSim->setGriddingAlgs(gridding_algorithm);
   
   // Initialize simulation 
-  cosmoSim->init();
+  //cosmoSim->init();
 
   // Generate initial conditions
   cosmoSim->setICs();

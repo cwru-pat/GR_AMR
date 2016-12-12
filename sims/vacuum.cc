@@ -1,21 +1,50 @@
 #include "vacuum.h"
+#include "../cosmo_includes.h"
+#include "vacuum_macros.h"
 
 namespace cosmo
 {
-
-void VacuumSim::init()
+  
+VacuumSim::VacuumSim(
+  const tbox::Dimension& dim_in,
+  boost::shared_ptr<tbox::InputDatabase>& input_db_in,
+  std::ostream* l_stream_in = 0,
+  std::string simulation_type_in,
+  std::string vis_filename_in):CosmoSim(
+    dim_in, input_db_in, l_stream_in, simulation_type_in, vis_filename_in)
 {
   t_init->start();
 
+  std::string bd_type = cosmo_vacuum_db->getString("boundary_type");
+
+  TBOX_ASSERT(bd_type);
+
+
+  if(bd_type == "sommerfield")
+  {
+    cosmoPS = new SommerfieldBD(dim, bd_type);
+  }
+  else
+    TBOX_ERROR("Unsupported boundary type!\n");
+
   // initialize base class
-  simInit();
+
+
+  //  if(do_plot)
+  //cosmo_io->registerVariablesWithPlotter(*visit_writer);
+
 
   cosmo_vacuum_db = input_db->getDatabase("VacuumSim");
     
-  //  iodata->log("Running 'vacuum' type simulation.");
 
-  pbox::pout<<"Running 'vacuum' type simulation."<<endl;
+  tbox::pout<<"Running 'vacuum' type simulation."<<endl;
   t_init->stop();
+  
+}
+  
+void VacuumSim::init()
+{
+  
 }
 
 /**
@@ -26,11 +55,13 @@ void VacuumSim::init()
  */
 void VacuumSim::setICs()
 {
-  iodata->log("Setting initial conditions (ICs).");
+  tbox::plog<<"Setting initial conditions (ICs).";
 
+  TBOX_ASSERT(gridding_algorithm);
+  
   gridding_algorithm->printClassData(tbox::plog);
   gridding_algorithm->makeCoarsestLevel();
-  iodata->log("Finished setting ICs.");
+  tbox::plog<<"Finished setting ICs.\n";
 }
 
 void VacuumSim::initVacuumStep(
@@ -39,32 +70,6 @@ void VacuumSim::initVacuumStep(
   bssnSim->stepInit(hierarchy);
 }
 
-void VaccumSim::registerVariablesWithPlotter(
-  appu::VisItDataWriter& visit_writer)
-{
-  std::vector<std::string> output_list =
-    cosmo_vacuum_db->getStringVector("output_list");
-  for (std::vector<std::string>::iterator it = output_list.begin() ;
-       it != output_list.end(); ++it)
-  {
-    
-    idx_t idx =
-      variable_db->mapVariableAndContextToIndex(
-        variable_db->getVariable(*it), variable_db->getContext("PREVIOUS"));
-    
-    if(idx < 0)
-      TBOX_ERROR("Cannot find variable" <<*it<<" in output list!\n");
-      
-    visit_writer.registerPlotQuantity(
-      *it,
-      "SCALAR",
-      idx,
-      0,
-      1.0,
-      "CELL");
-  }
-}
-  
 void VacuumSim::initCoarsest(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
@@ -239,7 +244,7 @@ void VacuumSim::initializeLevelData(
 
    //registering refine variables
    BSSN_APPLY_TO_FIELDS(VAC_REGISTER_SPACE_REFINE_P);
-      
+   
    boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
 
    level->getBoxLevel()->getMPI().Barrier();
@@ -253,7 +258,7 @@ void VacuumSim::initializeLevelData(
          old_level,
          ln - 1,
          hierarchy,
-         NULL);
+         cosmoPS);
       
      else
      {
@@ -290,10 +295,7 @@ void VacuumSim::initializeLevelData(
 
      math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
 
-     BSSN_APPLY_TO_FIELDS(BSSN_SWAP_PF);
      BSSN_APPLY_TO_FIELDS(BSSN_COPY_P_TO_A);
-     BSSN_APPLY_TO_FIELDS(BSSN_SET_F_ZERO);
-
       
      if (0)
      {
@@ -405,13 +407,25 @@ void VacuumSim::applyGradientDetector(
    tbox::plog << "Max norm is " << max_der_norm << "\n";
 }
   
-void VacuumSim::outputVacuumStep()
+void VacuumSim::outputVacuumStep(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
     // prepBSSNOutput();
     // io_bssn_fields_snapshot(iodata, step, bssnSim->fields);
     // io_bssn_fields_powerdump(iodata, step, bssnSim->fields, fourier);
     // io_bssn_dump_statistics(iodata, step, bssnSim->fields, bssnSim->frw);
     // io_bssn_constraint_violation(iodata, step, bssnSim);
+  boost::shared_ptr<appu::VisItDataWriter> visit_writer;
+  visit_writer(new appu::VisItDataWriter(
+    dim, "VisIt Writer", vis_filename + ".visit"));
+
+  tbox::pout<<"step: "<<step<<"/"<<num_steps<<"\n";
+
+  bssnSim->output_max_H_constaint(hierarchy, weight_idx);
+  
+  cosmo_io->registerVariablesWithPlotter(visit_writer, step);
+  cosmo_io->dumpData(hierarchy, step, cur_t);
+  
 }
 
 void VacuumSim::runVacuumStep(
@@ -452,33 +466,59 @@ void VacuumSim::runStep(
 }
 
 
+void VaccumSim::addBSSNExtras(
+  const boost::shared_ptr<hier::PatchLevel> & level)
+{
+#if USE_CCZ4
+  bssnSim->initZ(level);
+#endif
+  return;
+}
+
 void VaccumSim::RKEvolveLevel(
   const boost::shared_ptr<hier::PatchLevel> & level,
+  const boost::shared_ptr<hier::PatchLevel> & coarser_level,
   double from_t,
   double to_t)
 {
   xfer::RefineAlgorithm refiner;
   boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
 
-  bssnSim->registerSameLevelRefinerActive(refiner, space_refine_op);
-  
-  //BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_SAME_LEVEL_REFINE_A,refiner,space_refine_op);
 
-  refine_schedule = refiner.createSchedule(level, NULL);
+  
+  bssnSim->registerRKRefiner(refiner, space_refine_op);
+
+  bssnSim->prepairForK1(coarser_level, to_t);
+
+
+  
+  //if not the coarsest level, should 
+  if(corser_level!=NULL)
+  {
+    boost::shared_ptr<xfer::PatchLevelBorderFillPattern> border_fill_pattern (
+      new xfer::PatchLevelBorderFillPattern());
+    
+    refine_schedule = refiner.createSchedule(
+      border_fill_pattern,
+      level,
+      level,
+      coarser_level->getLevelNumber(),
+      hierarchy,
+      (cosmoPS->is_time_dependent)?NULL:cosmoPS);
+  }
+  else
+    refine_schedule = refiner.createSchedule(level, NULL);
   
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
     const boost::shared_ptr<hier::Patch> & patch = *pit;
 
-    //BSSN_APPLY_TO_FIELDS(BSSN_PDATA_ALL_INIT);
-    //BSSN_APPLY_TO_FIELDS(BSSN_MDA_ACCESS_ALL_INIT);
-
-    bssnSim->initPData(patch);
-    bssnSim->initMDA(patch);
-    
-    bssnSim->RKEvolvePatch(patch);
-    bssnSim->K1FinalizePatch(patch, to_t - from_t);  
+    //Evolve inner grids
+    bssnSim->RKEvolvePatch(patch, to_t - from_t);
+    // Evolve physical boundary
+    // would not do anything if boundary is time independent
+    bssnSim->RKEvolveBD(patch, to_t - from_t);  
   }
 
   level->getBoxLevel()->getMPI().Barrier();
@@ -488,23 +528,41 @@ void VaccumSim::RKEvolveLevel(
        pit != level->end(); ++pit)
   {
     const boost::shared_ptr<hier::Patch> & patch = *pit;
+    bssnSim->K1FinalizePatch(patch);  
+  }
+  
+  /**************Starting K2 *********************************/
+  bssnSim->prepairForK2(coarser_level, to_t);
+  
+  for( hier::PatchLevel::iterator pit(level->begin());
+       pit != level->end(); ++pit)
+  {
+    const boost::shared_ptr<hier::Patch> & patch = *pit;
     patch_geom = 
       BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
         patch.getPatchGeometry());
 
-    //BSSN_APPLY_TO_FIELDS(BSSN_PDATA_ALL_INIT);
-    //BSSN_APPLY_TO_FIELDS(BSSN_MDA_ACCESS_ALL_INIT);
-
-    bssnSim->initPData(patch);
-    bssnSim->initMDA(patch);
-    
-    bssnSim->RKEvolvePatch(patch);
-    bssnSim->K2FinalizePatch(patch, to_t - from_t);
+        //Evolve inner grids
+    bssnSim->RKEvolvePatch(patch, to_t - from_t);
+    //Evolve physical boundary
+    // would not do anything if boundary is time dependent
+    bssnSim->RKEvolveBD(patch, to_t - from_t);  
   }
 
-  
   level->getBoxLevel()->getMPI().Barrier();
   refine_schedule->fillData(to_t);
+
+  for( hier::PatchLevel::iterator pit(level->begin());
+       pit != level->end(); ++pit)
+  {
+    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    bssnSim->K2FinalizePatch(patch);  
+  }
+
+  /**************Starting K3 *********************************/
+
+  bssnSim->prepairForK3(coarser_level, to_t);
+    
 
   
   for( hier::PatchLevel::iterator pit(level->begin());
@@ -515,15 +573,14 @@ void VaccumSim::RKEvolveLevel(
       BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
         patch.getPatchGeometry());
 
-    //BSSN_APPLY_TO_FIELDS(BSSN_PDATA_ALL_INIT);
-    //BSSN_APPLY_TO_FIELDS(BSSN_MDA_ACCESS_ALL_INIT);
-
+  
     bssnSim->initPData(patch);
     bssnSim->initMDA(patch);
-    
-    bssnSim->RKEvolvePatch(patch);
-    bssnSim->K3FinalizePatch(patch, to_t - from_t);
-    
+
+    bssnSim->RKEvolvePatch(patch, to_t - from_t);
+    //Evolve physical boundary
+    // would not do anything if boundary is time dependent
+    bssnSim->RKEvolveBD(patch, to_t - from_t);  
   }
 
   level->getBoxLevel()->getMPI().Barrier();
@@ -533,29 +590,69 @@ void VaccumSim::RKEvolveLevel(
        pit != level->end(); ++pit)
   {
     const boost::shared_ptr<hier::Patch> & patch = *pit;
+    bssnSim->K3FinalizePatch(patch);  
+  }
+
+  /**************Starting K4 *********************************/
+
+  bssnSim->prepairForK4(coarser_level, to_t);
+
+  for( hier::PatchLevel::iterator pit(level->begin());
+       pit != level->end(); ++pit)
+  {
+    const boost::shared_ptr<hier::Patch> & patch = *pit;
     patch_geom = 
       BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
         patch.getPatchGeometry());
-
-    //BSSN_APPLY_TO_FIELDS(BSSN_PDATA_ALL_INIT);
-    //BSSN_APPLY_TO_FIELDS(BSSN_MDA_ACCESS_ALL_INIT);
 
     bssnSim->initPData(pathc);
     bssnSim->initMDA(patch);
-    
-    bssnSim->RKEvolvePatch(patch);
-    bssnSim->K4FinalizePatch(patch, to_t - from_t);  
+
+    bssnSim->RKEvolvePatch(patch, to_t - from_t);
+    //Evolve physical boundary
+    // would not do anything if boundary is time dependent
+    bssnSim->RKEvolvePatchBD(patch, to_t - from_t);  
   }
-
-  //BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_SAME_LEVEL_REFINE_F,refiner,space_refine_op);
-
-  bssnSim->registerSameLevelRefinerFinal(refiner,space_refine_op);
-  
-  refine_schedule = refiner.createSchedule(level, NULL);
 
   level->getBoxLevel()->getMPI().Barrier();
   refine_schedule->fillData(to_t);
+
+  for( hier::PatchLevel::iterator pit(level->begin());
+       pit != level->end(); ++pit)
+  {
+    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    bssnSim->K4FinalizePatch(patch);  
+  }
+
+  // // make a another refine operator, which refines from _a to the
+  // // boundaries.
+  // xfer::RefineAlgorithm refinerFinal;
+  
+  // bssnSim->registerRKRefinerFinal(refinerFinal,space_refine_op);
+
+  // //if not the coarsest level, should 
+  // if(corser_level!=NULL)
+  // {
+  //   boost::shared_ptr<xfer::PatchLevelBorderFillPattern> border_fill_pattern (
+  //     new xfer::PatchLevelBorderFillPattern());
+    
+  //   refine_schedule = refinerFinal.createSchedule(
+  //     border_fill_pattern,
+  //     level,
+  //     level,
+  //     coarser_level->getLevelNumber(),
+  //     hierarchy,
+  //     (cosmoPS->is_time_dependent)?NULL:cosmoPS);
+  // }
+  // else
+  //   refine_schedule = refinerFinal.createSchedule(level, NULL);
+
+  // level->getBoxLevel()->getMPI().Barrier();
+
+  // refine_schedule->fillData(to_t);
+
 }
+
 
 void VacuumSim::advanceLevel(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
@@ -570,39 +667,11 @@ void VacuumSim::advanceLevel(
   const boost::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
 
-  //RK advance interior(including innner ghost cells) of level
-  RKEvolveLevel(level, from_t, to_t);
-
   setLevelTime(level, from_t, to_t);
-  
-  if(ln > 0)
-  {
-    boost::shared_ptr<xfer::PatchLevelBorderFillPattern> border_fill_pattern (
-      new xfer::PatchLevelBorderFillPattern());
+  //RK advance interior(including innner ghost cells) of level
+  RKEvolveLevel(
+    level, (ln>0)?hierarchy->getPatchLevel(ln-1):NULL, from_t, to_t);
 
-    xfer::RefineAlgorithm refiner;
-    boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
-
-    bssnSim->registerInterLevelRefinerFinal(
-      refiner,
-      space_refine_op,
-      time_refine_op);
-    //BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_INTER_LEVEL_REFINE_F,refiner,space_refine_op,time_refine_op);
-
-    refine_schedule = refiner.createSchedule(
-      border_fill_pattern,
-      level,
-      level,
-      ln-1
-      hierarchy,
-      (cosmoPS->is_time_depent)?NULL:PS,
-      TRUE,
-      NULL);
-
-    level->getBoxLevel()->getMPI().Barrier();
-    refine_schedule->fillData(to_t);
-
-  }
   
   advanceLevel(hierarchy, ln+1, from_t, from_t + (to_t - from_t)/2.0);
 
@@ -616,8 +685,7 @@ void VacuumSim::advanceLevel(
 
     boost::shared_ptr<xfer::CoarsenSchedule> coarsen_schedule;
 
-    //BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_COARSEN_F, coarsener, coarsen_op);
-    bssnSim->registerCoarsenFinal()
+    bssnSim->registerCoarsenActive()
       
     coarsen_schedule = coarsener.createSchedule(level, hierarchy->getPatchLevel(ln+1));
     level->getBoxLevel()->getMPI().Barrier();
@@ -628,9 +696,8 @@ void VacuumSim::advanceLevel(
     boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
 
     
-    //BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_SAME_LEVEL_REFINE_F,post_refiner,space_refine_op);
 
-    bssnSim->registerSameLevelRefiner(post_refiner, space_refine_op);
+    bssnSim->registerSameLevelRefinerActive(post_refiner, space_refine_op);
     
     refine_schedule = post_refiner.createSchedule(level, NULL);
 
@@ -638,14 +705,14 @@ void VacuumSim::advanceLevel(
     refine_schedule->fillData(to_t);
   }
 
-  // swap _p and _f patches, so all recent data is stored
-  // in _p arrays rather than _f arrays 
+  // copy _a to _p and set _p time to next timestamp1
 
   math::HierarchyCellDataOpsReal<real_t> hcellmath(hierarchy,ln,ln);
 
-  bssnSim->swapPF(hcellmath);
-  bssnSim->copyPToA(hcellmath);
-  bssnSim->setFZero(hcellmath);
+  //bssnSim->swapPF(hcellmath);
+  bssnSim->copyAToP(hcellmath);
+
+  setLevelTime(level, to_t, to_t);
   
 }
   

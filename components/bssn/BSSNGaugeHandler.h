@@ -6,10 +6,10 @@
 #ifndef COSMO_BSSN_GAUGE_FNS
 #define COSMO_BSSN_GAUGE_FNS
 
+#include "../../cosmo_includes.h"
 #include "bssn_data.h"
-#include <string>
-#include <iostream>
-#include "../../utils/ConfigParser.h"
+
+#include <map>
 
 namespace cosmo
 {
@@ -61,7 +61,7 @@ private:
   real_t AwAGaugeWaveLapse(BSSNData *bd);
 
   // AwA Shifted Gauge Wave test gauge
-  real_t AwA_shift_dir; ///< shifted wave direction of prop. (\in {1,2,3})
+  idx_t AwA_shift_dir; ///< shifted wave direction of prop. (\in {1,2,3})
   real_t AwAShiftedWaveLapse(BSSNData *bd);
   real_t AwAShiftedWaveShift1(BSSNData *bd);
   real_t AwAShiftedWaveShift2(BSSNData *bd);
@@ -99,13 +99,14 @@ private:
     shift_gauge_map["AwAShiftedWave"]["3"] = &BSSNGaugeHandler::AwAShiftedWaveShift3;
   }
 
-  void _initDefaultParameters(ConfigParser *config)
+  void _initDefaultParameters(tbox::Database *database)
   {
-    AwA_shift_dir = std::stoi((*config)("AwA_shift_dir", "1"));
-    dw_mu_l = std::stod((*config)("dw_mu_l", "0.0"));
-    dw_mu_s = std::stod((*config)("dw_mu_s", "0.0"));
-    dw_p = std::stod((*config)("dw_p", "0.0"));
-    gd_c = std::stod((*config)("gd_c", "0.0"));
+    AwA_shift_dir = database->getIntegerWithDefault(("AwA_shift_dir", 1));
+   
+    dw_mu_l = database->getDoubleWithDefault("dw_mu_l", 0.0);
+    dw_mu_s = database->getDoubleWithDefault("dw_mu_s", 0.0);
+    dw_p = database->getDoubleWithDefault("dw_p", 0.0);
+    gd_c = database->getDoubleWithDefault("gd_c", 0.0);
   }
 
 public:
@@ -115,7 +116,6 @@ public:
    */
   BSSNGaugeHandler()
   {
-    ConfigParser emptyConfig;
     _initGaugeMaps();
     _initDefaultParameters(&emptyConfig);
     setLapseFn("Static");
@@ -125,12 +125,12 @@ public:
   /**
    * @brief Initialize with gauge determined by config file (default to a "static", non-evolving gauge)
    */
-  BSSNGaugeHandler(ConfigParser *config)
+  BSSNGaugeHandler(tbox::Database *database)
   {
     _initGaugeMaps();
     _initDefaultParameters(config);
-    setLapseFn((*config)("lapse", "Static"));
-    setShiftFn((*config)("shift", "Static"));
+    setLapseFn(database->getStringWithDefault("lapse", "Static"));
+    setShiftFn(database->getStringWithDefault("Shift", "Static"));
   }
 
   /**

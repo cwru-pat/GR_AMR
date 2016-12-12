@@ -1,17 +1,11 @@
 #include "sim.h"
-#include "../ICs/ICs.h"
-#include "../cosmo_globals.h"
+#include "../cosmo_includes.h"
+#include "../cosmo_macros.h"
+#include "../components/bssn/bssn.h"
 
 #include "SAMRAI/SAMRAI_config.h"
 #include "SAMRAI/tbox/MathUtilities.h"
 
-#include "boost/shared_ptr.hpp"
-#include <sstream>
-#include <iomanip>
-#include <cstring>
-#include <stdlib.h>
-
-#include <cmath>
 
 using namespace SAMRAI;
 
@@ -41,7 +35,10 @@ CosmoSim::CosmoSim(
   do_plot(cosmo_sim_db->getBoolWithDefault("do_plot", false)),
   dt_frac(cosmo_sim_db->getDoubleWithDefault("dt_frac", 0.1)),
   vis_filename(vis_filename_in),
-  cur_t(0)
+  cur_t(0),
+  weight(new pdat::CellVariable<real_t>(dim, "weight", 1)),
+  weight_idx(0),
+  regridding_interval(cosmo_sim_db->getInteger("regridding_interval"))
 {
   t_loop = tbox::TimerManager::getManager()->
     getTimer("loop");
@@ -49,6 +46,18 @@ CosmoSim::CosmoSim(
     getTimer("init");
   t_RK_steps = tbox::TimerManager::getManager()->
     getTimer("RK_steps");
+  simInit();
+  cosmo_io = new CosmoIO(dim, input_db->getDataBase("IO"), lstream);
+
+  hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
+  
+  boost::shared_ptr<hier::VariableContext> context_active(
+    variable_db->getContext("ACTIVE"));
+
+  weight_idx = variable_db->registerVariableAndContext( 
+      weight, 
+      context,
+      hier::IntVector(dim, STENCIL_ORDER));
 }
 
 CosmoSim::~CosmoSim()
@@ -56,7 +65,7 @@ CosmoSim::~CosmoSim()
 
 }
 
-void CosmoSIm::setGriddingAlgs(
+void CosmoSim::setGriddingAlgs(
   boost::shared_ptr<mesh::GriddingAlgorithm>& gridding_algorithm_in)
 {
   gridding_algorithm = gridding_algorithm_in;
@@ -76,7 +85,7 @@ void CosmoSim::simInit()
 void CosmoSim::run(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
-  iodata->log("Running simulation...");
+  tbox::plog("Running simulation...");
 
   t_loop->start();
   while(step <= num_steps)
@@ -94,14 +103,20 @@ void CosmoSim::run(
 void CosmoSim::runCommonStepTasks(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
-  // check for NAN every step
-  // if(simNumNaNs() > 0)
-  // {
-  //   TBOX_ERROR("\nNAN detected!");
-  // }
-
-  // progress bar in terminal
-  //  io_show_progress(step, num_steps);
+  if(step % regridding_interval == 0)
+  {
+    std::vector<int> tag_buffer(hierarchy->getMaxNumberOfLevels());
+    for (ln = 0; ln < static_cast<int>(tag_buffer.size()); ++ln) {
+      tag_buffer[ln] = 1;
+    }
+    gridding_algorithm->regridAllFinerLevels(
+      0,
+      tag_buffer,
+      0,
+      0.0);
+    tbox::plog << "Newly adapted hierarchy\n";
+    hierarchy->recursivePrint(tbox::plog, "    ", 1);
+  }
 }
 
   //TODO

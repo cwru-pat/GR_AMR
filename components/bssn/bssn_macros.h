@@ -5,16 +5,21 @@
  * applying functions to lots of vars
  */
 
+#define Z4c_APPLY_TO_FIELDS(function)           \
+  function(theta);
+#define Z4c_APPLY_TO_FIELDS_ARGS(function, ...) \
+  function(theta, __VA_ARGS__);
 
-#if USE_Z4c_DAMPING
-  #define Z4c_APPLY_TO_FIELDS(function)  \
-    function(theta);
-  #define Z4c_APPLY_TO_FIELDS_ARGS(function, ...) \
-    function(theta, __VA_ARGS__);
-#else
-  #define Z4c_APPLY_TO_FIELDS(function)
-  #define Z4c_APPLY_TO_FIELDS_ARGS(function, ...)
-#endif
+
+/* #if USE_Z4c_DAMPING */
+/*   #define Z4c_APPLY_TO_FIELDS(function)  \ */
+/*     function(theta); */
+/*   #define Z4c_APPLY_TO_FIELDS_ARGS(function, ...) \ */
+/*     function(theta, __VA_ARGS__); */
+/* #else */
+/*   #define Z4c_APPLY_TO_FIELDS(function) */
+/*   #define Z4c_APPLY_TO_FIELDS_ARGS(function, ...) */
+/* #endif */
 
 #if USE_BSSN_SHIFT
   #define BSSN_APPLY_TO_SHIFT(function)  \
@@ -70,7 +75,7 @@
   function(Gamma2, __VA_ARGS__);                   \
   function(Gamma3, __VA_ARGS__);                   \
   function(DIFFalpha, __VA_ARGS__);                \
-  Z4c_APPLY_TO_FIELDS_ARGS(function, __VA_ARGS__)  \
+  CCZ4_APPLY_TO_FIELDS_ARGS(function, __VA_ARGS__)  \
   BSSN_APPLY_TO_SHIFT_ARGS(function, __VA_ARGS__)  \
   BSSN_APPLY_TO_AUX_B_ARGS(function, __VA_ARGS__)  \
   BSSN_APPLY_TO_EXP_N_ARGS(function, __VA_ARGS__)
@@ -136,9 +141,9 @@
 #define BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(function, ...)    \
   function(ricci, __VA_ARGS__);                          \
   function(AijAij, __VA_ARGS__);                         \
-  function(Zd1, __VA_ARGS__);                             \
-  function(Zd2, __VA_ARGS__);                             \
-  function(Zd3, __VA_ARGS__);                             
+  function(Z1, __VA_ARGS__);                             \
+  function(Z2, __VA_ARGS__);                             \
+  function(Z3, __VA_ARGS__);                             
 
 
 
@@ -172,11 +177,6 @@
   function(3, 3, 3);
 
 
-#define BSSN_ZERO_FIELD(field, reg, idx) \
-  field->_array##reg[idx] = 0.0;
-
-#define BSSN_ZERO_ARRAYS(reg, idx) \
-  BSSN_APPLY_TO_FIELDS_ARGS(BSSN_ZERO_FIELD, reg, idx)
 
 #define BSSN_REG_TO_CONTEXT(field, context, name, width)  \
   field##_##name##_idx =  \
@@ -198,25 +198,43 @@
   field##_p##_pdata =  \
     BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
       patch->getPatchData(field##_p##_idx));  \
-  field##_c##_pdata =  \
+  field##_s##_pdata =  \
     BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
-      patch->getPatchData(field##_c##_idx));  \
+      patch->getPatchData(field##_s##_idx));  \
   field##_a##_pdata =  \
     BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
       patch->getPatchData(field##_a##_idx));  \
-  field##_f##_pdata =  \
+  field##_k1##_pdata =  \
     BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
-      patch->getPatchData(field##_f##_idx))
+      patch->getPatchData(field##_k1##_idx));             \
+  field##_k3##_pdata =                                      \
+    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(    \
+      patch->getPatchData(field##_k2##_idx));               \
+  field##_k3##_pdata =  \
+    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+      patch->getPatchData(field##_k3##_idx));             \
+  field##_k4##_pdata =  \
+    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+      patch->getPatchData(field##_k4##_idx))
+
+
+
 
 #define BSSN_MDA_ACCESS_ALL_INIT(field,type)
   field##_p = pdat::ArrayDataAccess::access<DIM, double>(  \
-    field##_p##_pdata->getArrayData());
+    field##_p##_pdata->getArrayData());                    \
   field##_a = pdat::ArrayDataAccess::access<DIM, double>(  \
-    field##_a##_pdata->getArrayData());
-  field##_c = pdat::ArrayDataAccess::access<DIM, double>(  \
-    field##_c##_pdata->getArrayData());
-  field##_f = pdat::ArrayDataAccess::access<DIM, double>(  \
-    field##_f##_pdata->getArrayData());
+    field##_a##_pdata->getArrayData());                    \
+  field##_s = pdat::ArrayDataAccess::access<DIM, double>(  \
+    field##_s##_pdata->getArrayData());                    \
+  field##_k1 = pdat::ArrayDataAccess::access<DIM, double>(  \
+    field##_k1##_pdata->getArrayData());                    \
+  field##_k2 = pdat::ArrayDataAccess::access<DIM, double>(  \
+    field##_k2##_pdata->getArrayData());                    \
+  field##_K3 = pdat::ArrayDataAccess::access<DIM, double>(  \
+    field##_k3##_pdata->getArrayData());                    \
+  field##_k4 = pdat::ArrayDataAccess::access<DIM, double>(  \
+    field##_k4##_pdata->getArrayData());                    
 
 
 // macro requires idx to be set
@@ -232,21 +250,14 @@
   BSSN_APPLY_TO_SOURCES(BSSN_ZERO_GEN1_FIELD)
 
 
-// Initialize all fields
-#define BSSN_RK_INITIALIZE_FIELD(field) \
-  field##_a
-
-#define BSSN_RK_INITIALIZE \
-  BSSN_APPLY_TO_FIELDS(BSSN_RK_INITIALIZE_FIELD)
-
 
 // Evolve all fields
 #define BSSN_RK_EVOLVE_PT_FIELD(field) \
-  field_c(i,j,k) = ev_##field(bd, dx);
+  field_s(i,j,k) = ev_##field(bd, dx) * dt;
 
 // Evolve all fields
 #define BSSN_RK_EVOLVE_BD_FIELD(field) \
-  field_c(i,j,k) = ev_##field##_bd(bd, dx, l_idx, codim);
+  field_s(i,j,k) = ev_##field##_bd(bd, dx, l_idx, codim) * dt;
 
 #define BSSN_RK_EVOLVE_PT \
   BSSN_APPLY_TO_FIELDS(BSSN_RK_EVOLVE_PT_FIELD)
@@ -256,26 +267,76 @@
 
 // Finalize an RK step for all BSSN fields
 #define BSSN_FINALIZE_FIELD_1(field) \
-  field##_f(i,j,k) += dt * field##_c(i,j,k)/6.0;  \
-  field##_a(i,j,k) += field##_p(i,j,k) + dt * field##_c(i,j,k)/2.0  
+  field##_k1(i,j,k) =  field##_s(i,j,k);  \
+  field##_a(i,j,k) = field##_p(i,j,k) + field##_k1(i,j,k)/2.0  
 
 #define BSSN_FINALIZE_FIELD_2(field)              \
-  field##_f(i,j,k) += dt * field##_c(i,j,k)/3.0;  \
-  field##_a(i,j,k) += field##_p(i,j,k) + dt * field##_c(i,j,k)/2.0  
+  field##_k2(i,j,k) = field##_s(i,j,k);  \
+  field##_a(i,j,k) = field##_p(i,j,k) + field##_k2(i,j,k)/2.0  
 
 #define BSSN_FINALIZE_FIELD_3(field) \
-  field##_f(i,j,k) += dt * field##_c(i,j,k)/3.0;  \
-  field##_a(i,j,k) += field##_p(i,j,k) + dt * field##_c(i,j,k)  
+  field##_k3(i,j,k) = field##_s(i,j,k);  \
+  field##_a(i,j,k) = field##_p(i,j,k) + field##_k3(i,j,k)  
 
 #define BSSN_FINALIZE_FIELD_4(field) \
-  field##_f(i,j,k) += dt * field##_c(i,j,k)/6.0 + field##_p(i,j,k);    \
-  field##_a(i,j,k) = field##_f(i,j,k)  
+  field##_k4(i,j,k) = field##_s(i,j,k);    \
+  field##_a(i,j,k) =  field##_p(i,j,k)                                  \
+    (field##_k4(i,j,k) + 2.0*field##_k3(i,j,k) + 2.0*field##_k2(i,j,k) + field##_k1(i,j,k))/6.0  
 
-    
-    
+
+#define BSSN_INIT_L_K1(field)  \
+  field##_s(i,j,k) =  field##_k1(i,j,k) / 2.0
+
+#define BSSN_INIT_L_K2(field)  \
+  field##_s(i,j,k) =         \
+    (3.0*field##_k1(i,j,k) + 4.0*field##_k2(i,j,k)  \
+     + 2.0*field##_k3(i,j,k) - field##_k4(i,j,k))/16.0
+
+#define BSSN_INIT_L_K3(field)  \
+    field##_s(i,j,k) =         \
+      (3.0*field##_k1(i,j,k) + 2.0*field##_k2(i,j,k) \
+       + 4.0*field##_k3(i,j,k) - field##_k4(i,j,k))/16.0
+
+#define BSSN_INIT_L_K4(field)  \
+    field##_s(i,j,k) =         \
+      (-2.0*field##_k1(i,j,k) - 3.0*field##_k2(i,j,k)  \
+       - 3.0*field##_k3(i,j,k) + field##_k4(i,j,k))/10.0
+
+
+#define BSSN_INIT_R_K1(field)  \
+  field##_s(i,j,k) =  (field##_k2(i,j,k) + field##_k3(i,j,k)) / 4.0
+
+#define BSSN_INIT_R_K2(field)  \
+  field##_s(i,j,k) =         \
+    (-field##_k1(i,j,k) + 4.0*field##_k2(i,j,k)  \
+     + 2.0*field##_k3(i,j,k) + 3.0*field##_k4(i,j,k))/16.0
+
+#define BSSN_INIT_R_K3(field)  \
+    field##_s(i,j,k) =         \
+      (-field##_k1(i,j,k) + 2.0*field##_k2(i,j,k) \
+       + 4.0*field##_k3(i,j,k) - 3.0*field##_k4(i,j,k))/24.0
+
+#define BSSN_INIT_R_K4(field)  \
+    field##_s(i,j,k) =         \
+      (5.0*field##_k1(i,j,k) + 4.0*field##_k2(i,j,k)  \
+       + 4.0*field##_k3(i,j,k) + field##_k4(i,j,k))/4.0
+
+
+/* #define BSSN_INIT_K4(field)  \ */
+/*   field##_a(i,j,k) = field##_p(i,j,k)                            \ */
+/*     +  RK4_B1(theta)*field##_k1(i,j,k)                           \ */
+/*     +  RK4_B2(theta)*field##_k2(i,j,k)                           \ */
+/*     +  RK4_B3(theta)*field##_k3(i,j,k)                           \ */
+/*     +  RK4_B4(theta)*field##_k4(i,j,k)                           */
+
 #define BSSN_FINALIZE_K(n) \
   BSSN_APPLY_TO_FIELDS_ARGS(BSSN_FINALIZE_K_FIELD##_##n)
 
+#define BSSN_REGISTER_RK_REFINER(field, refiner,refine_op)  \
+  refiner##.registerRefine(field##_s_idx,  \
+                           field##_s_idx,  \
+                           field##_s_idx,  \
+                           refine_op)
 
 #define BSSN_REGISTER_SAME_LEVEL_REFINE_A(field, refiner,refine_op)  \
   refiner##.registerRefine(field##_a_idx,  \
@@ -295,9 +356,9 @@
                            refine_op)
 
 #define BSSN_REGISTER_SAME_LEVEL_REFINE_F(field, refiner,refine_op)  \
-  refiner##.registerRefine(field##_f_idx,  \
-                           field##_f_idx,  \
-                           field##_f_idx,  \
+  refiner##.registerRefine(field##_a_idx,  \
+                           field##_a_idx,  \
+                           field##_a_idx,  \
                            refine_op)
  
 
@@ -336,7 +397,7 @@
 
 #define BSSN_REGISTER_COARSEN_A(field,coarsener,coarsen_op)  \
   coarsener##.registerCoarsen(field##_a_idx,  \
-                              field##_f_idx,  \
+                              field##_a_idx,  \
                               coarsen_op,     \
                               NULL)
 
@@ -361,7 +422,7 @@
 
 // Initialize all fields
 #define BSSN_SET_PATCH_TIME(field, from_t, to_t)        \
-  patch->getPatchData(field##_f_idx)->setTime(to_t); \
+  patch->getPatchData(field##_a_idx)->setTime(to_t); \
   patch->getPatchData(field##_p_idx)->setTime(from_t)  \
  
 #define BSSN_SET_DT(dt) \
@@ -371,7 +432,7 @@
   hcellmath.swapData(field##_p_idx, field##_f_idx)  
 
 #define BSSN_COPY_P_TO_A(field)  \
-  hcellmath.copyData(field##_a_idx, field##_p_idx, 0)
+  hcellmath.copyData(field##_p_idx, field##_a_idx, 0)
 
 #define BSSN_SET_F_ZERO(field)                                           \
   hcellmath.setToScalar(field##_f_idx, 0, false)
