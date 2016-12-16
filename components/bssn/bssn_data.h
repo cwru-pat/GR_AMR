@@ -1,7 +1,7 @@
 #ifndef COSMO_BSSN_DATA
 #define COSMO_BSSN_DATA
 
-#include "../../cosmo_macros.h"
+#include "../../cosmo_includes.h"
 #include "../../cosmo_types.h"
 #include "bssn_macros.h"
 
@@ -100,6 +100,9 @@ typedef struct {
     real_t d1phi, ///< \f$\partial_1 \phi \f$
            d2phi, ///< \f$\partial_2 \phi \f$
            d3phi; ///< \f$\partial_3 \phi \f$
+      real_t d1chi, ///< \f$\partial_1 \phi \f$
+           d2chi, ///< \f$\partial_2 \phi \f$
+           d3chi; ///< \f$\partial_3 \phi \f$
     real_t d1phiu, ///< \f$\partial_1 \phi \f$
            d2phiu, ///< \f$\partial_2 \phi \f$
            d3phiu; ///< \f$\partial_3 \phi \f$
@@ -110,6 +113,14 @@ typedef struct {
            d2d3phi, ///< partial second derivative of phi, \f$\partial_2 \partial_3 \phi\f$
            d3d3phi; ///< partial second derivative of phi, \f$\partial_3 \partial_3 \phi\f$
 
+  real_t d1d1chi, ///< partial second derivative of phi, \f$\partial_1 \partial_1 \phi\f$
+    d1d2chi, ///< partial second derivative of phi, \f$\partial_1 \partial_2 \phi\f$
+    d1d3chi, ///< partial second derivative of phi, \f$\partial_1 \partial_3 \phi\f$
+    d2d2chi, ///< partial second derivative of phi, \f$\partial_2 \partial_2 \phi\f$
+    d2d3chi, ///< partial second derivative of phi, \f$\partial_2 \partial_3 \phi\f$
+    d3d3chi; ///< partial second derivative of phi, \f$\partial_3 \partial_3 \phi\f$
+
+  
   // ders of K
   real_t d1K, ///< \f$\partial_1 K\f$
          d2K, ///< \f$\partial_2 K\f$
@@ -265,9 +276,6 @@ typedef struct {
 
   // additional variables to handle absence of Z4c terms in macros
   // (make sure these get initialized to 0!)
-  #if !USE_Z4c_DAMPING
-    real_t theta; ///< Z4c \f$\theta\f$ variable
-  #endif
   real_t d1theta, ///< \f$\partial_1 \theta\f$ variable
          d2theta, ///< \f$\partial_2 \theta\f$ variable
          d3theta; ///< \f$\partial_3 \theta\f$ variable
@@ -302,11 +310,18 @@ typedef struct {
          d3expNu;
   #endif
   // Reference FRW quantities
-  real_t phi_FRW; ///< Reference FRW variable, \f$\phi_{FRW}\f$
+  real_t chi_FRW; ///< Reference FRW variable, \f$\phi_{FRW}\f$
   real_t K_FRW; ///< Reference FRW variable, \f$K_{FRW}\f$
   real_t rho_FRW, ///< Reference FRW variable, \f$\rho_{FRW}\f$
          S_FRW; ///< Reference FRW variable, \f$S_{FRW}\f$
+  
+  real_t D1Z1, D2Z2, D3Z3, D1Z2, D1Z3, D2Z3, D2Z1, D3Z1, D3Z2;
+  real_t D1Z1TF, D2Z2TF, D3Z3TF, D1Z2TF,
+    D1Z3TF, D2Z3TF, D2Z1TF, D3Z1TF, D3Z2TF;
+  real_t DZTR;
 
+  real_t norm, x, y, z;
+  
 } BSSNData;
 
 } /* namespace cosmo */

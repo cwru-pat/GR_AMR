@@ -3,11 +3,13 @@
 
 #include "sim.h"
 #include "../cosmo_includes.h"
-#include "../cosmo_macros.h"
 #include "../components/boundaries/sommerfield.h"
 #include "../components/bssn/bssn.h"
 #include "../components/bssn/bssn_ic.h"
 #include "vacuum_macros.h"
+
+
+using namespace SAMRAI;
 
 namespace cosmo
 {
@@ -16,25 +18,33 @@ namespace cosmo
  * derived class based on CosmoSim class (sim.h)
  */
 class VacuumSim:
-  public CosmoSim,
-  public mesh::StandardTagAndInitStrategy,
+  public CosmoSim  
 {
 public:
   VacuumSim(
   const tbox::Dimension& dim_in,
-  //boost::shared_ptr<tbox::InputDatabase>& input_db_in,
-  std::ostream* l_stream_in = 0,
+  boost::shared_ptr<tbox::InputDatabase>& input_db_in,
+  std::ostream* l_stream_in,
   std::string simulation_type_in,
   std::string vis_filename_in);
 
-  ~VacuumSim(){}
+  virtual ~VacuumSim(
+    void);
+
 
   void init();
   void setICs();
-  void initVacuumStep();
-  void outputVacuumStep();
-  void runVacuumStep();
-  void runStep();
+  void initVacuumStep(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
+  void outputVacuumStep(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
+  void runVacuumStep(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  double from_t, double to_t);
+  virtual void runStep(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
+  double getDt(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
   
 
   
@@ -72,13 +82,15 @@ public:
  private:
   boost::shared_ptr<tbox::Database> cosmo_vacuum_db;
 
+  void initCoarsest(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
   void computeVectorWeights(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
   void addBSSNExtras(
     const boost::shared_ptr<hier::PatchLevel> & level);
   void RKEvolveLevel(
-    const boost::shared_ptr<hier::PatchLevel> & level,
-    const boost::shared_ptr<hier::PatchLevel> & coarser_level,
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    idx_t ln,
     double from_t,
     double to_t);
   void advanceLevel(
@@ -87,6 +99,7 @@ public:
     double from_t,
     double to_t);
 
+  
   
 };
 

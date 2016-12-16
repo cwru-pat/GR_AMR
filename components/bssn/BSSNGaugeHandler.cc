@@ -1,9 +1,10 @@
 #include "BSSNGaugeHandler.h"
 #include "../../cosmo_types.h"
-#include "../../cosmo_globals.h"
 #include "../../utils/math.h"
 #include <map>
 #include <cmath>
+
+using namespace SAMRAI;
 
 namespace cosmo
 {
@@ -97,7 +98,7 @@ real_t BSSNGaugeHandler::GammaDriverShift3(BSSNData *bd)
  */
 real_t BSSNGaugeHandler::DampedWaveLapse(BSSNData *bd)
 {
-  return pw2(bd->alpha) * (dw_mu_l * (12.0 * bd->phi * dw_p - std::log(bd->alpha)) - bd->K)
+  return pw2(bd->alpha) * (dw_mu_l * (-6.0 * log(bd->chi) * dw_p - std::log(bd->alpha)) - bd->K)
     + bd->beta1 * bd->d1a + bd->beta2 * bd->d2a + bd->beta3 * bd->d3a;
 }
 

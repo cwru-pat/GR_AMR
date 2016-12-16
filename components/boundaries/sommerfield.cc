@@ -1,22 +1,25 @@
 #include "../../cosmo_includes.h"
 #include "sommerfield.h"
-
+#include "../bssn/bssn.h"
 
 using namespace SAMRAI;
 
 namespace cosmo{
 
-SommerfieldBD:SommerfieldBD(
+SommerfieldBD::SommerfieldBD(
   const tbox::Dimension& dim_in,
-  std::string object_name_in= std::string()):
-  dim(dim_in),
-  object_name(object_name_in),
-  is_time_depent = 1
+  std::string object_name_in):
+  CosmoPatchStrategy(dim_in, object_name_in),
+  is_time_dependent(1)
 {
 
 }
+
+SommerfieldBD::~SommerfieldBD() {
+}
+
   
-void SommerfieldBD:setPhysicalBoundaryConditions(
+void SommerfieldBD::setPhysicalBoundaryConditions(
   hier::Patch& patch,
   const double fill_time,
   const hier::IntVector& ghost_width_to_fill)
@@ -26,7 +29,7 @@ void SommerfieldBD:setPhysicalBoundaryConditions(
   return;
 }
 
-// void DirichletBD:preprocessRefineBoxes(
+// void DirichletBD::preprocessRefineBoxes(
 //   hier::Patch& fine,
 //   const hier::Patch& coarse,
 //   const hier::BoxContainer& fine_boxes,
@@ -34,7 +37,7 @@ void SommerfieldBD:setPhysicalBoundaryConditions(
 // {
   
 // }
-void DirichletBD:preprocessRefine(
+void SommerfieldBD::preprocessRefine(
   hier::Patch& fine,
   const hier::Patch& coarse,
   const hier::Box& fine_box,
@@ -43,20 +46,20 @@ void DirichletBD:preprocessRefine(
   boost::shared_ptr<hier::PatchGeometry> fine_geom (fine.getPatchGeometry());
   idx_t codim = 1;
   const std::vector<hier::BoundaryBox> & codim1_boxes =
-    geom->getCodimensionBoundaries(codim);
+    fine_geom->getCodimensionBoundaries(codim);
   const idx_t n_codim1_boxes = static_cast<idx_t>(codim1_boxes.size());
 
-  hier::Box & coarse_box;
-  hier::Box & boundary_fill_box;
-  
-  coarse_box = coarse.getBox().refine(ratio);
+  //the return value of getBox() is const box, which can not be refined
+  hier::Box coarse_box(coarse.getBox());
+
+  coarse_box.refine(ratio);
   
 
   for(int bn = 0 ; bn < n_codim1_boxes; bn++)
   {
-    boundary_fill_box =
-      geom->getBoundaryFillBox(
-        codim1_boxes[bn], fine_box * coarse_box, hier::IntVector(dim,STENCIL_ORDER));
+    const hier::Box & boundary_fill_box(
+      fine_geom->getBoundaryFillBox(
+        codim1_boxes[bn], fine_box * coarse_box, hier::IntVector(dim,STENCIL_ORDER)));
 
     if(boundary_fill_box.isEmpty()) continue;
     
@@ -65,11 +68,10 @@ void DirichletBD:preprocessRefine(
 
     //idx_t l_idx = boundary_fill_box.getLocationIndex();
     
-    BSSNData bd = {0};
 
 
     //initialize dx for each patch
-    const real_t * dx = &(patch_geom->getDx())[0];
+    //const real_t * dx = &(fine_geom->getDx())[0];
 
     for (std::vector<int>::iterator it = target_id_list.begin() ;
          it != target_id_list.end(); ++it)
@@ -105,27 +107,26 @@ void DirichletBD:preprocessRefine(
 
   codim = 2;
   const std::vector<hier::BoundaryBox> & codim2_boxes =
-    geom->getCodimensionBoundaries(codim);
+    fine_geom->getCodimensionBoundaries(codim);
   const idx_t n_codim2_boxes = static_cast<idx_t>(codim2_boxes.size());
 
 
   for(int bn = 0 ; bn < n_codim2_boxes; bn++)
   {
-    boundary_fill_box =
-      geom->getBoundaryFillBox(
-        codim2_boxes[bn], fine_box * coarse_box, hier::IntVector(dim,STENCIL_ORDER));
+    const hier::Box & boundary_fill_box(
+      fine_geom->getBoundaryFillBox(
+        codim2_boxes[bn], fine_box * coarse_box, hier::IntVector(dim,STENCIL_ORDER)));
     if(boundary_fill_box.isEmpty()) continue;
     
     const idx_t * lower = &boundary_fill_box.lower()[0];
     const idx_t * upper = &boundary_fill_box.upper()[0];
 
-    idx_t l_idx = boundary_fill_box.getLocationIndex();
+    //    idx_t l_idx = codim2_boxes[bn].getLocationIndex();
     
-    BSSNData bd = {0};
 
 
     //initialize dx for each patch
-    const real_t * dx = &(patch_geom->getDx())[0];
+    //const real_t * dx = &(fine_geom->getDx())[0];
 
     for (std::vector<int>::iterator it = target_id_list.begin() ;
          it != target_id_list.end(); ++it)
@@ -160,28 +161,27 @@ void DirichletBD:preprocessRefine(
   /********************************codim = 3************************/
   codim = 3;
   const std::vector<hier::BoundaryBox> & codim3_boxes =
-    geom->getCodimensionBoundaries(codim);
+    fine_geom->getCodimensionBoundaries(codim);
   const idx_t n_codim3_boxes = static_cast<idx_t>(codim3_boxes.size());
 
 
   for(int bn = 0 ; bn < n_codim3_boxes; bn++)
   {
-    boundary_fill_box =
-      geom->getBoundaryFillBox(
-        codim3_boxes[bn], fine_box * coarse_box, hier::IntVector(dim,STENCIL_ORDER));
+    const hier::Box & boundary_fill_box( 
+      fine_geom->getBoundaryFillBox(
+        codim3_boxes[bn], fine_box * coarse_box, hier::IntVector(dim,STENCIL_ORDER)));
 
     if(boundary_fill_box.isEmpty()) continue;
     
     const idx_t * lower = &boundary_fill_box.lower()[0];
     const idx_t * upper = &boundary_fill_box.upper()[0];
 
-    idx_t l_idx = boundary_fill_box.getLocationIndex();
+    //    idx_t l_idx = boundary_fill_box.getLocationIndex();
     
-    BSSNData bd = {0};
 
 
     //initialize dx for each patch
-    const real_t * dx = &(patch_geom->getDx())[0];
+    //    const real_t * dx = &(fine_geom->getDx())[0];
 
     for (std::vector<int>::iterator it = target_id_list.begin() ;
          it != target_id_list.end(); ++it)
@@ -215,7 +215,7 @@ void DirichletBD:preprocessRefine(
   }
 
 }
-// void DirichletBD:postprocessRefineBoxes(
+// void DirichletBD::postprocessRefineBoxes(
 //   hier::Patch& fine,
 //   const hier::Patch& coarse,
 //   const hier::BoxContainer& fine_boxes,
@@ -223,13 +223,20 @@ void DirichletBD:preprocessRefine(
 // {
   
 // }
-void DirichletBD:postprocessRefine(
-      hier::Patch& fine,
-      const hier::Patch& coarse,
-      const hier::Box& fine_box,
-      const hier::IntVector& ratio)
+void SommerfieldBD::postprocessRefine(
+  hier::Patch& fine,
+  const hier::Patch& coarse,
+  const hier::Box& fine_box,
+  const hier::IntVector& ratio)
 {
   
+}
+
+
+hier::IntVector SommerfieldBD::getRefineOpStencilWidth(
+  const tbox::Dimension& dim) const
+{
+  return hier::IntVector::getZero(dim);
 }
 
 

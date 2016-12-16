@@ -5,9 +5,9 @@
  * applying functions to lots of vars
  */
 
-#define Z4c_APPLY_TO_FIELDS(function)           \
+#define CCZ4_APPLY_TO_FIELDS(function)           \
   function(theta);
-#define Z4c_APPLY_TO_FIELDS_ARGS(function, ...) \
+#define CCZ4_APPLY_TO_FIELDS_ARGS(function, ...) \
   function(theta, __VA_ARGS__);
 
 
@@ -75,7 +75,7 @@
   function(Gamma2, __VA_ARGS__);                   \
   function(Gamma3, __VA_ARGS__);                   \
   function(DIFFalpha, __VA_ARGS__);                \
-  CCZ4_APPLY_TO_FIELDS_ARGS(function, __VA_ARGS__)  \
+  CCZ4_APPLY_TO_FIELDS_ARGS(function, __VA_ARGS__) \
   BSSN_APPLY_TO_SHIFT_ARGS(function, __VA_ARGS__)  \
   BSSN_APPLY_TO_AUX_B_ARGS(function, __VA_ARGS__)  \
   BSSN_APPLY_TO_EXP_N_ARGS(function, __VA_ARGS__)
@@ -87,7 +87,7 @@
   function(DIFFgamma22);               \
   function(DIFFgamma23);               \
   function(DIFFgamma33);               \
-  function(DIFFphi);                   \
+  function(DIFFchi);                   \
   function(A11);                       \
   function(A12);                       \
   function(A13);                       \
@@ -99,7 +99,7 @@
   function(Gamma2);                    \
   function(Gamma3);                    \
   function(DIFFalpha);                 \
-  Z4c_APPLY_TO_FIELDS(function)        \
+  CCZ4_APPLY_TO_FIELDS(function)        \
   BSSN_APPLY_TO_SHIFT(function)        \
   BSSN_APPLY_TO_AUX_B(function)        \
   BSSN_APPLY_TO_EXP_N(function)
@@ -181,20 +181,20 @@
 #define BSSN_REG_TO_CONTEXT(field, context, name, width)  \
   field##_##name##_idx =  \
     variable_db->registerVariableAndContext(  \
-      field##_##name,  \
+      field,  \
       context,  \
-      hier::IntVector(dim, width));
+      hier::IntVector(dim, width))
 
-#define BSSN_PDATA_INIT(field, type)
+#define BSSN_PDATA_INIT(field, type)   \
   field##_##type##_pdata =  \
     BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
       patch->getPatchData(field##_##type##_idx))
 
-#define BSSN_MDA_ACCESS_INIT(field,type)
+#define BSSN_MDA_ACCESS_INIT(field,type)   \
   field##_##type = pdat::ArrayDataAccess::access<DIM, double>(  \
     field##_##type##_pdata->getArrayData())
 
-#define BSSN_PDATA_ALL_INIT(field, type)
+#define BSSN_PDATA_ALL_INIT(field)  \
   field##_p##_pdata =  \
     BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
       patch->getPatchData(field##_p##_idx));  \
@@ -220,7 +220,7 @@
 
 
 
-#define BSSN_MDA_ACCESS_ALL_INIT(field,type)
+#define BSSN_MDA_ACCESS_ALL_INIT(field)  \
   field##_p = pdat::ArrayDataAccess::access<DIM, double>(  \
     field##_p##_pdata->getArrayData());                    \
   field##_a = pdat::ArrayDataAccess::access<DIM, double>(  \
@@ -231,7 +231,7 @@
     field##_k1##_pdata->getArrayData());                    \
   field##_k2 = pdat::ArrayDataAccess::access<DIM, double>(  \
     field##_k2##_pdata->getArrayData());                    \
-  field##_K3 = pdat::ArrayDataAccess::access<DIM, double>(  \
+  field##_k3 = pdat::ArrayDataAccess::access<DIM, double>(  \
     field##_k3##_pdata->getArrayData());                    \
   field##_k4 = pdat::ArrayDataAccess::access<DIM, double>(  \
     field##_k4##_pdata->getArrayData());                    
@@ -253,11 +253,11 @@
 
 // Evolve all fields
 #define BSSN_RK_EVOLVE_PT_FIELD(field) \
-  field_s(i,j,k) = ev_##field(bd, dx) * dt;
+  field##_s(i,j,k) = ev_##field(&bd, dx) * dt;
 
 // Evolve all fields
 #define BSSN_RK_EVOLVE_BD_FIELD(field) \
-  field_s(i,j,k) = ev_##field##_bd(bd, dx, l_idx, codim) * dt;
+  field##_s(i,j,k) = ev_##field##_bd(&bd, dx, l_idx, codim) * dt;
 
 #define BSSN_RK_EVOLVE_PT \
   BSSN_APPLY_TO_FIELDS(BSSN_RK_EVOLVE_PT_FIELD)
@@ -280,7 +280,7 @@
 
 #define BSSN_FINALIZE_FIELD_4(field) \
   field##_k4(i,j,k) = field##_s(i,j,k);    \
-  field##_a(i,j,k) =  field##_p(i,j,k)                                  \
+  field##_a(i,j,k) =  field##_p(i,j,k) +                                  \
     (field##_k4(i,j,k) + 2.0*field##_k3(i,j,k) + 2.0*field##_k2(i,j,k) + field##_k1(i,j,k))/6.0  
 
 
@@ -330,94 +330,76 @@
 /*     +  RK4_B4(theta)*field##_k4(i,j,k)                           */
 
 #define BSSN_FINALIZE_K(n) \
-  BSSN_APPLY_TO_FIELDS_ARGS(BSSN_FINALIZE_K_FIELD##_##n)
+  BSSN_APPLY_TO_FIELDS(BSSN_FINALIZE_FIELD##_##n)
 
 #define BSSN_REGISTER_RK_REFINER(field, refiner,refine_op)  \
-  refiner##.registerRefine(field##_s_idx,  \
+  refiner.registerRefine(field##_s_idx,  \
                            field##_s_idx,  \
                            field##_s_idx,  \
                            refine_op)
 
 #define BSSN_REGISTER_SAME_LEVEL_REFINE_A(field, refiner,refine_op)  \
-  refiner##.registerRefine(field##_a_idx,  \
+  refiner.registerRefine(field##_a_idx,  \
                            field##_a_idx,  \
                            field##_a_idx,  \
                            refine_op)
 #define BSSN_REGISTER_SAME_LEVEL_REFINE_P(field, refiner,refine_op)  \
-  refiner##.registerRefine(field##_p_idx,  \
+  refiner.registerRefine(field##_p_idx,  \
                            field##_p_idx,  \
                            field##_p_idx,  \
                            refine_op)
 
 #define BSSN_REGISTER_SAME_LEVEL_REFINE_C(field, refiner,refine_op)  \
-  refiner##.registerRefine(field##_c_idx,  \
+  refiner.registerRefine(field##_c_idx,  \
                            field##_c_idx,  \
                            field##_c_idx,  \
                            refine_op)
 
-#define BSSN_REGISTER_SAME_LEVEL_REFINE_F(field, refiner,refine_op)  \
-  refiner##.registerRefine(field##_a_idx,  \
-                           field##_a_idx,  \
-                           field##_a_idx,  \
-                           refine_op)
  
 
-#define BSSN_REGISTER_INTER_LEVEL_REFINE_A(field, refiner,space_refine_op, time_refine_op) \
-  refiner##.registerRefine(field##_a_idx,  \
-                           field##_a_idx,  \
-                           field##_p_idx,  \
-                           field##_f_idx,  \
-                           field##_a_idx,  \
-                           space_refine_op,  \
-                           time_refine_op)
-#define BSSN_REGISTER_INTER_LEVEL_REFINE_P(field, refiner,space_refine_op, time_refine_op) \
-  refiner##.registerRefine(field##_p_idx,  \
-                           field##_p_idx,  \
-                           field##_p_idx,  \
-                           field##_f_idx,  \
-                           field##_p_idx,  \
-                           space_refine_op,  \
-                           time_refine_op)
-#define BSSN_REGISTER_INTER_LEVEL_REFINE_C(field, refiner,space_refine_op, time_refine_op) \
-  refiner##.registerRefine(field##_c_idx,  \
-                           field##_c_idx,  \
-                           field##_p_idx,  \
-                           field##_f_idx,  \
-                           field##_c_idx,  \
-                           space_refine_op,  \
-                           time_refine_op)
-#define BSSN_REGISTER_INTER_LEVEL_REFINE_F(field, refiner,space_refine_op, time_refine_op) \
-  refiner##.registerRefine(field##_f_idx,  \
-                           field##_f_idx,  \
-                           field##_p_idx,  \
-                           field##_f_idx,  \
-                           field##_f_idx,  \
-                           space_refine_op,  \
-                           time_refine_op)
+/* #define BSSN_REGISTER_INTER_LEVEL_REFINE_A(field, refiner,space_refine_op, time_refine_op) \ */
+/*   refiner.registerRefine(field##_a_idx,  \ */
+/*                            field##_a_idx,  \ */
+/*                            field##_p_idx,  \ */
+/*                            field##_f_idx,  \ */
+/*                            field##_a_idx,  \ */
+/*                            space_refine_op,  \ */
+/*                            time_refine_op) */
+/* #define BSSN_REGISTER_INTER_LEVEL_REFINE_P(field, refiner,space_refine_op, time_refine_op) \ */
+/*   refiner.registerRefine(field##_p_idx,  \ */
+/*                            field##_p_idx,  \ */
+/*                            field##_p_idx,  \ */
+/*                            field##_f_idx,  \ */
+/*                            field##_p_idx,  \ */
+/*                            space_refine_op,  \ */
+/*                            time_refine_op) */
+/* #define BSSN_REGISTER_INTER_LEVEL_REFINE_C(field, refiner,space_refine_op, time_refine_op) \ */
+/*   refiner.registerRefine(field##_c_idx,  \ */
+/*                            field##_c_idx,  \ */
+/*                            field##_p_idx,  \ */
+/*                            field##_f_idx,  \ */
+/*                            field##_c_idx,  \ */
+/*                            space_refine_op,  \ */
+/*                            time_refine_op) */
 
 #define BSSN_REGISTER_COARSEN_A(field,coarsener,coarsen_op)  \
-  coarsener##.registerCoarsen(field##_a_idx,  \
-                              field##_a_idx,  \
-                              coarsen_op,     \
-                              NULL)
+  coarsener.registerCoarsen(field##_a_idx,                   \
+                            field##_a_idx,                   \
+                            coarsen_op,                      \
+                            NULL)
 
 #define BSSN_REGISTER_COARSEN_C(field,coarsener,coarsen_op)     \
-  coarsener##.registerCoarsen(field##_c_idx,  \
-                              field##_f_idx,  \
-                              coarsen_op,     \
-                              NULL)
+  coarsener.registerCoarsen(field##_c_idx,                      \
+                            field##_a_idx,                      \
+                            coarsen_op,                         \
+                            NULL)
 
-#define BSSN_REGISTER_COARSEN_F(field,coarsener,coarsen_op)     \
-  coarsener##.registerCoarsen(field##_f_idx,  \
-                              field##_f_idx,  \
-                              coarsen_op,     \
-                              NULL)
 
 #define BSSN_REGISTER_COARSEN_P(field,coarsener,coarsen_op)     \
-  coarsener##.registerCoarsen(field##_p_idx,  \
-                              field##_f_idx,  \
-                              coarsen_op,     \
-                              NULL)
+  coarsener.registerCoarsen(field##_p_idx,                      \
+                            field##_a_idx,                      \
+                            coarsen_op,                         \
+                            NULL)
 
 
 // Initialize all fields
@@ -428,14 +410,10 @@
 #define BSSN_SET_DT(dt) \
   BSSN_APPLY_TO_FIELDS_ARGS(BSSN_SET_DT_FIELD, dt)
 
-#define BSSN_SWAP_PF(field)  \
-  hcellmath.swapData(field##_p_idx, field##_f_idx)  
 
-#define BSSN_COPY_P_TO_A(field)  \
-  hcellmath.copyData(field##_p_idx, field##_a_idx, 0)
+#define BSSN_COPY_A_TO_P(field)  \
+  hcellmath.copyData(field##_a_idx, field##_p_idx, 0)
 
-#define BSSN_SET_F_ZERO(field)                                           \
-  hcellmath.setToScalar(field##_f_idx, 0, false)
 
 
 /*
@@ -452,7 +430,7 @@
     bd->d##J##g##K##I + bd->d##K##g##J##I - bd->d##I##g##J##K \
   )
 
-#define BSSN_CALCULATE_DGAMMA(I, J, K) bd->d##I##g##J##K = derivative(bd->i, bd->j, bd->k, I, DIFFgamma##J##K->_array_a, dx);
+#define BSSN_CALCULATE_DGAMMA(I, J, K) bd->d##I##g##J##K = derivative(bd->i, bd->j, bd->k, I, DIFFgamma##J##K##_a, dx);
 
 #define BSSN_CALCULATE_ACONT(I, J) bd->Acont##I##J = ( \
     bd->gammai##I##1*bd->gammai##J##1*bd->A11 + bd->gammai##I##2*bd->gammai##J##1*bd->A21 + bd->gammai##I##3*bd->gammai##J##1*bd->A31 \
@@ -462,7 +440,7 @@
 
 // needs the gamma*ldlphi vars defined:
 // not actually trace free yet!
-#define BSSN_CALCULATE_DIDJALPHA(I, J) bd->D##I##D##J##aTF = double_derivative(bd->i, bd->j, bd->k, I, J, DIFFalpha->_array_a, dx) - ( \
+#define BSSN_CALCULATE_DIDJALPHA(I, J) bd->D##I##D##J##aTF = double_derivative(bd->i, bd->j, bd->k, I, J, DIFFalpha_a, dx) - ( \
     (bd->G1##I##J + 2.0*( (1==I)*bd->d##J##phi + (1==J)*bd->d##I##phi - bd->gamma##I##J*gammai1ldlphi))*bd->d1a + \
     (bd->G2##I##J + 2.0*( (2==I)*bd->d##J##phi + (2==J)*bd->d##I##phi - bd->gamma##I##J*gammai2ldlphi))*bd->d2a + \
     (bd->G3##I##J + 2.0*( (3==I)*bd->d##J##phi + (3==J)*bd->d##I##phi - bd->gamma##I##J*gammai3ldlphi))*bd->d3a \
@@ -567,7 +545,7 @@
   )
 #else
 #define BSSN_DT_AIJ(I, J) ( \
-    exp(-4.0*bd->phi)*( bd->alpha*(bd->ricciTF##I##J - 8.0*PI*bd->STF##I##J) - bd->D##I##D##J##aTF ) \
+    pw2(bd->chi)*( bd->alpha*(bd->ricciTF##I##J - 8.0*PI*bd->STF##I##J) - bd->D##I##D##J##aTF ) \
     + bd->alpha*(BSSN_DT_AIJ_SECOND_ORDER_KA(I,J) - 2.0*BSSN_DT_AIJ_SECOND_ORDER_AA(I,J)) \
   )
 #endif
@@ -873,13 +851,13 @@
 #define D3D2phi D2D3phi
 
 //covariant derivative of Z^i
-#define D2Z1 D1Z2
-#define D3Z1 D1Z3
-#define D3Z2 D2Z3
+/* #define D2Z1 D1Z2 */
+/* #define D3Z1 D1Z3 */
+/* #define D3Z2 D2Z3 */
 
-#define D2Z1TF D1Z2TF
-#define D3Z1TF D1Z3TF
-#define D3Z2TF D2Z3TF
+/* #define D2Z1TF D1Z2TF */
+/* #define D3Z1TF D1Z3TF */
+/* #define D3Z2TF D2Z3TF */
 
 // covariant double-derivatives of alpha
 #define D2D1aTF D1D2aTF

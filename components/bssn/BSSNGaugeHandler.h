@@ -11,6 +11,8 @@
 
 #include <map>
 
+using namespace SAMRAI;
+
 namespace cosmo
 {
     
@@ -99,9 +101,9 @@ private:
     shift_gauge_map["AwAShiftedWave"]["3"] = &BSSNGaugeHandler::AwAShiftedWaveShift3;
   }
 
-  void _initDefaultParameters(tbox::Database *database)
+  void _initDefaultParameters(boost::shared_ptr<tbox::Database> database)
   {
-    AwA_shift_dir = database->getIntegerWithDefault(("AwA_shift_dir", 1));
+    AwA_shift_dir = database->getIntegerWithDefault("AwA_shift_dir", 1);
    
     dw_mu_l = database->getDoubleWithDefault("dw_mu_l", 0.0);
     dw_mu_s = database->getDoubleWithDefault("dw_mu_s", 0.0);
@@ -114,21 +116,15 @@ public:
   /**
    * @brief Initialize with static, non-evolving gauge
    */
-  BSSNGaugeHandler()
-  {
-    _initGaugeMaps();
-    _initDefaultParameters(&emptyConfig);
-    setLapseFn("Static");
-    setShiftFn("Static");
-  }
+
 
   /**
    * @brief Initialize with gauge determined by config file (default to a "static", non-evolving gauge)
    */
-  BSSNGaugeHandler(tbox::Database *database)
+  BSSNGaugeHandler(boost::shared_ptr<tbox::Database> database)
   {
     _initGaugeMaps();
-    _initDefaultParameters(config);
+    _initDefaultParameters(database);
     setLapseFn(database->getStringWithDefault("lapse", "Static"));
     setShiftFn(database->getStringWithDefault("Shift", "Static"));
   }

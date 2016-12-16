@@ -1,40 +1,6 @@
 #include "cosmo_includes.h"
-#include "sim/sim.h"
-#include "sim/vaccum.h"
-
-/*
- * Headers for basic SAMRAI objects used in this code.
- */
-#include "SAMRAI/tbox/BalancedDepthFirstTree.h"
-#include "SAMRAI/tbox/Database.h"
-#include "SAMRAI/tbox/InputManager.h"
-#include "SAMRAI/tbox/SAMRAI_MPI.h"
-#include "SAMRAI/tbox/PIO.h"
-#include "SAMRAI/tbox/SAMRAIManager.h"
-#include "SAMRAI/tbox/TimerManager.h"
-#include "SAMRAI/tbox/Utilities.h"
-#include "SAMRAI/hier/TimeInterpolateOperator.h"
-#include "SAMRAI/xfer/PatchLevelFillPattern.h"
-#include "SAMRAI/xfer/PatchLevelBorderFillPattern.h"
-#include "SAMRAI/xfer/PatchLevelFullFillPattern.h"
-#include "SAMRAI/xfer/PatchLevelInteriorFillPattern.h"
-#include "SAMRAI/math/HierarchyCellDataOpsReal.h"
-#include "SAMRAI/math/PatchCellDataOpsReal.h"
-#include "SAMRAI/geom/CartesianCellDoubleLinearRefine.h"
-
-/*
- * Headers for major algorithm/data structure objects from SAMRAI
- */
-#include "SAMRAI/appu/VisItDataWriter.h"
-#include "SAMRAI/geom/CartesianGridGeometry.h"
-#include "SAMRAI/hier/BaseGridGeometry.h"
-#include "SAMRAI/hier/PatchHierarchy.h"
-#include "SAMRAI/hier/VariableDatabase.h"
-#include "SAMRAI/mesh/BergerRigoutsos.h"
-#include "SAMRAI/mesh/GriddingAlgorithm.h"
-#include "SAMRAI/mesh/TreeLoadBalancer.h"
-#include "SAMRAI/mesh/StandardTagAndInitialize.h"
-
+#include "sims/sim.h"
+#include "sims/vacuum.h"
 
 using namespace SAMRAI;
 using namespace cosmo;
@@ -132,7 +98,7 @@ int main(int argc, char* argv[])
     tbox::PIO::logOnlyNodeZero(log_filename);
 
   std::string simulation_type =
-    main_db->getStringWithDefault("simulation_type");
+    main_db->getString("simulation_type");
 
   /*
    * Building hierarchy
@@ -169,7 +135,7 @@ int main(int argc, char* argv[])
   else if(simulation_type == "vacuum")
   {
     cosmoSim = new VacuumSim(
-      dim, input_db, plog, simulation_type, vis_filename);
+      dim, input_db, &tbox::plog, simulation_type, vis_filename);
   }
   else
   {
@@ -180,7 +146,7 @@ int main(int argc, char* argv[])
   boost::shared_ptr<mesh::StandardTagAndInitialize> tag_and_initializer(
     new mesh::StandardTagAndInitialize(
       "CellTaggingMethod",
-      &cosmoSim,
+      cosmoSim,
       input_db->getDatabase("StandardTagAndInitialize")));
   boost::shared_ptr<mesh::BergerRigoutsos> box_generator(
     new mesh::BergerRigoutsos(
@@ -224,11 +190,11 @@ int main(int argc, char* argv[])
   cosmoSim->setGriddingAlgs(gridding_algorithm);
   
   // Initialize simulation 
-  //cosmoSim->init();
 
   // Generate initial conditions
   cosmoSim->setICs();
 
+  cosmoSim->setRefineCoarsenOps(patch_hierarchy);
   // Run simulation
   cosmoSim->run(patch_hierarchy);
 

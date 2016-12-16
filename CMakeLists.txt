@@ -31,19 +31,22 @@ include(cmake/compiler.cmake)
 
 
 #include(cmake/SAMRAI.cmake)
-include_directories(/home/ctian/GR_AMR/include)
+
+include_directories(/home/chris/Dropbox/GR_AMR/include)
 
 
 
 
 
-set(SAMRAI_LIB_DIR /home/ctian/GR_AMR/lib)
+set(SAMRAI_LIB_DIR /home/chris/Dropbox/GR_AMR/lib)
+
 
 message(STATUS " SAMRAI_LIBRARIES: ${SAMRAI_LIB_DIR}")
 unset(COSMO_SOURCES CACHE)
-file(GLOB COSMO_SOURCES cosmo*.cc  sims/*.cc  utils/*.cc  /components/bssn/*.cc /components/IO/*.cc /components/boundaries/*.cc)
-add_executable(cosmo ${COSMO_SOURCES} )
-target_link_libraries(cosmo  ${MPI_LIBRARIES} ${HDF5_LIBRARIES}   ${SAMRAI_LIB_DIR}/libSAMRAI_appu.a ${SAMRAI_LIB_DIR}/libSAMRAI_algs.a ${SAMRAI_LIB_DIR}/libSAMRAI_solv.a ${SAMRAI_LIB_DIR}/libSAMRAI_geom.a   ${SAMRAI_LIB_DIR}/libSAMRAI_mesh.a ${SAMRAI_LIB_DIR}/libSAMRAI_math.a  ${SAMRAI_LIB_DIR}/libSAMRAI_pdat.a ${SAMRAI_LIB_DIR}/libSAMRAI_xfer.a ${SAMRAI_LIB_DIR}/libSAMRAI_hier.a ${SAMRAI_LIB_DIR}/libSAMRAI_tbox.a)
+file(GLOB COSMO_SOURCES cosmo*.cc components/bssn/*.cc utils/*.cc components/IO/*.cc components/boundaries/*.cc sims/*.cc)
+
+add_executable(cosmo ${COSMO_SOURCES})
+target_link_libraries(cosmo ${MPI_LIBRARIES} ${HDF5_LIBRARIES}   ${SAMRAI_LIB_DIR}/libSAMRAI_appu.a ${SAMRAI_LIB_DIR}/libSAMRAI_algs.a ${SAMRAI_LIB_DIR}/libSAMRAI_solv.a ${SAMRAI_LIB_DIR}/libSAMRAI_geom.a   ${SAMRAI_LIB_DIR}/libSAMRAI_mesh.a ${SAMRAI_LIB_DIR}/libSAMRAI_math.a  ${SAMRAI_LIB_DIR}/libSAMRAI_pdat.a ${SAMRAI_LIB_DIR}/libSAMRAI_xfer.a ${SAMRAI_LIB_DIR}/libSAMRAI_hier.a ${SAMRAI_LIB_DIR}/libSAMRAI_tbox.a)
 
 
 

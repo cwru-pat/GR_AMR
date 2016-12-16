@@ -20,6 +20,7 @@
 
 /*basic SAMRAI and boost library*/
 #include "SAMRAI/SAMRAI_config.h"
+#include "SAMRAI/pdat/CellData.h"
 #include "SAMRAI/pdat/MDA_Access.h"
 #include "SAMRAI/pdat/ArrayDataAccess.h"
 #include "SAMRAI/tbox/SAMRAI_MPI.h"
@@ -27,6 +28,21 @@
 #include "SAMRAI/tbox/Utilities.h"
 #include "SAMRAI/tbox/TimerManager.h"
 #include "SAMRAI/tbox/SAMRAIManager.h"
+#include "SAMRAI/tbox/Dimension.h"
+#include "SAMRAI/tbox/BalancedDepthFirstTree.h"
+#include "SAMRAI/tbox/Database.h"
+#include "SAMRAI/tbox/InputManager.h"
+#include "SAMRAI/pdat/CellVariable.h"
+#include "SAMRAI/mesh/StandardTagAndInitStrategy.h"
+#include "SAMRAI/mesh/BergerRigoutsos.h"
+#include "SAMRAI/mesh/GriddingAlgorithm.h"
+#include "SAMRAI/mesh/TreeLoadBalancer.h"
+#include "SAMRAI/mesh/StandardTagAndInitialize.h"
+#include "SAMRAI/geom/CartesianCellDoubleLinearRefine.h"
+#include "SAMRAI/geom/CartesianGridGeometry.h"
+#include "SAMRAI/geom/CartesianPatchGeometry.h"
+
+#include "SAMRAI/appu/VisItDataWriter.h"
 
 #include "boost/shared_ptr.hpp"
 

@@ -8,17 +8,24 @@
 #define COSMO_BSSN_ICS
 
 #include "bssn.h"
+#include "../../cosmo_includes.h"
+
+using namespace SAMRAI;
 
 namespace cosmo
 {
-
-void bssn_ic_awa_stability(BSSN * bssn);
+  
+void bssn_ic_awa_stability(BSSN * bssn, real_t A);
 void bssn_ic_awa_linear_wave(BSSN * bssn);
+void bssn_ic_awa_linear_wave(BSSN * bssn, real_t A, int dir);
 void bssn_ic_awa_linear_wave_desitter(BSSN * bssn);
 void bssn_ic_awa_gauge_wave(BSSN * bssn);
 void bssn_ic_awa_gauge_wave(BSSN * bssn, int dir);
 void bssn_ic_awa_shifted_gauge_wave(BSSN * bssn);
-
+void bssn_ic_awa_shifted_gauge_wave(BSSN * bssn, int dir);
+void bssn_ic_static_blackhole(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
+ 
 }
 
 #endif

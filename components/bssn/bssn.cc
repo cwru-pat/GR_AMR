@@ -1,6 +1,9 @@
 #include "bssn.h"
-#include "../../cosmo_globals.h"
+#include "../../cosmo_includes.h"
 #include "../../utils/math.h"
+
+
+using namespace SAMRAI;
 
 namespace cosmo
 {
@@ -12,20 +15,15 @@ namespace cosmo
  */
 BSSN::BSSN(
   const tbox::Dimension& dim_in,
-  tbox::Database& database_in,
-  std::ostream* l_stream_in = 0
-  xfer::RefinePatchStrategy* PS_in):
-  lstream(l_stream),
-  database(&database_in),
-  barrier_and_time(true),
+  boost::shared_ptr<tbox::Database> database_in,
+  std::ostream* l_stream_in,
+  real_t KO_damping_coefficient_in):
+  lstream(l_stream_in),
+  cosmo_bssn_db(database_in),
   dim(dim_in),
-  d_adaption_threshold(database.getDoubleWithDefault("adaptation_threshold", 1.0)),
-  d_finest_dbg_plot_ln(database.getIntegerWithDefault("finest_dbg_plot_ln", 99)),
-  KO_damping_coefficient(database.getDoubleWithDefault("KO_damping_coefficient",0)),
-  gd_eta(database.getDoubleWithDefault("gd_eta", 0.0)),
-  variable_db(hier::VariableDatabase::getDatabase()),
-  gaugeHandler(database),
-  PS(PS_in)
+  KO_damping_coefficient(KO_damping_coefficient_in),
+  gaugeHandler(new BSSNGaugeHandler(cosmo_bssn_db)),
+  g_eta(cosmo_bssn_db->getDoubleWithDefault("g_eta",0.0))
 {
   
   BSSN_APPLY_TO_FIELDS(VAR_INIT);
@@ -95,24 +93,6 @@ void BSSN::stepInit(
   //BSSN_RK_INITIALIZE; // macro calls stepInit for all fields
 
    
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
-      hierarchy->getGridGeometry()));
-
-  TBOX_ASSERT(grid_geometry_);
-
-  geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
-
-  
-  space_refine_op =
-    grid_geometry.
-    lookupRefineOperator(DIFFchi, "CONSERVATIVE_LINEAR_REFINE");
-
-
-  space_coarsen_op =
-      grid_geometry.
-      lookupCoarsenOperator(DIFFchi, "CONSERVATIVE_COARSEN");
-
 
   
 // # if NORMALIZE_GAMMAIJ_AIJ
@@ -138,9 +118,9 @@ void BSSN::RKEvolvePatchBD(
   initPData(patch);
   initMDA(patch);
 
-  patch_geom = 
+  const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom( 
     BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
-      patch->getPatchGeometry());
+      patch->getPatchGeometry()));
 
     
   //initialize dx for each patch
@@ -148,11 +128,11 @@ void BSSN::RKEvolvePatchBD(
 
   const hier::Box& patch_box = patch->getBox();
 
-  hier::Box & boundary_fill_box;
+  //hier::Box & boundary_fill_box;
 
   for(int i = 0 ; i < n_codim1_boxes; i++)
   {
-    boundary_fill_box =
+    const hier::Box & boundary_fill_box =
       geom->getBoundaryFillBox(
         codim1_boxes[i], patch_box, DIFFchi_a_pdata->getGhostCellWidth());
   
@@ -160,7 +140,7 @@ void BSSN::RKEvolvePatchBD(
     const idx_t * lower = &boundary_fill_box.lower()[0];
     const idx_t * upper = &boundary_fill_box.upper()[0];
 
-    idx_t l_idx = boundary_fill_box.getLocationIndex();
+    idx_t l_idx = codim1_boxes[i].getLocationIndex();
     
     BSSNData bd = {0};
 
@@ -184,17 +164,16 @@ void BSSN::RKEvolvePatchBD(
   codim = 2;
 
   const std::vector<hier::BoundaryBox> & codim2_boxes =
-    cfbd->getBoundaries(patch.getGlobalId(),codim);
+    geom->getCodimensionBoundaries(codim);
 
   const idx_t n_codim2_boxes = static_cast<idx_t>(codim2_boxes.size());
 
 
-  patch_box = patch->getBox();
 
 
   for(int i = 0 ; i < n_codim2_boxes; i++)
   {
-    boundary_fill_box =
+    const hier::Box & boundary_fill_box =
       geom->getBoundaryFillBox(
         codim2_boxes[i], patch_box, DIFFchi_a_pdata->getGhostCellWidth());
   
@@ -202,7 +181,7 @@ void BSSN::RKEvolvePatchBD(
     const idx_t * lower = &boundary_fill_box.lower()[0];
     const idx_t * upper = &boundary_fill_box.upper()[0];
 
-    idx_t l_idx = boundary_fill_box.getLocationIndex();
+    idx_t l_idx = codim2_boxes[i].getLocationIndex();
     
     BSSNData bd = {0};
 
@@ -227,17 +206,16 @@ void BSSN::RKEvolvePatchBD(
   codim = 3;
 
   const std::vector<hier::BoundaryBox> & codim3_boxes =
-    cfbd->getBoundaries(patch.getGlobalId(),codim);
+    geom->getCodimensionBoundaries(codim);
 
   const idx_t n_codim3_boxes = static_cast<idx_t>(codim3_boxes.size());
 
 
-  patch_box = patch->getBox();
 
 
   for(int i = 0 ; i < n_codim3_boxes; i++)
   {
-    boundary_fill_box =
+    const hier::Box & boundary_fill_box =
       geom->getBoundaryFillBox(
         codim3_boxes[i], patch_box, DIFFchi_a_pdata->getGhostCellWidth());
   
@@ -245,7 +223,7 @@ void BSSN::RKEvolvePatchBD(
     const idx_t * lower = &boundary_fill_box.lower()[0];
     const idx_t * upper = &boundary_fill_box.upper()[0];
 
-    idx_t l_idx = boundary_fill_box.getLocationIndex();
+    idx_t l_idx = codim3_boxes[i].getLocationIndex();
     
     BSSNData bd = {0};
 
@@ -285,9 +263,9 @@ void BSSN::initZ(
 
     initPData(patch);
     initMDA(patch);
-    patch_geom = 
+    const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(  
       BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
-        patch->getPatchGeometry());
+        patch->getPatchGeometry()));
 
     
     //initialize dx for each patch
@@ -335,10 +313,10 @@ void BSSN::RKEvolvePatch(
   const int * upper = &box.upper()[0];
 
   BSSNData bd = {0};
-
-  patch_geom = 
+  
+  const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(  
     BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
-      patch->getPatchGeometry());
+      patch->getPatchGeometry()));
 
   //initialize dx for each patch
   const real_t * dx = &(patch_geom->getDx())[0];
@@ -358,7 +336,7 @@ void BSSN::RKEvolvePatch(
 }
 
 
-void BSSN:prepairForK1(
+void BSSN::prepairForK1(
   const boost::shared_ptr<hier::PatchLevel> & level,
   real_t to_t)
 {
@@ -379,7 +357,7 @@ void BSSN:prepairForK1(
 
 
     // right branch of the tree
-    if(tbox::Abs(to_t - patch->getPatch(DIFFchi##_a_idx)->getTime()) < EPS)
+    if(tbox::MathUtilities<real_t>::Abs(to_t - patch->getPatchData(DIFFchi_a_idx)->getTime()) < EPS)
     {
       for(int k = lower[2]; k <= upper[2]; k++)
       {
@@ -394,9 +372,9 @@ void BSSN:prepairForK1(
     }
 
     // left branch of the tree
-    else if(tbox::Abs(2.0*(to_t - patch->getPatch(DIFFchi##_p_idx)->getTime())
-       - (patch->getPatchData(DIFFchi##_a_idx)->getTime()
-          - patch->getPatchData(DIFFchi##_p_idx)->getTime())) < EPS)
+    else if(tbox::MathUtilities<real_t>::Abs(2.0*(to_t - patch->getPatchData(DIFFchi_p_idx)->getTime())
+       - (patch->getPatchData(DIFFchi_a_idx)->getTime()
+          - patch->getPatchData(DIFFchi_p_idx)->getTime())) < EPS)
     {
       for(int k = lower[2]; k <= upper[2]; k++)
       {
@@ -415,7 +393,7 @@ void BSSN:prepairForK1(
   }
 }
 
-void BSSN:prepairForK2(
+void BSSN::prepairForK2(
   const boost::shared_ptr<hier::PatchLevel> & level,
   real_t to_t)
 {
@@ -435,7 +413,7 @@ void BSSN:prepairForK2(
 
 
     // right branch of the tree
-    if(tbox::Abs(to_t - patch->getPatch(DIFFchi##_a_idx)->getTime()) < EPS)
+    if(tbox::MathUtilities<real_t>::Abs(to_t - patch->getPatchData(DIFFchi_a_idx)->getTime()) < EPS)
     {
       for(int k = lower[2]; k <= upper[2]; k++)
       {
@@ -450,9 +428,9 @@ void BSSN:prepairForK2(
     }
 
     // left branch of the tree
-    else if(tbox::Abs(2.0*(to_t - patch->getPatch(DIFFchi##_p_idx)->getTime())
-       - (patch->getPatchData(DIFFchi##_a_idx)->getTime()
-          - patch->getPatchData(DIFFchi##_p_idx)->getTime())) < EPS)
+    else if(tbox::MathUtilities<real_t>::Abs(2.0*(to_t - patch->getPatchData(DIFFchi_p_idx)->getTime())
+       - (patch->getPatchData(DIFFchi_a_idx)->getTime()
+          - patch->getPatchData(DIFFchi_p_idx)->getTime())) < EPS)
     {
       for(int k = lower[2]; k <= upper[2]; k++)
       {
@@ -468,7 +446,7 @@ void BSSN:prepairForK2(
   }
 }
 
-void BSSN:prepairForK3(
+void BSSN::prepairForK3(
   const boost::shared_ptr<hier::PatchLevel> & level,
   real_t to_t)
 {
@@ -489,7 +467,7 @@ void BSSN:prepairForK3(
     BSSNData bd = {0};
 
     // right branch of the tree
-    if(tbox::Abs(to_t - patch->getPatch(DIFFchi##_a_idx)->getTime()) < EPS)
+    if(tbox::MathUtilities<real_t>::Abs(to_t - patch->getPatchData(DIFFchi_a_idx)->getTime()) < EPS)
     {
       for(int k = lower[2]; k <= upper[2]; k++)
       {
@@ -504,9 +482,9 @@ void BSSN:prepairForK3(
     }
 
     // left branch of the tree
-    else if(tbox::Abs(2.0*(to_t - patch->getPatch(DIFFchi##_p_idx)->getTime())
-       - (patch->getPatchData(DIFFchi##_a_idx)->getTime()
-          - patch->getPatchData(DIFFchi##_p_idx)->getTime())) < EPS)
+    else if(tbox::MathUtilities<real_t>::Abs(2.0*(to_t - patch->getPatchData(DIFFchi_p_idx)->getTime())
+       - (patch->getPatchData(DIFFchi_a_idx)->getTime()
+          - patch->getPatchData(DIFFchi_p_idx)->getTime())) < EPS)
     {
       for(int k = lower[2]; k <= upper[2]; k++)
       {
@@ -523,7 +501,7 @@ void BSSN:prepairForK3(
 }
 
 //final step
-void BSSN:prepairForK4(
+void BSSN::prepairForK4(
   const boost::shared_ptr<hier::PatchLevel> & level,
   double to_t)
 {
@@ -547,7 +525,7 @@ void BSSN:prepairForK4(
 
 
     // right branch of the tree
-    if(tbox::Abs(to_t - patch->getPatch(DIFFchi##_a_idx)->getTime()) < EPS)
+    if(tbox::MathUtilities<real_t>::Abs(to_t - patch->getPatchData(DIFFchi_a_idx)->getTime()) < EPS)
     {
       for(int k = lower[2]; k <= upper[2]; k++)
       {
@@ -562,9 +540,9 @@ void BSSN:prepairForK4(
     }
 
     // left branch of the tree
-    else if(tbox::Abs(2.0*(to_t - patch->getPatch(DIFFchi##_p_idx)->getTime())
-       - (patch->getPatchData(DIFFchi##_a_idx)->getTime()
-          - patch->getPatchData(DIFFchi##_p_idx)->getTime())) < EPS)
+    else if(tbox::MathUtilities<real_t>::Abs(2.0*(to_t - patch->getPatchData(DIFFchi_p_idx)->getTime())
+       - (patch->getPatchData(DIFFchi_a_idx)->getTime()
+          - patch->getPatchData(DIFFchi_p_idx)->getTime())) < EPS)
     {
       for(int k = lower[2]; k <= upper[2]; k++)
       {
@@ -572,7 +550,7 @@ void BSSN:prepairForK4(
         {
           for(int i = lower[0]; i <= upper[0]; i++)
           {
-            BSSN_APPLY_TO_FIELDS_L(BSSN_INIT_L_K4);
+            BSSN_APPLY_TO_FIELDS(BSSN_INIT_L_K4);
           }
         }
       }
@@ -580,7 +558,7 @@ void BSSN:prepairForK4(
   }
 }  
   
-void BSSN:registerRKRefiner(
+void BSSN::registerRKRefiner(
   xfer::RefineAlgorithm& refiner,
   boost::shared_ptr<hier::RefineOperator> &space_refine_op)
 {
@@ -592,13 +570,6 @@ void BSSN::registerSameLevelRefinerActive(
   boost::shared_ptr<hier::RefineOperator> &space_refine_op)
 {
   BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_SAME_LEVEL_REFINE_A,refiner,space_refine_op);
-}
-
-void BSSN::registerSameLevelRefinerFinal(
-  xfer::RefineAlgorithm& refiner,
-  boost::shared_ptr<hier::RefineOperator> &space_refine_op)
-{
-  BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_RK_REFINE_F,refiner,space_refine_op);
 }
 
 
@@ -629,17 +600,12 @@ void BSSN::registerCoarsenActive(
 
 
 
-void BSSN::swapPF(
-  math::HierarchyCellDataOpsReal<real_t> & hcellmath)
-{
-  BSSN_APPLY_TO_FIELDS(BSSN_SWAP_PF);
-}
 
 
-void BSSN::copyPToA(
+void BSSN::copyAToP(
   math::HierarchyCellDataOpsReal<real_t> & hcellmath)
 {
-  BSSN_APPLY_TO_FIELDS(BSSN_COPY_P_TO_A);
+  BSSN_APPLY_TO_FIELDS(BSSN_COPY_A_TO_P);
 }
 
 
@@ -681,7 +647,7 @@ void BSSN::K1FinalizePatch(
   initPData(patch);
   initMDA(patch);
   
-  const hier::Box& box = patch->getGhostBox();
+  const hier::Box& box = DIFFchi_a_pdata->getGhostBox();
 
   const int * lower = &box.lower()[0];
   const int * upper = &box.upper()[0];
@@ -705,7 +671,7 @@ void BSSN::K2FinalizePatch(
   initPData(patch);
   initMDA(patch);
 
-  const hier::Box& box = patch->getGhostBox();
+  const hier::Box& box = DIFFchi_a_pdata->getGhostBox();
 
   const int * lower = &box.lower()[0];
   const int * upper = &box.upper()[0];
@@ -725,12 +691,12 @@ void BSSN::K2FinalizePatch(
 
 
 void BSSN::K3FinalizePatch(
-  const boost::shared_ptr<hier::Patch> & patch, double dt)
+  const boost::shared_ptr<hier::Patch> & patch)
 {
   initPData(patch);
   initMDA(patch);
 
-  const hier::Box& box = patch->getGhostBox();
+  const hier::Box& box = DIFFchi_a_pdata->getGhostBox();
 
   const int * lower = &box.lower()[0];
   const int * upper = &box.upper()[0];
@@ -750,13 +716,13 @@ void BSSN::K3FinalizePatch(
 
 
 void BSSN::K4FinalizePatch(
-  const boost::shared_ptr<hier::Patch> & patch, double dt)
+  const boost::shared_ptr<hier::Patch> & patch)
 {
   initPData(patch);
   initMDA(patch);
 
   //Only evolv inner grids for K4
-  const hier::Box& box = patch->getGhostBox();
+  const hier::Box& box = DIFFchi_a_pdata->getGhostBox();
 
   const int * lower = &box.lower()[0];
   const int * upper = &box.upper()[0];
@@ -786,7 +752,7 @@ void BSSN::K4FinalizePatch(
 */
 
 void BSSN::set_bd_values_bd(
-  idx_t i, idx_t j, idx_t k, BSSNData *bd, real_t dx[])
+  idx_t i, idx_t j, idx_t k, BSSNData *bd, const real_t dx[])
 {
   bd->i = i;
   bd->j = j;
@@ -825,7 +791,7 @@ void BSSN::set_bd_values_bd(
 }
 
 void BSSN::set_bd_values_for_extra_fields(
-  idx_t i, idx_t j, idx_t k, BSSNData *bd, real_t dx[])
+  idx_t i, idx_t j, idx_t k, BSSNData *bd, const real_t dx[])
 {
   bd->i = i;
   bd->j = j;
@@ -858,8 +824,8 @@ void BSSN::set_bd_values_for_extra_fields(
   bd->S        =   bd->DIFFS + bd->S_FRW;
   bd->alpha    =   bd->DIFFalpha + 1.0;
   
-  calculate_dgamma(bd);
-  calculate_conformal_christoffels(bd);
+  calculate_dgamma(bd, dx);
+  calculate_conformal_christoffels(bd, dx);
 }
 /**
  * @brief Populate values in a BSSNData struct
@@ -870,7 +836,7 @@ void BSSN::set_bd_values_for_extra_fields(
  * @param k z-index
  * @param bd BSSNData struct to populate
  */
-void BSSN::set_bd_values(idx_t i, idx_t j, idx_t k, BSSNData *bd, real_t dx[])
+void BSSN::set_bd_values(idx_t i, idx_t j, idx_t k, BSSNData *bd, const real_t dx[])
 {
   bd->i = i;
   bd->j = j;
@@ -904,32 +870,32 @@ void BSSN::set_bd_values(idx_t i, idx_t j, idx_t k, BSSNData *bd, real_t dx[])
   
   // pre-compute re-used quantities
   // gammas & derivs first
-  calculate_Acont(bd);
-  calculate_dgamma(bd);
-  calculate_ddgamma(bd);
-  calculate_dalpha_dphi(bd);
-  calculate_dK(bd);
+  calculate_Acont(bd,dx);
+  calculate_dgamma(bd,dx);
+  calculate_ddgamma(bd,dx);
+  calculate_dalpha_dchi(bd,dx);
+  calculate_dK(bd,dx);
 # if USE_CCZ4
-    calculate_dtheta(bd);
+  calculate_dtheta(bd,dx);
 # endif
 # if USE_BSSN_SHIFT
-    calculate_dbeta(bd);
+  calculate_dbeta(bd,dx);
 # endif
 
   #if USE_EXPANSION
-    calculate_dexpN(bd);
+  calculate_dexpN(bd,dx);
   #endif
   // Christoffels depend on metric & derivs.
-  calculate_conformal_christoffels(bd);
+  calculate_conformal_christoffels(bd,dx);
   // DDw depend on christoffels, metric, and derivs
-  calculateDDphi(bd);
-  calculateDDalphaTF(bd);
+  calculateDDphi(bd,dx);
+  calculateDDalphaTF(bd,dx);
   // Ricci depends on DDphi
-  calculateRicciTF(bd);
+  calculateRicciTF(bd,dx);
 
-  calculateDZ(bd,dx[])
+  calculateDZ(bd,dx);
   // Hamiltonian constraint
-  //bd->H = hamiltonianConstraintCalc(bd);
+  //bd->H = hamiltonianConstraintCalc(bd,dx);
 }
 
 
@@ -973,7 +939,7 @@ void BSSN::set_gammai_values(idx_t i, idx_t j, idx_t k, BSSNData *bd)
  * @param bd BSSNData struct with inverse metric, Aij already computed.
  */
 
-void BSSN::calculate_Acont(BSSNData *bd, real_t dx[])
+void BSSN::calculate_Acont(BSSNData *bd, const real_t dx[])
 {
   // A^ij is calculated from A_ij by raising wrt. the conformal metric
   BSSN_APPLY_TO_IJ_PERMS(BSSN_CALCULATE_ACONT)
@@ -990,7 +956,7 @@ void BSSN::calculate_Acont(BSSNData *bd, real_t dx[])
  *
  * @param bd BSSNData struct reference
  */
-void BSSN::calculate_dgamma(BSSNData *bd, real_t dx[])
+void BSSN::calculate_dgamma(BSSNData *bd, const real_t dx[])
 {
   BSSN_APPLY_TO_IJK_PERMS(BSSN_CALCULATE_DGAMMA)
 }
@@ -1001,7 +967,7 @@ void BSSN::calculate_dgamma(BSSNData *bd, real_t dx[])
  *
  * @param bd BSSNData struct reference
  */
-void BSSN::calculate_ddgamma(BSSNData *bd, real_t dx[])
+void BSSN::calculate_ddgamma(BSSNData *bd, const real_t dx[])
 {
   BSSN_APPLY_TO_IJ_PERMS(BSSN_CALCULATE_DIDJGAMMA_PERMS)
 }
@@ -1012,25 +978,36 @@ void BSSN::calculate_ddgamma(BSSNData *bd, real_t dx[])
  *
  * @param bd BSSNData struct reference
  */
-void BSSN::calculate_dalpha_dphi(BSSNData *bd, real_t dx[])
+void BSSN::calculate_dalpha_dchi(BSSNData *bd, const real_t dx[])
 {
   // normal derivatives of phi
-  bd->d1phi = derivative(bd->i, bd->j, bd->k, 1, DIFFphi##_a, dx);
-  bd->d2phi = derivative(bd->i, bd->j, bd->k, 2, DIFFphi##_a, dx);
-  bd->d3phi = derivative(bd->i, bd->j, bd->k, 3, DIFFphi##_a, dx);
+  bd->d1chi = derivative(bd->i, bd->j, bd->k, 1, DIFFchi_a, dx);
+  bd->d2chi = derivative(bd->i, bd->j, bd->k, 2, DIFFchi_a, dx);
+  bd->d3chi = derivative(bd->i, bd->j, bd->k, 3, DIFFchi_a, dx);
 
   // second derivatives of phi
-  bd->d1d1phi = double_derivative(bd->i, bd->j, bd->k, 1, 1, DIFFphi##_a, dx);
-  bd->d2d2phi = double_derivative(bd->i, bd->j, bd->k, 2, 2, DIFFphi##_a, dx);
-  bd->d3d3phi = double_derivative(bd->i, bd->j, bd->k, 3, 3, DIFFphi##_a, dx);
-  bd->d1d2phi = double_derivative(bd->i, bd->j, bd->k, 1, 2, DIFFphi##_a, dx);
-  bd->d1d3phi = double_derivative(bd->i, bd->j, bd->k, 1, 3, DIFFphi##_a, dx);
-  bd->d2d3phi = double_derivative(bd->i, bd->j, bd->k, 2, 3, DIFFphi##_a, dx);
+  bd->d1d1chi = double_derivative(bd->i, bd->j, bd->k, 1, 1, DIFFchi_a, dx);
+  bd->d2d2chi = double_derivative(bd->i, bd->j, bd->k, 2, 2, DIFFchi_a, dx);
+  bd->d3d3chi = double_derivative(bd->i, bd->j, bd->k, 3, 3, DIFFchi_a, dx);
+  bd->d1d2chi = double_derivative(bd->i, bd->j, bd->k, 1, 2, DIFFchi_a, dx);
+  bd->d1d3chi = double_derivative(bd->i, bd->j, bd->k, 1, 3, DIFFchi_a, dx);
+  bd->d2d3chi = double_derivative(bd->i, bd->j, bd->k, 2, 3, DIFFchi_a, dx);
 
+  bd->d1phi = - 0.5 * bd->d1chi / bd->chi;
+  bd->d2phi = - 0.5 * bd->d2chi / bd->chi;
+  bd->d3phi = - 0.5 * bd->d3chi / bd->chi;
+
+  bd->d1d1phi = 0.5*(bd->d1chi*bd->d1chi/pw2(bd->chi)-bd->d1d1chi/bd->chi); 
+  bd->d1d2phi = 0.5*(bd->d1chi*bd->d2chi/pw2(bd->chi)-bd->d1d2chi/bd->chi);
+  bd->d1d3phi = 0.5*(bd->d1chi*bd->d3chi/pw2(bd->chi)-bd->d1d3chi/bd->chi);
+  bd->d2d2phi = 0.5*(bd->d2chi*bd->d2chi/pw2(bd->chi)-bd->d2d2chi/bd->chi);
+  bd->d2d3phi = 0.5*(bd->d2chi*bd->d3chi/pw2(bd->chi)-bd->d2d3chi/bd->chi);
+  bd->d3d3phi = 0.5*(bd->d3chi*bd->d3chi/pw2(bd->chi)-bd->d3d3chi/bd->chi); 
+  
   // normal derivatives of alpha
-  bd->d1a = derivative(bd->i, bd->j, bd->k, 1, DIFFalpha##_a, dx);
-  bd->d2a = derivative(bd->i, bd->j, bd->k, 2, DIFFalpha##_a, dx);
-  bd->d3a = derivative(bd->i, bd->j, bd->k, 3, DIFFalpha##_a, dx);
+  bd->d1a = derivative(bd->i, bd->j, bd->k, 1, DIFFalpha_a, dx);
+  bd->d2a = derivative(bd->i, bd->j, bd->k, 2, DIFFalpha_a, dx);
+  bd->d3a = derivative(bd->i, bd->j, bd->k, 3, DIFFalpha_a, dx);
 }
 
 /**
@@ -1039,45 +1016,45 @@ void BSSN::calculate_dalpha_dphi(BSSNData *bd, real_t dx[])
  *
  * @param bd BSSNData struct reference
  */
-void BSSN::calculate_dK(BSSNData *bd, real_t dx[])
+void BSSN::calculate_dK(BSSNData *bd, const real_t dx[])
 {
   // normal derivatives of K
-  bd->d1K = derivative(bd->i, bd->j, bd->k, 1, DIFFK##_a, dx);
-  bd->d2K = derivative(bd->i, bd->j, bd->k, 2, DIFFK##_a, dx);
-  bd->d3K = derivative(bd->i, bd->j, bd->k, 3, DIFFK##_a, dx);
+  bd->d1K = derivative(bd->i, bd->j, bd->k, 1, DIFFK_a, dx);
+  bd->d2K = derivative(bd->i, bd->j, bd->k, 2, DIFFK_a, dx);
+  bd->d3K = derivative(bd->i, bd->j, bd->k, 3, DIFFK_a, dx);
 }
 
 #if USE_CCZ4
-void BSSN::calculate_dtheta(BSSNData *bd, real_t dx[])
+void BSSN::calculate_dtheta(BSSNData *bd, const real_t dx[])
 {
   // normal derivatives of phi
-  bd->d1theta = derivative(bd->i, bd->j, bd->k, 1, theta##_a, dx);
-  bd->d2theta = derivative(bd->i, bd->j, bd->k, 2, theta##_a, dx);
-  bd->d3theta = derivative(bd->i, bd->j, bd->k, 3, theta##_a, dx);
+  bd->d1theta = derivative(bd->i, bd->j, bd->k, 1, theta_a, dx);
+  bd->d2theta = derivative(bd->i, bd->j, bd->k, 2, theta_a, dx);
+  bd->d3theta = derivative(bd->i, bd->j, bd->k, 3, theta_a, dx);
 }
 #endif
 
 #if USE_BSSN_SHIFT
-void BSSN::calculate_dbeta(BSSNData *bd, real_t dx[])
+void BSSN::calculate_dbeta(BSSNData *bd, const real_t dx[])
 {
-  bd->d1beta1 = derivative(bd->i, bd->j, bd->k, 1, beta1##_a, dx);
-  bd->d1beta2 = derivative(bd->i, bd->j, bd->k, 1, beta2##_a, dx);
-  bd->d1beta3 = derivative(bd->i, bd->j, bd->k, 1, beta3##_a, dx);
-  bd->d2beta1 = derivative(bd->i, bd->j, bd->k, 2, beta1##_a, dx);
-  bd->d2beta2 = derivative(bd->i, bd->j, bd->k, 2, beta2##_a, dx);
-  bd->d2beta3 = derivative(bd->i, bd->j, bd->k, 2, beta3##_a, dx);
-  bd->d3beta1 = derivative(bd->i, bd->j, bd->k, 3, beta1##_a, dx);
-  bd->d3beta2 = derivative(bd->i, bd->j, bd->k, 3, beta2##_a, dx);
-  bd->d3beta3 = derivative(bd->i, bd->j, bd->k, 3, beta3##_a, dx);
+  bd->d1beta1 = derivative(bd->i, bd->j, bd->k, 1, beta1_a, dx);
+  bd->d1beta2 = derivative(bd->i, bd->j, bd->k, 1, beta2_a, dx);
+  bd->d1beta3 = derivative(bd->i, bd->j, bd->k, 1, beta3_a, dx);
+  bd->d2beta1 = derivative(bd->i, bd->j, bd->k, 2, beta1_a, dx);
+  bd->d2beta2 = derivative(bd->i, bd->j, bd->k, 2, beta2_a, dx);
+  bd->d2beta3 = derivative(bd->i, bd->j, bd->k, 2, beta3_a, dx);
+  bd->d3beta1 = derivative(bd->i, bd->j, bd->k, 3, beta1_a, dx);
+  bd->d3beta2 = derivative(bd->i, bd->j, bd->k, 3, beta2_a, dx);
+  bd->d3beta3 = derivative(bd->i, bd->j, bd->k, 3, beta3_a, dx);
 }
 #endif
 
 #if USE_EXPANSION
-void BSSN::calculate_dexpN(BSSNData *bd, real_t dx[])
+void BSSN::calculate_dexpN(BSSNData *bd, const real_t dx[])
 {
-  bd->d1expN = upwind_derivative(bd->i, bd->j, bd->k, 1, expN##_a, dx, bd->beta1);
-  bd->d2expN = upwind_derivative(bd->i, bd->j, bd->k, 2, expN##_a, dx, bd->beta2);
-  bd->d3expN = upwind_derivative(bd->i, bd->j, bd->k, 3, expN##_a, dx, bd->beta3);
+  bd->d1expN = upwind_derivative(bd->i, bd->j, bd->k, 1, expN_a, dx, bd->beta1);
+  bd->d2expN = upwind_derivative(bd->i, bd->j, bd->k, 2, expN_a, dx, bd->beta2);
+  bd->d3expN = upwind_derivative(bd->i, bd->j, bd->k, 3, expN_a, dx, bd->beta3);
 }
 #endif
 
@@ -1090,7 +1067,7 @@ Compute "dependent" quantities (depend on previously calc'd vals)
 ******************************************************************************
 */
 
-void BSSN::calculate_conformal_christoffels(BSSNData *bd, real_t dx[])
+void BSSN::calculate_conformal_christoffels(BSSNData *bd, const real_t dx[])
 {
   // christoffel symbols: \Gamma^i_{jk} = Gijk
   BSSN_APPLY_TO_IJK_PERMS(BSSN_CALCULATE_CHRISTOFFEL)
@@ -1105,7 +1082,7 @@ void BSSN::calculate_conformal_christoffels(BSSNData *bd, real_t dx[])
     + 2.0*(bd->G312*bd->gammai12 + bd->G313*bd->gammai13 + bd->G323*bd->gammai23);
 }
 
-void BSSN::calculateDDphi(BSSNData *bd, real_t dx[])
+void BSSN::calculateDDphi(BSSNData *bd, const real_t dx[])
 {
   // double covariant derivatives, using unitary metric
   bd->D1D1phi = bd->d1d1phi - (bd->G111*bd->d1phi + bd->G211*bd->d2phi + bd->G311*bd->d3phi);
@@ -1117,38 +1094,50 @@ void BSSN::calculateDDphi(BSSNData *bd, real_t dx[])
   bd->D2D3phi = bd->d2d3phi - (bd->G123*bd->d1phi + bd->G223*bd->d2phi + bd->G323*bd->d3phi);  
 }
 
-void BSSN::calculateDZ(BSSNData *bd, real_t dx[])
+void BSSN::calculateDZ(BSSNData *bd, const real_t dx[])
 {
   //
-  bd->D1Z1 = derivative(bd->i, bd->j, bd->k, 1, Z1, dx)
+  bd->D1Z1 = derivative(bd->i, bd->j, bd->k, 1, Z1_a, dx)
     - (bd->G111 * bd->Z1 + bd->G211 * bd->Z2 + bd->G311 * bd->Z3);
-  bd->D2Z2 = derivative(bd->i, bd->j, bd->k, 2, Z2, dx)
+  bd->D2Z2 = derivative(bd->i, bd->j, bd->k, 2, Z2_a, dx)
     - (bd->G122 * bd->Z1 + bd->G222 * bd->Z2 + bd->G322 * bd->Z3);
-  bd->D3Z3 = derivative(bd->i, bd->j, bd->k, 3, Z3, dx)
+  bd->D3Z3 = derivative(bd->i, bd->j, bd->k, 3, Z3_a, dx)
     - (bd->G133 * bd->Z1 + bd->G233 * bd->Z2 + bd->G333 * bd->Z3);
   
-  bd->D1Z2 = derivative(bd->i, bd->j, bd->k, 1, Z2, dx)
+  bd->D1Z2 = derivative(bd->i, bd->j, bd->k, 1, Z2_a, dx)
     - (bd->G112 * bd->Z1 + bd->G212 * bd->Z2 + bd->G312 * bd->Z3);
-  bd->D1Z3 = derivative(bd->i, bd->j, bd->k, 1, Z3, dx)
+  bd->D1Z3 = derivative(bd->i, bd->j, bd->k, 1, Z3_a, dx)
     - (bd->G113 * bd->Z1 + bd->G213 * bd->Z2 + bd->G313 * bd->Z3);
-  bd->D2Z3 = derivative(bd->i, bd->j, bd->k, 2, Z3, dx)
+  bd->D2Z3 = derivative(bd->i, bd->j, bd->k, 2, Z3_a, dx)
     - (bd->G123 * bd->Z1 + bd->G223 * bd->Z2 + bd->G323 * bd->Z3);
 
+  bd->D2Z1 = derivative(bd->i, bd->j, bd->k, 2, Z1_a, dx)
+    - (bd->G121 * bd->Z1 + bd->G221 * bd->Z2 + bd->G321 * bd->Z3);
+  bd->D3Z1 = derivative(bd->i, bd->j, bd->k, 3, Z1_a, dx)
+    - (bd->G131 * bd->Z1 + bd->G231 * bd->Z2 + bd->G331 * bd->Z3);
+  bd->D3Z2 = derivative(bd->i, bd->j, bd->k, 3, Z2_a, dx)
+    - (bd->G132 * bd->Z1 + bd->G232 * bd->Z2 + bd->G332 * bd->Z3);
+  
   bd->DZTR = bd->gammai11 * bd->D1Z1 + bd->gammai22 * bd->D2Z2 + bd->gamma33 * bd->D3Z3
-    + 2.0 * (bd->gammai12 * bd->D1Z2 + bd->gammai13 * bd->D1Z3 + bd->gamma23 * bd->D2Z3);
+    + (bd->gammai12 * bd->D1Z2 + bd->gammai13 * bd->D1Z3 + bd->gamma23 * bd->D2Z3)
+    + (bd->gammai21 * bd->D2Z1 + bd->gammai31 * bd->D3Z1 + bd->gamma32 * bd->D3Z2);
 
-  bd->D1Z1TF = bd->Z1D1 - (1.0/3.0) * bd->gamma11 * bd->DZTR;
-  bd->D2Z2TF = bd->Z2D2 - (1.0/3.0) * bd->gamma22 * bd->DZTR;
-  bd->D3Z3TF = bd->Z3D3 - (1.0/3.0) * bd->gamma33 * bd->DZTR;
+  bd->D1Z1TF = bd->D1Z1 - (1.0/3.0) * bd->gamma11 * bd->DZTR;
+  bd->D2Z2TF = bd->D2Z2 - (1.0/3.0) * bd->gamma22 * bd->DZTR;
+  bd->D3Z3TF = bd->D3Z3 - (1.0/3.0) * bd->gamma33 * bd->DZTR;
 
-  bd->D1Z2TF = bd->Z1D2 - (1.0/3.0) * bd->gamma12 * bd->DZTR;
-  bd->D1Z3TF = bd->Z1D3 - (1.0/3.0) * bd->gamma13 * bd->DZTR;
-  bd->D2Z3TF = bd->Z2D3 - (1.0/3.0) * bd->gamma23 * bd->DZTR;
+  bd->D1Z2TF = bd->D1Z2 - (1.0/3.0) * bd->gamma12 * bd->DZTR;
+  bd->D1Z3TF = bd->D1Z3 - (1.0/3.0) * bd->gamma13 * bd->DZTR;
+  bd->D2Z3TF = bd->D2Z3 - (1.0/3.0) * bd->gamma23 * bd->DZTR;
+
+  bd->D2Z1TF = bd->D2Z1 - (1.0/3.0) * bd->gamma21 * bd->DZTR;
+  bd->D3Z1TF = bd->D3Z1 - (1.0/3.0) * bd->gamma31 * bd->DZTR;
+  bd->D3Z2TF = bd->D3Z2 - (1.0/3.0) * bd->gamma32 * bd->DZTR;
 
   bd->DZTR *= pw2(bd->chi);
 }
 
-void BSSN::calculateDDalphaTF(BSSNData *bd, real_t dx[])
+void BSSN::calculateDDalphaTF(BSSNData *bd, const real_t dx[])
 {
   // double covariant derivatives - use non-unitary metric - extra pieces that depend on phi!
   // the gammaIldlphi are needed for the BSSN_CALCULATE_DIDJALPHA macro
@@ -1169,11 +1158,11 @@ void BSSN::calculateDDalphaTF(BSSNData *bd, real_t dx[])
   bd->D3D3aTF -= (1.0/3.0)*bd->gamma33*bd->DDaTR;
 
   // scale trace back (=> contracted with "real" metric)
-  bd->DDaTR *= exp(-4.0*bd->phi);
+  bd->DDaTR *= pw2(bd->chi);
 }
 
 /* Calculate trace-free ricci tensor components */
-void BSSN::calculateRicciTF(BSSNData *bd, real_t dx[])
+void BSSN::calculateRicciTF(BSSNData *bd, const real_t dx[])
 {
   // unitary pieces
   BSSN_APPLY_TO_IJ_PERMS(BSSN_CALCULATE_RICCI_UNITARY)
@@ -1215,7 +1204,7 @@ void BSSN::calculateRicciTF(BSSNData *bd, real_t dx[])
 # endif
 
   /* calculate full Ricci scalar at this point */
-  bd->ricci = exp(-4.0*bd->phi)*(
+  bd->ricci = pw2(bd->chi)*(
       bd->ricci11*bd->gammai11 + bd->ricci22*bd->gammai22 + bd->ricci33*bd->gammai33
       + 2.0*(bd->ricci12*bd->gammai12 + bd->ricci13*bd->gammai13 + bd->ricci23*bd->gammai23)
     );
@@ -1223,12 +1212,12 @@ void BSSN::calculateRicciTF(BSSNData *bd, real_t dx[])
   ricci_a(bd->i,bd->j,bd->k) = bd->ricci;
 
   /* remove trace. Note that \bar{gamma}_{ij}*\bar{gamma}^{kl}R_{kl} = (unbarred gammas). */
-  bd->ricciTF11 = bd->ricci11 - (1.0/3.0)*exp(4.0*bd->phi)*bd->gamma11*bd->ricci;
-  bd->ricciTF12 = bd->ricci12 - (1.0/3.0)*exp(4.0*bd->phi)*bd->gamma12*bd->ricci;
-  bd->ricciTF13 = bd->ricci13 - (1.0/3.0)*exp(4.0*bd->phi)*bd->gamma13*bd->ricci;
-  bd->ricciTF22 = bd->ricci22 - (1.0/3.0)*exp(4.0*bd->phi)*bd->gamma22*bd->ricci;
-  bd->ricciTF23 = bd->ricci23 - (1.0/3.0)*exp(4.0*bd->phi)*bd->gamma23*bd->ricci;
-  bd->ricciTF33 = bd->ricci33 - (1.0/3.0)*exp(4.0*bd->phi)*bd->gamma33*bd->ricci;
+  bd->ricciTF11 = bd->ricci11 - 1.0/(3.0*pw2(bd->chi))*bd->gamma11*bd->ricci;
+  bd->ricciTF12 = bd->ricci12 - 1.0/(3.0*pw2(bd->chi))*bd->gamma12*bd->ricci;
+  bd->ricciTF13 = bd->ricci13 - 1.0/(3.0*pw2(bd->chi))*bd->gamma13*bd->ricci;
+  bd->ricciTF22 = bd->ricci22 - 1.0/(3.0*pw2(bd->chi))*bd->gamma22*bd->ricci;
+  bd->ricciTF23 = bd->ricci23 - 1.0/(3.0*pw2(bd->chi))*bd->gamma23*bd->ricci;
+  bd->ricciTF33 = bd->ricci33 - 1.0/(3.0*pw2(bd->chi))*bd->gamma33*bd->ricci;
 
   return;
 }
@@ -1244,25 +1233,25 @@ Evolution equation calculations
 ******************************************************************************
 */
 
-real_t BSSN::ev_DIFFgamma11(BSSNData *bd, real_t dx[]) { return BSSN_DT_DIFFGAMMAIJ(1, 1) + 0.5*BS_H_DAMPING_AMPLITUDE*dt*bd->H*bd->DIFFgamma11 - KO_dissipation_Q(bd->i, bd->j, bd->k, DIFFgamma11##_a, dx, KO_damping_coefficient); }
-real_t BSSN::ev_DIFFgamma12(BSSNData *bd, real_t dx[]) { return BSSN_DT_DIFFGAMMAIJ(1, 2) + 0.5*BS_H_DAMPING_AMPLITUDE*dt*bd->H*bd->DIFFgamma12 - KO_dissipation_Q(bd->i, bd->j, bd->k, DIFFgamma12##_a, dx, KO_damping_coefficient); }
-real_t BSSN::ev_DIFFgamma13(BSSNData *bd, real_t dx[]) { return BSSN_DT_DIFFGAMMAIJ(1, 3) + 0.5*BS_H_DAMPING_AMPLITUDE*dt*bd->H*bd->DIFFgamma13 - KO_dissipation_Q(bd->i, bd->j, bd->k, DIFFgamma13##_a, dx, KO_damping_coefficient); }
-real_t BSSN::ev_DIFFgamma22(BSSNData *bd, real_t dx[]) { return BSSN_DT_DIFFGAMMAIJ(2, 2) + 0.5*BS_H_DAMPING_AMPLITUDE*dt*bd->H*bd->DIFFgamma22 - KO_dissipation_Q(bd->i, bd->j, bd->k, DIFFgamma22##_a, dx, KO_damping_coefficient); }
-real_t BSSN::ev_DIFFgamma23(BSSNData *bd, real_t dx[]) { return BSSN_DT_DIFFGAMMAIJ(2, 3) + 0.5*BS_H_DAMPING_AMPLITUDE*dt*bd->H*bd->DIFFgamma23 - KO_dissipation_Q(bd->i, bd->j, bd->k, DIFFgamma23##_a, dx, KO_damping_coefficient); }
-real_t BSSN::ev_DIFFgamma33(BSSNData *bd, real_t dx[]) { return BSSN_DT_DIFFGAMMAIJ(3, 3) + 0.5*BS_H_DAMPING_AMPLITUDE*dt*bd->H*bd->DIFFgamma33 - KO_dissipation_Q(bd->i, bd->j, bd->k, DIFFgamma33##_a, dx, KO_damping_coefficient); }
+real_t BSSN::ev_DIFFgamma11(BSSNData *bd, const real_t dx[]) { return BSSN_DT_DIFFGAMMAIJ(1, 1)  - KO_dissipation_Q(bd->i, bd->j, bd->k, DIFFgamma11_a, dx, KO_damping_coefficient); }
+real_t BSSN::ev_DIFFgamma12(BSSNData *bd, const real_t dx[]) { return BSSN_DT_DIFFGAMMAIJ(1, 2)  - KO_dissipation_Q(bd->i, bd->j, bd->k, DIFFgamma12_a, dx, KO_damping_coefficient); }
+real_t BSSN::ev_DIFFgamma13(BSSNData *bd, const real_t dx[]) { return BSSN_DT_DIFFGAMMAIJ(1, 3)  - KO_dissipation_Q(bd->i, bd->j, bd->k, DIFFgamma13_a, dx, KO_damping_coefficient); }
+real_t BSSN::ev_DIFFgamma22(BSSNData *bd, const real_t dx[]) { return BSSN_DT_DIFFGAMMAIJ(2, 2)  - KO_dissipation_Q(bd->i, bd->j, bd->k, DIFFgamma22_a, dx, KO_damping_coefficient); }
+real_t BSSN::ev_DIFFgamma23(BSSNData *bd, const real_t dx[]) { return BSSN_DT_DIFFGAMMAIJ(2, 3)  - KO_dissipation_Q(bd->i, bd->j, bd->k, DIFFgamma23_a, dx, KO_damping_coefficient); }
+real_t BSSN::ev_DIFFgamma33(BSSNData *bd, const real_t dx[]) { return BSSN_DT_DIFFGAMMAIJ(3, 3)  - KO_dissipation_Q(bd->i, bd->j, bd->k, DIFFgamma33_a, dx, KO_damping_coefficient); }
 
-real_t BSSN::ev_A11(BSSNData *bd, real_t dx[]) { return BSSN_DT_AIJ(1, 1) - 1.0*BS_H_DAMPING_AMPLITUDE*dt*bd->A11*bd->H - KO_dissipation_Q(bd->i, bd->j, bd->k, A11##_a, dx, KO_damping_coefficient); }
-real_t BSSN::ev_A12(BSSNData *bd, real_t dx[]) { return BSSN_DT_AIJ(1, 2) - 1.0*BS_H_DAMPING_AMPLITUDE*dt*bd->A12*bd->H - KO_dissipation_Q(bd->i, bd->j, bd->k, A12##_a, dx, KO_damping_coefficient); }
-real_t BSSN::ev_A13(BSSNData *bd, real_t dx[]) { return BSSN_DT_AIJ(1, 3) - 1.0*BS_H_DAMPING_AMPLITUDE*dt*bd->A13*bd->H - KO_dissipation_Q(bd->i, bd->j, bd->k, A13##_a, dx, KO_damping_coefficient); }
-real_t BSSN::ev_A22(BSSNData *bd, real_t dx[]) { return BSSN_DT_AIJ(2, 2) - 1.0*BS_H_DAMPING_AMPLITUDE*dt*bd->A22*bd->H - KO_dissipation_Q(bd->i, bd->j, bd->k, A22##_a, dx, KO_damping_coefficient); }
-real_t BSSN::ev_A23(BSSNData *bd, real_t dx[]) { return BSSN_DT_AIJ(2, 3) - 1.0*BS_H_DAMPING_AMPLITUDE*dt*bd->A23*bd->H - KO_dissipation_Q(bd->i, bd->j, bd->k, A23##_a, dx, KO_damping_coefficient); }
-real_t BSSN::ev_A33(BSSNData *bd, real_t dx[]) { return BSSN_DT_AIJ(3, 3) - 1.0*BS_H_DAMPING_AMPLITUDE*dt*bd->A33*bd->H - KO_dissipation_Q(bd->i, bd->j, bd->k, A33##_a, dx, KO_damping_coefficient); }
+real_t BSSN::ev_A11(BSSNData *bd, const real_t dx[]) { return BSSN_DT_AIJ(1, 1) - KO_dissipation_Q(bd->i, bd->j, bd->k, A11_a, dx, KO_damping_coefficient); }
+real_t BSSN::ev_A12(BSSNData *bd, const real_t dx[]) { return BSSN_DT_AIJ(1, 2) - KO_dissipation_Q(bd->i, bd->j, bd->k, A12_a, dx, KO_damping_coefficient); }
+real_t BSSN::ev_A13(BSSNData *bd, const real_t dx[]) { return BSSN_DT_AIJ(1, 3) - KO_dissipation_Q(bd->i, bd->j, bd->k, A13_a, dx, KO_damping_coefficient); }
+real_t BSSN::ev_A22(BSSNData *bd, const real_t dx[]) { return BSSN_DT_AIJ(2, 2) - KO_dissipation_Q(bd->i, bd->j, bd->k, A22_a, dx, KO_damping_coefficient); }
+real_t BSSN::ev_A23(BSSNData *bd, const real_t dx[]) { return BSSN_DT_AIJ(2, 3) - KO_dissipation_Q(bd->i, bd->j, bd->k, A23_a, dx, KO_damping_coefficient); }
+real_t BSSN::ev_A33(BSSNData *bd, const real_t dx[]) { return BSSN_DT_AIJ(3, 3) - KO_dissipation_Q(bd->i, bd->j, bd->k, A33_a, dx, KO_damping_coefficient); }
 
-real_t BSSN::ev_Gamma1(BSSNData *bd, real_t dx[]) { return BSSN_DT_GAMMAI(1) - KO_dissipation_Q(bd->i, bd->j, bd->k, Gamma1##_a, dx, KO_damping_coefficient); }
-real_t BSSN::ev_Gamma2(BSSNData *bd, real_t dx[]) { return BSSN_DT_GAMMAI(2) - KO_dissipation_Q(bd->i, bd->j, bd->k, Gamma2##_a, dx, KO_damping_coefficient); }
-real_t BSSN::ev_Gamma3(BSSNData *bd, real_t dx[]) { return BSSN_DT_GAMMAI(3) - KO_dissipation_Q(bd->i, bd->j, bd->k, Gamma3##_a, dx, KO_damping_coefficient); }
+real_t BSSN::ev_Gamma1(BSSNData *bd, const real_t dx[]) { return BSSN_DT_GAMMAI(1) - KO_dissipation_Q(bd->i, bd->j, bd->k, Gamma1_a, dx, KO_damping_coefficient); }
+real_t BSSN::ev_Gamma2(BSSNData *bd, const real_t dx[]) { return BSSN_DT_GAMMAI(2) - KO_dissipation_Q(bd->i, bd->j, bd->k, Gamma2_a, dx, KO_damping_coefficient); }
+real_t BSSN::ev_Gamma3(BSSNData *bd, const real_t dx[]) { return BSSN_DT_GAMMAI(3) - KO_dissipation_Q(bd->i, bd->j, bd->k, Gamma3_a, dx, KO_damping_coefficient); }
 
-real_t BSSN::ev_DIFFK(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_DIFFK(BSSNData *bd, const real_t dx[])
 {
   return (
     - bd->DDaTR
@@ -1280,16 +1269,16 @@ real_t BSSN::ev_DIFFK(BSSNData *bd, real_t dx[])
           - 2.0 * bd->theta * bd->K
     )
     + 4.0*PI*bd->alpha*(bd->r + bd->S)
-    + upwind_derivative(bd->i, bd->j, bd->k, 1, DIFFK##_a, dx, bd->beta1)
-    + upwind_derivative(bd->i, bd->j, bd->k, 2, DIFFK##_a, dx, bd->beta2)
-    + upwind_derivative(bd->i, bd->j, bd->k, 3, DIFFK##_a, dx, bd->beta3)
+    + upwind_derivative(bd->i, bd->j, bd->k, 1, DIFFK_a, dx, bd->beta1)
+    + upwind_derivative(bd->i, bd->j, bd->k, 2, DIFFK_a, dx, bd->beta2)
+    + upwind_derivative(bd->i, bd->j, bd->k, 3, DIFFK_a, dx, bd->beta3)
     - 3.0*bd->alpha*Z4c_K1_DAMPING_AMPLITUDE*(1.0 + Z4c_K2_DAMPING_AMPLITUDE)*bd->theta
-    - KO_dissipation_Q(bd->i, bd->j, bd->k, DIFFK##_a, dx, KO_damping_coefficient)
+    - KO_dissipation_Q(bd->i, bd->j, bd->k, DIFFK_a, dx, KO_damping_coefficient)
   );
 }
 
 //flag
-real_t BSSN::ev_DIFFchi(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_DIFFchi(BSSNData *bd, const real_t dx[])
 {
   return (
     1.0/3.0*(
@@ -1299,27 +1288,27 @@ real_t BSSN::ev_DIFFchi(BSSNData *bd, real_t dx[])
       #endif
     )
     #if USE_BSSN_SHIFT
-    + upwind_derivative(bd->i, bd->j, bd->k, 1, DIFFchi##_a, dx, bd->beta1)
-    + upwind_derivative(bd->i, bd->j, bd->k, 2, DIFFchi##_a, dx, bd->beta2)
-    + upwind_derivative(bd->i, bd->j, bd->k, 3, DIFFchi##_a, dx, bd->beta3)
+    + upwind_derivative(bd->i, bd->j, bd->k, 1, DIFFchi_a, dx, bd->beta1)
+    + upwind_derivative(bd->i, bd->j, bd->k, 2, DIFFchi_a, dx, bd->beta2)
+    + upwind_derivative(bd->i, bd->j, bd->k, 3, DIFFchi_a, dx, bd->beta3)
     #endif
-    - KO_dissipation_Q(bd->i, bd->j, bd->k, DIFFchi##_a, dx, KO_damping_coefficient)
+    - KO_dissipation_Q(bd->i, bd->j, bd->k, DIFFchi_a, dx, KO_damping_coefficient)
   );
 }
 
-real_t BSSN::ev_DIFFalpha(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_DIFFalpha(BSSNData *bd, const real_t dx[])
 {
   return gaugeHandler->ev_lapse(bd)
     #if USE_BSSN_SHIFT
-    + upwind_derivative(bd->i, bd->j, bd->k, 1, DIFFalpha##_a, dx, bd->beta1)
-    + upwind_derivative(bd->i, bd->j, bd->k, 2, DIFFalpha##_a, dx, bd->beta2)
-    + upwind_derivative(bd->i, bd->j, bd->k, 3, DIFFalpha##_a, dx, bd->beta3)
+    + upwind_derivative(bd->i, bd->j, bd->k, 1, DIFFalpha_a, dx, bd->beta1)
+    + upwind_derivative(bd->i, bd->j, bd->k, 2, DIFFalpha_a, dx, bd->beta2)
+    + upwind_derivative(bd->i, bd->j, bd->k, 3, DIFFalpha_a, dx, bd->beta3)
     #endif
-    - KO_dissipation_Q(bd->i, bd->j, bd->k, DIFFalpha##_a, dx, KO_damping_coefficient);
+    - KO_dissipation_Q(bd->i, bd->j, bd->k, DIFFalpha_a, dx, KO_damping_coefficient);
 }
 
 
-real_t BSSN::ev_theta(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_theta(BSSNData *bd, const real_t dx[])
 {
   #if USE_CCZ4
   return (
@@ -1327,84 +1316,84 @@ real_t BSSN::ev_theta(BSSNData *bd, real_t dx[])
       bd->ricci + 2.0/3.0*pw2 * bd->K - 2.0 * bd->theta * bd->K + 2.0 * bd->DZTR
       - bd->AijAij - 16.0*PI* bd->r)
     #if USE_BSSN_SHIFT
-    + upwind_derivative(bd->i, bd->j, bd->k, 1, theta##_a, dx, bd->beta1)
-    + upwind_derivative(bd->i, bd->j, bd->k, 2, theta##_a, dx, bd->beta2)
-    + upwind_derivative(bd->i, bd->j, bd->k, 3, theta##_a, dx, bd->beta3)
+    + upwind_derivative(bd->i, bd->j, bd->k, 1, theta_a, dx, bd->beta1)
+    + upwind_derivative(bd->i, bd->j, bd->k, 2, theta_a, dx, bd->beta2)
+    + upwind_derivative(bd->i, bd->j, bd->k, 3, theta_a, dx, bd->beta3)
     #endif
     - bd->Z1 * bd->d1a - bd->Z2 * bd->d2a - bd->Z3 * bd->d3a
     - bd->alpha*Z4c_K1_DAMPING_AMPLITUDE*(2.0 + Z4c_K2_DAMPING_AMPLITUDE)*bd->theta
-  ) - KO_dissipation_Q(bd->i, bd->j, bd->k, theta##_a, dx, KO_damping_coefficient);
+  ) - KO_dissipation_Q(bd->i, bd->j, bd->k, theta_a, dx, KO_damping_coefficient);
   #endif
   return 0;
 }
 
 
 #if USE_BSSN_SHIFT
-real_t BSSN::ev_beta1(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_beta1(BSSNData *bd, const real_t dx[])
 {
   return gaugeHandler->ev_shift1(bd)
-    //+ upwind_derivative(bd->i, bd->j, bd->k, 1, beta1##_a, dx, bd->beta1)
-    //+ upwind_derivative(bd->i, bd->j, bd->k, 2, beta1##_a, dx, bd->beta2)
-    //+ upwind_derivative(bd->i, bd->j, bd->k, 3, beta1##_a, dx, bd->beta3)
-    - KO_dissipation_Q(bd->i, bd->j, bd->k, beta1##_a, dx, KO_damping_coefficient);
+    //+ upwind_derivative(bd->i, bd->j, bd->k, 1, beta1_a, dx, bd->beta1)
+    //+ upwind_derivative(bd->i, bd->j, bd->k, 2, beta1_a, dx, bd->beta2)
+    //+ upwind_derivative(bd->i, bd->j, bd->k, 3, beta1_a, dx, bd->beta3)
+    - KO_dissipation_Q(bd->i, bd->j, bd->k, beta1_a, dx, KO_damping_coefficient);
 }
 
-real_t BSSN::ev_beta2(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_beta2(BSSNData *bd, const real_t dx[])
 {
   return gaugeHandler->ev_shift2(bd)
-    //+ upwind_derivative(bd->i, bd->j, bd->k, 1, beta2##_a, dx, bd->beta1)
-    //+ upwind_derivative(bd->i, bd->j, bd->k, 2, beta2##_a, dx, bd->beta2)
-    //+ upwind_derivative(bd->i, bd->j, bd->k, 3, beta2##_a, dx, bd->beta3)
-    - KO_dissipation_Q(bd->i, bd->j, bd->k, beta2##_a, dx, KO_damping_coefficient);
+    //+ upwind_derivative(bd->i, bd->j, bd->k, 1, beta2_a, dx, bd->beta1)
+    //+ upwind_derivative(bd->i, bd->j, bd->k, 2, beta2_a, dx, bd->beta2)
+    //+ upwind_derivative(bd->i, bd->j, bd->k, 3, beta2_a, dx, bd->beta3)
+    - KO_dissipation_Q(bd->i, bd->j, bd->k, beta2_a, dx, KO_damping_coefficient);
 }
 
-real_t BSSN::ev_beta3(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_beta3(BSSNData *bd, const real_t dx[])
 {
   return gaugeHandler->ev_shift3(bd)
-    //+ upwind_derivative(bd->i, bd->j, bd->k, 1, beta3##_a, dx, bd->beta1)
-    //+ upwind_derivative(bd->i, bd->j, bd->k, 2, beta3##_a, dx, bd->beta2)
-    //+ upwind_derivative(bd->i, bd->j, bd->k, 3, beta3##_a, dx, bd->beta3)
-    - KO_dissipation_Q(bd->i, bd->j, bd->k, beta3##_a, dx, KO_damping_coefficient);
+    //+ upwind_derivative(bd->i, bd->j, bd->k, 1, beta3_a, dx, bd->beta1)
+    //+ upwind_derivative(bd->i, bd->j, bd->k, 2, beta3_a, dx, bd->beta2)
+    //+ upwind_derivative(bd->i, bd->j, bd->k, 3, beta3_a, dx, bd->beta3)
+    - KO_dissipation_Q(bd->i, bd->j, bd->k, beta3_a, dx, KO_damping_coefficient);
 }
 #endif
 
 #if USE_EXPANSION
-real_t BSSN::ev_expN(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_expN(BSSNData *bd, const real_t dx[])
 {
   return
-      upwind_derivative(bd->i, bd->j, bd->k, 1, expN##_a, dx, bd->beta1)
-    + upwind_derivative(bd->i, bd->j, bd->k, 2, expN##_a, dx, bd->beta2)
-    + upwind_derivative(bd->i, bd->j, bd->k, 3, expN##_a, dx, bd->beta3)
+      upwind_derivative(bd->i, bd->j, bd->k, 1, expN_a, dx, bd->beta1)
+    + upwind_derivative(bd->i, bd->j, bd->k, 2, expN_a, dx, bd->beta2)
+    + upwind_derivative(bd->i, bd->j, bd->k, 3, expN_a, dx, bd->beta3)
     -bd->alpha * bd->K/3.0;
 }
 #endif
 
 
 #if USE_GAMMA_DRIVER
-real_t BSSN::ev_auxB1(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_auxB1(BSSNData *bd, const real_t dx[])
 {
   return 0.75*ev_Gamma1(bd)
-    //+ upwind_derivative(bd->i, bd->j, bd->k, 1, auxB1##_a, dx, bd->beta1)
-    //+ upwind_derivative(bd->i, bd->j, bd->k, 2, auxB1##_a, dx, bd->beta2)
-    //+ upwind_derivative(bd->i, bd->j, bd->k, 3, auxB1##_a, dx, bd->beta3)
+    //+ upwind_derivative(bd->i, bd->j, bd->k, 1, auxB1_a, dx, bd->beta1)
+    //+ upwind_derivative(bd->i, bd->j, bd->k, 2, auxB1_a, dx, bd->beta2)
+    //+ upwind_derivative(bd->i, bd->j, bd->k, 3, auxB1_a, dx, bd->beta3)
     - gd_eta * bd->auxB1;
 }
 
-real_t BSSN::ev_auxB2(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_auxB2(BSSNData *bd, const real_t dx[])
 {
   return 0.75*ev_Gamma2(bd)
-    //+ upwind_derivative(bd->i, bd->j, bd->k, 1, auxB2##_a, dx, bd->beta1)
-    //+ upwind_derivative(bd->i, bd->j, bd->k, 2, auxB2##_a, dx, bd->beta2)
-    //+ upwind_derivative(bd->i, bd->j, bd->k, 3, auxB2##_a, dx, bd->beta3)
+    //+ upwind_derivative(bd->i, bd->j, bd->k, 1, auxB2_a, dx, bd->beta1)
+    //+ upwind_derivative(bd->i, bd->j, bd->k, 2, auxB2_a, dx, bd->beta2)
+    //+ upwind_derivative(bd->i, bd->j, bd->k, 3, auxB2_a, dx, bd->beta3)
     - gd_eta * bd->auxB2;
 }
 
-real_t BSSN::ev_auxB3(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_auxB3(BSSNData *bd, const real_t dx[])
 {
   return 0.75*ev_Gamma3(bd)
-    //+ upwind_derivative(bd->i, bd->j, bd->k, 1, auxB3##_a, dx, bd->beta1)
-    //+ upwind_derivative(bd->i, bd->j, bd->k, 2, auxB3##_a, dx, bd->beta2)
-    //+ upwind_derivative(bd->i, bd->j, bd->k, 3, auxB3##_a, dx, bd->beta3)
+    //+ upwind_derivative(bd->i, bd->j, bd->k, 1, auxB3_a, dx, bd->beta1)
+    //+ upwind_derivative(bd->i, bd->j, bd->k, 2, auxB3_a, dx, bd->beta2)
+    //+ upwind_derivative(bd->i, bd->j, bd->k, 3, auxB3_a, dx, bd->beta3)
     - gd_eta * bd->auxB3;
 }
 #endif
@@ -1415,149 +1404,149 @@ Evolution equation calculations at boundary
 ******************************************************************************
 */
 
-real_t BSSN::ev_DIFFgamma11_bd(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_DIFFgamma11_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
-  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, DIFFgamma11_a, dx) * bd->x
-            + bd_derivative(bd->i, bd->j, bd->k, 2, DIFFgamma11_a, dx) * bd->y
-            + bd_derivative(bd->i, bd->j, bd->k, 3, DIFFgamma11_a, dx) * bd->z 
+  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, DIFFgamma11_a, dx, l_idx, codim) * bd->x
+            + bd_derivative(bd->i, bd->j, bd->k, 2, DIFFgamma11_a, dx, l_idx, codim) * bd->y
+            + bd_derivative(bd->i, bd->j, bd->k, 3, DIFFgamma11_a, dx, l_idx, codim) * bd->z 
             + bd->DIFFgamma11           );
 }
-real_t BSSN::ev_DIFFgamma12_bd(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_DIFFgamma12_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
-  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, DIFFgamma12_a, dx) * bd->x
-            + bd_derivative(bd->i, bd->j, bd->k, 2, DIFFgamma12_a, dx) * bd->y
-            + bd_derivative(bd->i, bd->j, bd->k, 3, DIFFgamma12_a, dx) * bd->z 
+  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, DIFFgamma12_a, dx, l_idx, codim) * bd->x
+            + bd_derivative(bd->i, bd->j, bd->k, 2, DIFFgamma12_a, dx, l_idx, codim) * bd->y
+            + bd_derivative(bd->i, bd->j, bd->k, 3, DIFFgamma12_a, dx, l_idx, codim) * bd->z 
             + bd->DIFFgamma12           );
 }
-real_t BSSN::ev_DIFFgamma13_bd(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_DIFFgamma13_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
-  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, DIFFgamma13_a, dx) * bd->x
-            + bd_derivative(bd->i, bd->j, bd->k, 2, DIFFgamma13_a, dx) * bd->y
-            + bd_derivative(bd->i, bd->j, bd->k, 3, DIFFgamma13_a, dx) * bd->z 
+  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, DIFFgamma13_a, dx, l_idx, codim) * bd->x
+            + bd_derivative(bd->i, bd->j, bd->k, 2, DIFFgamma13_a, dx, l_idx, codim) * bd->y
+            + bd_derivative(bd->i, bd->j, bd->k, 3, DIFFgamma13_a, dx, l_idx, codim) * bd->z 
             + bd->gamma13           );
 }
-real_t BSSN::ev_DIFFgamma22_bd(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_DIFFgamma22_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
-  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, DIFFgamma22_a, dx) * bd->x
-            + bd_derivative(bd->i, bd->j, bd->k, 2, DIFFgamma22_a, dx) * bd->y
-            + bd_derivative(bd->i, bd->j, bd->k, 3, DIFFgamma22_a, dx) * bd->z 
+  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, DIFFgamma22_a, dx, l_idx, codim) * bd->x
+            + bd_derivative(bd->i, bd->j, bd->k, 2, DIFFgamma22_a, dx, l_idx, codim) * bd->y
+            + bd_derivative(bd->i, bd->j, bd->k, 3, DIFFgamma22_a, dx, l_idx, codim) * bd->z 
             + bd->DIFFgamma22           );
 }
-real_t BSSN::ev_DIFFgamma23_bd(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_DIFFgamma23_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
-  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, DIFFgamma23_a, dx) * bd->x
-            + bd_derivative(bd->i, bd->j, bd->k, 2, DIFFgamma23_a, dx) * bd->y
-            + bd_derivative(bd->i, bd->j, bd->k, 3, DIFFgamma23_a, dx) * bd->z 
+  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, DIFFgamma23_a, dx, l_idx, codim) * bd->x
+            + bd_derivative(bd->i, bd->j, bd->k, 2, DIFFgamma23_a, dx, l_idx, codim) * bd->y
+            + bd_derivative(bd->i, bd->j, bd->k, 3, DIFFgamma23_a, dx, l_idx, codim) * bd->z 
             + bd->DIFFgamma23           );
 }
-real_t BSSN::ev_DIFFgamma33_bd(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_DIFFgamma33_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
-  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, DIFFgamma33_a, dx) * bd->x
-            + bd_derivative(bd->i, bd->j, bd->k, 2, DIFFgamma33_a, dx) * bd->y
-            + bd_derivative(bd->i, bd->j, bd->k, 3, DIFFgamma33_a, dx) * bd->z 
+  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, DIFFgamma33_a, dx, l_idx, codim) * bd->x
+            + bd_derivative(bd->i, bd->j, bd->k, 2, DIFFgamma33_a, dx, l_idx, codim) * bd->y
+            + bd_derivative(bd->i, bd->j, bd->k, 3, DIFFgamma33_a, dx, l_idx, codim) * bd->z 
             + bd->DIFFgamma33           );
 }
 
 
-real_t BSSN::ev_A11_bd(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_A11_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
-  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, A11_a, dx) * bd->x
-            + bd_derivative(bd->i, bd->j, bd->k, 2, A11_a, dx) * bd->y
-            + bd_derivative(bd->i, bd->j, bd->k, 3, A11_a, dx) * bd->z 
+  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, A11_a, dx, l_idx, codim) * bd->x
+            + bd_derivative(bd->i, bd->j, bd->k, 2, A11_a, dx, l_idx, codim) * bd->y
+            + bd_derivative(bd->i, bd->j, bd->k, 3, A11_a, dx, l_idx, codim) * bd->z 
             + bd->A11           );
 }
-real_t BSSN::ev_A12_bd(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_A12_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
-  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, A12_a, dx) * bd->x
-            + bd_derivative(bd->i, bd->j, bd->k, 2, A12_a, dx) * bd->y
-            + bd_derivative(bd->i, bd->j, bd->k, 3, A12_a, dx) * bd->z 
+  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, A12_a, dx, l_idx, codim) * bd->x
+            + bd_derivative(bd->i, bd->j, bd->k, 2, A12_a, dx, l_idx, codim) * bd->y
+            + bd_derivative(bd->i, bd->j, bd->k, 3, A12_a, dx, l_idx, codim) * bd->z 
             + bd->A12           );
 }
-real_t BSSN::ev_A13_bd(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_A13_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
-  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, A13_a, dx) * bd->x
-            + bd_derivative(bd->i, bd->j, bd->k, 2, A13_a, dx) * bd->y
-            + bd_derivative(bd->i, bd->j, bd->k, 3, A13_a, dx) * bd->z 
+  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, A13_a, dx, l_idx, codim) * bd->x
+            + bd_derivative(bd->i, bd->j, bd->k, 2, A13_a, dx, l_idx, codim) * bd->y
+            + bd_derivative(bd->i, bd->j, bd->k, 3, A13_a, dx, l_idx, codim) * bd->z 
             + bd->A13           );
 }
-real_t BSSN::ev_A22_bd(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_A22_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
-  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, A22_a, dx) * bd->x
-            + bd_derivative(bd->i, bd->j, bd->k, 2, A22_a, dx) * bd->y
-            + bd_derivative(bd->i, bd->j, bd->k, 3, A22_a, dx) * bd->z 
+  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, A22_a, dx, l_idx, codim) * bd->x
+            + bd_derivative(bd->i, bd->j, bd->k, 2, A22_a, dx, l_idx, codim) * bd->y
+            + bd_derivative(bd->i, bd->j, bd->k, 3, A22_a, dx, l_idx, codim) * bd->z 
             + bd->A22           );
 }
-real_t BSSN::ev_A23_bd(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_A23_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
-  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, A23_a, dx) * bd->x
-            + bd_derivative(bd->i, bd->j, bd->k, 2, A23_a, dx) * bd->y
-            + bd_derivative(bd->i, bd->j, bd->k, 3, A23_a, dx) * bd->z 
+  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, A23_a, dx, l_idx, codim) * bd->x
+            + bd_derivative(bd->i, bd->j, bd->k, 2, A23_a, dx, l_idx, codim) * bd->y
+            + bd_derivative(bd->i, bd->j, bd->k, 3, A23_a, dx, l_idx, codim) * bd->z 
             + bd->A23           );
 }
-real_t BSSN::ev_A33_bd(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_A33_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
-  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, A33_a, dx) * bd->x
-            + bd_derivative(bd->i, bd->j, bd->k, 2, A33_a, dx) * bd->y
-            + bd_derivative(bd->i, bd->j, bd->k, 3, A33_a, dx) * bd->z 
+  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, A33_a, dx, l_idx, codim) * bd->x
+            + bd_derivative(bd->i, bd->j, bd->k, 2, A33_a, dx, l_idx, codim) * bd->y
+            + bd_derivative(bd->i, bd->j, bd->k, 3, A33_a, dx, l_idx, codim) * bd->z 
             + bd->A33           );
 }
 
-real_t BSSN::ev_Gamma1_bd(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_Gamma1_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
-  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, Gamma1_a, dx) * bd->x
-            + bd_derivative(bd->i, bd->j, bd->k, 2, Gamma1_a, dx) * bd->y
-            + bd_derivative(bd->i, bd->j, bd->k, 3, Gamma1_a, dx) * bd->z 
+  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, Gamma1_a, dx, l_idx, codim) * bd->x
+            + bd_derivative(bd->i, bd->j, bd->k, 2, Gamma1_a, dx, l_idx, codim) * bd->y
+            + bd_derivative(bd->i, bd->j, bd->k, 3, Gamma1_a, dx, l_idx, codim) * bd->z 
             + bd->Gamma1           );
 }
-real_t BSSN::ev_Gamma2_bd(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_Gamma2_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
-  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, Gamma2_a, dx) * bd->x
-            + bd_derivative(bd->i, bd->j, bd->k, 2, Gamma2_a, dx) * bd->y
-            + bd_derivative(bd->i, bd->j, bd->k, 3, Gamma2_a, dx) * bd->z 
+  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, Gamma2_a, dx, l_idx, codim) * bd->x
+            + bd_derivative(bd->i, bd->j, bd->k, 2, Gamma2_a, dx, l_idx, codim) * bd->y
+            + bd_derivative(bd->i, bd->j, bd->k, 3, Gamma2_a, dx, l_idx, codim) * bd->z 
             + bd->Gamma2           );
 }
-real_t BSSN::ev_Gamma3_bd(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_Gamma3_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
-  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, Gamma3_a, dx) * bd->x
-            + bd_derivative(bd->i, bd->j, bd->k, 2, Gamma3_a, dx) * bd->y
-            + bd_derivative(bd->i, bd->j, bd->k, 3, Gamma3_a, dx) * bd->z 
+  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, Gamma3_a, dx, l_idx, codim) * bd->x
+            + bd_derivative(bd->i, bd->j, bd->k, 2, Gamma3_a, dx, l_idx, codim) * bd->y
+            + bd_derivative(bd->i, bd->j, bd->k, 3, Gamma3_a, dx, l_idx, codim) * bd->z 
             + bd->Gamma3           );
 }
 
 
-real_t BSSN::ev_DIFFK_bd(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_DIFFK_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
-  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, DIFFK_a, dx) * bd->x
-            + bd_derivative(bd->i, bd->j, bd->k, 2, DIFFK_a, dx) * bd->y
-            + bd_derivative(bd->i, bd->j, bd->k, 3, DIFFK_a, dx) * bd->z 
+  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, DIFFK_a, dx, l_idx, codim) * bd->x
+            + bd_derivative(bd->i, bd->j, bd->k, 2, DIFFK_a, dx, l_idx, codim) * bd->y
+            + bd_derivative(bd->i, bd->j, bd->k, 3, DIFFK_a, dx, l_idx, codim) * bd->z 
             + bd->DIFFK           );
 }
 
-real_t BSSN::ev_DIFFphi_bd(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_DIFFchi_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
-  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, DIFFphi_a, dx) * bd->x
-            + bd_derivative(bd->i, bd->j, bd->k, 2, DIFFphi_a, dx) * bd->y
-            + bd_derivative(bd->i, bd->j, bd->k, 3, DIFFphi_a, dx) * bd->z 
-            + bd->DIFFphi           );
+  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, DIFFchi_a, dx, l_idx, codim) * bd->x
+            + bd_derivative(bd->i, bd->j, bd->k, 2, DIFFchi_a, dx, l_idx, codim) * bd->y
+            + bd_derivative(bd->i, bd->j, bd->k, 3, DIFFchi_a, dx, l_idx, codim) * bd->z 
+            + bd->DIFFchi           );
 }
   
-real_t BSSN::ev_DIFFalpha_bd(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_DIFFalpha_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
-  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, DIFFalpha_a, dx) * bd->x
-            + bd_derivative(bd->i, bd->j, bd->k, 2, DIFFalpha_a, dx) * bd->y
-            + bd_derivative(bd->i, bd->j, bd->k, 3, DIFFalpha_a, dx) * bd->z 
+  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, DIFFalpha_a, dx, l_idx, codim) * bd->x
+            + bd_derivative(bd->i, bd->j, bd->k, 2, DIFFalpha_a, dx, l_idx, codim) * bd->y
+            + bd_derivative(bd->i, bd->j, bd->k, 3, DIFFalpha_a, dx, l_idx, codim) * bd->z 
             + bd->DIFFalpha           );
 }
 
 
 
 
-real_t BSSN::ev_theta_bd(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_theta_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
 #if USE_CCZ4  
-  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, theta_a, dx) * bd->x
-            + bd_derivative(bd->i, bd->j, bd->k, 2, theta_a, dx) * bd->y
-            + bd_derivative(bd->i, bd->j, bd->k, 3, theta_a, dx) * bd->z 
+  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, theta_a, dx, l_idx, codim) * bd->x
+            + bd_derivative(bd->i, bd->j, bd->k, 2, theta_a, dx, l_idx, codim) * bd->y
+            + bd_derivative(bd->i, bd->j, bd->k, 3, theta_a, dx, l_idx, codim) * bd->z 
             + bd->theta           );
 #endif
   return 0;
@@ -1565,40 +1554,40 @@ real_t BSSN::ev_theta_bd(BSSNData *bd, real_t dx[])
 
 
 #if USE_BSSN_SHIFT
-real_t BSSN::ev_beta1_bd(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_beta1_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
   
-  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, beta1_a, dx) * bd->x
-            + bd_derivative(bd->i, bd->j, bd->k, 2, beta1_a, dx) * bd->y
-            + bd_derivative(bd->i, bd->j, bd->k, 3, beta1_a, dx) * bd->z 
+  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, beta1_a, dx, l_idx, codim) * bd->x
+            + bd_derivative(bd->i, bd->j, bd->k, 2, beta1_a, dx, l_idx, codim) * bd->y
+            + bd_derivative(bd->i, bd->j, bd->k, 3, beta1_a, dx, l_idx, codim) * bd->z 
             + bd->beta1           );
 }
 
-real_t BSSN::ev_beta2_bd(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_beta2_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
   
-  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, beta2_a, dx) * bd->x
-            + bd_derivative(bd->i, bd->j, bd->k, 2, beta2_a, dx) * bd->y
-            + bd_derivative(bd->i, bd->j, bd->k, 3, beta2_a, dx) * bd->z 
+  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, beta2_a, dx, l_idx, codim) * bd->x
+            + bd_derivative(bd->i, bd->j, bd->k, 2, beta2_a, dx, l_idx, codim) * bd->y
+            + bd_derivative(bd->i, bd->j, bd->k, 3, beta2_a, dx, l_idx, codim) * bd->z 
             + bd->beta2           );
 }
 
-real_t BSSN::ev_beta3_bd(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_beta3_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
   
-  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, beta3_a, dx) * bd->x
-            + bd_derivative(bd->i, bd->j, bd->k, 2, beta3_a, dx) * bd->y
-            + bd_derivative(bd->i, bd->j, bd->k, 3, beta3_a, dx) * bd->z 
+  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, beta3_a, dx, l_idx, codim) * bd->x
+            + bd_derivative(bd->i, bd->j, bd->k, 2, beta3_a, dx, l_idx, codim) * bd->y
+            + bd_derivative(bd->i, bd->j, bd->k, 3, beta3_a, dx, l_idx, codim) * bd->z 
             + bd->beta3           );
 }
 
 #if USE_EXPANSION
-real_t BSSN::ev_expN_bd(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_expN_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
   
-  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, expN_a, dx) * bd->x
-            + bd_derivative(bd->i, bd->j, bd->k, 2, expN_a, dx) * bd->y
-            + bd_derivative(bd->i, bd->j, bd->k, 3, expN_a, dx) * bd->z 
+  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, expN_a, dx, l_idx, codim) * bd->x
+            + bd_derivative(bd->i, bd->j, bd->k, 2, expN_a, dx, l_idx, codim) * bd->y
+            + bd_derivative(bd->i, bd->j, bd->k, 3, expN_a, dx, l_idx, codim) * bd->z 
             + bd->expN           );
 }
 #endif
@@ -1606,35 +1595,35 @@ real_t BSSN::ev_expN_bd(BSSNData *bd, real_t dx[])
 #endif
 
 #if USE_GAMMA_DRIVER
-real_t BSSN::ev_auxB1_bd(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_auxB1_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
-  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, auxB1_a, dx) * bd->x
-            + bd_derivative(bd->i, bd->j, bd->k, 2, auxB1_a, dx) * bd->y
-            + bd_derivative(bd->i, bd->j, bd->k, 3, auxB1_a, dx) * bd->z 
+  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, auxB1_a, dx, l_idx, codim) * bd->x
+            + bd_derivative(bd->i, bd->j, bd->k, 2, auxB1_a, dx, l_idx, codim) * bd->y
+            + bd_derivative(bd->i, bd->j, bd->k, 3, auxB1_a, dx, l_idx, codim) * bd->z 
             + bd->auxB1           );
 }
 
-real_t BSSN::ev_auxB2_bd(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_auxB2_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
-  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, auxB2_a, dx) * bd->x
-            + bd_derivative(bd->i, bd->j, bd->k, 2, auxB2_a, dx) * bd->y
-            + bd_derivative(bd->i, bd->j, bd->k, 3, auxB2_a, dx) * bd->z 
+  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, auxB2_a, dx, l_idx, codim) * bd->x
+            + bd_derivative(bd->i, bd->j, bd->k, 2, auxB2_a, dx, l_idx, codim) * bd->y
+            + bd_derivative(bd->i, bd->j, bd->k, 3, auxB2_a, dx, l_idx, codim) * bd->z 
             + bd->auxB2           );
 
 }
 
-real_t BSSN::ev_auxB3_bd(BSSNData *bd, real_t dx[])
+real_t BSSN::ev_auxB3_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
-  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, auxB3_a, dx) * bd->x
-            + bd_derivative(bd->i, bd->j, bd->k, 2, auxB3_a, dx) * bd->y
-            + bd_derivative(bd->i, bd->j, bd->k, 3, auxB3_a, dx) * bd->z 
+  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, auxB3_a, dx, l_idx, codim) * bd->x
+            + bd_derivative(bd->i, bd->j, bd->k, 2, auxB3_a, dx, l_idx, codim) * bd->y
+            + bd_derivative(bd->i, bd->j, bd->k, 3, auxB3_a, dx, l_idx, codim) * bd->z 
             + bd->auxB3           );
 }
 #endif
 
 
 void BSSN::output_max_H_constaint(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t weight_idx)
 {
   double max_H, max_H_scaled = 0;
@@ -1681,7 +1670,8 @@ void BSSN::output_max_H_constaint(
       const double *dx = &patch_geom->getDx()[0];
 
       
-
+      BSSNData bd = {0};
+          
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -1726,14 +1716,14 @@ Constraint violtion calculations
 */
 
 
-real_t BSSN::hamiltonianConstraintCalc(BSSNData *bd, real_t dx[])
+real_t BSSN::hamiltonianConstraintCalc(BSSNData *bd, const real_t dx[])
 {
     return (
       bd->ricci + 2.0/3.0*pw2(bd->K ) - bd->AijAij - 16.0*PI*bd->r
     );
 }
 
-real_t BSSN::hamiltonianConstraintScale(BSSNData *bd, real_t dx[])
+real_t BSSN::hamiltonianConstraintScale(BSSNData *bd, const real_t dx[])
 {
 
   // sqrt sum of sq. of terms for appx. mag / scale

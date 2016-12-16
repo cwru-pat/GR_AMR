@@ -1,5 +1,3 @@
-#ifndef COSMO_BD_H
-#define COSMO_BD_H
 
 #include "cosmo_includes.h"
 #include "cosmo_ps.h"
@@ -13,22 +11,22 @@ using namespace SAMRAI;
 namespace cosmo
 {
 
-CosmoBD: CosmoPatchStrategy()
+
+CosmoPatchStrategy::CosmoPatchStrategy(
+  const tbox::Dimension& dim_in,
+  std::string object_name_in):
+  xfer::RefinePatchStrategy(),
+  dim(dim_in),
+  object_name(object_name_in)
 {
   
 }
 
-CosmoBD: ~CosmoPatchStrategy()
-{
-  
+
+CosmoPatchStrategy::~CosmoPatchStrategy() {
 }
 
-hier::IntVector CosmoPatchStrategy:getRefineOpStencilWidth(
-      const tbox::Dimension& dim)
-{
-  return hier::IntVector::getZero(dim);
-}
-void CosmoPatchStrategy:addTarget(idx_t idx)
+void CosmoPatchStrategy::addTarget(idx_t idx)
 {
   target_id_list.push_back(idx);
 }    

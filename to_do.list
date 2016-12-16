@@ -5,3 +5,5 @@
 3. initialize PDATA and MDA_ACCESS for all contexts whenever call patch operation function, anyway to reduce the initialization operation?
 
 4. interpolating from coarser level on boundary using a VERY naive way for sommerfield boundary, how to imporove this?
+
+5. almost all class members are public, may need to have a good way to differentiate public and private variables.

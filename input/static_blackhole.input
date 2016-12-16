@@ -73,10 +73,12 @@ CosmoSim{
   do_plot = 1
   dt_frac = 0.1
   regridding_interval = 10
+  adaption_threshold = 1
 }
 
 VacuumSim{
   ic_type = "static_blackhole"
+  boundary_type = "sommerfield"
 }
 
 IO{

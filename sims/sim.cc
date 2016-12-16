@@ -1,32 +1,28 @@
 #include "sim.h"
 #include "../cosmo_includes.h"
-#include "../cosmo_macros.h"
 #include "../components/bssn/bssn.h"
 
-#include "SAMRAI/SAMRAI_config.h"
 #include "SAMRAI/tbox/MathUtilities.h"
-
 
 using namespace SAMRAI;
 
-boost::shared_ptr<tbox::Timer> CosmoSim::t_loop;
-
-boost::shared_ptr<tbox::Timer> VacuumSim::t_init;
-boost::shared_ptr<tbox::Timer> VacuumSim::t_RK_steps;
 
 namespace cosmo
 {
+  
+boost::shared_ptr<tbox::Timer> CosmoSim::t_loop;
+boost::shared_ptr<tbox::Timer> CosmoSim::t_init;
+boost::shared_ptr<tbox::Timer> CosmoSim::t_RK_steps;
 
+  
 CosmoSim::CosmoSim(
   const tbox::Dimension& dim_in,
   boost::shared_ptr<tbox::InputDatabase>& input_db_in,
   std::ostream* l_stream_in = 0,
-  std::string simulation_type_in,
-  std::string vis_filename_in):
+  std::string simulation_type_in = std::string(),
+  std::string vis_filename_in = std::string()):
   input_db(input_db_in),
-  cosmo_sim_db((input_db->getDatabase("CosmoSim")),
-  variable_db(hier::VariableDatabase::getDatabase()),
-  gridding_algorithm(gridding_algorithm_in),
+  cosmo_sim_db(input_db->getDatabase("CosmoSim")),
   lstream(l_stream_in),
   dim(dim_in),
   step(0),
@@ -38,7 +34,9 @@ CosmoSim::CosmoSim(
   cur_t(0),
   weight(new pdat::CellVariable<real_t>(dim, "weight", 1)),
   weight_idx(0),
-  regridding_interval(cosmo_sim_db->getInteger("regridding_interval"))
+  regridding_interval(cosmo_sim_db->getInteger("regridding_interval")),
+  KO_damping_coefficient(cosmo_sim_db->getDoubleWithDefault("KO_damping_coefficient",0)),
+  adaption_threshold(cosmo_sim_db->getDoubleWithDefault("adaption_threshold", 1))
 {
   t_loop = tbox::TimerManager::getManager()->
     getTimer("loop");
@@ -46,8 +44,9 @@ CosmoSim::CosmoSim(
     getTimer("init");
   t_RK_steps = tbox::TimerManager::getManager()->
     getTimer("RK_steps");
-  simInit();
-  cosmo_io = new CosmoIO(dim, input_db->getDataBase("IO"), lstream);
+
+  bssnSim = new BSSN(dim,input_db->getDatabase("BSSN"), lstream,KO_damping_coefficient);
+  cosmo_io = new CosmoIO(dim, input_db->getDatabase("IO"), lstream);
 
   hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
   
@@ -56,7 +55,7 @@ CosmoSim::CosmoSim(
 
   weight_idx = variable_db->registerVariableAndContext( 
       weight, 
-      context,
+      context_active,
       hier::IntVector(dim, STENCIL_ORDER));
 }
 
@@ -73,10 +72,30 @@ void CosmoSim::setGriddingAlgs(
 /**
  * @brief      Initialize individual simulation class instances
  */
-void CosmoSim::simInit()
+void CosmoSim::setRefineCoarsenOps(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   // Always use GR fields
-  bssnSim = new BSSN(dim,input_db->getDatabase("BSSN"), lstream);
+  //
+
+  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+      hierarchy->getGridGeometry()));
+
+  TBOX_ASSERT(grid_geometry_);
+
+  geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
+
+  
+  space_refine_op =
+    grid_geometry.
+    lookupRefineOperator(bssnSim->DIFFchi, "CONSERVATIVE_LINEAR_REFINE");
+
+
+  space_coarsen_op =
+    grid_geometry.
+    lookupCoarsenOperator(bssnSim->DIFFchi, "CONSERVATIVE_COARSEN");
+
 }
 
 /**
@@ -85,7 +104,7 @@ void CosmoSim::simInit()
 void CosmoSim::run(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
-  tbox::plog("Running simulation...");
+  tbox::plog<<"Running simulation...";
 
   t_loop->start();
   while(step <= num_steps)
@@ -96,7 +115,6 @@ void CosmoSim::run(
   t_loop->stop();
 
   tbox::pout<<"\nEnding simulation.";
-  outputStateInformation();
 }
 
                
@@ -106,7 +124,7 @@ void CosmoSim::runCommonStepTasks(
   if(step % regridding_interval == 0)
   {
     std::vector<int> tag_buffer(hierarchy->getMaxNumberOfLevels());
-    for (ln = 0; ln < static_cast<int>(tag_buffer.size()); ++ln) {
+    for (idx_t ln = 0; ln < static_cast<int>(tag_buffer.size()); ++ln) {
       tag_buffer[ln] = 1;
     }
     gridding_algorithm->regridAllFinerLevels(
@@ -120,21 +138,12 @@ void CosmoSim::runCommonStepTasks(
 }
 
   //TODO
-void CosmoSim::prepBSSNOutput()
-{
-}
 
-  //TODO
-void CosmoSim::outputStateInformation()
-{
-  return;
-}
 
   //TODO
 int CosmoSim::simNumNaNs() 
 {
-  // check for NAN in a field
-  //return numNaNs(*bssnSim->DIFFchi_p);
+  return 0;
 }
 
 

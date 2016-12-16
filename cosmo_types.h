@@ -1,12 +1,15 @@
 #ifndef COSMO_TYPES
 #define COSMO_TYPES
 
-#include <string>
-#include <map>
+//#include "cosmo_includes.h"
+//#include "cosmo_macros.h"
+#include "SAMRAI/pdat/MDA_Access.h"
 
 namespace cosmo
 {
 
+#define DIM 3
+#define EPS (1e-8)
 // changing this affects FFTs:
 typedef double real_t; /**< real type; changing this may require changes to HDF5 and FFTW functionality */
 // see http://www.fftw.org/doc/Precision.html
