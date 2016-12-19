@@ -77,8 +77,12 @@ public:
   void setGriddingAlgs(
     boost::shared_ptr<mesh::GriddingAlgorithm>& gridding_algorithm_in);
 
-  idx_t simNumNaNs();
+  bool isValid(
+      const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
+  bool hasNaNs(
+    const boost::shared_ptr<hier::Patch>& patch, idx_t data_id);
 
+  
   boost::shared_ptr<tbox::InputDatabase>& input_db;
   boost::shared_ptr<tbox::Database> cosmo_sim_db;
   //hier::VariableDatabase* variable_db;
@@ -92,7 +96,7 @@ public:
 
   std::string simulation_type;
 
-  idx_t do_plot;
+  bool do_plot;
   real_t dt_frac;
 
   std::string vis_filename;
@@ -116,6 +120,8 @@ public:
   boost::shared_ptr<hier::RefineOperator> space_refine_op;
   boost::shared_ptr<hier::CoarsenOperator> space_coarsen_op;
 
+  std::vector<int> variable_id_list;
+  
 };
 
 } /* namespace cosmo */

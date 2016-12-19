@@ -108,7 +108,7 @@ private:
     dw_mu_l = database->getDoubleWithDefault("dw_mu_l", 0.0);
     dw_mu_s = database->getDoubleWithDefault("dw_mu_s", 0.0);
     dw_p = database->getDoubleWithDefault("dw_p", 0.0);
-    gd_c = database->getDoubleWithDefault("gd_c", 0.0);
+    gd_c = database->getDoubleWithDefault("gd_c", 1.0);
   }
 
 public:

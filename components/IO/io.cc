@@ -11,7 +11,8 @@ CosmoIO::CosmoIO(
   std::ostream* l_stream_in):
   dim(dim_in),
   cosmo_io_db(cosmo_io_db_in),
-  lstream(l_stream_in)
+  lstream(l_stream_in),
+  is_empty(true)
 {
   output_list = cosmo_io_db->getStringVector("output_list");
   output_interval = cosmo_io_db->getIntegerVector("output_interval");
@@ -37,9 +38,11 @@ void CosmoIO::registerVariablesWithPlotter(
   idx_t step)
 {
   hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
+  is_empty = 1;
   for(idx_t i = 0; i < static_cast<idx_t>(output_list.size()); i ++)
   {
     if(step % output_interval[i] != 0 ) continue;
+    is_empty = 0;
     idx_t idx =
       variable_db->mapVariableAndContextToIndex(
         variable_db->getVariable(output_list[i]), variable_db->getContext("PREVIOUS"));
@@ -55,6 +58,7 @@ void CosmoIO::registerVariablesWithPlotter(
       1.0,
       "CELL");
   }
+
 }
 
 void CosmoIO::dumpData(
@@ -64,6 +68,8 @@ void CosmoIO::dumpData(
   real_t time)
 {
   //TBOX_ASSERT(visit_writer);
+
+  if(is_empty) return;
   
   visit_writer.writePlotData(
     hierarchy,
@@ -74,4 +80,16 @@ void CosmoIO::dumpData(
              << step_num << '\n';
 }
 
+void CosmoIO::printPatch(
+  const boost::shared_ptr<hier::Patch> & patch,
+  std::ostream &os,
+  idx_t idx)
+{
+  boost::shared_ptr<pdat::CellData<double> > pd(
+    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+      patch->getPatchData(idx)));
+  const hier::Box& ghost_box = pd->getGhostBox();
+  pd->print(ghost_box, 0, os, PRINT_PRECISION);
+}
+  
 }

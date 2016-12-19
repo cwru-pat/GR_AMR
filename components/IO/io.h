@@ -41,8 +41,12 @@ class CosmoIO:public appu::VisDerivedDataStrategy
     appu::VisItDataWriter& visit_writer,
     idx_t step_num,
     real_t time);
+  void printPatch(
+    const boost::shared_ptr<hier::Patch> & patch,
+    std::ostream &os,
+    idx_t idx);
 
-  
+  bool is_empty;
 };
 
 }

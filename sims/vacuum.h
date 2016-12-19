@@ -88,6 +88,8 @@ public:
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
   void addBSSNExtras(
     const boost::shared_ptr<hier::PatchLevel> & level);
+  void addBSSNExtras(
+    const boost::shared_ptr<hier::Patch> & patch);
   void RKEvolveLevel(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
     idx_t ln,

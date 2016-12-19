@@ -23,7 +23,7 @@ BSSN::BSSN(
   dim(dim_in),
   KO_damping_coefficient(KO_damping_coefficient_in),
   gaugeHandler(new BSSNGaugeHandler(cosmo_bssn_db)),
-  g_eta(cosmo_bssn_db->getDoubleWithDefault("g_eta",0.0))
+  g_eta(cosmo_bssn_db->getDoubleWithDefault("g_eta",1.0))
 {
   
   BSSN_APPLY_TO_FIELDS(VAR_INIT);
@@ -31,7 +31,7 @@ BSSN::BSSN(
   BSSN_APPLY_TO_GEN1_EXTRAS(VAR_INIT);
 
   hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
-  
+
   boost::shared_ptr<hier::VariableContext> context_scratch(
     variable_db->getContext("SCRATCH"));
   boost::shared_ptr<hier::VariableContext> context_active(
@@ -47,6 +47,7 @@ BSSN::BSSN(
   boost::shared_ptr<hier::VariableContext> context_k4(
     variable_db->getContext("RK_K4"));
 
+
   
   BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REG_TO_CONTEXT, context_scratch, s, STENCIL_ORDER);
   BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REG_TO_CONTEXT, context_previous, p, STENCIL_ORDER);
@@ -56,12 +57,13 @@ BSSN::BSSN(
   BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REG_TO_CONTEXT, context_k3, k3, STENCIL_ORDER);
   BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REG_TO_CONTEXT, context_k4, k4, STENCIL_ORDER);
 
+
   BSSN_APPLY_TO_SOURCES_ARGS(BSSN_REG_TO_CONTEXT, context_active, a, STENCIL_ORDER);
 
   BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(BSSN_REG_TO_CONTEXT, context_active, a, STENCIL_ORDER);
-  
-  init();
 
+  init();
+  
 }
 
 BSSN::~BSSN()
@@ -92,7 +94,17 @@ void BSSN::stepInit(
   
   //BSSN_RK_INITIALIZE; // macro calls stepInit for all fields
 
-   
+    boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+     BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+       hierarchy->getGridGeometry()));
+   TBOX_ASSERT(grid_geometry_);
+   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
+
+  const double * domain_lower = &grid_geometry.getXLower()[0];
+  const double * domain_upper = &grid_geometry.getXUpper()[0];
+
+  for(int i = 0 ; i < DIM; i++)
+    L[i] = domain_upper[i] - domain_lower[i];
 
   
 // # if NORMALIZE_GAMMAIJ_AIJ
@@ -124,7 +136,7 @@ void BSSN::RKEvolvePatchBD(
 
     
   //initialize dx for each patch
-  const real_t * dx = &(patch_geom->getDx())[0];
+  //const real_t * dx = &(patch_geom->getDx())[0];
 
   const hier::Box& patch_box = patch->getBox();
 
@@ -255,8 +267,7 @@ void BSSN::initZ(
        pit != level->end(); ++pit)
   {
     const boost::shared_ptr<hier::Patch> & patch = *pit;
-    const hier::Box& box = patch->getGhostBox();
-
+    const hier::Box& box = DIFFchi_a_pdata->getBox();
     const int * lower = &box.lower()[0];
     const int * upper = &box.upper()[0];
     BSSNData bd = {0};
@@ -267,7 +278,7 @@ void BSSN::initZ(
       BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
         patch->getPatchGeometry()));
 
-    
+
     //initialize dx for each patch
     const real_t * dx = &(patch_geom->getDx())[0];
 
@@ -279,25 +290,73 @@ void BSSN::initZ(
         {
           set_bd_values_for_extra_fields(i,j,k,&bd,dx);
           Z1_a(i,j,k) =
-            (bd->gamma11*(bd->Gamma1 - bd->Gammad1)
-             + bd->gamma12*(bd->Gamma2 - bd->Gammad2)
-             + bd->gamma13*(bd->Gamma3 - bd->Gammad3))/2.0;
+            (bd.gamma11*(bd.Gamma1 - bd.Gammad1)
+             + bd.gamma12*(bd.Gamma2 - bd.Gammad2)
+             + bd.gamma13*(bd.Gamma3 - bd.Gammad3))/2.0;
 
           Z2_a(i,j,k) =
-            (bd->gamma21*(bd->Gamma1 - bd->Gammad1)
-             + bd->gamma22*(bd->Gamma2 - bd->Gammad2)
-             + bd->gamma23*(bd->Gamma3 - bd->Gammad3))/2.0;
+            (bd.gamma21*(bd.Gamma1 - bd.Gammad1)
+             + bd.gamma22*(bd.Gamma2 - bd.Gammad2)
+             + bd.gamma23*(bd.Gamma3 - bd.Gammad3))/2.0;
 
           Z3_a(i,j,k) =
-            (bd->gamma31*(bd->Gamma1 - bd->Gammad1)
-             + bd->gamma32*(bd->Gamma2 - bd->Gammad2)
-             + bd->gamma33*(bd->Gamma3 - bd->Gammad3))/2.0;
+            (bd.gamma31*(bd.Gamma1 - bd.Gammad1)
+             + bd.gamma32*(bd.Gamma2 - bd.Gammad2)
+             + bd.gamma33*(bd.Gamma3 - bd.Gammad3))/2.0;
         }
       }
     }
+    
   }
 
 }
+void BSSN::initZ(
+  const boost::shared_ptr<hier::Patch> & patch)
+{
+  
+  const hier::Box& box = DIFFchi_a_pdata->getGhostBox();
+  const int * lower = &box.lower()[0];
+  const int * upper = &box.upper()[0];
+  BSSNData bd = {0};
+
+  initPData(patch);
+  initMDA(patch);
+  const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(  
+    BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+      patch->getPatchGeometry()));
+
+    
+  //initialize dx for each patch
+  const real_t * dx = &(patch_geom->getDx())[0];
+
+  for(int k = lower[2]; k <= upper[2]; k++)
+  {
+    for(int j = lower[1]; j <= upper[1]; j++)
+    {
+      for(int i = lower[0]; i <= upper[0]; i++)
+      {
+        set_bd_values_for_extra_fields(i,j,k,&bd,dx);
+        Z1_a(i,j,k) =
+          (bd.gamma11*(bd.Gamma1 - bd.Gammad1)
+           + bd.gamma12*(bd.Gamma2 - bd.Gammad2)
+           + bd.gamma13*(bd.Gamma3 - bd.Gammad3))/2.0;
+
+        Z2_a(i,j,k) =
+          (bd.gamma21*(bd.Gamma1 - bd.Gammad1)
+           + bd.gamma22*(bd.Gamma2 - bd.Gammad2)
+           + bd.gamma23*(bd.Gamma3 - bd.Gammad3))/2.0;
+
+        Z3_a(i,j,k) =
+          (bd.gamma31*(bd.Gamma1 - bd.Gammad1)
+           + bd.gamma32*(bd.Gamma2 - bd.Gammad2)
+           + bd.gamma33*(bd.Gamma3 - bd.Gammad3))/2.0;
+      }
+    }
+  }
+  
+
+}
+
 #endif
 /**
  * @brief Call BSSN::RKEvolvePt for all points
@@ -330,6 +389,12 @@ void BSSN::RKEvolvePatch(
       {
         set_bd_values(i, j, k, &bd, dx);
         BSSN_RK_EVOLVE_PT;
+        if(tbox::MathUtilities< double >::isNaN(A11_s(i,j,k)))
+        {
+          tbox::pout<<i<<" "<<j<<" "<<k<<"\n";
+          tbox::pout<<bd.alpha<<" "<<bd.STF11<<"\n";
+          throw(-1);
+        }
       }
     }
   }
@@ -623,7 +688,9 @@ void BSSN::initMDA(
   const boost::shared_ptr<hier::Patch> & patch)
 {
   BSSN_APPLY_TO_FIELDS(BSSN_MDA_ACCESS_ALL_INIT);
+
   BSSN_APPLY_TO_SOURCES_ARGS(BSSN_MDA_ACCESS_INIT, a);
+  
   BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(BSSN_MDA_ACCESS_INIT, a);
 }
 
@@ -759,7 +826,7 @@ void BSSN::set_bd_values_bd(
   bd->k = k;
 
   // need to set FRW quantities first
-  bd->chi_FRW = 0;
+  bd->chi_FRW = 1;
   bd->K_FRW = 0;
   bd->rho_FRW = 0;
   bd->S_FRW = 0;
@@ -801,7 +868,7 @@ void BSSN::set_bd_values_for_extra_fields(
 
   //Have not figured out the initial value of FRW 
   
-  bd->chi_FRW = 0;
+  bd->chi_FRW = 1;
   bd->K_FRW = 0;
   bd->rho_FRW = 0;
   bd->S_FRW = 0;
@@ -846,7 +913,7 @@ void BSSN::set_bd_values(idx_t i, idx_t j, idx_t k, BSSNData *bd, const real_t d
 
   //Have not figured out the initial value of FRW 
   
-  bd->chi_FRW = 0;
+  bd->chi_FRW = 1;
   bd->K_FRW = 0;
   bd->rho_FRW = 0;
   bd->S_FRW = 0;
@@ -1097,27 +1164,28 @@ void BSSN::calculateDDphi(BSSNData *bd, const real_t dx[])
 void BSSN::calculateDZ(BSSNData *bd, const real_t dx[])
 {
   //
-  bd->D1Z1 = derivative(bd->i, bd->j, bd->k, 1, Z1_a, dx)
-    - (bd->G111 * bd->Z1 + bd->G211 * bd->Z2 + bd->G311 * bd->Z3);
-  bd->D2Z2 = derivative(bd->i, bd->j, bd->k, 2, Z2_a, dx)
-    - (bd->G122 * bd->Z1 + bd->G222 * bd->Z2 + bd->G322 * bd->Z3);
-  bd->D3Z3 = derivative(bd->i, bd->j, bd->k, 3, Z3_a, dx)
-    - (bd->G133 * bd->Z1 + bd->G233 * bd->Z2 + bd->G333 * bd->Z3);
+  // bd->D1Z1 = derivative(bd->i, bd->j, bd->k, 1, Z1_a, dx)
+  //   - (bd->G111 * bd->Z1 + bd->G211 * bd->Z2 + bd->G311 * bd->Z3);
+  // bd->D2Z2 = derivative(bd->i, bd->j, bd->k, 2, Z2_a, dx)
+  //   - (bd->G122 * bd->Z1 + bd->G222 * bd->Z2 + bd->G322 * bd->Z3);
+  // bd->D3Z3 = derivative(bd->i, bd->j, bd->k, 3, Z3_a, dx)
+  //   - (bd->G133 * bd->Z1 + bd->G233 * bd->Z2 + bd->G333 * bd->Z3);
   
-  bd->D1Z2 = derivative(bd->i, bd->j, bd->k, 1, Z2_a, dx)
-    - (bd->G112 * bd->Z1 + bd->G212 * bd->Z2 + bd->G312 * bd->Z3);
-  bd->D1Z3 = derivative(bd->i, bd->j, bd->k, 1, Z3_a, dx)
-    - (bd->G113 * bd->Z1 + bd->G213 * bd->Z2 + bd->G313 * bd->Z3);
-  bd->D2Z3 = derivative(bd->i, bd->j, bd->k, 2, Z3_a, dx)
-    - (bd->G123 * bd->Z1 + bd->G223 * bd->Z2 + bd->G323 * bd->Z3);
+  // bd->D1Z2 = derivative(bd->i, bd->j, bd->k, 1, Z2_a, dx)
+  //   - (bd->G112 * bd->Z1 + bd->G212 * bd->Z2 + bd->G312 * bd->Z3);
+  // bd->D1Z3 = derivative(bd->i, bd->j, bd->k, 1, Z3_a, dx)
+  //   - (bd->G113 * bd->Z1 + bd->G213 * bd->Z2 + bd->G313 * bd->Z3);
+  // bd->D2Z3 = derivative(bd->i, bd->j, bd->k, 2, Z3_a, dx)
+  //   - (bd->G123 * bd->Z1 + bd->G223 * bd->Z2 + bd->G323 * bd->Z3);
 
-  bd->D2Z1 = derivative(bd->i, bd->j, bd->k, 2, Z1_a, dx)
-    - (bd->G121 * bd->Z1 + bd->G221 * bd->Z2 + bd->G321 * bd->Z3);
-  bd->D3Z1 = derivative(bd->i, bd->j, bd->k, 3, Z1_a, dx)
-    - (bd->G131 * bd->Z1 + bd->G231 * bd->Z2 + bd->G331 * bd->Z3);
-  bd->D3Z2 = derivative(bd->i, bd->j, bd->k, 3, Z2_a, dx)
-    - (bd->G132 * bd->Z1 + bd->G232 * bd->Z2 + bd->G332 * bd->Z3);
-  
+  // bd->D2Z1 = derivative(bd->i, bd->j, bd->k, 2, Z1_a, dx)
+  //   - (bd->G121 * bd->Z1 + bd->G221 * bd->Z2 + bd->G321 * bd->Z3);
+  // bd->D3Z1 = derivative(bd->i, bd->j, bd->k, 3, Z1_a, dx)
+  //   - (bd->G131 * bd->Z1 + bd->G231 * bd->Z2 + bd->G331 * bd->Z3);
+  // bd->D3Z2 = derivative(bd->i, bd->j, bd->k, 3, Z2_a, dx)
+  //   - (bd->G132 * bd->Z1 + bd->G232 * bd->Z2 + bd->G332 * bd->Z3);
+
+  bd->D1Z1 = bd->D1Z2 =bd->D1Z3=bd->D2Z1=bd->D2Z2=bd->D2Z3=bd->D3Z1=bd->D3Z2=bd->D3Z3=0;
   bd->DZTR = bd->gammai11 * bd->D1Z1 + bd->gammai22 * bd->D2Z2 + bd->gamma33 * bd->D3Z3
     + (bd->gammai12 * bd->D1Z2 + bd->gammai13 * bd->D1Z3 + bd->gamma23 * bd->D2Z3)
     + (bd->gammai21 * bd->D2Z1 + bd->gammai31 * bd->D3Z1 + bd->gamma32 * bd->D3Z2);
@@ -1313,7 +1381,7 @@ real_t BSSN::ev_theta(BSSNData *bd, const real_t dx[])
   #if USE_CCZ4
   return (
     0.5*bd->alpha*(
-      bd->ricci + 2.0/3.0*pw2 * bd->K - 2.0 * bd->theta * bd->K + 2.0 * bd->DZTR
+      bd->ricci + 2.0/3.0*pw2( bd->K) - 2.0 * bd->theta * bd->K + 2.0 * bd->DZTR
       - bd->AijAij - 16.0*PI* bd->r)
     #if USE_BSSN_SHIFT
     + upwind_derivative(bd->i, bd->j, bd->k, 1, theta_a, dx, bd->beta1)
@@ -1372,29 +1440,29 @@ real_t BSSN::ev_expN(BSSNData *bd, const real_t dx[])
 #if USE_GAMMA_DRIVER
 real_t BSSN::ev_auxB1(BSSNData *bd, const real_t dx[])
 {
-  return 0.75*ev_Gamma1(bd)
+  return 0.75*ev_Gamma1(bd,dx)
     //+ upwind_derivative(bd->i, bd->j, bd->k, 1, auxB1_a, dx, bd->beta1)
     //+ upwind_derivative(bd->i, bd->j, bd->k, 2, auxB1_a, dx, bd->beta2)
     //+ upwind_derivative(bd->i, bd->j, bd->k, 3, auxB1_a, dx, bd->beta3)
-    - gd_eta * bd->auxB1;
+    - g_eta * bd->auxB1;
 }
 
 real_t BSSN::ev_auxB2(BSSNData *bd, const real_t dx[])
 {
-  return 0.75*ev_Gamma2(bd)
+  return 0.75*ev_Gamma2(bd,dx)
     //+ upwind_derivative(bd->i, bd->j, bd->k, 1, auxB2_a, dx, bd->beta1)
     //+ upwind_derivative(bd->i, bd->j, bd->k, 2, auxB2_a, dx, bd->beta2)
     //+ upwind_derivative(bd->i, bd->j, bd->k, 3, auxB2_a, dx, bd->beta3)
-    - gd_eta * bd->auxB2;
+    - g_eta * bd->auxB2;
 }
 
 real_t BSSN::ev_auxB3(BSSNData *bd, const real_t dx[])
 {
-  return 0.75*ev_Gamma3(bd)
+  return 0.75*ev_Gamma3(bd,dx)
     //+ upwind_derivative(bd->i, bd->j, bd->k, 1, auxB3_a, dx, bd->beta1)
     //+ upwind_derivative(bd->i, bd->j, bd->k, 2, auxB3_a, dx, bd->beta2)
     //+ upwind_derivative(bd->i, bd->j, bd->k, 3, auxB3_a, dx, bd->beta3)
-    - gd_eta * bd->auxB3;
+    - g_eta * bd->auxB3;
 }
 #endif
 
@@ -1627,7 +1695,8 @@ void BSSN::output_max_H_constaint(
   idx_t weight_idx)
 {
   double max_H, max_H_scaled = 0;
-  
+  double max_M, max_M_scaled = 0;
+  idx_t mp[3] = {0}, hp[3] = {0};  
   for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln ++)
   {
     boost::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
@@ -1651,7 +1720,9 @@ void BSSN::output_max_H_constaint(
           patch->getPatchGeometry()));
 
       initPData(patch);
+
       initMDA(patch);
+
 
       boost::shared_ptr<pdat::CellData<double> > weight(
         BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
@@ -1671,7 +1742,8 @@ void BSSN::output_max_H_constaint(
 
       
       BSSNData bd = {0};
-          
+
+
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -1681,6 +1753,11 @@ void BSSN::output_max_H_constaint(
             set_bd_values(i,j,k,&bd,dx);
             if(weight_array(i,j,k) > 0)
             {
+              if(tbox::MathUtilities<double>::Abs(
+                  hamiltonianConstraintCalc(&bd, dx)) > max_H)
+              {
+                hp[0] = i, hp[1] = j, hp[2] = k;
+              }
               max_H = tbox::MathUtilities<double>::Max(
                 max_H, tbox::MathUtilities<double>::Abs(
                   hamiltonianConstraintCalc(&bd, dx)));
@@ -1688,21 +1765,41 @@ void BSSN::output_max_H_constaint(
                 max_H_scaled, tbox::MathUtilities<double>::Abs(
                   hamiltonianConstraintCalc(&bd, dx)/
                   hamiltonianConstraintScale(&bd,dx)));
+
+               if(tbox::MathUtilities<double>::Abs(
+                  momentumConstraintCalc(&bd, dx)) > max_M)
+               {
+                 mp[0]=i, mp[1] =j , mp[2] = k;
+               }
+
+               max_M = tbox::MathUtilities<double>::Max(
+                max_M, tbox::MathUtilities<double>::Abs(
+                  momentumConstraintCalc(&bd, dx)));
+               max_M_scaled = tbox::MathUtilities<double>::Max(
+                max_M_scaled, tbox::MathUtilities<double>::Abs(
+                  momentumConstraintCalc(&bd, dx)/
+                  momentumConstraintScale(&bd,dx)));
+
             }
           }
         }
       }
-
-    }
+     }
   }
   const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
   if (mpi.getSize() > 1) {
     mpi.AllReduce(&max_H, 1, MPI_MAX);
     mpi.AllReduce(&max_H_scaled, 1, MPI_MAX);
+    mpi.AllReduce(&max_M, 1, MPI_MAX);
+    mpi.AllReduce(&max_M_scaled, 1, MPI_MAX);
+
   }
 
   tbox::pout<<"Max Hamiltonian constraint is "
-            <<max_H<<"/"<<max_H_scaled<<"\n";
+            <<max_H<<"/"<<max_H_scaled<<"\n at position "<<hp[0]<<" "<<hp[1]<<" "<<hp[2]<<"\n";
+  tbox::pout<<"Max Momentum constraint is "
+            <<max_M<<"/"<<max_M_scaled<<"\n at position "<<mp[0]<<" "<<mp[1]<<" "<<mp[2]<<"\n";
+
   return;
 }
 
@@ -1718,7 +1815,7 @@ Constraint violtion calculations
 
 real_t BSSN::hamiltonianConstraintCalc(BSSNData *bd, const real_t dx[])
 {
-    return (
+  return -pow(bd->chi, -2.5)/8.0*(
       bd->ricci + 2.0/3.0*pw2(bd->K ) - bd->AijAij - 16.0*PI*bd->r
     );
 }
@@ -1728,10 +1825,31 @@ real_t BSSN::hamiltonianConstraintScale(BSSNData *bd, const real_t dx[])
 
   // sqrt sum of sq. of terms for appx. mag / scale
   return 
-    sqrt( pw2(bd->ricci) + pw2(bd->AijAij)
+    pow(bd->chi, -2.5)/8.0*sqrt( pw2(bd->ricci) + pw2(bd->AijAij)
           + pw2(2.0/3.0*pw2(bd->K ))
           + pw2(16.0*PI*bd->r)
     );
+}
+
+
+real_t BSSN::momentumConstraintCalc(BSSNData *bd, const real_t dx[])
+{
+  real_t mi1 = BSSN_MI(1);
+  real_t mi2 = BSSN_MI(2);
+  real_t mi3 = BSSN_MI(3);
+
+  return sqrt(pw2(mi1)+pw2(mi2)+pw2(mi3));
+}
+
+real_t BSSN::momentumConstraintScale(BSSNData *bd, const real_t dx[])
+{
+  // sqrt sum of sq. of terms for appx. mag / scale
+  real_t mi1s = BSSN_MI_SCALE(1);
+  real_t mi2s = BSSN_MI_SCALE(2);
+  real_t mi3s = BSSN_MI_SCALE(3);
+
+  return sqrt(pw2(mi1s)+pw2(mi2s)+pw2(mi3s));
+
 }
 
 } // namespace cosmo

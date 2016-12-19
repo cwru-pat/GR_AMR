@@ -20,18 +20,34 @@
   #define STENCIL_ORDER 4
 #endif
 
+#ifndef HALF_STENCIL_ORDER
+  #define HALF_STENCIL_ORDER 2
+#endif
+
+#ifndef PRINT_PRECISION
+  #define PRINT_PRECISION 9
+#endif
+
 #ifndef REFINEMENT_ORDER
   #define REFINEMENT_ORDER 1
 #endif
 
+#ifndef USE_SOMMERFIELD_BOUNDARY
+  #define USE_SOMMERFIELD_BOUNDARY 1
+#endif
+
+#ifndef USE_EXPANSION
+  #define USE_EXPANSION 0
+#endif
+
 // evolve shift as well? (if not, assumed to be zero)
 #ifndef USE_BSSN_SHIFT
-  #define USE_BSSN_SHIFT false
+  #define USE_BSSN_SHIFT true
 #endif
 
 // Gamma-driver gauge settings (must turn on bssn_shift as well)
 #ifndef USE_GAMMA_DRIVER
-  #define USE_GAMMA_DRIVER false
+  #define USE_GAMMA_DRIVER true
 #endif
 
 
@@ -89,6 +105,7 @@
 #define STENCIL_CONCATENATOR(function, order) function ## order
 #define STENCIL_EVALUATOR(function, order) STENCIL_CONCATENATOR(function, order)
 #define STENCIL_ORDER_FUNCTION(function) STENCIL_EVALUATOR(function, STENCIL_ORDER)
+#define HALF_STENCIL_ORDER_FUNCTION(function) STENCIL_EVALUATOR(function, HALF_STENCIL_ORDER)
 
 #define PI (4.0*atan(1.0))
 #define SIGN(x) (((x) < 0.0) ? -1 : ((x) > 0.0))
@@ -113,7 +130,7 @@
 
 #define VAR_INIT(field)  \
         field = boost::shared_ptr<pdat::CellVariable<real_t>> (  \
-          new pdat::CellVariable<real_t>(dim, "field", 1))
+          new pdat::CellVariable<real_t>(dim, #field, 1))
 
 #define RK4_PDATA_CREATE(field, type)                \
         boost::shared_ptr<pdat::CellData<real_t>> field##_##type##_pdata
@@ -155,6 +172,21 @@
         level->allocatePatchData(bssnSim->field##_k3_idx); \
         level->allocatePatchData(bssnSim->field##_k4_idx)
 
+#define EXTRA_ARRAY_ALLOC(field) \
+        level->allocatePatchData(bssnSim->field##_a_idx)
+
+#define RK4_ARRAY_ZERO(field, hcellmath)                  \
+  hcellmath.setToScalar(bssnSim->field##_a_idx, 0, 0);     \
+  hcellmath.setToScalar(bssnSim->field##_s_idx, 0, 0);     \
+  hcellmath.setToScalar(bssnSim->field##_p_idx, 0, 0);     \
+  hcellmath.setToScalar(bssnSim->field##_k1_idx, 0, 0);     \
+  hcellmath.setToScalar(bssnSim->field##_k2_idx, 0, 0);     \
+  hcellmath.setToScalar(bssnSim->field##_k3_idx, 0, 0);     \
+  hcellmath.setToScalar(bssnSim->field##_k4_idx, 0, 0)
+
+#define EXTRA_ARRAY_ZERO(field, hcellmath)                  \
+  hcellmath.setToScalar(bssnSim->field##_a_idx, 0, 0)
+
 #define RK4_B1(theta) \
         (theta - 3.0 * pw2(theta) /2.0 + 2.0 * pw3(theta) / 3.0)
 
@@ -171,6 +203,9 @@
 #define RK4_SET_LOCAL_VALUES(name) \
         bd->name = name##_a(bd->i, bd->j, bd->k);
 
+//only add active field ids
+#define ADD_VAR_TO_LIST(field)  \
+        variable_id_list.push_back(bssnSim->field##_a_idx)
 
 #define GEN1_IDX_CREATE(name) \
         idx_t name##_a_idx

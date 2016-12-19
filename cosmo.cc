@@ -97,6 +97,10 @@ int main(int argc, char* argv[])
   else
     tbox::PIO::logOnlyNodeZero(log_filename);
 
+  tbox::pout.precision(PRINT_PRECISION);
+  tbox::plog.precision(PRINT_PRECISION);
+
+  
   std::string simulation_type =
     main_db->getString("simulation_type");
 
@@ -126,6 +130,7 @@ int main(int argc, char* argv[])
 
 
   CosmoSim * cosmoSim;
+
   
   if(simulation_type == "scalar")
   {
@@ -141,8 +146,7 @@ int main(int argc, char* argv[])
   {
     TBOX_ERROR("Invalid simulation type specified.");
   }
-  
-  
+
   boost::shared_ptr<mesh::StandardTagAndInitialize> tag_and_initializer(
     new mesh::StandardTagAndInitialize(
       "CellTaggingMethod",
@@ -177,22 +181,18 @@ int main(int argc, char* argv[])
 
   tbox::plog << "Gridding algorithm:" << std::endl;
 
-  
 
-
-
-
-
-
-  
 
   //deliver the gridding algorithm
   cosmoSim->setGriddingAlgs(gridding_algorithm);
-  
+
   // Initialize simulation 
 
+  cosmoSim->setRefineCoarsenOps(patch_hierarchy);
   // Generate initial conditions
   cosmoSim->setICs();
+
+
 
   cosmoSim->setRefineCoarsenOps(patch_hierarchy);
   // Run simulation

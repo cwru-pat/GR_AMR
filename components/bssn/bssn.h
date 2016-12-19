@@ -67,6 +67,8 @@ public:
 #if USE_CCZ4
   void initZ(
     const boost::shared_ptr<hier::PatchLevel> & level);
+  void initZ(
+    const boost::shared_ptr<hier::Patch> & patch);
 #endif
 
   void RKEvolvePatch(
@@ -242,7 +244,12 @@ public:
   real_t hamiltonianConstraintCalc(BSSNData *bd, const real_t dx[]);
   real_t hamiltonianConstraintScale(BSSNData *bd, const real_t dx[]);
 
+  real_t momentumConstraintCalc(BSSNData *bd, const real_t dx[]);
+  real_t momentumConstraintScale(BSSNData *bd, const real_t dx[]);
 
+  
+  // Domain size
+  idx_t L[DIM];
 
 };
 

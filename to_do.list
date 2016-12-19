@@ -7,3 +7,7 @@
 4. interpolating from coarser level on boundary using a VERY naive way for sommerfield boundary, how to imporove this?
 
 5. almost all class members are public, may need to have a good way to differentiate public and private variables.
+
+6. move all the BSSN operation to functions in bssn class, not calling macros from CosmoSim.
+
+7. currently mixing int and double with user defined variable idx_t and real_t, is it necessary to unify since SAMRAI only supports certain types of variables

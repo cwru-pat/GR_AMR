@@ -3,14 +3,13 @@ Main
   simulation_type = "vacuum"  
   dim = 3
   base_name = "blackhole"
-  do_plot = TRUE
 }
 
 CartesianGridGeometry {
-  domain_boxes = [(0,0,0), (7,7,7)]
+  domain_boxes = [(0,0,0), (31,31,31)]
   x_lo         = 0, 0, 0
-  x_up         = 1, 1, 1
-  periodic_dimension = 1, 1, 1
+  x_up         = 60, 60, 60
+  periodic_dimension = 0, 0, 0
 }
 
 
@@ -37,7 +36,7 @@ TimerManager{
 
 
 PatchHierarchy {
-   max_levels = 4
+   max_levels = 3
    proper_nesting_buffer = 2, 2, 2, 2, 2, 2   
    largest_patch_size {
       level_0 = -1, -1, -1
@@ -69,11 +68,12 @@ GriddingAlgorithm {
 }
 
 CosmoSim{
-  steps = 1
-  do_plot = 1
+  steps = 200
+  do_plot = TRUE
   dt_frac = 0.1
-  regridding_interval = 10
-  adaption_threshold = 1
+  regridding_interval = 5
+  adaption_threshold = 0.00001
+  KO_damping_coefficient = 0.0 
 }
 
 VacuumSim{
@@ -81,7 +81,13 @@ VacuumSim{
   boundary_type = "sommerfield"
 }
 
+BSSN{
+  lapse = "OnePlusLog"
+  Shift = "GammaDriver"
+}
+
 IO{
   output_list = "DIFFchi","DIFFK"     
-  output_interval = 10, 10
+  output_interval = 1, 1
+  gd_c = 1
 }

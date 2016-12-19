@@ -50,6 +50,38 @@ inline real_t KO_dissipation_Q(
     return dissipation;
 # endif
 
+# if STENCIL_ORDER == 4
+    real_t stencil = (
+      1.0*field(i+3,j,k) 
+      - 6.0*field(i+2,j,k)
+      + 15.0*field(i+1,j,k) 
+      - 20.0*field(i  ,j,k) 
+      + 15.0*field(i-1,j,k) 
+      - 6.0*field(i-2,j,k) 
+      + 1.0*field(i-3,j,k) 
+    )/dx[0]
+      + (1.0*field(i,j+3,k) 
+      - 6.0*field(i,j+2,k)
+      + 15.0*field(i,j+1,k) 
+      - 20.0*field(i  ,j,k) 
+      + 15.0*field(i,j-1,k) 
+      - 6.0*field(i,j-2,k) 
+      + 1.0*field(i,j-3,k) 
+    )/dx[1]
+      + (1.0*field(i,j,k+3) 
+      - 6.0*field(i,j,k+2)
+      + 15.0*field(i,j,k+1) 
+      - 20.0*field(i  ,j,k) 
+      + 15.0*field(i,j,k-1) 
+      - 6.0*field(i,j,k-2) 
+      + 1.0*field(i,j,k-3) 
+      )/dx[2];
+
+    return stencil * ko_coeff /64.0;
+    
+# endif
+
+    
 # if STENCIL_ORDER == 8
     real_t stencil = (
           1.0*field(i-5,j,k) +   1.0*field(i,j-5,k) +   1.0*field(i,j,k-5)
@@ -1048,14 +1080,14 @@ inline real_t forward_derivative(idx_t i, idx_t j, idx_t k, int d,
     arr_t & field, const double dx[])
 {
   return STENCIL_ORDER_FUNCTION(forward_derivative_Odx)(i, j, k, d, field, dx)
-    +STENCIL_ORDER_FUNCTION(forward_dissipation_stencil_Odx)(i, j, k, d, field, dx);
+    + STENCIL_ORDER_FUNCTION(forward_dissipation_stencil_Odx)(i, j, k, d, field, dx);
 }
 
 inline real_t backward_derivative(idx_t i, idx_t j, idx_t k, int d,
     arr_t & field, const double dx[])
 {
   return STENCIL_ORDER_FUNCTION(backward_derivative_Odx)(i, j, k, d, field, dx)
-    +STENCIL_ORDER_FUNCTION(backward_dissipation_stencil_Odx)(i, j, k, d, field, dx);
+    + STENCIL_ORDER_FUNCTION(backward_dissipation_stencil_Odx)(i, j, k, d, field, dx);
 }
 
 inline real_t upwind_derivative(idx_t i, idx_t j, idx_t k, int d,

@@ -19,7 +19,7 @@ CosmoPatchStrategy::CosmoPatchStrategy(
   dim(dim_in),
   object_name(object_name_in)
 {
-  
+
 }
 
 

@@ -117,6 +117,7 @@ real_t BSSNGaugeHandler::DampedWaveShift1(BSSNData *bd)
   //           )
   //       )
   //     );
+  return 0;
 }
 
 /**
@@ -134,6 +135,7 @@ real_t BSSNGaugeHandler::DampedWaveShift2(BSSNData *bd)
   //           )
   //       )
   //     );
+  return 0 ;
 }
 
 /**
@@ -151,6 +153,7 @@ real_t BSSNGaugeHandler::DampedWaveShift3(BSSNData *bd)
   //           )
   //       )
   //     );
+  return 0;
 }
 
 

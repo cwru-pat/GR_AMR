@@ -14,7 +14,6 @@ void bssn_ic_static_blackhole(
   std::cerr << "Waning! USE_BSSN_SHIFT is suggested to be enabled in blackhole test " << std::endl;
 # endif
 
-  idx_t i, j, k;
 
   hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
 
@@ -40,7 +39,6 @@ void bssn_ic_static_blackhole(
   {
     const boost::shared_ptr<hier::Patch> & patch = *pit;
 
-    const hier::Box& box = patch->getBox();
 
     const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
         BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
@@ -51,6 +49,9 @@ void bssn_ic_static_blackhole(
       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFchi_p_idx)));
 
+    const hier::Box& box = chi_p_pdata->getGhostBox();
+
+    
     boost::shared_ptr<pdat::CellData<real_t> > chi_a_pdata(
        BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(DIFFchi_a_idx)));
@@ -96,7 +97,7 @@ void bssn_ic_static_blackhole(
           real_t norm = sqrt(x*x + y*y + z*z);
 
           chi_p(i,j,k) =chi_a(i,j,k)
-            = 1/pw2((1.0 + 1.0/(2.0*norm)));
+            = 1/pw2((1.0 + 1.0/(2.0*norm))) - 1.0;
         }
       }
     }

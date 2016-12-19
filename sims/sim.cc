@@ -114,7 +114,7 @@ void CosmoSim::run(
   }
   t_loop->stop();
 
-  tbox::pout<<"\nEnding simulation.";
+  tbox::plog<<"\nEnding simulation.";
 }
 
                
@@ -135,14 +135,76 @@ void CosmoSim::runCommonStepTasks(
     tbox::plog << "Newly adapted hierarchy\n";
     hierarchy->recursivePrint(tbox::plog, "    ", 1);
   }
+  isValid(hierarchy);
 }
 
-  //TODO
-
-
-  //TODO
-int CosmoSim::simNumNaNs() 
+bool CosmoSim::hasNaNs(
+  const boost::shared_ptr<hier::Patch>& patch, idx_t data_id)
 {
+  boost::shared_ptr<pdat::CellData<double> > w_pdata(
+    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+      patch->getPatchData(data_id)));
+
+  arr_t w = pdat::ArrayDataAccess::access<DIM, double>(
+    w_pdata->getArrayData());
+
+  
+  const hier::Box& box = patch->getBox();
+  
+  const int * lower = &box.lower()[0];
+  const int * upper = &box.upper()[0];
+
+  for(int k = lower[2]; k <= upper[2]; k++)
+  {
+    for(int j = lower[1]; j <= upper[1]; j++)
+    {
+      for(int i = lower[0]; i <= upper[0]; i++)
+      {
+        if(tbox::MathUtilities< double >::isNaN(w(i,j,k)))
+        {
+          TBOX_ERROR("NaN detected for variable with id " << data_id <<" "<<i<<" "<<j<<" "<<k<<"\n");
+        }
+      }
+    }
+  }
+  return 0;
+}
+  
+bool CosmoSim::isValid(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy) 
+{
+  int ln_num = hierarchy->getNumberOfLevels();
+
+  int ln;
+  for (ln = 0; ln < ln_num; ln++)
+  {
+    /*
+     * On every level, first assign cell volume to vector weight.
+     */
+    boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+    for (hier::PatchLevel::iterator p(level->begin());
+         p != level->end(); ++p) {
+      const boost::shared_ptr<hier::Patch>& patch = *p;
+      boost::shared_ptr<geom::CartesianPatchGeometry> patch_geometry(
+        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+          patch->getPatchGeometry()));
+
+      for(int l = 0; l < static_cast<idx_t>(variable_id_list.size()); l++)
+      {
+        hasNaNs(patch, variable_id_list[l]);
+      }
+     
+    }
+
+    /*
+     * On all but the finest level, assign 0 to vector
+     * weight to cells covered by finer cells.
+     */
+
+  // all levels except finest
+  }  // loop over levels
+  
+  
   return 0;
 }
 

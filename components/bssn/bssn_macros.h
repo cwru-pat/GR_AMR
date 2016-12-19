@@ -30,13 +30,17 @@
     function(beta1, __VA_ARGS__); \
     function(beta2, __VA_ARGS__); \
     function(beta3, __VA_ARGS__);
+#else
+  #define BSSN_APPLY_TO_SHIFT(function)
+  #define BSSN_APPLY_TO_SHIFT_ARGS(function, ...)
+#endif
+
+#if USE_EXPANSION
   #define BSSN_APPLY_TO_EXP_N(function)		\
     function(expN);
   #define BSSN_APPLY_TO_EXP_N_ARGS(function, ...) \
     function(expN, __VA_ARGS__);
 #else
-  #define BSSN_APPLY_TO_SHIFT(function)
-  #define BSSN_APPLY_TO_SHIFT_ARGS(function, ...)
   #define BSSN_APPLY_TO_EXP_N(function)
   #define BSSN_APPLY_TO_EXP_N_ARGS(function, ...)
 #endif
@@ -195,25 +199,25 @@
     field##_##type##_pdata->getArrayData())
 
 #define BSSN_PDATA_ALL_INIT(field)  \
-  field##_p##_pdata =  \
+  field##_p_pdata =  \
     BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
       patch->getPatchData(field##_p##_idx));  \
-  field##_s##_pdata =  \
+  field##_s_pdata =  \
     BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
       patch->getPatchData(field##_s##_idx));  \
-  field##_a##_pdata =  \
+  field##_a_pdata =  \
     BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
       patch->getPatchData(field##_a##_idx));  \
-  field##_k1##_pdata =  \
+  field##_k1_pdata =  \
     BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
       patch->getPatchData(field##_k1##_idx));             \
-  field##_k3##_pdata =                                      \
+  field##_k2_pdata =                                      \
     BOOST_CAST<pdat::CellData<double>, hier::PatchData>(    \
       patch->getPatchData(field##_k2##_idx));               \
-  field##_k3##_pdata =  \
+  field##_k3_pdata =  \
     BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
       patch->getPatchData(field##_k3##_idx));             \
-  field##_k4##_pdata =  \
+  field##_k4_pdata =  \
     BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
       patch->getPatchData(field##_k4##_idx))
 
@@ -222,19 +226,19 @@
 
 #define BSSN_MDA_ACCESS_ALL_INIT(field)  \
   field##_p = pdat::ArrayDataAccess::access<DIM, double>(  \
-    field##_p##_pdata->getArrayData());                    \
+    field##_p_pdata->getArrayData());                    \
   field##_a = pdat::ArrayDataAccess::access<DIM, double>(  \
-    field##_a##_pdata->getArrayData());                    \
+    field##_a_pdata->getArrayData());                    \
   field##_s = pdat::ArrayDataAccess::access<DIM, double>(  \
-    field##_s##_pdata->getArrayData());                    \
+    field##_s_pdata->getArrayData());                    \
   field##_k1 = pdat::ArrayDataAccess::access<DIM, double>(  \
-    field##_k1##_pdata->getArrayData());                    \
+    field##_k1_pdata->getArrayData());                    \
   field##_k2 = pdat::ArrayDataAccess::access<DIM, double>(  \
-    field##_k2##_pdata->getArrayData());                    \
+    field##_k2_pdata->getArrayData());                    \
   field##_k3 = pdat::ArrayDataAccess::access<DIM, double>(  \
-    field##_k3##_pdata->getArrayData());                    \
+    field##_k3_pdata->getArrayData());                    \
   field##_k4 = pdat::ArrayDataAccess::access<DIM, double>(  \
-    field##_k4##_pdata->getArrayData());                    
+    field##_k4_pdata->getArrayData())                  
 
 
 // macro requires idx to be set
@@ -412,7 +416,7 @@
 
 
 #define BSSN_COPY_A_TO_P(field)  \
-  hcellmath.copyData(field##_a_idx, field##_p_idx, 0)
+  hcellmath.copyData(field##_p_idx, field##_a_idx, 0)
 
 
 
@@ -807,6 +811,45 @@
   if(fabs(C##_scaled) > max_##C##_scaled) \
     max_##C##_scaled = fabs(C##_scaled);
 
+#define BSSN_MI(I) 1.0/pw3(bd->chi)*( \
+    - 2.0/3.0*bd->d##I##K \
+    /* Note: S_I was lowered with the full metric, not conformal. */ \
+    - 8*PI*(bd->S##I) \
+    - 2.0/3.0*2.0*bd->d##I##theta \
+    + 6.0*( \
+      bd->gammai11*bd->A1##I*bd->d1phi + bd->gammai21*bd->A2##I*bd->d1phi + bd->gammai31*bd->A3##I*bd->d1phi \
+      + bd->gammai12*bd->A1##I*bd->d2phi + bd->gammai22*bd->A2##I*bd->d2phi + bd->gammai32*bd->A3##I*bd->d2phi \
+      + bd->gammai13*bd->A1##I*bd->d3phi + bd->gammai23*bd->A2##I*bd->d3phi + bd->gammai33*bd->A3##I*bd->d3phi \
+    ) + ( \
+      /* (gamma^jk D_j A_ki) */ \
+      bd->gammai11*derivative(bd->i, bd->j, bd->k, 1, A1##I##_a, dx) + bd->gammai12*derivative(bd->i, bd->j, bd->k, 2, A1##I##_a, dx) + bd->gammai13*derivative(bd->i, bd->j, bd->k, 3, A1##I##_a, dx) \
+      + bd->gammai21*derivative(bd->i, bd->j, bd->k, 1, A2##I##_a, dx) + bd->gammai22*derivative(bd->i, bd->j, bd->k, 2, A2##I##_a, dx) + bd->gammai23*derivative(bd->i, bd->j, bd->k, 3, A2##I##_a, dx) \
+      + bd->gammai31*derivative(bd->i, bd->j, bd->k, 1, A3##I##_a, dx) + bd->gammai32*derivative(bd->i, bd->j, bd->k, 2, A3##I##_a, dx) + bd->gammai33*derivative(bd->i, bd->j, bd->k, 3, A3##I##_a, dx) \
+      - bd->Gamma1*bd->A1##I - bd->Gamma2*bd->A2##I - bd->Gamma3*bd->A3##I \
+      - bd->GL11##I*bd->Acont11 - bd->GL21##I*bd->Acont21 - bd->GL31##I*bd->Acont31 \
+      - bd->GL12##I*bd->Acont12 - bd->GL22##I*bd->Acont22 - bd->GL32##I*bd->Acont32 \
+      - bd->GL13##I*bd->Acont13 - bd->GL23##I*bd->Acont23 - bd->GL33##I*bd->Acont33 \
+    ) \
+  )
+
+#define BSSN_MI_SCALE(I) 1.0/pw3(bd->chi)*(                                  \
+    fabs(2.0/3.0*derivative(bd->i, bd->j, bd->k, I, DIFFK_a, dx)) \
+    + fabs(8*PI*(bd->S##I)) \
+    + 6.0*fabs( \
+      bd->gammai11*bd->A1##I*bd->d1phi + bd->gammai21*bd->A2##I*bd->d1phi + bd->gammai31*bd->A3##I*bd->d1phi \
+      + bd->gammai12*bd->A1##I*bd->d2phi + bd->gammai22*bd->A2##I*bd->d2phi + bd->gammai32*bd->A3##I*bd->d2phi \
+      + bd->gammai13*bd->A1##I*bd->d3phi + bd->gammai23*bd->A2##I*bd->d3phi + bd->gammai33*bd->A3##I*bd->d3phi \
+    ) + fabs( \
+      /* (gamma^jk D_j A_ki) */ \
+      bd->gammai11*derivative(bd->i, bd->j, bd->k, 1, A1##I##_a, dx) + bd->gammai12*derivative(bd->i, bd->j, bd->k, 2, A1##I##_a, dx) + bd->gammai13*derivative(bd->i, bd->j, bd->k, 3, A1##I##_a, dx) \
+      + bd->gammai21*derivative(bd->i, bd->j, bd->k, 1, A2##I##_a, dx) + bd->gammai22*derivative(bd->i, bd->j, bd->k, 2, A2##I##_a, dx) + bd->gammai23*derivative(bd->i, bd->j, bd->k, 3, A2##I##_a, dx) \
+      + bd->gammai31*derivative(bd->i, bd->j, bd->k, 1, A3##I##_a, dx) + bd->gammai32*derivative(bd->i, bd->j, bd->k, 2, A3##I##_a, dx) + bd->gammai33*derivative(bd->i, bd->j, bd->k, 3, A3##I##_a, dx) \
+      - bd->Gamma1*bd->A1##I - bd->Gamma2*bd->A2##I - bd->Gamma3*bd->A3##I \
+      - bd->GL11##I*bd->Acont11 - bd->GL21##I*bd->Acont21 - bd->GL31##I*bd->Acont31 \
+      - bd->GL12##I*bd->Acont12 - bd->GL22##I*bd->Acont22 - bd->GL32##I*bd->Acont32 \
+      - bd->GL13##I*bd->Acont13 - bd->GL23##I*bd->Acont23 - bd->GL33##I*bd->Acont33 \
+    ) \
+  )
 /*
  * Enforce standard ordering of indexes for tensor components
  */
@@ -829,12 +872,12 @@
 #define DIFFgammai31 DIFFgammai13
 #define DIFFgammai32 DIFFgammai23
 
-#define DIFFgamma21 DIFFgamma12
-#define DIFFgamma31 DIFFgamma13
-#define DIFFgamma32 DIFFgamma23
-#define A21 A12
-#define A31 A13
-#define A32 A23
+#define DIFFgamma21_a DIFFgamma12_a
+#define DIFFgamma31_a DIFFgamma13_a
+#define DIFFgamma32_a DIFFgamma23_a
+#define A21_a A12_a
+#define A31_a A13_a
+#define A32_a A23_a
 
 // local variables:
 // ricci tensor
