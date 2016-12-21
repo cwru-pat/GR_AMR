@@ -51,13 +51,6 @@
 #endif
 
 
-// Numerical Error Damping strength parameters
-#ifndef BS_H_DAMPING_AMPLITUDE
-  #define BS_H_DAMPING_AMPLITUDE 0.0
-#endif
-#ifndef JM_K_DAMPING_AMPLITUDE
-  #define JM_K_DAMPING_AMPLITUDE 0.0
-#endif
 
 // Optionally exclude some second-order terms
 #ifndef EXCLUDE_SECOND_ORDER_SMALL

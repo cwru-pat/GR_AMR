@@ -136,10 +136,10 @@ public:
   {
     if ( lapse_gauge_map.find(name) == lapse_gauge_map.end() )
     {
-      std::cout << "Error: Lapse gauge not found: `" << name << "`!\n";
-      throw -1;
+      TBOX_ERROR("Error: Lapse gauge not found: `" << name << "`!\n");
     }
 
+    tbox::plog<<"Setting lapse function with "<<name<<"\n";
     lapse_fn = lapse_gauge_map[name];
   }
 
@@ -151,23 +151,21 @@ public:
     // Shift needs to be enabled for non-trivial evolution
     if(name != "Static" && !USE_BSSN_SHIFT)
     {
-      std::cerr << "Code must be compiled with shift enabled to use non-Static shift!";
-      throw -1;
+      TBOX_ERROR("Code must be compiled with shift enabled to use non-Static shift!");
     }
 
     // Gamma driver needs an extra field compiled in
     if(name == "gammadriver" && !USE_GAMMA_DRIVER)
     {
-      std::cerr << "Code must be compiled with gamma driver enabled to use the gamma driver gauge.";
-      throw -1;
+      TBOX_ERROR("Code must be compiled with gamma driver enabled to use the gamma driver gauge.");
     }
 
     if ( shift_gauge_map.find(name) == shift_gauge_map.end() )
     {
-      std::cout << "Error: Shift gauge not found: `" << name << "`!\n";
-      throw -1;
+      TBOX_ERROR("Error: Shift gauge not found: `" << name << "`!\n");
     }
 
+    tbox::plog<<"Setting shift function with "<<name<<"\n";
     shift_fn1 = shift_gauge_map[name]["1"];
     shift_fn2 = shift_gauge_map[name]["2"];
     shift_fn3 = shift_gauge_map[name]["3"];

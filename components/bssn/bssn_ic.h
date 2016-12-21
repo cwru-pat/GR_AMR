@@ -24,7 +24,7 @@ void bssn_ic_awa_gauge_wave(BSSN * bssn, int dir);
 void bssn_ic_awa_shifted_gauge_wave(BSSN * bssn);
 void bssn_ic_awa_shifted_gauge_wave(BSSN * bssn, int dir);
 void bssn_ic_static_blackhole(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
  
 }
 

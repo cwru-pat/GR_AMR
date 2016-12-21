@@ -85,10 +85,7 @@ typedef struct {
            d2a, ///< partial of alpha, \f$\partial_2 \alpha\f$
            d3a; ///< partial of alpha, \f$\partial_3 \alpha\f$
 
-    real_t d1au, ///< partial of alpha, \f$\partial_1 \alpha\f$
-           d2au, ///< partial of alpha, \f$\partial_2 \alpha\f$
-           d3au; ///< partial of alpha, \f$\partial_3 \alpha\f$
-  // derivatives of phi
+
     // covariant double-derivatives 
     real_t D1D1phi, ///< conformal covariant second derivative of phi, \f$\bar{D}_1 \bar{D}_1 \phi\f$
            D1D2phi, ///< conformal covariant second derivative of phi, \f$\bar{D}_1 \bar{D}_2 \phi\f$
@@ -103,9 +100,6 @@ typedef struct {
       real_t d1chi, ///< \f$\partial_1 \phi \f$
            d2chi, ///< \f$\partial_2 \phi \f$
            d3chi; ///< \f$\partial_3 \phi \f$
-    real_t d1phiu, ///< \f$\partial_1 \phi \f$
-           d2phiu, ///< \f$\partial_2 \phi \f$
-           d3phiu; ///< \f$\partial_3 \phi \f$
     real_t d1d1phi, ///< partial second derivative of phi, \f$\partial_1 \partial_1 \phi\f$
            d1d2phi, ///< partial second derivative of phi, \f$\partial_1 \partial_2 \phi\f$
            d1d3phi, ///< partial second derivative of phi, \f$\partial_1 \partial_3 \phi\f$
@@ -126,10 +120,6 @@ typedef struct {
          d2K, ///< \f$\partial_2 K\f$
          d3K; ///< \f$\partial_3 K\f$
 
-  real_t d1Ku,
-         d2Ku,
-         d3Ku;
-  
   // Contravariant (upstairs index) ext. curvature
   real_t Acont11, ///< Contravariant form of conformal trace-free extrinsic curvature, \f$ \bar{A}^{11} \f$
          Acont12, ///< Contravariant form of conformal trace-free extrinsic curvature, \f$ \bar{A}^{12} \f$

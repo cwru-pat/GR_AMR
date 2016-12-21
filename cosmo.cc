@@ -190,7 +190,7 @@ int main(int argc, char* argv[])
 
   cosmoSim->setRefineCoarsenOps(patch_hierarchy);
   // Generate initial conditions
-  cosmoSim->setICs();
+  cosmoSim->setICs(patch_hierarchy);
 
 
 

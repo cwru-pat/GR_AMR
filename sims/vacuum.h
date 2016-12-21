@@ -33,7 +33,7 @@ public:
 
 
   void init();
-  void setICs();
+  void setICs(const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
   void initVacuumStep(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
   void outputVacuumStep(
@@ -82,8 +82,8 @@ public:
  private:
   boost::shared_ptr<tbox::Database> cosmo_vacuum_db;
 
-  void initCoarsest(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
+  void initLevel(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
   void computeVectorWeights(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
   void addBSSNExtras(

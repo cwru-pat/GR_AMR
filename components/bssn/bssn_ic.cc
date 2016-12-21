@@ -8,7 +8,8 @@ namespace cosmo
 
 
 void bssn_ic_static_blackhole(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  idx_t ln)
 {
 # if ! USE_BSSN_SHIFT
   std::cerr << "Waning! USE_BSSN_SHIFT is suggested to be enabled in blackhole test " << std::endl;
@@ -26,7 +27,7 @@ void bssn_ic_static_blackhole(
       variable_db->getVariable("DIFFchi"), variable_db->getContext("ACTIVE"));
 
   boost::shared_ptr<hier::PatchLevel> level(
-    hierarchy->getPatchLevel(0));
+    hierarchy->getPatchLevel(ln));
 
   boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
      BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
@@ -96,7 +97,7 @@ void bssn_ic_static_blackhole(
 
           real_t norm = sqrt(x*x + y*y + z*z);
 
-          chi_p(i,j,k) =chi_a(i,j,k)
+          chi_p(i,j,k) = chi_a(i,j,k)
             = 1/pw2((1.0 + 1.0/(2.0*norm))) - 1.0;
         }
       }

@@ -8,7 +8,7 @@ Main
 CartesianGridGeometry {
   domain_boxes = [(0,0,0), (31,31,31)]
   x_lo         = 0, 0, 0
-  x_up         = 60, 60, 60
+  x_up         = 100, 100, 100
   periodic_dimension = 0, 0, 0
 }
 
@@ -36,14 +36,14 @@ TimerManager{
 
 
 PatchHierarchy {
-   max_levels = 3
-   proper_nesting_buffer = 2, 2, 2, 2, 2, 2   
+   max_levels = 5
+   proper_nesting_buffer = 3, 3, 3, 3, 3, 3   
    largest_patch_size {
       level_0 = -1, -1, -1
       // all finer levels will use same values as level_0...
    }
    smallest_patch_size {
-      level_0 = 4, 4, 4
+      level_0 = 4, 4, 4   
       // all finer levels will use same values as level_0...
    }
    ratio_to_coarser {
@@ -68,11 +68,11 @@ GriddingAlgorithm {
 }
 
 CosmoSim{
-  steps = 200
+  steps = 0
   do_plot = TRUE
   dt_frac = 0.1
   regridding_interval = 5
-  adaption_threshold = 0.00001
+  adaption_threshold = 0.5
   KO_damping_coefficient = 0.0 
 }
 
@@ -87,7 +87,7 @@ BSSN{
 }
 
 IO{
-  output_list = "DIFFchi","DIFFK"     
-  output_interval = 1, 1
+  output_list = "DIFFchi","DIFFK","DIFFalpha"     
+  output_interval = 1, 1, 1
   gd_c = 1
 }

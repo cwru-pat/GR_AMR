@@ -171,6 +171,7 @@ void BSSN::RKEvolvePatchBD(
         }
       }
     }
+    //    tbox::pout<<boundary_fill_box<<"\n";
   }
   /************************updating codim = 2 boundaries****************/
   codim = 2;
@@ -392,7 +393,7 @@ void BSSN::RKEvolvePatch(
         if(tbox::MathUtilities< double >::isNaN(A11_s(i,j,k)))
         {
           tbox::pout<<i<<" "<<j<<" "<<k<<"\n";
-          tbox::pout<<bd.alpha<<" "<<bd.STF11<<"\n";
+          tbox::pout<<bd.alpha<<" "<<bd.DZTR<<"\n";
           throw(-1);
         }
       }
@@ -1694,8 +1695,8 @@ void BSSN::output_max_H_constaint(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t weight_idx)
 {
-  double max_H, max_H_scaled = 0;
-  double max_M, max_M_scaled = 0;
+  double max_H=0, max_H_scaled = 0;
+  double max_M=0, max_M_scaled = 0;
   idx_t mp[3] = {0}, hp[3] = {0};  
   for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln ++)
   {
@@ -1799,7 +1800,6 @@ void BSSN::output_max_H_constaint(
             <<max_H<<"/"<<max_H_scaled<<"\n at position "<<hp[0]<<" "<<hp[1]<<" "<<hp[2]<<"\n";
   tbox::pout<<"Max Momentum constraint is "
             <<max_M<<"/"<<max_M_scaled<<"\n at position "<<mp[0]<<" "<<mp[1]<<" "<<mp[2]<<"\n";
-
   return;
 }
 
@@ -1837,6 +1837,7 @@ real_t BSSN::momentumConstraintCalc(BSSNData *bd, const real_t dx[])
   real_t mi1 = BSSN_MI(1);
   real_t mi2 = BSSN_MI(2);
   real_t mi3 = BSSN_MI(3);
+
 
   return sqrt(pw2(mi1)+pw2(mi2)+pw2(mi3));
 }

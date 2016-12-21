@@ -34,7 +34,8 @@ public:
   virtual void init() = 0;
   virtual void runStep(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy) =0;
-  virtual void setICs() = 0;
+  virtual void setICs(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy) = 0;
 
     virtual void
     initializeLevelData(

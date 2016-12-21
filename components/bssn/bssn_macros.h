@@ -714,45 +714,6 @@
 
 // Momentum constraint with index lowered using the conformal metric:
 // M_I == \bar{gamma}_{IJ} M^J
-#define BSSN_MI(I) exp(6.0*bd->phi)*( \
-    - 2.0/3.0*bd->d##I##K \
-    /* Note: S_I was lowered with the full metric, not conformal. */ \
-    - 8*PI*(bd->S##I) \
-    - 2.0/3.0*2.0*bd->d##I##theta \
-    + 6.0*( \
-      bd->gammai11*bd->A1##I*bd->d1phi + bd->gammai21*bd->A2##I*bd->d1phi + bd->gammai31*bd->A3##I*bd->d1phi \
-      + bd->gammai12*bd->A1##I*bd->d2phi + bd->gammai22*bd->A2##I*bd->d2phi + bd->gammai32*bd->A3##I*bd->d2phi \
-      + bd->gammai13*bd->A1##I*bd->d3phi + bd->gammai23*bd->A2##I*bd->d3phi + bd->gammai33*bd->A3##I*bd->d3phi \
-    ) + ( \
-      /* (gamma^jk D_j A_ki) */ \
-      bd->gammai11*derivative(bd->i, bd->j, bd->k, 1, A1##I##_a, dx) + bd->gammai12*derivative(bd->i, bd->j, bd->k, 2, A1##I##_a, dx) + bd->gammai13*derivative(bd->i, bd->j, bd->k, 3, A1##I##_a, dx) \
-      + bd->gammai21*derivative(bd->i, bd->j, bd->k, 1, A2##I##_a, dx) + bd->gammai22*derivative(bd->i, bd->j, bd->k, 2, A2##I##_a, dx) + bd->gammai23*derivative(bd->i, bd->j, bd->k, 3, A2##I##_a, dx) \
-      + bd->gammai31*derivative(bd->i, bd->j, bd->k, 1, A3##I##_a, dx) + bd->gammai32*derivative(bd->i, bd->j, bd->k, 2, A3##I##_a, dx) + bd->gammai33*derivative(bd->i, bd->j, bd->k, 3, A3##I##_a, dx) \
-      - bd->Gamma1*bd->A1##I - bd->Gamma2*bd->A2##I - bd->Gamma3*bd->A3##I \
-      - bd->GL11##I*bd->Acont11 - bd->GL21##I*bd->Acont21 - bd->GL31##I*bd->Acont31 \
-      - bd->GL12##I*bd->Acont12 - bd->GL22##I*bd->Acont22 - bd->GL32##I*bd->Acont32 \
-      - bd->GL13##I*bd->Acont13 - bd->GL23##I*bd->Acont23 - bd->GL33##I*bd->Acont33 \
-    ) \
-  )
-
-#define BSSN_MI_SCALE(I) exp(6.0*bd->phi)*( \
-                                           fabs(2.0/3.0*bd->d##I##K/*derivative(bd->i, bd->j, bd->k, I, DIFFK##_a, dx)*/) \
-    + fabs(8*PI*(bd->S##I)) \
-    + 6.0*fabs( \
-      bd->gammai11*bd->A1##I*bd->d1phi + bd->gammai21*bd->A2##I*bd->d1phi + bd->gammai31*bd->A3##I*bd->d1phi \
-      + bd->gammai12*bd->A1##I*bd->d2phi + bd->gammai22*bd->A2##I*bd->d2phi + bd->gammai32*bd->A3##I*bd->d2phi \
-      + bd->gammai13*bd->A1##I*bd->d3phi + bd->gammai23*bd->A2##I*bd->d3phi + bd->gammai33*bd->A3##I*bd->d3phi \
-    ) + fabs( \
-      /* (gamma^jk D_j A_ki) */ \
-      bd->gammai11*derivative(bd->i, bd->j, bd->k, 1, A1##I##_a, dx) + bd->gammai12*derivative(bd->i, bd->j, bd->k, 2, A1##I##_a, dx) + bd->gammai13*derivative(bd->i, bd->j, bd->k, 3, A1##I##_a, dx) \
-      + bd->gammai21*derivative(bd->i, bd->j, bd->k, 1, A2##I##_a, dx) + bd->gammai22*derivative(bd->i, bd->j, bd->k, 2, A2##I##_a, dx) + bd->gammai23*derivative(bd->i, bd->j, bd->k, 3, A2##I##_a, dx) \
-      + bd->gammai31*derivative(bd->i, bd->j, bd->k, 1, A3##I##_a, dx) + bd->gammai32*derivative(bd->i, bd->j, bd->k, 2, A3##I##_a, dx) + bd->gammai33*derivative(bd->i, bd->j, bd->k, 3, A3##I##_a, dx) \
-      - bd->Gamma1*bd->A1##I - bd->Gamma2*bd->A2##I - bd->Gamma3*bd->A3##I \
-      - bd->GL11##I*bd->Acont11 - bd->GL21##I*bd->Acont21 - bd->GL31##I*bd->Acont31 \
-      - bd->GL12##I*bd->Acont12 - bd->GL22##I*bd->Acont22 - bd->GL32##I*bd->Acont32 \
-      - bd->GL13##I*bd->Acont13 - bd->GL23##I*bd->Acont23 - bd->GL33##I*bd->Acont33 \
-    ) \
-  )
 
 #define BSSN_GI_CALC(I) \
   bd->Gamma##I - bd->gammai11*bd->G##I##11 - bd->gammai22*bd->G##I##22 - bd->gammai33*bd->G##I##33 \

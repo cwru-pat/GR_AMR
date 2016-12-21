@@ -66,7 +66,8 @@ void VacuumSim::init()
  * @param[in]  map to BSSN fields
  * @param      initialized IOData
  */
-void VacuumSim::setICs()
+void VacuumSim::setICs(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   tbox::plog<<"Setting initial conditions (ICs).";
 
@@ -74,7 +75,25 @@ void VacuumSim::setICs()
   
   gridding_algorithm->printClassData(tbox::plog);
   gridding_algorithm->makeCoarsestLevel(0.0);
-  tbox::plog<<"Finished setting ICs.\n";
+
+  while(hierarchy->getNumberOfLevels() < hierarchy->getMaxNumberOfLevels())
+  {
+    int pre_level_num = hierarchy->getNumberOfLevels();
+    std::vector<int> tag_buffer(hierarchy->getMaxNumberOfLevels());
+    for (idx_t ln = 0; ln < static_cast<int>(tag_buffer.size()); ++ln) {
+      tag_buffer[ln] = 1;
+    }
+    gridding_algorithm->regridAllFinerLevels(
+      0,
+      tag_buffer,
+      0,
+      0.0);
+    int post_level_num = hierarchy->getNumberOfLevels();
+    if(post_level_num == pre_level_num) break;
+  }
+  
+  tbox::plog<<"Finished setting ICs. with hierarchy has "
+            <<hierarchy->getNumberOfLevels()<<" levels\n";
 }
 
 void VacuumSim::initVacuumStep(
@@ -83,8 +102,10 @@ void VacuumSim::initVacuumStep(
   bssnSim->stepInit(hierarchy);
 }
 
-void VacuumSim::initCoarsest(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+
+void VacuumSim::initLevel(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  idx_t ln)
 {
   std::string ic_type = cosmo_vacuum_db->getString("ic_type");
 
@@ -93,7 +114,14 @@ void VacuumSim::initCoarsest(
 
   if(ic_type == "static_blackhole")
   {
-    bssn_ic_static_blackhole(hierarchy);
+        math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
+
+    BSSN_APPLY_TO_FIELDS_ARGS(RK4_ARRAY_ZERO,hcellmath);
+    BSSN_APPLY_TO_SOURCES_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
+    BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
+
+    bssn_ic_static_blackhole(hierarchy,ln);
+    
   }
   else
     TBOX_ERROR("Undefined IC type!\n");
@@ -102,6 +130,7 @@ void VacuumSim::initCoarsest(
 
 }
 
+  
 void VacuumSim::computeVectorWeights(
    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
@@ -227,12 +256,6 @@ void VacuumSim::initializeLevelData(
     * generally be allocated and deallocated as needed.
     */
    
-   // boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-   //   BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
-   //     patch_hierarchy->getGridGeometry()));
-   // TBOX_ASSERT(grid_geometry_);
-
-   // geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
 
    math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
       
@@ -244,20 +267,22 @@ void VacuumSim::initializeLevelData(
      BSSN_APPLY_TO_GEN1_EXTRAS(EXTRA_ARRAY_ALLOC);
      level->allocatePatchData(weight_idx);
    }
-   if(initial_time && ln == 0)
+   
+   if(init_data_time < EPS) //at beginning
    {
-     BSSN_APPLY_TO_FIELDS_ARGS(RK4_ARRAY_ZERO,hcellmath);
-     BSSN_APPLY_TO_SOURCES_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
-     BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
+     initLevel(patch_hierarchy, ln);
 
-     initCoarsest(patch_hierarchy);
+     bssnSim->copyAToP(hcellmath);
+   
+     computeVectorWeights(hierarchy);
+
+     return;
    }
-   else
-   {
-     BSSN_APPLY_TO_FIELDS_ARGS(RK4_ARRAY_ZERO,hcellmath);
-     BSSN_APPLY_TO_SOURCES_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
-     BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
-   }     
+
+   //BSSN_APPLY_TO_FIELDS_ARGS(RK4_ARRAY_ZERO,hcellmath);
+   BSSN_APPLY_TO_SOURCES_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
+   BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
+       
    /*
     * Refine solution data from coarser level and, if provided, old level.
     */
@@ -327,13 +352,6 @@ void VacuumSim::initializeLevelData(
    //BSSN_APPLY_TO_FIELDS(BSSN_COPY_A_TO_P);
    bssnSim->copyAToP(hcellmath);
    
-   if (0)
-   {
-     // begin debug code
-     math::HierarchyCellDataOpsReal<double> hcellmath_debug(hierarchy);
-     //hcellmath_debug.printData(d_phi_current, tbox::pout, false);
-     // end debug code
-   }
    level->getBoxLevel()->getMPI().Barrier();
    /* Set vector weight. */
    computeVectorWeights(hierarchy);
@@ -397,7 +415,7 @@ void VacuumSim::applyGradientDetector(
       
       boost::shared_ptr<pdat::CellData<double>> K_data(
         BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
-          patch.getPatchData(bssnSim->DIFFK_p_idx)));
+          patch.getPatchData(bssnSim->DIFFchi_p_idx)));
 
       boost::shared_ptr<pdat::CellData<double> > weight_(
         BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
@@ -407,7 +425,7 @@ void VacuumSim::applyGradientDetector(
         K_data->getArrayData());
       
       if (!K_data) {
-         TBOX_ERROR("Data index " << bssnSim->DIFFK_p_idx
+         TBOX_ERROR("Data index " << bssnSim->DIFFchi_p_idx
                                   << " does not exist for patch.\n");
       }
       pdat::CellData<idx_t>& tag_cell_data = *tag_cell_data_;
@@ -496,6 +514,7 @@ double VacuumSim::getDt(
       hierarchy->getGridGeometry()));
   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
 
+  
   return (grid_geometry.getDx()[0]) * dt_frac;
 }
 
@@ -664,7 +683,6 @@ void VacuumSim::RKEvolveLevel(
   {
     const boost::shared_ptr<hier::Patch> & patch = *pit;
 
-
     bssnSim->RKEvolvePatch(patch, to_t - from_t);
     //Evolve physical boundary
     // would not do anything if boundary is time dependent
@@ -708,12 +726,12 @@ void VacuumSim::advanceLevel(
   RKEvolveLevel(
     hierarchy, ln, from_t, to_t);
 
-  //tbox::pout<<"Flag\n";
 
-  
+  level->getBoxLevel()->getMPI().Barrier();
      
   advanceLevel(hierarchy, ln+1, from_t, from_t + (to_t - from_t)/2.0);
 
+  level->getBoxLevel()->getMPI().Barrier();
   
   advanceLevel(hierarchy, ln+1, from_t + (to_t - from_t)/2.0, to_t);
 
@@ -754,7 +772,8 @@ void VacuumSim::advanceLevel(
   bssnSim->copyAToP(hcellmath);
 
   bssnSim->setLevelTime(level, to_t, to_t);
-  
+
+  level->getBoxLevel()->getMPI().Barrier();
 }
 void VacuumSim::resetHierarchyConfiguration(
   /*! New hierarchy */

@@ -1190,6 +1190,8 @@ inline real_t bd_derivative(
     }
     
   }
+  else
+    TBOX_ERROR("Codim value is not in the range of 1-3\n");
 
   /* XXX */
   return 0;
