@@ -10,7 +10,7 @@ SommerfieldBD::SommerfieldBD(
   const tbox::Dimension& dim_in,
   std::string object_name_in):
   CosmoPatchStrategy(dim_in, object_name_in),
-  is_time_dependent(1)
+  is_time_dependent(true)
 {
 
 }

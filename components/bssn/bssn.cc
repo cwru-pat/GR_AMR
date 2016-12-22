@@ -728,6 +728,8 @@ void BSSN::K1FinalizePatch(
       for(int i = lower[0]; i <= upper[0]; i++)
       {
         BSSN_FINALIZE_K(1);
+        // if(i == 60 && j == 56 && k == 63 && patch->getPatchLevelNumber() == 2)
+        //   tbox::pout<<DIFFchi_p(i,j,k)<<"##"<<patch->getGlobalId()<<"\n";
       }
     }
   }
@@ -1788,6 +1790,7 @@ void BSSN::output_max_H_constaint(
      }
   }
   const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
+  mpi.Barrier();
   if (mpi.getSize() > 1) {
     mpi.AllReduce(&max_H, 1, MPI_MAX);
     mpi.AllReduce(&max_H_scaled, 1, MPI_MAX);

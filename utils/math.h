@@ -1200,9 +1200,9 @@ inline real_t bd_derivative(
 inline real_t derivative_norm(idx_t i, idx_t j, idx_t k,
   arr_t & field)
 {
-  return sqrt(pw2(field(i+1,j,k) + field(i-1,j,k))
-             + pw2(field(i,j+1,k) + field(i,j-1,k))
-              + pw2(field(i,j,k+1) + field(i,j,k-1)));
+  return sqrt(pw2(field(i+1,j,k) - field(i-1,j,k))
+             + pw2(field(i,j+1,k) - field(i,j-1,k))
+              + pw2(field(i,j,k+1) - field(i,j,k-1)));
 }
  
 /**

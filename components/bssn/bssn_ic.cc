@@ -51,7 +51,6 @@ void bssn_ic_static_blackhole(
         patch->getPatchData(DIFFchi_p_idx)));
 
     const hier::Box& box = chi_p_pdata->getGhostBox();
-
     
     boost::shared_ptr<pdat::CellData<real_t> > chi_a_pdata(
        BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
@@ -98,7 +97,8 @@ void bssn_ic_static_blackhole(
           real_t norm = sqrt(x*x + y*y + z*z);
 
           chi_p(i,j,k) = chi_a(i,j,k)
-            = 1/pw2((1.0 + 1.0/(2.0*norm))) - 1.0;
+            //= 1/pw2((1.0 + 1.0/(2.0*norm))) - 1.0;
+            = pw2(2.0*norm / (1+ 2.0 * norm)) - 1.0;
         }
       }
     }

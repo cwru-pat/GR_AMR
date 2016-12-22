@@ -45,7 +45,7 @@ void CosmoIO::registerVariablesWithPlotter(
     is_empty = 0;
     idx_t idx =
       variable_db->mapVariableAndContextToIndex(
-        variable_db->getVariable(output_list[i]), variable_db->getContext("PREVIOUS"));
+        variable_db->getVariable(output_list[i]), variable_db->getContext("ACTIVE"));
     
     if(idx < 0)
       TBOX_ERROR("Cannot find variable" <<output_list[i]<<" in output list!\n");

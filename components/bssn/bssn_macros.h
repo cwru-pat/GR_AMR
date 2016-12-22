@@ -318,7 +318,7 @@
 #define BSSN_INIT_R_K3(field)  \
     field##_s(i,j,k) =         \
       (-field##_k1(i,j,k) + 2.0*field##_k2(i,j,k) \
-       + 4.0*field##_k3(i,j,k) - 3.0*field##_k4(i,j,k))/24.0
+       + 4.0*field##_k3(i,j,k) + 3.0*field##_k4(i,j,k))/24.0
 
 #define BSSN_INIT_R_K4(field)  \
     field##_s(i,j,k) =         \

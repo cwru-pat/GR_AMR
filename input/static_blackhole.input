@@ -36,7 +36,7 @@ TimerManager{
 
 
 PatchHierarchy {
-   max_levels = 5
+   max_levels = 4
    proper_nesting_buffer = 3, 3, 3, 3, 3, 3   
    largest_patch_size {
       level_0 = -1, -1, -1
@@ -68,11 +68,11 @@ GriddingAlgorithm {
 }
 
 CosmoSim{
-  steps = 0
+  steps = 1000
   do_plot = TRUE
   dt_frac = 0.1
-  regridding_interval = 5
-  adaption_threshold = 0.5
+  regridding_interval = 5000
+  adaption_threshold = 0.01
   KO_damping_coefficient = 0.0 
 }
 
@@ -87,7 +87,7 @@ BSSN{
 }
 
 IO{
-  output_list = "DIFFchi","DIFFK","DIFFalpha"     
-  output_interval = 1, 1, 1
+  output_list = "DIFFchi","DIFFK"
+  output_interval = 10, 10
   gd_c = 1
 }

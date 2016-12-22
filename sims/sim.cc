@@ -125,7 +125,7 @@ void CosmoSim::runCommonStepTasks(
   {
     std::vector<int> tag_buffer(hierarchy->getMaxNumberOfLevels());
     for (idx_t ln = 0; ln < static_cast<int>(tag_buffer.size()); ++ln) {
-      tag_buffer[ln] = 1;
+      tag_buffer[ln] = 0;
     }
     gridding_algorithm->regridAllFinerLevels(
       0,

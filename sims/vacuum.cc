@@ -76,12 +76,13 @@ void VacuumSim::setICs(
   gridding_algorithm->printClassData(tbox::plog);
   gridding_algorithm->makeCoarsestLevel(0.0);
 
+  
   while(hierarchy->getNumberOfLevels() < hierarchy->getMaxNumberOfLevels())
   {
     int pre_level_num = hierarchy->getNumberOfLevels();
     std::vector<int> tag_buffer(hierarchy->getMaxNumberOfLevels());
     for (idx_t ln = 0; ln < static_cast<int>(tag_buffer.size()); ++ln) {
-      tag_buffer[ln] = 1;
+      tag_buffer[ln] = 0;
     }
     gridding_algorithm->regridAllFinerLevels(
       0,
@@ -111,10 +112,11 @@ void VacuumSim::initLevel(
 
   //TBOX_ASSERT(ic_type);
 
-
+  boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+  
   if(ic_type == "static_blackhole")
   {
-        math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
+    math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
 
     BSSN_APPLY_TO_FIELDS_ARGS(RK4_ARRAY_ZERO,hcellmath);
     BSSN_APPLY_TO_SOURCES_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
@@ -125,9 +127,25 @@ void VacuumSim::initLevel(
   }
   else
     TBOX_ERROR("Undefined IC type!\n");
-  
-  //already set _a = _p and _f = 0 
 
+  // xfer::RefineAlgorithm refiner;
+  // boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
+  // //BSSN_APPLY_TO_FIELDS_ARGS(VAC_REGISTER_SPACE_REFINE_A,refiner,space_refine_op);
+
+  // refiner.registerRefine(bssnSim->DIFFchi_a_idx,  
+  //                        bssnSim->DIFFchi_a_idx,  
+  //                        bssnSim->DIFFchi_a_idx,  
+  //                        space_refine_op);
+
+  
+  // refine_schedule =
+  //   refiner.createSchedule(level);
+
+  // tbox::pout<<"starting filling ghost cells...\n";
+  // level->getBoxLevel()->getMPI().Barrier();
+  // refine_schedule->fillData(0.0);
+  // level->getBoxLevel()->getMPI().Barrier();
+  // tbox::pout<<"ending filling ghost cells...\n";
 }
 
   
@@ -278,7 +296,7 @@ void VacuumSim::initializeLevelData(
 
      return;
    }
-
+   tbox::pout<<"Flag\n";
    //BSSN_APPLY_TO_FIELDS_ARGS(RK4_ARRAY_ZERO,hcellmath);
    BSSN_APPLY_TO_SOURCES_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
    BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
@@ -415,11 +433,8 @@ void VacuumSim::applyGradientDetector(
       
       boost::shared_ptr<pdat::CellData<double>> K_data(
         BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
-          patch.getPatchData(bssnSim->DIFFchi_p_idx)));
+          patch.getPatchData(bssnSim->DIFFchi_a_idx)));
 
-      boost::shared_ptr<pdat::CellData<double> > weight_(
-        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
-          patch.getPatchData(weight_idx)));
 
       arr_t K = pdat::ArrayDataAccess::access<DIM, real_t>(
         K_data->getArrayData());
@@ -455,8 +470,19 @@ void VacuumSim::applyGradientDetector(
            tag_cell_data(cell_index) = 1;
            ++ntag;
          }
-         
+       
       }
+      /*for (hier::Box::iterator i(patch.getBox().begin()); i != iend; ++i)
+      {
+         const pdat::CellIndex cell_index(*i);
+         if(ln == 2)
+         {
+           const pdat::CellIndex c2(hier::Index(128-cell_index(0)-1, cell_index(1), cell_index(2)));
+           if(tag_cell_data(c2) != tag_cell_data(cell_index))
+             tbox::pout<<"Ooooops "<<cell_index(0)<<" "<<ln<<"\n";
+         }
+
+         }*/
 
    }
 const tbox::SAMRAI_MPI& mpi(hierarchy.getMPI());
@@ -582,7 +608,7 @@ void VacuumSim::RKEvolveLevel(
       new xfer::PatchLevelBorderFillPattern());
     
     refine_schedule = refiner.createSchedule(
-      border_fill_pattern,
+      //border_fill_pattern,
       level,
       level,
       coarser_level->getLevelNumber(),
