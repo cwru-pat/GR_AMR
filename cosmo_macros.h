@@ -24,6 +24,10 @@
   #define HALF_STENCIL_ORDER 2
 #endif
 
+#ifndef STENCIL_ORDER_WIDTH
+  #define STENCIL_ORDER_WIDTH STENCIL_ORDER
+#endif
+
 #ifndef PRINT_PRECISION
   #define PRINT_PRECISION 9
 #endif

@@ -627,6 +627,7 @@ void VacuumSim::RKEvolveLevel(
     bssnSim->RKEvolvePatch(patch, to_t - from_t);
     // Evolve physical boundary
     // would not do anything if boundary is time independent
+
     bssnSim->RKEvolvePatchBD(patch, to_t - from_t);  
   }
 

@@ -144,10 +144,11 @@ void BSSN::RKEvolvePatchBD(
 
   for(int i = 0 ; i < n_codim1_boxes; i++)
   {
-    const hier::Box & boundary_fill_box =
+    hier::Box boundary_fill_box =
       geom->getBoundaryFillBox(
         codim1_boxes[i], patch_box, DIFFchi_a_pdata->getGhostCellWidth());
-  
+
+    if(boundary_fill_box.empty()) continue;
 
     const idx_t * lower = &boundary_fill_box.lower()[0];
     const idx_t * upper = &boundary_fill_box.upper()[0];
@@ -156,7 +157,15 @@ void BSSN::RKEvolvePatchBD(
     
     BSSNData bd = {0};
 
+    tbox::pout<<boundary_fill_box<<"%%%%%%\n";
+    boundary_fill_box.shift(
+      (hier::Box::dir_t)l_idx/2,
+      (l_idx%2)?(-STENCIL_ORDER_WIDTH):STENCIL_ORDER_WIDTH);
 
+
+    boundary_fill_box *= patch_box;
+    tbox::pout<<boundary_fill_box<<"*******\n";
+    //    throw(-1);
     //initialize dx for each patch
     const real_t * dx = &(patch_geom->getDx())[0];
   
@@ -186,10 +195,11 @@ void BSSN::RKEvolvePatchBD(
 
   for(int i = 0 ; i < n_codim2_boxes; i++)
   {
-    const hier::Box & boundary_fill_box =
+    hier::Box  boundary_fill_box =
       geom->getBoundaryFillBox(
         codim2_boxes[i], patch_box, DIFFchi_a_pdata->getGhostCellWidth());
-  
+    
+    if(boundary_fill_box.empty()) continue;  
 
     const idx_t * lower = &boundary_fill_box.lower()[0];
     const idx_t * upper = &boundary_fill_box.upper()[0];
@@ -198,6 +208,33 @@ void BSSN::RKEvolvePatchBD(
     
     BSSNData bd = {0};
 
+    std::vector<idx_t> shift_vec;
+    if(l_idx == 0 || l_idx == 2 || l_idx == 4 || l_idx == 6)
+      shift_vec.push_back(STENCIL_ORDER_WIDTH);
+    else if(l_idx == 1 || l_idx == 3 || l_idx == 5 || l_idx == 7)
+      shift_vec.push_back(-STENCIL_ORDER_WIDTH);
+    else
+      shift_vec.push_back(0);
+    
+    if(l_idx == 0 || l_idx == 1 || l_idx == 8 || l_idx == 10)
+      shift_vec.push_back(STENCIL_ORDER_WIDTH);
+    else if(l_idx == 2 || l_idx == 3 || l_idx ==9 || l_idx == 11)
+     shift_vec.push_back(-STENCIL_ORDER_WIDTH);
+    else
+      shift_vec.push_back(0);
+
+    if( l_idx == 4 || l_idx == 5 || l_idx == 8 || l_idx == 9)
+      shift_vec.push_back(STENCIL_ORDER_WIDTH);
+    else if(l_idx == 6 || l_idx == 7 || l_idx == 10 || l_idx == 11)
+      shift_vec.push_back(-STENCIL_ORDER_WIDTH);
+    else
+      shift_vec.push_back(0);
+
+    //tbox::pout<<boundary_fill_box<<"\n";
+    boundary_fill_box.shift(hier::IntVector(shift_vec));
+
+    boundary_fill_box *= patch_box;
+    //tbox::pout<<boundary_fill_box<<"\n";
 
     //initialize dx for each patch
     const real_t * dx = &(patch_geom->getDx())[0];
@@ -231,7 +268,8 @@ void BSSN::RKEvolvePatchBD(
     const hier::Box & boundary_fill_box =
       geom->getBoundaryFillBox(
         codim3_boxes[i], patch_box, DIFFchi_a_pdata->getGhostCellWidth());
-  
+
+    if(boundary_fill_box.empty()) continue;
 
     const idx_t * lower = &boundary_fill_box.lower()[0];
     const idx_t * upper = &boundary_fill_box.upper()[0];
@@ -381,6 +419,7 @@ void BSSN::RKEvolvePatch(
   //initialize dx for each patch
   const real_t * dx = &(patch_geom->getDx())[0];
 
+
   
   for(int k = lower[2]; k <= upper[2]; k++)
   {
@@ -390,12 +429,6 @@ void BSSN::RKEvolvePatch(
       {
         set_bd_values(i, j, k, &bd, dx);
         BSSN_RK_EVOLVE_PT;
-        if(tbox::MathUtilities< double >::isNaN(A11_s(i,j,k)))
-        {
-          tbox::pout<<i<<" "<<j<<" "<<k<<"\n";
-          tbox::pout<<bd.alpha<<" "<<bd.DZTR<<"\n";
-          throw(-1);
-        }
       }
     }
   }
@@ -1494,7 +1527,7 @@ real_t BSSN::ev_DIFFgamma13_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx
   return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, DIFFgamma13_a, dx, l_idx, codim) * bd->x
             + bd_derivative(bd->i, bd->j, bd->k, 2, DIFFgamma13_a, dx, l_idx, codim) * bd->y
             + bd_derivative(bd->i, bd->j, bd->k, 3, DIFFgamma13_a, dx, l_idx, codim) * bd->z 
-            + bd->gamma13           );
+            + bd->DIFFgamma13           );
 }
 real_t BSSN::ev_DIFFgamma22_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
