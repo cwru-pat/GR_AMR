@@ -157,14 +157,14 @@ void BSSN::RKEvolvePatchBD(
     
     BSSNData bd = {0};
 
-    tbox::pout<<boundary_fill_box<<"%%%%%%\n";
+    //tbox::pout<<boundary_fill_box<<"%%%%%%\n";
     boundary_fill_box.shift(
       (hier::Box::dir_t)l_idx/2,
       (l_idx%2)?(-STENCIL_ORDER_WIDTH):STENCIL_ORDER_WIDTH);
 
 
     boundary_fill_box *= patch_box;
-    tbox::pout<<boundary_fill_box<<"*******\n";
+    //tbox::pout<<boundary_fill_box<<"*******\n";
     //    throw(-1);
     //initialize dx for each patch
     const real_t * dx = &(patch_geom->getDx())[0];

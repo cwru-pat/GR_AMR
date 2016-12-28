@@ -135,7 +135,7 @@ void CosmoSim::runCommonStepTasks(
     tbox::plog << "Newly adapted hierarchy\n";
     hierarchy->recursivePrint(tbox::plog, "    ", 1);
   }
-  //isValid(hierarchy);
+  isValid(hierarchy);
 }
 
 bool CosmoSim::hasNaNs(
