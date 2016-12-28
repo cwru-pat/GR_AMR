@@ -150,8 +150,6 @@ void BSSN::RKEvolvePatchBD(
 
     if(boundary_fill_box.empty()) continue;
 
-    const idx_t * lower = &boundary_fill_box.lower()[0];
-    const idx_t * upper = &boundary_fill_box.upper()[0];
 
     idx_t l_idx = codim1_boxes[i].getLocationIndex();
     
@@ -168,7 +166,11 @@ void BSSN::RKEvolvePatchBD(
     //    throw(-1);
     //initialize dx for each patch
     const real_t * dx = &(patch_geom->getDx())[0];
-  
+
+    const idx_t * lower = &boundary_fill_box.lower()[0];
+    const idx_t * upper = &boundary_fill_box.upper()[0];
+
+    
     for(int k = lower[2]; k <= upper[2]; k++)
     {
       for(int j = lower[1]; j <= upper[1]; j++)
@@ -201,8 +203,6 @@ void BSSN::RKEvolvePatchBD(
     
     if(boundary_fill_box.empty()) continue;  
 
-    const idx_t * lower = &boundary_fill_box.lower()[0];
-    const idx_t * upper = &boundary_fill_box.upper()[0];
 
     idx_t l_idx = codim2_boxes[i].getLocationIndex();
     
@@ -238,7 +238,11 @@ void BSSN::RKEvolvePatchBD(
 
     //initialize dx for each patch
     const real_t * dx = &(patch_geom->getDx())[0];
-  
+
+    const idx_t * lower = &boundary_fill_box.lower()[0];
+    const idx_t * upper = &boundary_fill_box.upper()[0];
+
+    
     for(int k = lower[2]; k <= upper[2]; k++)
     {
       for(int j = lower[1]; j <= upper[1]; j++)
@@ -265,11 +269,13 @@ void BSSN::RKEvolvePatchBD(
 
   for(int i = 0 ; i < n_codim3_boxes; i++)
   {
-    const hier::Box & boundary_fill_box =
+    hier::Box boundary_fill_box =
       geom->getBoundaryFillBox(
         codim3_boxes[i], patch_box, DIFFchi_a_pdata->getGhostCellWidth());
 
     if(boundary_fill_box.empty()) continue;
+
+    idx_t l_idx = codim3_boxes[i].getLocationIndex();
 
     std::vector<idx_t> shift_vec;
     
@@ -296,7 +302,6 @@ void BSSN::RKEvolvePatchBD(
     const idx_t * lower = &boundary_fill_box.lower()[0];
     const idx_t * upper = &boundary_fill_box.upper()[0];
 
-    idx_t l_idx = codim3_boxes[i].getLocationIndex();
     
     BSSNData bd = {0};
 
