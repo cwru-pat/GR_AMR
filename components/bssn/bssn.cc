@@ -271,6 +271,28 @@ void BSSN::RKEvolvePatchBD(
 
     if(boundary_fill_box.empty()) continue;
 
+    std::vector<idx_t> shift_vec;
+    
+    if(l_idx == 0 || l_idx == 2 || l_idx == 4 || l_idx == 6)
+      shift_vec.push_back(STENCIL_ORDER_WIDTH);
+    else
+      shift_vec.push_back(-STENCIL_ORDER_WIDTH);
+    
+    if(l_idx == 0 || l_idx == 1 || l_idx == 4 || l_idx == 5)
+      shift_vec.push_back(STENCIL_ORDER_WIDTH);
+    else
+      shift_vec.push_back(-STENCIL_ORDER_WIDTH);
+
+    if( l_idx == 0 || l_idx == 1 || l_idx == 2 || l_idx == 3)
+      shift_vec.push_back(STENCIL_ORDER_WIDTH);
+    else
+      shift_vec.push_back(-STENCIL_ORDER_WIDTH);
+
+    boundary_fill_box.shift(hier::IntVector(shift_vec));
+
+    boundary_fill_box *= patch_box;
+
+    
     const idx_t * lower = &boundary_fill_box.lower()[0];
     const idx_t * upper = &boundary_fill_box.upper()[0];
 
