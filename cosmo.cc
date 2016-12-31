@@ -1,6 +1,7 @@
 #include "cosmo_includes.h"
 #include "sims/sim.h"
 #include "sims/vacuum.h"
+#include "utils/CartesianCellDoubleQuadraticRefine.h"
 
 using namespace SAMRAI;
 using namespace cosmo;
@@ -33,7 +34,13 @@ int get_input_filename(
    return rval;
 }
 
-
+void add_extra_operators(
+  boost::shared_ptr<geom::CartesianGridGeometry>& grid_geometry)
+{
+  grid_geometry->addRefineOperator(
+    typeid(pdat::CellVariable<double>).name(),
+    boost::make_shared<geom::CartesianCellDoubleQuadraticRefine>());
+}
 
 int main(int argc, char* argv[])
 {
@@ -113,6 +120,9 @@ int main(int argc, char* argv[])
       "CartesianGridGeometry",
       input_db->getDatabase("CartesianGridGeometry")));
 
+  // add extra user defined operators to grid geometry
+  add_extra_operators(grid_geometry);
+  
   tbox::plog << "Grid Geometry:" << std::endl;
   grid_geometry->printClassData(tbox::plog);
   boost::shared_ptr<hier::PatchHierarchy> patch_hierarchy(

@@ -68,11 +68,11 @@ GriddingAlgorithm {
 }
 
 CosmoSim{
-  steps = 1000
+  steps = 2000
   do_plot = TRUE
-  dt_frac = 0.1
-  regridding_interval = 5000
-  adaption_threshold = 0.01
+  dt_frac = 0.05
+  regridding_interval = 100000
+  adaption_threshold = 0.005
   KO_damping_coefficient = 0.0 
 }
 
@@ -84,10 +84,11 @@ VacuumSim{
 BSSN{
   lapse = "OnePlusLog"
   Shift = "GammaDriver"
+  g_eta = 2
 }
 
 IO{
-  output_list = "DIFFchi","DIFFK"
-  output_interval = 10, 10
+  output_list = "DIFFchi","DIFFK", "beta1"
+  output_interval = 10, 10, 10
   gd_c = 1
 }

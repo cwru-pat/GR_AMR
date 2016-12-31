@@ -87,10 +87,14 @@ void CosmoSim::setRefineCoarsenOps(
   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
 
   
+  // space_refine_op =
+  //   grid_geometry.
+  //   lookupRefineOperator(bssnSim->DIFFchi, "LINEAR_REFINE");
   space_refine_op =
     grid_geometry.
-    lookupRefineOperator(bssnSim->DIFFchi, "CONSERVATIVE_LINEAR_REFINE");
-
+    lookupRefineOperator(bssnSim->DIFFchi, "QUADRATIC_REFINE");
+  
+  TBOX_ASSERT(space_refine_op);
 
   space_coarsen_op =
     grid_geometry.

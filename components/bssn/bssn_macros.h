@@ -318,7 +318,7 @@
 #define BSSN_INIT_R_K3(field)  \
     field##_s(i,j,k) =         \
       (-field##_k1(i,j,k) + 2.0*field##_k2(i,j,k) \
-       + 4.0*field##_k3(i,j,k) + 3.0*field##_k4(i,j,k))/24.0
+       + 4.0*field##_k3(i,j,k) + 3.0*field##_k4(i,j,k))/16.0
 
 #define BSSN_INIT_R_K4(field)  \
     field##_s(i,j,k) =         \
@@ -587,8 +587,8 @@
     + upwind_derivative(bd->i, bd->j, bd->k, 1, Gamma##I##_a, dx, bd->beta1) \
     + upwind_derivative(bd->i, bd->j, bd->k, 2, Gamma##I##_a, dx, bd->beta2) \
     + upwind_derivative(bd->i, bd->j, bd->k, 3, Gamma##I##_a, dx, bd->beta3) \
-    - bd->Gamma1*bd->d1beta##I - bd->Gamma2*bd->d2beta##I - bd->Gamma3*bd->d3beta##I \
-    + (2.0/3.0) * bd->Gamma##I * (bd->d1beta1 + bd->d2beta2 + bd->d3beta3) \
+    - bd->Gammad1*bd->d1beta##I - bd->Gammad2*bd->d2beta##I - bd->Gammad3*bd->d3beta##I \
+    + (2.0/3.0) * bd->Gammad##I * (bd->d1beta1 + bd->d2beta2 + bd->d3beta3) \
     + (1.0/3.0) * ( \
         bd->gammai##I##1*double_derivative(bd->i, bd->j, bd->k, 1, 1, beta1##_a, dx) + bd->gammai##I##1*double_derivative(bd->i, bd->j, bd->k, 2, 1, beta2##_a, dx) + bd->gammai##I##1*double_derivative(bd->i, bd->j, bd->k, 3, 1, beta3##_a, dx) +  \
         bd->gammai##I##2*double_derivative(bd->i, bd->j, bd->k, 1, 2, beta1##_a, dx) + bd->gammai##I##2*double_derivative(bd->i, bd->j, bd->k, 2, 2, beta2##_a, dx) + bd->gammai##I##2*double_derivative(bd->i, bd->j, bd->k, 3, 2, beta3##_a, dx) +  \
