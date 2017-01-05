@@ -25,8 +25,8 @@ TreeLoadBalancer {
 }
 
 BergerRigoutsos {
-   combine_efficiency = 0.95
-   efficiency_tolerance = 0.95
+   combine_efficiency = 0.1
+   efficiency_tolerance = 0.1
 }
 
 TimerManager{
@@ -43,7 +43,7 @@ PatchHierarchy {
       // all finer levels will use same values as level_0...
    }
    smallest_patch_size {
-      level_0 = 4, 4, 4   
+      level_0 = 1, 1, 1   
       // all finer levels will use same values as level_0...
    }
    ratio_to_coarser {
@@ -68,12 +68,14 @@ GriddingAlgorithm {
 }
 
 CosmoSim{
-  steps = 2000
+  steps = 5000
   do_plot = TRUE
   dt_frac = 0.05
   regridding_interval = 100000
   adaption_threshold = 0.005
-  KO_damping_coefficient = 0.0 
+  KO_damping_coefficient = 0.0
+  refine_op_type = "LINEAR_REFINE"
+  coarsen_op_type = "CONSERVATIVE_COARSEN"
 }
 
 VacuumSim{
@@ -85,10 +87,14 @@ BSSN{
   lapse = "OnePlusLog"
   Shift = "GammaDriver"
   g_eta = 2
+  normalize_gammaij_Aij = FALSE
+  ccz4_k1 = 0.1
+  ccz4_k2 = 0
+  ccz4_k3 = 0.5
 }
 
 IO{
-  output_list = "DIFFchi","DIFFK", "beta1"
-  output_interval = 10, 10, 10
+  output_list = "DIFFchi","DIFFK"
+  output_interval = 50, 50
   gd_c = 1
 }

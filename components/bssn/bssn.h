@@ -64,12 +64,12 @@ public:
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
   void RKEvolvePatchBD(const boost::shared_ptr<hier::Patch> & patch, real_t dt);
 
-#if USE_CCZ4
-  void initZ(
-    const boost::shared_ptr<hier::PatchLevel> & level);
-  void initZ(
-    const boost::shared_ptr<hier::Patch> & patch);
-#endif
+  void set_DIFFgamma_Aij_norm(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
+  void set_DIFFgamma_Aij_norm(
+    const boost::shared_ptr<hier::PatchLevel>& level);
+
+  
 
   void RKEvolvePatch(
     const boost::shared_ptr<hier::Patch> & patch, real_t dt);
@@ -152,7 +152,7 @@ public:
   void calculate_conformal_christoffels(BSSNData *bd, const real_t dx[]);
 
     /* Calculate doubly-"dependent" quantities (depend on previously calc'd vals) */
-  void calculateDDphi(BSSNData *bd, const real_t dx[]);
+  void calculateDDchi(BSSNData *bd, const real_t dx[]);
   void calculateRicciTF(BSSNData *bd, const real_t dx[]);
   void calculateDDalphaTF(BSSNData *bd, const real_t dx[]);
   void calculateDZ(BSSNData *bd, const real_t dx[]);
@@ -239,6 +239,10 @@ public:
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
     idx_t weight_idx);
 
+  void output_L2_H_constaint(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    idx_t weight_idx);
+
   /* constraint violation calculations */
 
   real_t hamiltonianConstraintCalc(BSSNData *bd, const real_t dx[]);
@@ -251,6 +255,9 @@ public:
   // Domain size
   idx_t L[DIM];
 
+  bool normalize_gammaij_Aij;
+
+  real_t Z4c_K1_DAMPING_AMPLITUDE, Z4c_K2_DAMPING_AMPLITUDE, Z4c_K3_DAMPING_AMPLITUDE;
 };
 
 }

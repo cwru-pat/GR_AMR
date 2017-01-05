@@ -23,8 +23,6 @@ VacuumSim::VacuumSim(
 
   std::string bd_type = cosmo_vacuum_db->getString("boundary_type");
 
-  //TBOX_ASSERT(bd_type);
-
   
   if(bd_type == "sommerfield")
   {
@@ -82,7 +80,7 @@ void VacuumSim::setICs(
     int pre_level_num = hierarchy->getNumberOfLevels();
     std::vector<int> tag_buffer(hierarchy->getMaxNumberOfLevels());
     for (idx_t ln = 0; ln < static_cast<int>(tag_buffer.size()); ++ln) {
-      tag_buffer[ln] = 0;
+      tag_buffer[ln] = 1;
     }
     gridding_algorithm->regridAllFinerLevels(
       0,
@@ -110,17 +108,16 @@ void VacuumSim::initLevel(
 {
   std::string ic_type = cosmo_vacuum_db->getString("ic_type");
 
-  //TBOX_ASSERT(ic_type);
-
   boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
-  
+
+  math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
+
+  BSSN_APPLY_TO_FIELDS_ARGS(RK4_ARRAY_ZERO,hcellmath);
+  BSSN_APPLY_TO_SOURCES_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
+  BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
+
   if(ic_type == "static_blackhole")
   {
-    math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
-
-    BSSN_APPLY_TO_FIELDS_ARGS(RK4_ARRAY_ZERO,hcellmath);
-    BSSN_APPLY_TO_SOURCES_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
-    BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
 
     bssn_ic_static_blackhole(hierarchy,ln);
     
@@ -128,24 +125,6 @@ void VacuumSim::initLevel(
   else
     TBOX_ERROR("Undefined IC type!\n");
 
-  // xfer::RefineAlgorithm refiner;
-  // boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
-  // //BSSN_APPLY_TO_FIELDS_ARGS(VAC_REGISTER_SPACE_REFINE_A,refiner,space_refine_op);
-
-  // refiner.registerRefine(bssnSim->DIFFchi_a_idx,  
-  //                        bssnSim->DIFFchi_a_idx,  
-  //                        bssnSim->DIFFchi_a_idx,  
-  //                        space_refine_op);
-
-  
-  // refine_schedule =
-  //   refiner.createSchedule(level);
-
-  // tbox::pout<<"starting filling ghost cells...\n";
-  // level->getBoxLevel()->getMPI().Barrier();
-  // refine_schedule->fillData(0.0);
-  // level->getBoxLevel()->getMPI().Barrier();
-  // tbox::pout<<"ending filling ghost cells...\n";
 }
 
   
@@ -286,102 +265,88 @@ void VacuumSim::initializeLevelData(
      level->allocatePatchData(weight_idx);
    }
    
-   if(init_data_time < EPS) //at beginning
+   if(init_data_time < EPS)
+   //at beginning, get initial value somehow directly
    {
      initLevel(patch_hierarchy, ln);
 
-     bssnSim->copyAToP(hcellmath);
-   
-     computeVectorWeights(hierarchy);
-
-     return;
-   }
-   tbox::pout<<"Flag\n";
-   //BSSN_APPLY_TO_FIELDS_ARGS(RK4_ARRAY_ZERO,hcellmath);
-   BSSN_APPLY_TO_SOURCES_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
-   BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
-       
-   /*
-    * Refine solution data from coarser level and, if provided, old level.
-    */
-   
-   xfer::RefineAlgorithm refiner;
-
-   boost::shared_ptr<hier::RefineOperator> accurate_refine_op =
-     space_refine_op;
-     
-   TBOX_ASSERT(accurate_refine_op);
-
-   //registering refine variables
-   BSSN_APPLY_TO_FIELDS_ARGS(VAC_REGISTER_SPACE_REFINE_A,refiner,accurate_refine_op);
-                             
-   boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
-
-   level->getBoxLevel()->getMPI().Barrier();
-   if (ln > 0)
-   {
-     /*
-      * Include coarser levels in setting data
-      */
-     refine_schedule =
-       refiner.createSchedule(
-         level,
-         old_level,
-         ln - 1,
-         hierarchy,
-         cosmoPS);
    }
    else
    {
+     //BSSN_APPLY_TO_FIELDS_ARGS(RK4_ARRAY_ZERO,hcellmath);
+     BSSN_APPLY_TO_SOURCES_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
+     BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
+       
      /*
-      * There is no coarser level, and source data comes only
-      * from old_level, if any.
+      * Refine solution data from coarser level and, if provided, old level.
       */
-     if (old_level)
+   
+     xfer::RefineAlgorithm refiner;
+
+     boost::shared_ptr<hier::RefineOperator> accurate_refine_op =
+       space_refine_op;
+     
+     TBOX_ASSERT(accurate_refine_op);
+
+     //registering refine variables
+     BSSN_APPLY_TO_FIELDS_ARGS(VAC_REGISTER_SPACE_REFINE_A,refiner,accurate_refine_op);
+                             
+     boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
+
+     level->getBoxLevel()->getMPI().Barrier();
+     if (ln > 0)
      {
+       /*
+        * Include coarser levels in setting data
+        */
        refine_schedule =
-         refiner.createSchedule(level,
-                                old_level,
-                                NULL);
+         refiner.createSchedule(
+           level,
+           old_level,
+           ln - 1,
+           hierarchy,
+           cosmoPS);
      }
      else
      {
-       refine_schedule =
-         refiner.createSchedule(level,
-                                level,
-                                NULL);
+       /*
+        * There is no coarser level, and source data comes only
+        * from old_level, if any.
+        */
+       if (old_level)
+       {
+         refine_schedule =
+           refiner.createSchedule(level,
+                                  old_level,
+                                  NULL);
+       }
+       else
+       {
+         refine_schedule =
+           refiner.createSchedule(level,
+                                  level,
+                                  NULL);
+       }
      }
-   }
-   level->getBoxLevel()->getMPI().Barrier();
+     level->getBoxLevel()->getMPI().Barrier();
      
 
-   if (refine_schedule)
-   {
-     refine_schedule->fillData(0.0);
-     // It is null if this is the bottom level.
+     if (refine_schedule)
+     {
+       refine_schedule->fillData(0.0);
+       // It is null if this is the bottom level.
+     }
+     else
+     {
+       TBOX_ERROR(
+         "Can not get refine schedule, check your code!\n");
+     }
    }
-   else
-   {
-     TBOX_ERROR(
-       "Can not get refine schedule, check your code!\n");
-   }
-
-
-   //BSSN_APPLY_TO_FIELDS(BSSN_COPY_A_TO_P);
    bssnSim->copyAToP(hcellmath);
    
    level->getBoxLevel()->getMPI().Barrier();
    /* Set vector weight. */
    computeVectorWeights(hierarchy);
-   //hierarchy->recursivePrint(tbox::plog, "\t", 2);
-   // for( hier::PatchLevel::iterator pit(level->begin());
-   //      pit != level->end(); ++pit)
-   // {
-   //   const boost::shared_ptr<hier::Patch> & patch = *pit;
-   //   //patch->recursivePrint(tbox::plog, "\t", 2);
-   //   cosmo_io->printPatch(patch, tbox::plog, bssnSim->DIFFK_a_idx);
-   // }
-   //hier::VariableDatabase::getDatabase()->printClassData(tbox::plog);
 }
 
 void VacuumSim::applyGradientDetector(
@@ -444,7 +409,6 @@ void VacuumSim::applyGradientDetector(
                                   << " does not exist for patch.\n");
       }
       pdat::CellData<idx_t>& tag_cell_data = *tag_cell_data_;
-      //pdat::CellData<real_t> & weight = *weight_;
           
       tag_cell_data.fill(0);
       
@@ -472,24 +436,13 @@ void VacuumSim::applyGradientDetector(
          }
        
       }
-      /*for (hier::Box::iterator i(patch.getBox().begin()); i != iend; ++i)
-      {
-         const pdat::CellIndex cell_index(*i);
-         if(ln == 2)
-         {
-           const pdat::CellIndex c2(hier::Index(128-cell_index(0)-1, cell_index(1), cell_index(2)));
-           if(tag_cell_data(c2) != tag_cell_data(cell_index))
-             tbox::pout<<"Ooooops "<<cell_index(0)<<" "<<ln<<"\n";
-         }
-
-         }*/
 
    }
-const tbox::SAMRAI_MPI& mpi(hierarchy.getMPI());
-if (mpi.getSize() > 1)
- {
-   mpi.AllReduce(&max_der_norm, 1, MPI_MAX);
- }
+   const tbox::SAMRAI_MPI& mpi(hierarchy.getMPI());
+   if (mpi.getSize() > 1)
+   {
+     mpi.AllReduce(&max_der_norm, 1, MPI_MAX);
+   }
 
    tbox::plog << "Adaption threshold is " << adaption_threshold << "\n";
    tbox::plog << "Number of cells tagged on level " << ln << " is "
@@ -500,18 +453,13 @@ if (mpi.getSize() > 1)
 void VacuumSim::outputVacuumStep(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
-    // prepBSSNOutput();
-    // io_bssn_fields_snapshot(iodata, step, bssnSim->fields);
-    // io_bssn_fields_powerdump(iodata, step, bssnSim->fields, fourier);
-    // io_bssn_dump_statistics(iodata, step, bssnSim->fields, bssnSim->frw);
-    // io_bssn_constraint_violation(iodata, step, bssnSim);
   boost::shared_ptr<appu::VisItDataWriter> visit_writer(
     new appu::VisItDataWriter(
     dim, "VisIt Writer", vis_filename + ".visit"));
 
   tbox::pout<<"step: "<<step<<"/"<<num_steps<<"\n";
   
-  bssnSim->output_max_H_constaint(hierarchy, weight_idx);
+  bssnSim->output_L2_H_constaint(hierarchy, weight_idx);
  
   cosmo_io->registerVariablesWithPlotter(*visit_writer, step);
   cosmo_io->dumpData(hierarchy, *visit_writer, step, cur_t);
@@ -561,18 +509,12 @@ void VacuumSim::runStep(
 void VacuumSim::addBSSNExtras(
   const boost::shared_ptr<hier::PatchLevel> & level)
 {
-#if USE_CCZ4
-  bssnSim->initZ(level);
-#endif
   return;
 }
 
 void VacuumSim::addBSSNExtras(
   const boost::shared_ptr<hier::Patch> & patch)
 {
-#if USE_CCZ4
-  bssnSim->initZ(patch);
-#endif
   return;
 }
 
@@ -743,7 +685,7 @@ void VacuumSim::advanceLevel(
   const boost::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
 
-  //updating extra fields like (Z^i) before advance any level
+  //updating extra fields like before advance any level
   addBSSNExtras(level);
 
   bssnSim->setLevelTime(level, from_t, to_t);
@@ -791,11 +733,13 @@ void VacuumSim::advanceLevel(
     refine_schedule->fillData(to_t);
   }
 
-  // copy _a to _p and set _p time to next timestamp1
+  // copy _a to _p and set _p time to next timestamp
 
   math::HierarchyCellDataOpsReal<real_t> hcellmath(hierarchy,ln,ln);
 
-  //bssnSim->swapPF(hcellmath);
+
+  bssnSim->set_DIFFgamma_Aij_norm(level);
+  
   bssnSim->copyAToP(hcellmath);
 
   bssnSim->setLevelTime(level, to_t, to_t);

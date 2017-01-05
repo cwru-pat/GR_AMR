@@ -23,8 +23,14 @@ BSSN::BSSN(
   dim(dim_in),
   KO_damping_coefficient(KO_damping_coefficient_in),
   gaugeHandler(new BSSNGaugeHandler(cosmo_bssn_db)),
-  g_eta(cosmo_bssn_db->getDoubleWithDefault("g_eta",1.0))
+  g_eta(cosmo_bssn_db->getDoubleWithDefault("g_eta",1.0)),
+  normalize_gammaij_Aij(cosmo_bssn_db->getBoolWithDefault("normalize_gammaij_Aij",false)),
+  Z4c_K1_DAMPING_AMPLITUDE(cosmo_bssn_db->getDoubleWithDefault("ccz4_k1", 0.0)),
+  Z4c_K2_DAMPING_AMPLITUDE(cosmo_bssn_db->getDoubleWithDefault("ccz4_k2", 0.0)),
+  Z4c_K3_DAMPING_AMPLITUDE(cosmo_bssn_db->getDoubleWithDefault("ccz4_k3", 0.0))
 {
+  if(!USE_CCZ4)
+    Z4c_K1_DAMPING_AMPLITUDE = Z4c_K2_DAMPING_AMPLITUDE = Z4c_K3_DAMPING_AMPLITUDE = 0;
   
   BSSN_APPLY_TO_FIELDS(VAR_INIT);
   BSSN_APPLY_TO_SOURCES(VAR_INIT);
@@ -78,6 +84,194 @@ BSSN::~BSSN()
  * @details BSSN fields initialized to a flat (difference) metric with zero source;
  * thus all fields in all registers are zeroed. Reference integrator unaffected.
  */
+void BSSN::set_DIFFgamma_Aij_norm(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+{
+  idx_t ln_num = hierarchy->getNumberOfLevels();
+
+  for (idx_t ln = 0; ln < ln_num; ln++)
+  {
+    /*
+     * On every level, first assign cell volume to vector weight.
+     */
+    boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+    for (hier::PatchLevel::iterator p(level->begin());
+         p != level->end(); ++p)
+    {
+      const boost::shared_ptr<hier::Patch>& patch = *p;
+
+      initPData(patch);
+      initMDA(patch);
+
+      boost::shared_ptr<geom::CartesianPatchGeometry> patch_geometry(
+        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+          patch->getPatchGeometry()));
+
+        const hier::Box& box = patch->getBox();
+  
+        const int * lower = &box.lower()[0];
+        const int * upper = &box.upper()[0];
+
+        
+        for(int k = lower[2]; k <= upper[2]; k++)
+        {
+          for(int j = lower[1]; j <= upper[1]; j++)
+          {
+            for(int i = lower[0]; i <= upper[0]; i++)
+            {
+              // 1 - det(1 + DiffGamma)
+              real_t one_minus_det_gamma = -1.0*(
+                DIFFgamma11_a(i,j,k) + DIFFgamma22_a(i,j,k) + DIFFgamma33_a(i,j,k)
+                - pw2(DIFFgamma12_a(i,j,k)) - pw2(DIFFgamma13_a(i,j,k)) - pw2(DIFFgamma23_a(i,j,k))
+                + DIFFgamma11_a(i,j,k)*DIFFgamma22_a(i,j,k) + DIFFgamma11_a(i,j,k)*DIFFgamma33_a(i,j,k) + DIFFgamma22_a(i,j,k)*DIFFgamma33_a(i,j,k)
+                - pw2(DIFFgamma23_a(i,j,k))*DIFFgamma11_a(i,j,k) - pw2(DIFFgamma13_a(i,j,k))*DIFFgamma22_a(i,j,k) - pw2(DIFFgamma12_a(i,j,k))*DIFFgamma33_a(i,j,k)
+                + 2.0*DIFFgamma12_a(i,j,k)*DIFFgamma13_a(i,j,k)*DIFFgamma23_a(i,j,k) + DIFFgamma11_a(i,j,k)*DIFFgamma22_a(i,j,k)*DIFFgamma33_a(i,j,k)
+              );
+
+              // accurately compute 1 - det(g)^(1/3), without roundoff error
+              // = -( det(g)^(1/3) - 1 )
+              // = -( exp{log[det(g)^(1/3)]} - 1 )
+              // = -( expm1{log[det(g)]/3} )
+              // = -expm1{log1p[-one_minus_det_gamma]/3.0}
+              real_t one_minus_det_gamma_thirdpow = -1.0*expm1(log1p(-1.0*one_minus_det_gamma)/3.0);
+
+              // Perform the equivalent of re-scaling the conformal metric so det(gamma) = 1
+              // gamma -> gamma / det(gamma)^(1/3)
+              // DIFFgamma -> (delta + DiffGamma) / det(gamma)^(1/3) - delta
+              //            = ( DiffGamma + delta*[1 - det(gamma)^(1/3)] ) / ( 1 - [1 - det(1 + DiffGamma)^1/3] )
+              DIFFgamma11_a(i,j,k) = DIFFgamma11_p(i,j,k) = (DIFFgamma11_a(i,j,k) + one_minus_det_gamma_thirdpow) / (1.0 - one_minus_det_gamma_thirdpow);
+              DIFFgamma22_a(i,j,k) = DIFFgamma22_p(i,j,k) = (DIFFgamma22_a(i,j,k) + one_minus_det_gamma_thirdpow) / (1.0 - one_minus_det_gamma_thirdpow);
+              DIFFgamma33_a(i,j,k) = DIFFgamma33_p(i,j,k) = (DIFFgamma33_a(i,j,k) + one_minus_det_gamma_thirdpow) / (1.0 - one_minus_det_gamma_thirdpow);
+              DIFFgamma12_a(i,j,k) = DIFFgamma12_p(i,j,k) = (DIFFgamma12_a(i,j,k)) / (1.0 - one_minus_det_gamma_thirdpow);
+              DIFFgamma13_a(i,j,k) = DIFFgamma13_p(i,j,k) = (DIFFgamma13_a(i,j,k)) / (1.0 - one_minus_det_gamma_thirdpow);
+              DIFFgamma23_a(i,j,k) = DIFFgamma23_p(i,j,k) = (DIFFgamma23_a(i,j,k)) / (1.0 - one_minus_det_gamma_thirdpow);
+
+              // re-scale A_ij / ensure it is trace-free
+              // need inverse gamma for finding Tr(A)
+              real_t gammai11 = 1.0 + DIFFgamma22_a(i,j,k) + DIFFgamma33_a(i,j,k) - pw2(DIFFgamma23_a(i,j,k)) + DIFFgamma22_a(i,j,k)*DIFFgamma33_a(i,j,k);
+              real_t gammai22 = 1.0 + DIFFgamma11_a(i,j,k) + DIFFgamma33_a(i,j,k) - pw2(DIFFgamma13_a(i,j,k)) + DIFFgamma11_a(i,j,k)*DIFFgamma33_a(i,j,k);
+              real_t gammai33 = 1.0 + DIFFgamma11_a(i,j,k) + DIFFgamma22_a(i,j,k) - pw2(DIFFgamma12_a(i,j,k)) + DIFFgamma11_a(i,j,k)*DIFFgamma22_a(i,j,k);
+              real_t gammai12 = DIFFgamma13_a(i,j,k)*DIFFgamma23_a(i,j,k) - DIFFgamma12_a(i,j,k)*(1.0 + DIFFgamma33_a(i,j,k));
+              real_t gammai13 = DIFFgamma12_a(i,j,k)*DIFFgamma23_a(i,j,k) - DIFFgamma13_a(i,j,k)*(1.0 + DIFFgamma22_a(i,j,k));
+              real_t gammai23 = DIFFgamma12_a(i,j,k)*DIFFgamma13_a(i,j,k) - DIFFgamma23_a(i,j,k)*(1.0 + DIFFgamma11_a(i,j,k));
+              real_t trA = gammai11*A11_a(i,j,k) + gammai22*A22_a(i,j,k) + gammai33*A33_a(i,j,k)
+                + 2.0*(gammai12*A12_a(i,j,k) + gammai13*A13_a(i,j,k) + gammai23*A23_a(i,j,k));
+              // A_ij -> ( A_ij - 1/3 gamma_ij A )
+              A11_a(i,j,k) = A11_p(i,j,k) = ( A11_a(i,j,k) - 1.0/3.0*(1.0 + DIFFgamma11_a(i,j,k))*trA ) / (1.0 - one_minus_det_gamma_thirdpow);
+              A22_a(i,j,k) = A22_p(i,j,k) = ( A22_a(i,j,k) - 1.0/3.0*(1.0 + DIFFgamma22_a(i,j,k))*trA ) / (1.0 - one_minus_det_gamma_thirdpow);
+              A33_a(i,j,k) = A33_p(i,j,k) = ( A33_a(i,j,k) - 1.0/3.0*(1.0 + DIFFgamma33_a(i,j,k))*trA ) / (1.0 - one_minus_det_gamma_thirdpow);
+              A12_a(i,j,k) = A12_p(i,j,k) = ( A12_a(i,j,k) - 1.0/3.0*DIFFgamma12_a(i,j,k)*trA ) / (1.0 - one_minus_det_gamma_thirdpow);
+              A13_a(i,j,k) = A13_p(i,j,k) = ( A13_a(i,j,k) - 1.0/3.0*DIFFgamma13_a(i,j,k)*trA ) / (1.0 - one_minus_det_gamma_thirdpow);
+              A23_a(i,j,k) = A23_p(i,j,k) = ( A23_a(i,j,k) - 1.0/3.0*DIFFgamma23_a(i,j,k)*trA ) / (1.0 - one_minus_det_gamma_thirdpow);
+
+            }
+          }
+        }
+
+    }
+
+    /*
+     * On all but the finest level, assign 0 to vector
+     * weight to cells covered by finer cells.
+     */
+
+  // all levels except finest
+  }  // loop over levels
+
+}
+
+void BSSN::set_DIFFgamma_Aij_norm(
+  const boost::shared_ptr<hier::PatchLevel>& level)
+{
+  if(!normalize_gammaij_Aij) return;
+  for (hier::PatchLevel::iterator p(level->begin());
+       p != level->end(); ++p)
+  {
+    const boost::shared_ptr<hier::Patch>& patch = *p;
+
+    initPData(patch);
+    initMDA(patch);
+
+    boost::shared_ptr<geom::CartesianPatchGeometry> patch_geometry(
+      BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+        patch->getPatchGeometry()));
+
+    const hier::Box& box = patch->getBox();
+  
+    const int * lower = &box.lower()[0];
+    const int * upper = &box.upper()[0];
+
+        
+    for(int k = lower[2]; k <= upper[2]; k++)
+    {
+      for(int j = lower[1]; j <= upper[1]; j++)
+      {
+        for(int i = lower[0]; i <= upper[0]; i++)
+        {
+          // 1 - det(1 + DiffGamma)
+          real_t one_minus_det_gamma = -1.0*(
+            DIFFgamma11_a(i,j,k) + DIFFgamma22_a(i,j,k) + DIFFgamma33_a(i,j,k)
+            - pw2(DIFFgamma12_a(i,j,k)) - pw2(DIFFgamma13_a(i,j,k)) - pw2(DIFFgamma23_a(i,j,k))
+            + DIFFgamma11_a(i,j,k)*DIFFgamma22_a(i,j,k)
+            + DIFFgamma11_a(i,j,k)*DIFFgamma33_a(i,j,k)
+            + DIFFgamma22_a(i,j,k)*DIFFgamma33_a(i,j,k)
+            - pw2(DIFFgamma23_a(i,j,k))*DIFFgamma11_a(i,j,k)
+            - pw2(DIFFgamma13_a(i,j,k))*DIFFgamma22_a(i,j,k)
+            - pw2(DIFFgamma12_a(i,j,k))*DIFFgamma33_a(i,j,k)
+            + 2.0*DIFFgamma12_a(i,j,k)*DIFFgamma13_a(i,j,k)*DIFFgamma23_a(i,j,k)
+            + DIFFgamma11_a(i,j,k)*DIFFgamma22_a(i,j,k)*DIFFgamma33_a(i,j,k)
+          );
+
+          // accurately compute 1 - det(g)^(1/3), without roundoff error
+          // = -( det(g)^(1/3) - 1 )
+          // = -( exp{log[det(g)^(1/3)]} - 1 )
+          // = -( expm1{log[det(g)]/3} )
+          // = -expm1{log1p[-one_minus_det_gamma]/3.0}
+          real_t one_minus_det_gamma_thirdpow = -1.0*expm1(log1p(-1.0*one_minus_det_gamma)/3.0);
+
+          // Perform the equivalent of re-scaling the conformal metric so det(gamma) = 1
+          // gamma -> gamma / det(gamma)^(1/3)
+          // DIFFgamma -> (delta + DiffGamma) / det(gamma)^(1/3) - delta
+          //            = ( DiffGamma + delta*[1 - det(gamma)^(1/3)] ) / ( 1 - [1 - det(1 + DiffGamma)^1/3] )
+          DIFFgamma11_a(i,j,k) = (DIFFgamma11_a(i,j,k) + one_minus_det_gamma_thirdpow) / (1.0 - one_minus_det_gamma_thirdpow);
+          DIFFgamma22_a(i,j,k) = (DIFFgamma22_a(i,j,k) + one_minus_det_gamma_thirdpow) / (1.0 - one_minus_det_gamma_thirdpow);
+          DIFFgamma33_a(i,j,k) = (DIFFgamma33_a(i,j,k) + one_minus_det_gamma_thirdpow) / (1.0 - one_minus_det_gamma_thirdpow);
+          DIFFgamma12_a(i,j,k) = (DIFFgamma12_a(i,j,k)) / (1.0 - one_minus_det_gamma_thirdpow);
+          DIFFgamma13_a(i,j,k) = (DIFFgamma13_a(i,j,k)) / (1.0 - one_minus_det_gamma_thirdpow);
+          DIFFgamma23_a(i,j,k) = (DIFFgamma23_a(i,j,k)) / (1.0 - one_minus_det_gamma_thirdpow);
+
+          // re-scale A_ij / ensure it is trace-free
+          // need inverse gamma for finding Tr(A)
+          real_t gammai11 = 1.0 + DIFFgamma22_a(i,j,k) + DIFFgamma33_a(i,j,k) - pw2(DIFFgamma23_a(i,j,k)) + DIFFgamma22_a(i,j,k)*DIFFgamma33_a(i,j,k);
+          real_t gammai22 = 1.0 + DIFFgamma11_a(i,j,k) + DIFFgamma33_a(i,j,k) - pw2(DIFFgamma13_a(i,j,k)) + DIFFgamma11_a(i,j,k)*DIFFgamma33_a(i,j,k);
+          real_t gammai33 = 1.0 + DIFFgamma11_a(i,j,k) + DIFFgamma22_a(i,j,k) - pw2(DIFFgamma12_a(i,j,k)) + DIFFgamma11_a(i,j,k)*DIFFgamma22_a(i,j,k);
+          real_t gammai12 = DIFFgamma13_a(i,j,k)*DIFFgamma23_a(i,j,k) - DIFFgamma12_a(i,j,k)*(1.0 + DIFFgamma33_a(i,j,k));
+          real_t gammai13 = DIFFgamma12_a(i,j,k)*DIFFgamma23_a(i,j,k) - DIFFgamma13_a(i,j,k)*(1.0 + DIFFgamma22_a(i,j,k));
+          real_t gammai23 = DIFFgamma12_a(i,j,k)*DIFFgamma13_a(i,j,k) - DIFFgamma23_a(i,j,k)*(1.0 + DIFFgamma11_a(i,j,k));
+          real_t trA = gammai11*A11_a(i,j,k) + gammai22*A22_a(i,j,k) + gammai33*A33_a(i,j,k)
+            + 2.0*(gammai12*A12_a(i,j,k) + gammai13*A13_a(i,j,k) + gammai23*A23_a(i,j,k));
+          // A_ij -> ( A_ij - 1/3 gamma_ij A )
+          A11_a(i,j,k) = ( A11_a(i,j,k) - 1.0/3.0*(1.0 + DIFFgamma11_a(i,j,k))*trA ) / (1.0 - one_minus_det_gamma_thirdpow);
+          A22_a(i,j,k) = ( A22_a(i,j,k) - 1.0/3.0*(1.0 + DIFFgamma22_a(i,j,k))*trA ) / (1.0 - one_minus_det_gamma_thirdpow);
+          A33_a(i,j,k) = ( A33_a(i,j,k) - 1.0/3.0*(1.0 + DIFFgamma33_a(i,j,k))*trA ) / (1.0 - one_minus_det_gamma_thirdpow);
+          A12_a(i,j,k) = ( A12_a(i,j,k) - 1.0/3.0*DIFFgamma12_a(i,j,k)*trA ) / (1.0 - one_minus_det_gamma_thirdpow);
+          A13_a(i,j,k) = ( A13_a(i,j,k) - 1.0/3.0*DIFFgamma13_a(i,j,k)*trA ) / (1.0 - one_minus_det_gamma_thirdpow);
+          A23_a(i,j,k) = ( A23_a(i,j,k) - 1.0/3.0*DIFFgamma23_a(i,j,k)*trA ) / (1.0 - one_minus_det_gamma_thirdpow);
+
+        }
+      }
+    }
+
+  }
+
+  /*
+   * On all but the finest level, assign 0 to vector
+   * weight to cells covered by finer cells.
+   */
+
+}
+
+  
 void BSSN::init()
 {
   
@@ -107,9 +301,8 @@ void BSSN::stepInit(
     L[i] = domain_upper[i] - domain_lower[i];
 
   
-// # if NORMALIZE_GAMMAIJ_AIJ
-//     set_DIFFgamma_Aij_norm(); // norms _a register
-// # endif
+  //if(normalize_gammaij_Aij)
+  //set_DIFFgamma_Aij_norm(hierarchy); // norms _a register
 }
 
 void BSSN::RKEvolvePatchBD(
@@ -324,106 +517,6 @@ void BSSN::RKEvolvePatchBD(
   
 }
 
-#if USE_CCZ4
-void BSSN::initZ(
-  const boost::shared_ptr<hier::PatchLevel> & level)
-{
-  
-  for( hier::PatchLevel::iterator pit(level->begin());
-       pit != level->end(); ++pit)
-  {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
-    const hier::Box& box = DIFFchi_a_pdata->getBox();
-    const int * lower = &box.lower()[0];
-    const int * upper = &box.upper()[0];
-    BSSNData bd = {0};
-
-    initPData(patch);
-    initMDA(patch);
-    const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(  
-      BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
-        patch->getPatchGeometry()));
-
-
-    //initialize dx for each patch
-    const real_t * dx = &(patch_geom->getDx())[0];
-
-    for(int k = lower[2]; k <= upper[2]; k++)
-    {
-      for(int j = lower[1]; j <= upper[1]; j++)
-      {
-        for(int i = lower[0]; i <= upper[0]; i++)
-        {
-          set_bd_values_for_extra_fields(i,j,k,&bd,dx);
-          Z1_a(i,j,k) =
-            (bd.gamma11*(bd.Gamma1 - bd.Gammad1)
-             + bd.gamma12*(bd.Gamma2 - bd.Gammad2)
-             + bd.gamma13*(bd.Gamma3 - bd.Gammad3))/2.0;
-
-          Z2_a(i,j,k) =
-            (bd.gamma21*(bd.Gamma1 - bd.Gammad1)
-             + bd.gamma22*(bd.Gamma2 - bd.Gammad2)
-             + bd.gamma23*(bd.Gamma3 - bd.Gammad3))/2.0;
-
-          Z3_a(i,j,k) =
-            (bd.gamma31*(bd.Gamma1 - bd.Gammad1)
-             + bd.gamma32*(bd.Gamma2 - bd.Gammad2)
-             + bd.gamma33*(bd.Gamma3 - bd.Gammad3))/2.0;
-        }
-      }
-    }
-    
-  }
-
-}
-void BSSN::initZ(
-  const boost::shared_ptr<hier::Patch> & patch)
-{
-  
-  const hier::Box& box = DIFFchi_a_pdata->getGhostBox();
-  const int * lower = &box.lower()[0];
-  const int * upper = &box.upper()[0];
-  BSSNData bd = {0};
-
-  initPData(patch);
-  initMDA(patch);
-  const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(  
-    BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
-      patch->getPatchGeometry()));
-
-    
-  //initialize dx for each patch
-  const real_t * dx = &(patch_geom->getDx())[0];
-
-  for(int k = lower[2]; k <= upper[2]; k++)
-  {
-    for(int j = lower[1]; j <= upper[1]; j++)
-    {
-      for(int i = lower[0]; i <= upper[0]; i++)
-      {
-        set_bd_values_for_extra_fields(i,j,k,&bd,dx);
-        Z1_a(i,j,k) =
-          (bd.gamma11*(bd.Gamma1 - bd.Gammad1)
-           + bd.gamma12*(bd.Gamma2 - bd.Gammad2)
-           + bd.gamma13*(bd.Gamma3 - bd.Gammad3))/2.0;
-
-        Z2_a(i,j,k) =
-          (bd.gamma21*(bd.Gamma1 - bd.Gammad1)
-           + bd.gamma22*(bd.Gamma2 - bd.Gammad2)
-           + bd.gamma23*(bd.Gamma3 - bd.Gammad3))/2.0;
-
-        Z3_a(i,j,k) =
-          (bd.gamma31*(bd.Gamma1 - bd.Gammad1)
-           + bd.gamma32*(bd.Gamma2 - bd.Gammad2)
-           + bd.gamma33*(bd.Gamma3 - bd.Gammad3))/2.0;
-      }
-    }
-  }
-  
-
-}
-
-#endif
 /**
  * @brief Call BSSN::RKEvolvePt for all points
  */
@@ -956,6 +1049,7 @@ void BSSN::set_bd_values_for_extra_fields(
   
   calculate_dgamma(bd, dx);
   calculate_conformal_christoffels(bd, dx);
+
 }
 /**
  * @brief Populate values in a BSSNData struct
@@ -1005,9 +1099,6 @@ void BSSN::set_bd_values(idx_t i, idx_t j, idx_t k, BSSNData *bd, const real_t d
   calculate_ddgamma(bd,dx);
   calculate_dalpha_dchi(bd,dx);
   calculate_dK(bd,dx);
-# if USE_CCZ4
-  calculate_dtheta(bd,dx);
-# endif
 # if USE_BSSN_SHIFT
   calculate_dbeta(bd,dx);
 # endif
@@ -1018,14 +1109,17 @@ void BSSN::set_bd_values(idx_t i, idx_t j, idx_t k, BSSNData *bd, const real_t d
   // Christoffels depend on metric & derivs.
   calculate_conformal_christoffels(bd,dx);
   // DDw depend on christoffels, metric, and derivs
-  calculateDDphi(bd,dx);
+  calculateDDchi(bd,dx);
   calculateDDalphaTF(bd,dx);
-  // Ricci depends on DDphi
+  // Ricci depends on DDchi
   calculateRicciTF(bd,dx);
 
+# if USE_CCZ4
+  calculate_dtheta(bd,dx);
   calculateDZ(bd,dx);
+# endif
   // Hamiltonian constraint
-  //bd->H = hamiltonianConstraintCalc(bd,dx);
+
 }
 
 
@@ -1122,17 +1216,6 @@ void BSSN::calculate_dalpha_dchi(BSSNData *bd, const real_t dx[])
   bd->d1d2chi = double_derivative(bd->i, bd->j, bd->k, 1, 2, DIFFchi_a, dx);
   bd->d1d3chi = double_derivative(bd->i, bd->j, bd->k, 1, 3, DIFFchi_a, dx);
   bd->d2d3chi = double_derivative(bd->i, bd->j, bd->k, 2, 3, DIFFchi_a, dx);
-
-  bd->d1phi = - 0.5 * bd->d1chi / bd->chi;
-  bd->d2phi = - 0.5 * bd->d2chi / bd->chi;
-  bd->d3phi = - 0.5 * bd->d3chi / bd->chi;
-
-  bd->d1d1phi = 0.5*(bd->d1chi*bd->d1chi/pw2(bd->chi)-bd->d1d1chi/bd->chi); 
-  bd->d1d2phi = 0.5*(bd->d1chi*bd->d2chi/pw2(bd->chi)-bd->d1d2chi/bd->chi);
-  bd->d1d3phi = 0.5*(bd->d1chi*bd->d3chi/pw2(bd->chi)-bd->d1d3chi/bd->chi);
-  bd->d2d2phi = 0.5*(bd->d2chi*bd->d2chi/pw2(bd->chi)-bd->d2d2chi/bd->chi);
-  bd->d2d3phi = 0.5*(bd->d2chi*bd->d3chi/pw2(bd->chi)-bd->d2d3chi/bd->chi);
-  bd->d3d3phi = 0.5*(bd->d3chi*bd->d3chi/pw2(bd->chi)-bd->d3d3chi/bd->chi); 
   
   // normal derivatives of alpha
   bd->d1a = derivative(bd->i, bd->j, bd->k, 1, DIFFalpha_a, dx);
@@ -1212,43 +1295,37 @@ void BSSN::calculate_conformal_christoffels(BSSNData *bd, const real_t dx[])
     + 2.0*(bd->G312*bd->gammai12 + bd->G313*bd->gammai13 + bd->G323*bd->gammai23);
 }
 
-void BSSN::calculateDDphi(BSSNData *bd, const real_t dx[])
+void BSSN::calculateDDchi(BSSNData *bd, const real_t dx[])
 {
   // double covariant derivatives, using unitary metric
-  bd->D1D1phi = bd->d1d1phi - (bd->G111*bd->d1phi + bd->G211*bd->d2phi + bd->G311*bd->d3phi);
-  bd->D2D2phi = bd->d2d2phi - (bd->G122*bd->d1phi + bd->G222*bd->d2phi + bd->G322*bd->d3phi);
-  bd->D3D3phi = bd->d3d3phi - (bd->G133*bd->d1phi + bd->G233*bd->d2phi + bd->G333*bd->d3phi);
+  bd->D1D1chi = bd->d1d1chi - (bd->G111*bd->d1chi + bd->G211*bd->d2chi + bd->G311*bd->d3chi);
+  bd->D2D2chi = bd->d2d2chi - (bd->G122*bd->d1chi + bd->G222*bd->d2chi + bd->G322*bd->d3chi);
+  bd->D3D3chi = bd->d3d3chi - (bd->G133*bd->d1chi + bd->G233*bd->d2chi + bd->G333*bd->d3chi);
 
-  bd->D1D2phi = bd->d1d2phi - (bd->G112*bd->d1phi + bd->G212*bd->d2phi + bd->G312*bd->d3phi);
-  bd->D1D3phi = bd->d1d3phi - (bd->G113*bd->d1phi + bd->G213*bd->d2phi + bd->G313*bd->d3phi);
-  bd->D2D3phi = bd->d2d3phi - (bd->G123*bd->d1phi + bd->G223*bd->d2phi + bd->G323*bd->d3phi);  
+  bd->D1D2chi = bd->d1d2chi - (bd->G112*bd->d1chi + bd->G212*bd->d2chi + bd->G312*bd->d3chi);
+  bd->D1D3chi = bd->d1d3chi - (bd->G113*bd->d1chi + bd->G213*bd->d2chi + bd->G313*bd->d3chi);
+  bd->D2D3chi = bd->d2d3chi - (bd->G123*bd->d1chi + bd->G223*bd->d2chi + bd->G323*bd->d3chi);  
 }
 
+#if USE_CCZ4
 void BSSN::calculateDZ(BSSNData *bd, const real_t dx[])
 {
-  //
-  // bd->D1Z1 = derivative(bd->i, bd->j, bd->k, 1, Z1_a, dx)
-  //   - (bd->G111 * bd->Z1 + bd->G211 * bd->Z2 + bd->G311 * bd->Z3);
-  // bd->D2Z2 = derivative(bd->i, bd->j, bd->k, 2, Z2_a, dx)
-  //   - (bd->G122 * bd->Z1 + bd->G222 * bd->Z2 + bd->G322 * bd->Z3);
-  // bd->D3Z3 = derivative(bd->i, bd->j, bd->k, 3, Z3_a, dx)
-  //   - (bd->G133 * bd->Z1 + bd->G233 * bd->Z2 + bd->G333 * bd->Z3);
-  
-  // bd->D1Z2 = derivative(bd->i, bd->j, bd->k, 1, Z2_a, dx)
-  //   - (bd->G112 * bd->Z1 + bd->G212 * bd->Z2 + bd->G312 * bd->Z3);
-  // bd->D1Z3 = derivative(bd->i, bd->j, bd->k, 1, Z3_a, dx)
-  //   - (bd->G113 * bd->Z1 + bd->G213 * bd->Z2 + bd->G313 * bd->Z3);
-  // bd->D2Z3 = derivative(bd->i, bd->j, bd->k, 2, Z3_a, dx)
-  //   - (bd->G123 * bd->Z1 + bd->G223 * bd->Z2 + bd->G323 * bd->Z3);
+  BSSN_APPLY_TO_IJKL_PERMS(BSSN_CALCULATE_DDGAMMA);
 
-  // bd->D2Z1 = derivative(bd->i, bd->j, bd->k, 2, Z1_a, dx)
-  //   - (bd->G121 * bd->Z1 + bd->G221 * bd->Z2 + bd->G321 * bd->Z3);
-  // bd->D3Z1 = derivative(bd->i, bd->j, bd->k, 3, Z1_a, dx)
-  //   - (bd->G131 * bd->Z1 + bd->G231 * bd->Z2 + bd->G331 * bd->Z3);
-  // bd->D3Z2 = derivative(bd->i, bd->j, bd->k, 3, Z2_a, dx)
-  //   - (bd->G132 * bd->Z1 + bd->G232 * bd->Z2 + bd->G332 * bd->Z3);
+  BSSN_CALCULATE_ZI(1);
+  BSSN_CALCULATE_ZI(2);
+  BSSN_CALCULATE_ZI(3);
 
-  bd->D1Z1 = bd->D1Z2 =bd->D1Z3=bd->D2Z1=bd->D2Z2=bd->D2Z3=bd->D3Z1=bd->D3Z2=bd->D3Z3=0;
+  BSSN_CALCULATE_DIZJ(1,1);
+  BSSN_CALCULATE_DIZJ(1,2);
+  BSSN_CALCULATE_DIZJ(1,3);
+  BSSN_CALCULATE_DIZJ(2,1);
+  BSSN_CALCULATE_DIZJ(2,2);
+  BSSN_CALCULATE_DIZJ(2,3);
+  BSSN_CALCULATE_DIZJ(3,1);
+  BSSN_CALCULATE_DIZJ(3,2);
+  BSSN_CALCULATE_DIZJ(3,3);
+
   bd->DZTR = bd->gammai11 * bd->D1Z1 + bd->gammai22 * bd->D2Z2 + bd->gamma33 * bd->D3Z3
     + (bd->gammai12 * bd->D1Z2 + bd->gammai13 * bd->D1Z3 + bd->gamma23 * bd->D2Z3)
     + (bd->gammai21 * bd->D2Z1 + bd->gammai31 * bd->D3Z1 + bd->gamma32 * bd->D3Z2);
@@ -1267,14 +1344,15 @@ void BSSN::calculateDZ(BSSNData *bd, const real_t dx[])
 
   bd->DZTR *= pw2(bd->chi);
 }
+#endif
 
 void BSSN::calculateDDalphaTF(BSSNData *bd, const real_t dx[])
 {
   // double covariant derivatives - use non-unitary metric - extra pieces that depend on phi!
   // the gammaIldlphi are needed for the BSSN_CALCULATE_DIDJALPHA macro
-  real_t gammai1ldlphi = bd->gammai11*bd->d1phi + bd->gammai12*bd->d2phi + bd->gammai13*bd->d3phi;
-  real_t gammai2ldlphi = bd->gammai21*bd->d1phi + bd->gammai22*bd->d2phi + bd->gammai23*bd->d3phi;
-  real_t gammai3ldlphi = bd->gammai31*bd->d1phi + bd->gammai32*bd->d2phi + bd->gammai33*bd->d3phi;
+  real_t gammai1ldlchi = bd->gammai11*bd->d1chi + bd->gammai12*bd->d2chi + bd->gammai13*bd->d3chi;
+  real_t gammai2ldlchi = bd->gammai21*bd->d1chi + bd->gammai22*bd->d2chi + bd->gammai23*bd->d3chi;
+  real_t gammai3ldlchi = bd->gammai31*bd->d1chi + bd->gammai32*bd->d2chi + bd->gammai33*bd->d3chi;
   // Calculates full (not trace-free) piece:
   BSSN_APPLY_TO_IJ_PERMS(BSSN_CALCULATE_DIDJALPHA)
 
@@ -1304,6 +1382,7 @@ void BSSN::calculateRicciTF(BSSNData *bd, const real_t dx[])
 
   /* Phi- contribution */
 # if EXCLUDE_SECOND_ORDER_FRW
+  TBOX_ERROR("EXCLUDE_SECOND_ORDER_FRW cannot be true");
   real_t expression = (
     bd->gammai11*bd->D1D1phi + bd->gammai22*bd->D2D2phi + bd->gammai33*bd->D3D3phi
     + 2.0*( bd->gammai12*bd->D1D2phi + bd->gammai13*bd->D1D3phi + bd->gammai23*bd->D2D3phi )
@@ -1316,22 +1395,22 @@ void BSSN::calculateRicciTF(BSSNData *bd, const real_t dx[])
   bd->ricci33 = bd->Uricci33 - 2.0*( bd->D3D3phi + bd->gamma33*(expression) );
 # else
   real_t expression = (
-    bd->gammai11*(bd->D1D1phi + 2.0*bd->d1phi*bd->d1phi)
-    + bd->gammai22*(bd->D2D2phi + 2.0*bd->d2phi*bd->d2phi)
-    + bd->gammai33*(bd->D3D3phi + 2.0*bd->d3phi*bd->d3phi)
+    bd->gammai11*(bd->D1D1chi - 2.0*bd->d1chi*bd->d1chi/bd->chi)
+    + bd->gammai22*(bd->D2D2chi - 2.0*bd->d2chi*bd->d2chi/bd->chi)
+    + bd->gammai33*(bd->D3D3chi - 2.0*bd->d3chi*bd->d3chi/bd->chi)
     + 2.0*(
-      bd->gammai12*(bd->D1D2phi + 2.0*bd->d1phi*bd->d2phi)
-      + bd->gammai13*(bd->D1D3phi + 2.0*bd->d1phi*bd->d3phi)
-      + bd->gammai23*(bd->D2D3phi + 2.0*bd->d2phi*bd->d3phi)
+      bd->gammai12*(bd->D1D2chi - 2.0*bd->d1chi*bd->d2chi/bd->chi)
+      + bd->gammai13*(bd->D1D3chi - 2.0*bd->d1chi*bd->d3chi/bd->chi)
+      + bd->gammai23*(bd->D2D3chi - 2.0*bd->d2chi*bd->d3chi/bd->chi)
     )
   );
 
-  bd->ricci11 = bd->Uricci11 - 2.0*( bd->D1D1phi - 2.0*bd->d1phi*bd->d1phi + bd->gamma11*(expression) );
-  bd->ricci12 = bd->Uricci12 - 2.0*( bd->D1D2phi - 2.0*bd->d1phi*bd->d2phi + bd->gamma12*(expression) );
-  bd->ricci13 = bd->Uricci13 - 2.0*( bd->D1D3phi - 2.0*bd->d1phi*bd->d3phi + bd->gamma13*(expression) );
-  bd->ricci22 = bd->Uricci22 - 2.0*( bd->D2D2phi - 2.0*bd->d2phi*bd->d2phi + bd->gamma22*(expression) );
-  bd->ricci23 = bd->Uricci23 - 2.0*( bd->D2D3phi - 2.0*bd->d2phi*bd->d3phi + bd->gamma23*(expression) );
-  bd->ricci33 = bd->Uricci33 - 2.0*( bd->D3D3phi - 2.0*bd->d3phi*bd->d3phi + bd->gamma33*(expression) );
+  bd->ricci11 = bd->Uricci11 + ( bd->D1D1chi + bd->gamma11*(expression) )/bd->chi;
+  bd->ricci12 = bd->Uricci12 + ( bd->D1D2chi + bd->gamma12*(expression) )/bd->chi;
+  bd->ricci13 = bd->Uricci13 + ( bd->D1D3chi + bd->gamma13*(expression) )/bd->chi;
+  bd->ricci22 = bd->Uricci22 + ( bd->D2D2chi + bd->gamma22*(expression) )/bd->chi;
+  bd->ricci23 = bd->Uricci23 + ( bd->D2D3chi + bd->gamma23*(expression) )/bd->chi;
+  bd->ricci33 = bd->Uricci33 + ( bd->D3D3chi + bd->gamma33*(expression) )/bd->chi;
 # endif
 
   /* calculate full Ricci scalar at this point */
@@ -1863,6 +1942,90 @@ void BSSN::output_max_H_constaint(
             <<max_H<<"/"<<max_H_scaled<<"\n at position "<<hp[0]<<" "<<hp[1]<<" "<<hp[2]<<"\n";
   tbox::pout<<"Max Momentum constraint is "
             <<max_M<<"/"<<max_M_scaled<<"\n at position "<<mp[0]<<" "<<mp[1]<<" "<<mp[2]<<"\n";
+  return;
+}
+
+void BSSN::output_L2_H_constaint(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  idx_t weight_idx)
+{
+  double H_L2=0;
+  idx_t mp[3] = {0}, hp[3] = {0};  
+  for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln ++)
+  {
+    boost::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+
+    boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+     BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+       hierarchy->getGridGeometry()));
+   TBOX_ASSERT(grid_geometry_);
+   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
+
+    
+    for( hier::PatchLevel::iterator pit(level->begin());
+         pit != level->end(); ++pit)
+    {
+      const boost::shared_ptr<hier::Patch> & patch = *pit;
+
+      const hier::Box& box = patch->getBox();
+
+      const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+          patch->getPatchGeometry()));
+
+      initPData(patch);
+
+      initMDA(patch);
+
+
+      boost::shared_ptr<pdat::CellData<double> > weight(
+        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+          patch->getPatchData(weight_idx)));
+      
+
+      arr_t weight_array =
+        pdat::ArrayDataAccess::access<DIM, double>(
+          weight->getArrayData());
+
+
+      
+      const int * lower = &box.lower()[0];
+      const int * upper = &box.upper()[0];
+      
+      const double *dx = &patch_geom->getDx()[0];
+
+      
+      BSSNData bd = {0};
+
+
+      for(int k = lower[2]; k <= upper[2]; k++)
+      {
+        for(int j = lower[1]; j <= upper[1]; j++)
+        {
+          for(int i = lower[0]; i <= upper[0]; i++)
+          {
+            set_bd_values(i,j,k,&bd,dx);
+            if(weight_array(i,j,k) > 0)
+            {
+              real_t h = hamiltonianConstraintCalc(&bd, dx);
+              H_L2 += pw2(h) * weight_array(i,j,k) / (L[0] * L[1] * L[2]);
+            }
+          }
+        }
+      }
+     }
+  }
+  const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
+  mpi.Barrier();
+  if (mpi.getSize() > 1) {
+    mpi.AllReduce(&H_L2, 1, MPI_SUM);
+  }
+
+  H_L2 = sqrt(H_L2);
+  
+  tbox::pout<<"L2 norm of Hamiltonian constraint is "<<H_L2<<"\n";
+
+  
   return;
 }
 

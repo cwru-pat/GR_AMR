@@ -122,7 +122,8 @@ public:
   boost::shared_ptr<hier::CoarsenOperator> space_coarsen_op;
 
   std::vector<int> variable_id_list;
-  
+
+  std::string refine_op_type, coarsen_op_type;
 };
 
 } /* namespace cosmo */

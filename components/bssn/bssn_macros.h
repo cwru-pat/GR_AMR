@@ -137,18 +137,11 @@
 
 #define BSSN_APPLY_TO_GEN1_EXTRAS(function) \
   function(ricci);                          \
-  function(AijAij);                         \
-  function(Z1);                             \
-  function(Z2);                             \
-  function(Z3);                             
+  function(AijAij);                         
 
 #define BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(function, ...)    \
   function(ricci, __VA_ARGS__);                          \
-  function(AijAij, __VA_ARGS__);                         \
-  function(Z1, __VA_ARGS__);                             \
-  function(Z2, __VA_ARGS__);                             \
-  function(Z3, __VA_ARGS__);                             
-
+  function(AijAij, __VA_ARGS__);                         
 
 
 #define BSSN_APPLY_TO_IJ_PERMS(function) \
@@ -180,6 +173,45 @@
   function(3, 2, 3);                  \
   function(3, 3, 3);
 
+#define BSSN_APPLY_TO_IJKL_PERMS(function)   \
+  function(1, 1, 1, 1);                      \
+  function(1, 1, 1, 2);                      \
+  function(1, 1, 1, 3);                      \
+  function(1, 1, 2, 2);                      \
+  function(1, 1, 2, 3);                      \
+  function(1, 1, 3, 3);                      \
+  function(1, 2, 1, 1);                      \
+  function(1, 2, 1, 2);                      \
+  function(1, 2, 1, 3);                      \
+  function(1, 2, 2, 2);                      \
+  function(1, 2, 2, 3);                      \
+  function(1, 2, 3, 3);                      \
+  function(1, 3, 1, 1);                      \
+  function(1, 3, 1, 2);                      \
+  function(1, 3, 1, 3);                      \
+  function(1, 3, 2, 2);                      \
+  function(1, 3, 2, 3);                      \
+  function(1, 3, 3, 3);                      \
+  function(2, 2, 1, 1);                      \
+  function(2, 2, 1, 2);                      \
+  function(2, 2, 1, 3);                      \
+  function(2, 2, 2, 2);                      \
+  function(2, 2, 2, 3);                      \
+  function(2, 2, 3, 3);                      \
+  function(2, 3, 1, 1);                      \
+  function(2, 3, 1, 2);                      \
+  function(2, 3, 1, 3);                      \
+  function(2, 3, 2, 2);                      \
+  function(2, 3, 2, 3);                      \
+  function(2, 3, 3, 3);                      \
+  function(3, 3, 1, 1);                      \
+  function(3, 3, 1, 2);                      \
+  function(3, 3, 1, 3);                      \
+  function(3, 3, 2, 2);                      \
+  function(3, 3, 2, 3);                      \
+  function(3, 3, 3, 3);                      
+
+    
 
 
 #define BSSN_REG_TO_CONTEXT(field, context, name, width)  \
@@ -303,8 +335,7 @@
 
 #define BSSN_INIT_L_K4(field)  \
     field##_s(i,j,k) =         \
-      (-2.0*field##_k1(i,j,k) - 3.0*field##_k2(i,j,k)  \
-       - 3.0*field##_k3(i,j,k) + field##_k4(i,j,k))/10.0
+      (field##_k2(i,j,k) + field##_k3(i,j,k))/4.0
 
 
 #define BSSN_INIT_R_K1(field)  \
@@ -321,17 +352,9 @@
        + 4.0*field##_k3(i,j,k) + 3.0*field##_k4(i,j,k))/16.0
 
 #define BSSN_INIT_R_K4(field)  \
-    field##_s(i,j,k) =         \
-      (5.0*field##_k1(i,j,k) + 4.0*field##_k2(i,j,k)  \
-       + 4.0*field##_k3(i,j,k) + field##_k4(i,j,k))/4.0
+    field##_s(i,j,k) = field##_k4(i,j,k)/2.0
 
 
-/* #define BSSN_INIT_K4(field)  \ */
-/*   field##_a(i,j,k) = field##_p(i,j,k)                            \ */
-/*     +  RK4_B1(theta)*field##_k1(i,j,k)                           \ */
-/*     +  RK4_B2(theta)*field##_k2(i,j,k)                           \ */
-/*     +  RK4_B3(theta)*field##_k3(i,j,k)                           \ */
-/*     +  RK4_B4(theta)*field##_k4(i,j,k)                           */
 
 #define BSSN_FINALIZE_K(n) \
   BSSN_APPLY_TO_FIELDS(BSSN_FINALIZE_FIELD##_##n)
@@ -436,6 +459,8 @@
 
 #define BSSN_CALCULATE_DGAMMA(I, J, K) bd->d##I##g##J##K = derivative(bd->i, bd->j, bd->k, I, DIFFgamma##J##K##_a, dx);
 
+#define BSSN_CALCULATE_DDGAMMA(I, J, K, L) bd->d##I##d##J##g##K##L = double_derivative(bd->i, bd->j, bd->k, I, J, DIFFgamma##K##L##_a, dx);
+
 #define BSSN_CALCULATE_ACONT(I, J) bd->Acont##I##J = ( \
     bd->gammai##I##1*bd->gammai##J##1*bd->A11 + bd->gammai##I##2*bd->gammai##J##1*bd->A21 + bd->gammai##I##3*bd->gammai##J##1*bd->A31 \
     + bd->gammai##I##1*bd->gammai##J##2*bd->A12 + bd->gammai##I##2*bd->gammai##J##2*bd->A22 + bd->gammai##I##3*bd->gammai##J##2*bd->A32 \
@@ -445,9 +470,9 @@
 // needs the gamma*ldlphi vars defined:
 // not actually trace free yet!
 #define BSSN_CALCULATE_DIDJALPHA(I, J) bd->D##I##D##J##aTF = double_derivative(bd->i, bd->j, bd->k, I, J, DIFFalpha_a, dx) - ( \
-    (bd->G1##I##J + 2.0*( (1==I)*bd->d##J##phi + (1==J)*bd->d##I##phi - bd->gamma##I##J*gammai1ldlphi))*bd->d1a + \
-    (bd->G2##I##J + 2.0*( (2==I)*bd->d##J##phi + (2==J)*bd->d##I##phi - bd->gamma##I##J*gammai2ldlphi))*bd->d2a + \
-    (bd->G3##I##J + 2.0*( (3==I)*bd->d##J##phi + (3==J)*bd->d##I##phi - bd->gamma##I##J*gammai3ldlphi))*bd->d3a \
+    (bd->G1##I##J - 1.0/bd->chi*( (1==I)*bd->d##J##chi + (1==J)*bd->d##I##chi - bd->gamma##I##J*gammai1ldlchi))*bd->d1a + \
+    (bd->G2##I##J - 1.0/bd->chi*( (2==I)*bd->d##J##chi + (2==J)*bd->d##I##chi - bd->gamma##I##J*gammai2ldlchi))*bd->d2a + \
+    (bd->G3##I##J - 1.0/bd->chi*( (3==I)*bd->d##J##chi + (3==J)*bd->d##I##chi - bd->gamma##I##J*gammai3ldlchi))*bd->d3a \
   );
 
 
@@ -493,6 +518,58 @@
   bd->d##I##d##J##g22 = double_derivative(bd->i, bd->j, bd->k, I, J, DIFFgamma22##_a, dx); \
   bd->d##I##d##J##g23 = double_derivative(bd->i, bd->j, bd->k, I, J, DIFFgamma23##_a, dx); \
   bd->d##I##d##J##g33 = double_derivative(bd->i, bd->j, bd->k, I, J, DIFFgamma33##_a, dx)
+
+#if USE_CCZ4
+#define BSSN_CALCULATE_ZI(I)                         \
+  bd->Z##I = 0.5 * (                                 \
+    bd->gamma##I##1 * (bd->Gamma1 - bd->Gammad1)     \
+    +bd->gamma##I##2 * (bd->Gamma2 - bd->Gammad2)    \
+    +bd->gamma##I##3 * (bd->Gamma3 - bd->Gammad3)    \
+)
+
+#define BSSN_CALCULATE_DIZJ_TERM2(M, N, I, J)       \
+  bd->gammai##M##N*(                                \
+    bd->d##I##d##M##g##J##N                         \
+    - bd->G1##I##M*bd->d1g##J##N                    \
+    - bd->G2##I##M*bd->d2g##J##N                    \
+    - bd->G3##I##M*bd->d3g##J##N                    \
+    - bd->G1##I##J*bd->d##M##g##1##N                \
+    - bd->G2##I##J*bd->d##M##g##2##N                \
+    - bd->G3##I##J*bd->d##M##g##3##N                \
+    - bd->G1##I##N*bd->d##M##g##J##1                \
+    - bd->G2##I##N*bd->d##M##g##J##2                \
+    - bd->G3##I##N*bd->d##M##g##J##3                \
+)
+
+#define BSSN_CALCULATE_DIZJ(I, J)                 \
+  bd->D##I##Z##J = 0.5*bd->gamma##J##1*(          \
+    derivative(bd->i,bd->j,bd->k,I,Gamma1_a,dx)   \
+    + bd->G1##I##1*Gamma1_a(bd->i,bd->j,bd->k)    \
+    + bd->G1##I##2*Gamma2_a(bd->i,bd->j,bd->k)    \
+    + bd->G1##I##3*Gamma3_a(bd->i,bd->j,bd->k))   \
+    + 0.5*bd->gamma##J##2*(                       \
+      derivative(bd->i,bd->j,bd->k,I,Gamma2_a,dx) \
+      + bd->G2##I##1*Gamma1_a(bd->i,bd->j,bd->k)  \
+      + bd->G2##I##2*Gamma2_a(bd->i,bd->j,bd->k)  \
+      + bd->G2##I##3*Gamma3_a(bd->i,bd->j,bd->k)) \
+    + 0.5*bd->gamma##J##3*(                         \
+      derivative(bd->i,bd->j,bd->k,I,Gamma3_a,dx) \
+      + bd->G3##I##1*Gamma1_a(bd->i,bd->j,bd->k)  \
+      + bd->G3##I##2*Gamma2_a(bd->i,bd->j,bd->k)  \
+      + bd->G3##I##3*Gamma3_a(bd->i,bd->j,bd->k)) \
+    - 0.5 * COSMO_SUMMATION_2_ARGS(BSSN_CALCULATE_DIZJ_TERM2, I, J)     \
+    + (bd->d##I##chi*bd->Z##J + bd->d##J##chi*bd->Z##I                  \
+       - bd->gamma##I##J * (                                            \
+         bd->gammai11 * bd->d1chi * bd->Z1                              \
+         +bd->gammai12 * bd->d1chi * bd->Z2                             \
+         +bd->gammai13 * bd->d1chi * bd->Z3                             \
+         +bd->gammai21 * bd->d2chi * bd->Z1                             \
+         +bd->gammai22 * bd->d2chi * bd->Z2                             \
+         +bd->gammai23 * bd->d2chi * bd->Z3                             \
+         +bd->gammai31 * bd->d3chi * bd->Z1                             \
+         +bd->gammai32 * bd->d3chi * bd->Z2                             \
+         +bd->gammai33 * bd->d3chi * bd->Z3))/bd->chi
+#endif
 
 
 /*
@@ -614,174 +691,23 @@
 #define BSSN_DT_GAMMAI_SHIFT(I) 0.0
 #endif
 
-/*
- * Full metric calcs
- */
-
-// metric derivs
-
-#define SET_DKM00(k) bd->d##k##m00 = DKM00(k);
-#define DKM00(k) \
-      -2.0*bd->alpha*bd->d##k##a \
-      + bd->d##k##m11*bd->beta1*bd->beta1 + bd->d##k##m22*bd->beta2*bd->beta2 + bd->d##k##m33*bd->beta3*bd->beta3 \
-      + 2.0*(bd->d##k##m12*bd->beta1*bd->beta2 + bd->d##k##m13*bd->beta1*bd->beta3 + bd->d##k##m23*bd->beta2*bd->beta3) \
-      + 2.0*exp(4.0*bd->phi)*( \
-          bd->gamma11*bd->d##k##beta1*bd->beta1 + bd->gamma12*bd->d##k##beta2*bd->beta1 + bd->gamma13*bd->d##k##beta3*bd->beta1 \
-          + bd->gamma12*bd->d##k##beta1*bd->beta2 + bd->gamma22*bd->d##k##beta2*bd->beta2 + bd->gamma23*bd->d##k##beta3*bd->beta2 \
-          + bd->gamma13*bd->d##k##beta1*bd->beta3 + bd->gamma23*bd->d##k##beta2*bd->beta3 + bd->gamma33*bd->d##k##beta3*bd->beta3 \
-        );
-
-
-#define SET_DKM0I(k, i) bd->d##k##m0##i = DKM0I(k, i);
-#define DKM0I(k, i) \
-      exp(4.0*bd->phi)*( \
-        bd->gamma1##i * bd->d##k##beta##1 + bd->gamma2##i * bd->d##k##beta##2 + bd->gamma3##i * bd->d##k##beta##3 \
-        + (bd->d##k##g1##i + 4.0*bd->d##k##phi*bd->gamma1##i) * bd->beta##1   \
-        + (bd->d##k##g2##i + 4.0*bd->d##k##phi*bd->gamma2##i) * bd->beta##2 \
-        + (bd->d##k##g3##i + 4.0*bd->d##k##phi*bd->gamma3##i) * bd->beta##3 \
-      );
-
-#define SET_DKMIJ(k, i, j) bd->d##k##m##i##j = DKMIJ(k, i, j);
-#define DKMIJ(k, i, j) exp(4.0*bd->phi)*(bd->d##k##g##i##j + 4.0*bd->d##k##phi*bd->gamma##i##j);
-
-
-// metric
-
-#define SET_M00() bd->m00 = M00();
-#define M00() \
-      -bd->alpha*bd->alpha + exp(4.0*bd->phi)*( \
-        bd->gamma11*bd->beta1*bd->beta1 + bd->gamma22*bd->beta2*bd->beta2 + bd->gamma33*bd->beta3*bd->beta3 \
-        + 2.0*(bd->gamma12*bd->beta1*bd->beta2 + bd->gamma13*bd->beta1*bd->beta3 + bd->gamma23*bd->beta2*bd->beta3) \
-      );
-
-#define SET_M0I(i) bd->m0##i = M0I(i);
-#define M0I(i) exp(4.0*bd->phi)*(bd->gamma1##i*bd->beta1 + bd->gamma2##i*bd->beta2 + bd->gamma3##i*bd->beta3);
-
-#define SET_MIJ(i, j) bd->m##i##j = MIJ(i, j);
-#define MIJ(i, j) exp(4.0*bd->phi)*(bd->gamma##i##j);
-
-// inverse metric
-
-#define SET_Mi00() bd->mi00 = Mi00();
-#define Mi00() -1.0/bd->alpha/bd->alpha;
-
-#define SET_Mi0I(i) bd->mi0##i = Mi0I(i);
-#define Mi0I(i) 1.0/bd->alpha/bd->alpha*bd->beta##i;
-
-#define SET_MiIJ(i, j) bd->mi##i##j = MiIJ(i, j);
-#define MiIJ(i, j) exp(-4.0*bd->phi)*(bd->gamma##i##j) - 1.0/bd->alpha/bd->alpha*bd->beta##i*bd->beta##j;
-
-
-/*
- * Conversion to ADM quantities for raytracing
- */
-#define BSSN_RP_DG(I,J,L) \
-  P*(4.0*bd->gamma##I##J*bd->d##L##phi+ bd->d##L##g##I##J)
-
-#define BSSN_RP_DDG(I,J,L,M) \
-  P*( \
-    16.0*bd->gamma##I##J*bd->d##M##phi*bd->d##L##phi \
-    + 4.0*(bd->d##L##g##I##J*bd->d##M##phi + bd->d##M##g##I##J*bd->d##L##phi + bd->gamma##I##J*bd->d##L##d##M##phi) \
-    + bd->d##L##d##M##g##I##J \
-  )
-
-#define BSSN_RP_K(I,J) \
-  P*(bd->A##I##J + 1.0/3.0*bd->gamma##I##J*bd->K)
-
-#define BSSN_RP_DK(I,J,L) \
-  P*( \
-    4.0*(bd->A##I##J + 1.0/3.0*bd->gamma##I##J*bd->K)*bd->d##L##phi + derivative(bd->i, bd->j, bd->k, L, A##I##J##_a, dx) \
-    + 1.0/3.0*bd->K*bd->d##L##g##I##J + 1.0/3.0*bd->gamma##I##J*bd->d##L##K \
-  )
-
-#define BSSN_RP_GAMMA(I,J,K) \
-  bd->G##I##J##K + 2.0*( \
-      (I==J ? 1.0 : 0.0)*bd->d##K##phi \
-      + (I==K ? 1.0 : 0.0)*bd->d##J##phi \
-      - bd->gamma##J##K*(bd->gammai##I##1*bd->d1phi + bd->gammai##I##2*bd->d2phi + bd->gammai##I##3*bd->d3phi) \
-    )
-
-#define BSSN_RP_GAMMAL(I,J,K) P*( \
-  bd->GL##I##J##K + 2.0*( \
-      bd->gamma##I##J*bd->d##K##phi \
-      + bd->gamma##I##K*bd->d##J##phi \
-      - bd->gamma##J##K*bd->d##I##phi \
-  ) )
 
 /*
  * Constraint calculation macros
  */
 
-// Momentum constraint with index lowered using the conformal metric:
-// M_I == \bar{gamma}_{IJ} M^J
 
-#define BSSN_GI_CALC(I) \
-  bd->Gamma##I - bd->gammai11*bd->G##I##11 - bd->gammai22*bd->G##I##22 - bd->gammai33*bd->G##I##33 \
-   - 2.0*(bd->gammai12*bd->G##I##12 + bd->gammai13*bd->G##I##13 + bd->gammai23*bd->G##I##23);
-
-#define BSSN_GI_SCALE(I) \
-  fabs(bd->Gamma##I) + fabs(bd->gammai11*bd->G##I##11 - bd->gammai22*bd->G##I##22 - bd->gammai33*bd->G##I##33 \
-   - 2.0*(bd->gammai12*bd->G##I##12 + bd->gammai13*bd->G##I##13 + bd->gammai23*bd->G##I##23));
-
-
-#define BSSN_NORMALIZE_STDEV(C) \
-  stdev_##C = sqrt(stdev_##C/(POINTS-1.0)); \
-  stdev_##C##_scaled = sqrt(stdev_##C##_scaled/(POINTS-1.0));
-
-#define BSSN_NORMALIZE_MEAN(C) \
-  mean_##C /= POINTS; \
-  mean_##C##_scaled /= POINTS;
-
-#define BSSN_INITIALIZE_CONSTRAINT_STAT_VARS(C) \
-  real_t mean_##C = 0.0, stdev_##C = 0.0, max_##C = 0.0; \
-  real_t mean_##C##_scale = 0.0; \
-  real_t mean_##C##_scaled = 0.0, stdev_##C##_scaled = 0.0,\
-         max_##C##_scaled = 0.0;
-
-#define BSSN_STORE_CONSTRAINT_STAT_VARS(C) \
-  C##_values[0] = mean_##C; \
-  C##_values[1] = stdev_##C; \
-  C##_values[2] = max_##C; \
-  C##_values[3] = mean_##C##_scale; \
-  C##_values[4] = mean_##C##_scaled; \
-  C##_values[5] = stdev_##C##_scaled; \
-  C##_values[6] = max_##C##_scaled;
-
-#define BSSN_COMPUTE_CONSTRAINT_STAT_VARS(C, calcfn, scalefn) \
-  real_t C##_val = calcfn(&bd); \
-  real_t C##_scale = scalefn(&bd); \
-  real_t C##_scaled = C##_val/C##_scale;
-
-#define BSSN_COMPUTE_CONSTRAINT_STAT_VARS_VEC(C, calcfn, scalefn) \
-  real_t C##_val = sqrt( pw2(calcfn(&bd, 1)) + pw2(calcfn(&bd, 2)) + pw2(calcfn(&bd, 3)) ); \
-  real_t C##_scale = sqrt( pw2(scalefn(&bd, 1)) + pw2(scalefn(&bd, 2)) + pw2(scalefn(&bd, 3)) ); \
-  real_t C##_scaled = C##_val/C##_scale;
-
-#define BSSN_COMPUTE_CONSTRAINT_MEAN_VARS(C) \
-  mean_##C += C##_val; \
-  mean_##C##_scale += C##_scale; \
-  mean_##C##_scaled += C##_scaled;
-
-#define BSSN_COMPUTE_CONSTRAINT_STDEV_VARS(C) \
-  stdev_##C += pw2(C##_val - mean_##C); \
-  stdev_##C##_scaled += pw2(C##_scaled - mean_##C##_scaled);
-
-#define BSSN_COMPUTE_CONSTRAINT_MAXES(C) \
-  if(fabs(C##_val) > max_##C) \
-    max_##C = fabs(C##_val); \
-  if(fabs(C##_scaled) > max_##C##_scaled) \
-    max_##C##_scaled = fabs(C##_scaled);
 
 #define BSSN_MI(I) 1.0/pw3(bd->chi)*( \
     - 2.0/3.0*bd->d##I##K \
     /* Note: S_I was lowered with the full metric, not conformal. */ \
     - 8*PI*(bd->S##I) \
     - 2.0/3.0*2.0*bd->d##I##theta \
-    + 6.0*( \
-      bd->gammai11*bd->A1##I*bd->d1phi + bd->gammai21*bd->A2##I*bd->d1phi + bd->gammai31*bd->A3##I*bd->d1phi \
-      + bd->gammai12*bd->A1##I*bd->d2phi + bd->gammai22*bd->A2##I*bd->d2phi + bd->gammai32*bd->A3##I*bd->d2phi \
-      + bd->gammai13*bd->A1##I*bd->d3phi + bd->gammai23*bd->A2##I*bd->d3phi + bd->gammai33*bd->A3##I*bd->d3phi \
-    ) + ( \
+    - 3.0*( \
+      bd->gammai11*bd->A1##I*bd->d1chi + bd->gammai21*bd->A2##I*bd->d1chi + bd->gammai31*bd->A3##I*bd->d1chi \
+      + bd->gammai12*bd->A1##I*bd->d2chi + bd->gammai22*bd->A2##I*bd->d2chi + bd->gammai32*bd->A3##I*bd->d2chi \
+      + bd->gammai13*bd->A1##I*bd->d3chi + bd->gammai23*bd->A2##I*bd->d3chi + bd->gammai33*bd->A3##I*bd->d3chi \
+    )/bd->chi + ( \
       /* (gamma^jk D_j A_ki) */ \
       bd->gammai11*derivative(bd->i, bd->j, bd->k, 1, A1##I##_a, dx) + bd->gammai12*derivative(bd->i, bd->j, bd->k, 2, A1##I##_a, dx) + bd->gammai13*derivative(bd->i, bd->j, bd->k, 3, A1##I##_a, dx) \
       + bd->gammai21*derivative(bd->i, bd->j, bd->k, 1, A2##I##_a, dx) + bd->gammai22*derivative(bd->i, bd->j, bd->k, 2, A2##I##_a, dx) + bd->gammai23*derivative(bd->i, bd->j, bd->k, 3, A2##I##_a, dx) \
@@ -796,10 +722,10 @@
 #define BSSN_MI_SCALE(I) 1.0/pw3(bd->chi)*(                                  \
     fabs(2.0/3.0*derivative(bd->i, bd->j, bd->k, I, DIFFK_a, dx)) \
     + fabs(8*PI*(bd->S##I)) \
-    + 6.0*fabs( \
-      bd->gammai11*bd->A1##I*bd->d1phi + bd->gammai21*bd->A2##I*bd->d1phi + bd->gammai31*bd->A3##I*bd->d1phi \
-      + bd->gammai12*bd->A1##I*bd->d2phi + bd->gammai22*bd->A2##I*bd->d2phi + bd->gammai32*bd->A3##I*bd->d2phi \
-      + bd->gammai13*bd->A1##I*bd->d3phi + bd->gammai23*bd->A2##I*bd->d3phi + bd->gammai33*bd->A3##I*bd->d3phi \
+    + 3.0*fabs( \
+      (bd->gammai11*bd->A1##I*bd->d1chi + bd->gammai21*bd->A2##I*bd->d1chi + bd->gammai31*bd->A3##I*bd->d1chi \
+      + bd->gammai12*bd->A1##I*bd->d2chi + bd->gammai22*bd->A2##I*bd->d2chi + bd->gammai32*bd->A3##I*bd->d2chi \
+       + bd->gammai13*bd->A1##I*bd->d3chi + bd->gammai23*bd->A2##I*bd->d3chi + bd->gammai33*bd->A3##I*bd->d3chi)/bd->chi \
     ) + fabs( \
       /* (gamma^jk D_j A_ki) */ \
       bd->gammai11*derivative(bd->i, bd->j, bd->k, 1, A1##I##_a, dx) + bd->gammai12*derivative(bd->i, bd->j, bd->k, 2, A1##I##_a, dx) + bd->gammai13*derivative(bd->i, bd->j, bd->k, 3, A1##I##_a, dx) \
@@ -850,9 +776,9 @@
 #define ricci32 ricci23
 
 // covariant double-derivatives of phi
-#define D2D1phi D1D2phi
-#define D3D1phi D1D3phi
-#define D3D2phi D2D3phi
+#define D2D1chi D1D2chi
+#define D3D1chi D1D3chi
+#define D3D2chi D2D3chi
 
 //covariant derivative of Z^i
 /* #define D2Z1 D1Z2 */

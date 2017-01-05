@@ -87,25 +87,16 @@ typedef struct {
 
 
     // covariant double-derivatives 
-    real_t D1D1phi, ///< conformal covariant second derivative of phi, \f$\bar{D}_1 \bar{D}_1 \phi\f$
-           D1D2phi, ///< conformal covariant second derivative of phi, \f$\bar{D}_1 \bar{D}_2 \phi\f$
-           D1D3phi, ///< conformal covariant second derivative of phi, \f$\bar{D}_1 \bar{D}_3 \phi\f$
-           D2D2phi, ///< conformal covariant second derivative of phi, \f$\bar{D}_2 \bar{D}_2 \phi\f$
-           D2D3phi, ///< conformal covariant second derivative of phi, \f$\bar{D}_2 \bar{D}_3 \phi\f$
-           D3D3phi; ///< conformal covariant second derivative of phi, \f$\bar{D}_3 \bar{D}_3 \phi\f$
+    real_t D1D1chi, ///< conformal covariant second derivative of chi, \f$\bar{D}_1 \bar{D}_1 \chi\f$
+           D1D2chi, ///< conformal covariant second derivative of chi, \f$\bar{D}_1 \bar{D}_2 \chi\f$
+           D1D3chi, ///< conformal covariant second derivative of chi, \f$\bar{D}_1 \bar{D}_3 \chi\f$
+           D2D2chi, ///< conformal covariant second derivative of chi, \f$\bar{D}_2 \bar{D}_2 \chi\f$
+           D2D3chi, ///< conformal covariant second derivative of chi, \f$\bar{D}_2 \bar{D}_3 \chi\f$
+           D3D3chi; ///< conformal covariant second derivative of chi, \f$\bar{D}_3 \bar{D}_3 \chi\f$
     // normal derivatives of
-    real_t d1phi, ///< \f$\partial_1 \phi \f$
-           d2phi, ///< \f$\partial_2 \phi \f$
-           d3phi; ///< \f$\partial_3 \phi \f$
-      real_t d1chi, ///< \f$\partial_1 \phi \f$
-           d2chi, ///< \f$\partial_2 \phi \f$
-           d3chi; ///< \f$\partial_3 \phi \f$
-    real_t d1d1phi, ///< partial second derivative of phi, \f$\partial_1 \partial_1 \phi\f$
-           d1d2phi, ///< partial second derivative of phi, \f$\partial_1 \partial_2 \phi\f$
-           d1d3phi, ///< partial second derivative of phi, \f$\partial_1 \partial_3 \phi\f$
-           d2d2phi, ///< partial second derivative of phi, \f$\partial_2 \partial_2 \phi\f$
-           d2d3phi, ///< partial second derivative of phi, \f$\partial_2 \partial_3 \phi\f$
-           d3d3phi; ///< partial second derivative of phi, \f$\partial_3 \partial_3 \phi\f$
+  real_t d1chi, ///< \f$\partial_1 \phi \f$
+    d2chi, ///< \f$\partial_2 \phi \f$
+    d3chi; ///< \f$\partial_3 \phi \f$
 
   real_t d1d1chi, ///< partial second derivative of phi, \f$\partial_1 \partial_1 \phi\f$
     d1d2chi, ///< partial second derivative of phi, \f$\partial_1 \partial_2 \phi\f$
@@ -193,24 +184,6 @@ typedef struct {
          d3g23, ///< First partial derivative of the conformal metric, \f$\partial_3 \bar{\gamma}_{23} \f$
          d3g33; ///< First partial derivative of the conformal metric, \f$\partial_3 \bar{\gamma}_{33} \f$
 
-  real_t d1g11u, ///< First partial derivative of the conformal metric, \f$\partial_1 \bar{\gamma}_{11} \f$
-         d1g12u, ///< First partial derivative of the conformal metric, \f$\partial_1 \bar{\gamma}_{12} \f$
-         d1g13u, ///< First partial derivative of the conformal metric, \f$\partial_1 \bar{\gamma}_{13} \f$
-         d1g22u, ///< First partial derivative of the conformal metric, \f$\partial_1 \bar{\gamma}_{22} \f$
-         d1g23u, ///< First partial derivative of the conformal metric, \f$\partial_1 \bar{\gamma}_{23} \f$
-         d1g33u, ///< First partial derivative of the conformal metric, \f$\partial_1 \bar{\gamma}_{33} \f$
-         d2g11u, ///< First partial derivative of the conformal metric, \f$\partial_2 \bar{\gamma}_{11} \f$
-         d2g12u, ///< First partial derivative of the conformal metric, \f$\partial_2 \bar{\gamma}_{12} \f$
-         d2g13u, ///< First partial derivative of the conformal metric, \f$\partial_2 \bar{\gamma}_{13} \f$
-         d2g22u, ///< First partial derivative of the conformal metric, \f$\partial_2 \bar{\gamma}_{22} \f$
-         d2g23u, ///< First partial derivative of the conformal metric, \f$\partial_2 \bar{\gamma}_{23} \f$
-         d2g33u, ///< First partial derivative of the conformal metric, \f$\partial_2 \bar{\gamma}_{33} \f$
-         d3g11u, ///< First partial derivative of the conformal metric, \f$\partial_3 \bar{\gamma}_{11} \f$
-         d3g12u, ///< First partial derivative of the conformal metric, \f$\partial_3 \bar{\gamma}_{12} \f$
-         d3g13u, ///< First partial derivative of the conformal metric, \f$\partial_3 \bar{\gamma}_{13} \f$
-         d3g22u, ///< First partial derivative of the conformal metric, \f$\partial_3 \bar{\gamma}_{22} \f$
-         d3g23u, ///< First partial derivative of the conformal metric, \f$\partial_3 \bar{\gamma}_{23} \f$
-         d3g33u; ///< First partial derivative of the conformal metric, \f$\partial_3 \bar{\gamma}_{33} \f$
 
   // second derivatives of the metric d_i d_j g_kl
   real_t d1d1g11, ///< Second partial derivative of the conformal metric, \f$\partial_1 \partial_1 \bar{\gamma}_{11}\f$
@@ -311,6 +284,8 @@ typedef struct {
   real_t DZTR;
 
   real_t norm, x, y, z;
+
+  real_t Z1, Z2, Z3;
   
 } BSSNData;
 
