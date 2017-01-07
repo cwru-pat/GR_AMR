@@ -33,6 +33,7 @@ CosmoSim::CosmoSim(
   vis_filename(vis_filename_in),
   cur_t(0),
   weight(new pdat::CellVariable<real_t>(dim, "weight", 1)),
+  refine_scratch(new pdat::CellVariable<real_t>(dim, "refine_scratch", 1)),
   weight_idx(0),
   regridding_interval(cosmo_sim_db->getInteger("regridding_interval")),
   KO_damping_coefficient(cosmo_sim_db->getDoubleWithDefault("KO_damping_coefficient",0)),
@@ -59,6 +60,12 @@ CosmoSim::CosmoSim(
       weight, 
       context_active,
       hier::IntVector(dim, STENCIL_ORDER));
+
+  refine_scratch_idx = variable_db->registerVariableAndContext( 
+      refine_scratch, 
+      context_active,
+      hier::IntVector(dim, STENCIL_ORDER));
+
 }
 
 CosmoSim::~CosmoSim()

@@ -72,7 +72,7 @@ CosmoSim{
   do_plot = TRUE
   dt_frac = 0.05
   regridding_interval = 100000
-  adaption_threshold = 0.005
+  adaption_threshold = 0.004
   KO_damping_coefficient = 0.0
   refine_op_type = "LINEAR_REFINE"
   coarsen_op_type = "CONSERVATIVE_COARSEN"
@@ -87,7 +87,7 @@ BSSN{
   lapse = "OnePlusLog"
   Shift = "GammaDriver"
   g_eta = 2
-  normalize_gammaij_Aij = FALSE
+  normalize_gammaij_Aij = TRUE
   ccz4_k1 = 0.1
   ccz4_k2 = 0
   ccz4_k3 = 0.5

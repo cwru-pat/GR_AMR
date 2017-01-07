@@ -158,8 +158,6 @@ CartesianCellDoubleQuadraticRefine::refine(
    // only apply to the case
    // that interpolation ratio  = 2
 
-   //tbox::pout<<coarse_box<<"\n";
-   //tbox::pout<<fine_box<<"\n";
    
    const double coef[3][2] =
      {{5.0/32.0, -3.0/32.0},{15.0/16.0, 15.0/16.0},{-3.0/32.0, 5.0/32.0}};

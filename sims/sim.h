@@ -113,7 +113,9 @@ public:
   CosmoIO *cosmo_io;
 
   boost::shared_ptr<pdat::CellVariable<real_t> > weight;
+  boost::shared_ptr<pdat::CellVariable<real_t> > refine_scratch;
   idx_t weight_idx;
+  idx_t refine_scratch_idx;
 
   idx_t regridding_interval;
   real_t KO_damping_coefficient;

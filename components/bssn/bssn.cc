@@ -183,7 +183,7 @@ void BSSN::set_DIFFgamma_Aij_norm(
 void BSSN::set_DIFFgamma_Aij_norm(
   const boost::shared_ptr<hier::PatchLevel>& level)
 {
-  if(!normalize_gammaij_Aij) return;
+  if(!normalize_gammai_Aij) return;
   for (hier::PatchLevel::iterator p(level->begin());
        p != level->end(); ++p)
   {
@@ -196,7 +196,7 @@ void BSSN::set_DIFFgamma_Aij_norm(
       BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
         patch->getPatchGeometry()));
 
-    const hier::Box& box = patch->getBox();
+    const hier::Box& box = DIFFchi_a_pdata->getGhostBox();
   
     const int * lower = &box.lower()[0];
     const int * upper = &box.upper()[0];
@@ -233,12 +233,12 @@ void BSSN::set_DIFFgamma_Aij_norm(
           // gamma -> gamma / det(gamma)^(1/3)
           // DIFFgamma -> (delta + DiffGamma) / det(gamma)^(1/3) - delta
           //            = ( DiffGamma + delta*[1 - det(gamma)^(1/3)] ) / ( 1 - [1 - det(1 + DiffGamma)^1/3] )
-          DIFFgamma11_a(i,j,k) = (DIFFgamma11_a(i,j,k) + one_minus_det_gamma_thirdpow) / (1.0 - one_minus_det_gamma_thirdpow);
-          DIFFgamma22_a(i,j,k) = (DIFFgamma22_a(i,j,k) + one_minus_det_gamma_thirdpow) / (1.0 - one_minus_det_gamma_thirdpow);
-          DIFFgamma33_a(i,j,k) = (DIFFgamma33_a(i,j,k) + one_minus_det_gamma_thirdpow) / (1.0 - one_minus_det_gamma_thirdpow);
-          DIFFgamma12_a(i,j,k) = (DIFFgamma12_a(i,j,k)) / (1.0 - one_minus_det_gamma_thirdpow);
-          DIFFgamma13_a(i,j,k) = (DIFFgamma13_a(i,j,k)) / (1.0 - one_minus_det_gamma_thirdpow);
-          DIFFgamma23_a(i,j,k) = (DIFFgamma23_a(i,j,k)) / (1.0 - one_minus_det_gamma_thirdpow);
+          // DIFFgamma11_a(i,j,k) = (DIFFgamma11_a(i,j,k) + one_minus_det_gamma_thirdpow) / (1.0 - one_minus_det_gamma_thirdpow);
+          // DIFFgamma22_a(i,j,k) = (DIFFgamma22_a(i,j,k) + one_minus_det_gamma_thirdpow) / (1.0 - one_minus_det_gamma_thirdpow);
+          // DIFFgamma33_a(i,j,k) = (DIFFgamma33_a(i,j,k) + one_minus_det_gamma_thirdpow) / (1.0 - one_minus_det_gamma_thirdpow);
+          // DIFFgamma12_a(i,j,k) = (DIFFgamma12_a(i,j,k)) / (1.0 - one_minus_det_gamma_thirdpow);
+          // DIFFgamma13_a(i,j,k) = (DIFFgamma13_a(i,j,k)) / (1.0 - one_minus_det_gamma_thirdpow);
+          // DIFFgamma23_a(i,j,k) = (DIFFgamma23_a(i,j,k)) / (1.0 - one_minus_det_gamma_thirdpow);
 
           // re-scale A_ij / ensure it is trace-free
           // need inverse gamma for finding Tr(A)
@@ -251,12 +251,12 @@ void BSSN::set_DIFFgamma_Aij_norm(
           real_t trA = gammai11*A11_a(i,j,k) + gammai22*A22_a(i,j,k) + gammai33*A33_a(i,j,k)
             + 2.0*(gammai12*A12_a(i,j,k) + gammai13*A13_a(i,j,k) + gammai23*A23_a(i,j,k));
           // A_ij -> ( A_ij - 1/3 gamma_ij A )
-          A11_a(i,j,k) = ( A11_a(i,j,k) - 1.0/3.0*(1.0 + DIFFgamma11_a(i,j,k))*trA ) / (1.0 - one_minus_det_gamma_thirdpow);
-          A22_a(i,j,k) = ( A22_a(i,j,k) - 1.0/3.0*(1.0 + DIFFgamma22_a(i,j,k))*trA ) / (1.0 - one_minus_det_gamma_thirdpow);
-          A33_a(i,j,k) = ( A33_a(i,j,k) - 1.0/3.0*(1.0 + DIFFgamma33_a(i,j,k))*trA ) / (1.0 - one_minus_det_gamma_thirdpow);
-          A12_a(i,j,k) = ( A12_a(i,j,k) - 1.0/3.0*DIFFgamma12_a(i,j,k)*trA ) / (1.0 - one_minus_det_gamma_thirdpow);
-          A13_a(i,j,k) = ( A13_a(i,j,k) - 1.0/3.0*DIFFgamma13_a(i,j,k)*trA ) / (1.0 - one_minus_det_gamma_thirdpow);
-          A23_a(i,j,k) = ( A23_a(i,j,k) - 1.0/3.0*DIFFgamma23_a(i,j,k)*trA ) / (1.0 - one_minus_det_gamma_thirdpow);
+          A11_a(i,j,k) = ( A11_a(i,j,k) - 1.0/3.0*(1.0 + DIFFgamma11_a(i,j,k))*trA ) ;
+          A22_a(i,j,k) = ( A22_a(i,j,k) - 1.0/3.0*(1.0 + DIFFgamma22_a(i,j,k))*trA ) ;
+          A33_a(i,j,k) = ( A33_a(i,j,k) - 1.0/3.0*(1.0 + DIFFgamma33_a(i,j,k))*trA ) ;
+          A12_a(i,j,k) = ( A12_a(i,j,k) - 1.0/3.0*DIFFgamma12_a(i,j,k)*trA ) ;
+          A13_a(i,j,k) = ( A13_a(i,j,k) - 1.0/3.0*DIFFgamma13_a(i,j,k)*trA ) ;
+          A23_a(i,j,k) = ( A23_a(i,j,k) - 1.0/3.0*DIFFgamma23_a(i,j,k)*trA ) ;
 
         }
       }
@@ -348,15 +348,13 @@ void BSSN::RKEvolvePatchBD(
     
     BSSNData bd = {0};
 
-    //tbox::pout<<boundary_fill_box<<"%%%%%%\n";
     boundary_fill_box.shift(
       (hier::Box::dir_t)l_idx/2,
       (l_idx%2)?(-STENCIL_ORDER_WIDTH):STENCIL_ORDER_WIDTH);
 
 
     boundary_fill_box *= patch_box;
-    //tbox::pout<<boundary_fill_box<<"*******\n";
-    //    throw(-1);
+
     //initialize dx for each patch
     const real_t * dx = &(patch_geom->getDx())[0];
 
@@ -375,7 +373,6 @@ void BSSN::RKEvolvePatchBD(
         }
       }
     }
-    //    tbox::pout<<boundary_fill_box<<"\n";
   }
   /************************updating codim = 2 boundaries****************/
   codim = 2;
@@ -423,11 +420,9 @@ void BSSN::RKEvolvePatchBD(
     else
       shift_vec.push_back(0);
 
-    //tbox::pout<<boundary_fill_box<<"\n";
     boundary_fill_box.shift(hier::IntVector(shift_vec));
 
     boundary_fill_box *= patch_box;
-    //tbox::pout<<boundary_fill_box<<"\n";
 
     //initialize dx for each patch
     const real_t * dx = &(patch_geom->getDx())[0];
@@ -792,21 +787,6 @@ void BSSN::registerSameLevelRefinerActive(
 }
 
 
-// void BSSN::registerInterLevelRefinerActive(
-//   xfer::RefineAlgorithm& refiner,
-//   boost::shared_ptr<hier::RefineOperator> &space_refine_op
-//   boost::shared_ptr<hier::TimeInterpolateOperator> & time_refine_op )
-// {
-//   BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_INTER_LEVEL_REFINE_A,refiner,space_refine_op,time_refine_op);
-// }
-
-// void BSSN::registerInterLevelRefinerFinal(
-//   xfer::RefineAlgorithm& refiner,
-//   boost::shared_ptr<hier::RefineOperator>& space_refine_op)
-//   boost::shared_ptr<hier::TimeInterpolateOperator> & time_refine_op )
-// {
-//   BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_INTER_LEVEL_REFINE_F,refiner,space_refine_op,time_refine_op);
-// }
 
 
 void BSSN::registerCoarsenActive(

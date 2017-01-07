@@ -552,7 +552,7 @@ void VacuumSim::RKEvolveLevel(
     refine_schedule = refiner.createSchedule(
       //border_fill_pattern,
       level,
-      level,
+      //level,
       coarser_level->getLevelNumber(),
       hierarchy,
       (cosmoPS->is_time_dependent)?NULL:cosmoPS);
@@ -585,7 +585,7 @@ void VacuumSim::RKEvolveLevel(
     bssnSim->K1FinalizePatch(patch);
     addBSSNExtras(patch);
   }
-
+  bssnSim->set_DIFFgamma_Aij_norm(level);
   
   /**************Starting K2 *********************************/
   bssnSim->prepairForK2(coarser_level, to_t);
@@ -613,6 +613,8 @@ void VacuumSim::RKEvolveLevel(
     addBSSNExtras(patch);
   }
 
+  bssnSim->set_DIFFgamma_Aij_norm(level);
+  
   /**************Starting K3 *********************************/
 
   bssnSim->prepairForK3(coarser_level, to_t);
@@ -643,6 +645,8 @@ void VacuumSim::RKEvolveLevel(
     addBSSNExtras(patch);
   }
 
+  bssnSim->set_DIFFgamma_Aij_norm(level);
+  
   /**************Starting K4 *********************************/
 
   bssnSim->prepairForK4(coarser_level, to_t);
@@ -668,7 +672,7 @@ void VacuumSim::RKEvolveLevel(
     bssnSim->K4FinalizePatch(patch);
     addBSSNExtras(patch);
   }
-
+  bssnSim->set_DIFFgamma_Aij_norm(level);
 }
 
 
@@ -738,7 +742,7 @@ void VacuumSim::advanceLevel(
   math::HierarchyCellDataOpsReal<real_t> hcellmath(hierarchy,ln,ln);
 
 
-  bssnSim->set_DIFFgamma_Aij_norm(level);
+  //bssnSim->set_DIFFgamma_Aij_norm(level);
   
   bssnSim->copyAToP(hcellmath);
 
