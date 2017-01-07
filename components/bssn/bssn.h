@@ -64,9 +64,7 @@ public:
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
   void RKEvolvePatchBD(const boost::shared_ptr<hier::Patch> & patch, real_t dt);
 
-  void set_DIFFgamma_Aij_norm(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
-  void set_DIFFgamma_Aij_norm(
+  void set_norm(
     const boost::shared_ptr<hier::PatchLevel>& level);
 
   
@@ -253,11 +251,15 @@ public:
 
   
   // Domain size
-  idx_t L[DIM];
+  real_t L[DIM];
 
-  bool normalize_gammaij_Aij;
+  bool normalize_Aij, normalize_gammaij;
 
   real_t Z4c_K1_DAMPING_AMPLITUDE, Z4c_K2_DAMPING_AMPLITUDE, Z4c_K3_DAMPING_AMPLITUDE;
+
+  real_t chi_lower_bd;
+
+  real_t alpha_lower_bd_for_L2;
 };
 
 }

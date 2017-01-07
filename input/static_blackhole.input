@@ -87,10 +87,12 @@ BSSN{
   lapse = "OnePlusLog"
   Shift = "GammaDriver"
   g_eta = 2
-  normalize_gammaij_Aij = TRUE
+  normalize_Aij = TRUE
+  normalize_gammaij = TRUE
   ccz4_k1 = 0.1
   ccz4_k2 = 0
   ccz4_k3 = 0.5
+  alpha_lower_bd_for_L2 = 0.3
 }
 
 IO{
