@@ -194,7 +194,6 @@ inline real_t backward_derivative_Odx2(idx_t i, idx_t j, idx_t k, int d,
   /* XXX */
   return 0;
 }
-
  
 inline real_t derivative_Odx4(idx_t i, idx_t j, idx_t k, int d,
     arr_t & field, const double dx[])
@@ -225,11 +224,82 @@ inline real_t derivative_Odx4(idx_t i, idx_t j, idx_t k, int d,
       )/dx[2];
       break;
   }
+  return 0;
+}
+inline real_t lop_forward_derivative_Odx4(idx_t i, idx_t j, idx_t k, int d,
+    arr_t & field, const double dx[])
+{
+  switch (d) {
+    case 1:
+      return (
+        + 1.0/12.0*field(i+3,j,k)
+        - 1.0/2.0*field(i+2,j,k)
+        + 3.0/2.0*field(i+1,j,k)
+        - 5.0/6.0*field(i,j,k)
+        - 1.0/4.0*field(i-1,j,k)
+      )/dx[0];
+      break;
+    case 2:
+      return (
+        + 1.0/12.0*field(i,j+3,k)
+        - 1.0/2.0*field(i,j+2,k)
+        + 3.0/2.0*field(i,j+1,k)
+        - 5.0/6.0*field(i,j,k)
+        - 1.0/4.0*field(i,j-1,k)
+      )/dx[1];
+      break;
+    case 3:
+      return (
+        + 1.0/12.0*field(i,j,k+3)
+        - 1.0/2.0*field(i,j,k+2)
+        + 3.0/2.0*field(i,j,k+1)
+        - 5.0/6.0*field(i,j,k)
+        - 1.0/4.0*field(i,j,k-1)
+      )/dx[2];
+      break;
+  }
 
   /* XXX */
   return 0;
 }
+ 
+inline real_t lop_backward_derivative_Odx4(idx_t i, idx_t j, idx_t k, int d,
+    arr_t & field, const double dx[])
+{
+  switch (d) {
+    case 1:
+      return (
+        - 1.0/12.0*field(i-3,j,k)
+        + 1.0/2.0*field(i-2,j,k)
+        - 3.0/2.0*field(i-1,j,k)
+        + 5.0/6.0*field(i,j,k)
+        + 1.0/4.0*field(i+1,j,k)
+      )/dx[0];
+      break;
+    case 2:
+      return (
+        - 1.0/12.0*field(i,j-3,k)
+        + 1.0/2.0*field(i,j-2,k)
+        - 3.0/2.0*field(i,j-1,k)
+        + 5.0/6.0*field(i,j,k)
+        + 1.0/4.0*field(i,j+1,k)
+      )/dx[1];
+      break;
+    case 3:
+      return (
+        - 1.0/12.0*field(i,j,k-3)
+        + 1.0/2.0*field(i,j,k-2)
+        - 3.0/2.0*field(i,j,k-1)
+        + 5.0/6.0*field(i,j,k)
+        + 1.0/4.0*field(i,j,k+1)
+      )/dx[2];
+      break;
+  }
 
+  /* XXX */
+  return 0;
+
+}
 inline real_t forward_derivative_Odx4(idx_t i, idx_t j, idx_t k, int d,
     arr_t & field, const double dx[])
 {
@@ -1076,6 +1146,19 @@ inline real_t derivative(idx_t i, idx_t j, idx_t k, int d,
   return STENCIL_ORDER_FUNCTION(derivative_Odx)(i, j, k, d, field, dx);
 }
 
+inline real_t lop_forward_derivative(idx_t i, idx_t j, idx_t k, int d,
+    arr_t & field, const double dx[])
+{
+  return STENCIL_ORDER_FUNCTION(lop_forward_derivative_Odx)(i, j, k, d, field, dx)
+    + STENCIL_ORDER_FUNCTION(forward_dissipation_stencil_Odx)(i, j, k, d, field, dx);
+}
+
+inline real_t lop_backward_derivative(idx_t i, idx_t j, idx_t k, int d,
+    arr_t & field, const double dx[])
+{
+  return STENCIL_ORDER_FUNCTION(lop_backward_derivative_Odx)(i, j, k, d, field, dx)
+    + STENCIL_ORDER_FUNCTION(backward_dissipation_stencil_Odx)(i, j, k, d, field, dx);
+}
 inline real_t forward_derivative(idx_t i, idx_t j, idx_t k, int d,
     arr_t & field, const double dx[])
 {
@@ -1093,8 +1176,8 @@ inline real_t backward_derivative(idx_t i, idx_t j, idx_t k, int d,
 inline real_t upwind_derivative(idx_t i, idx_t j, idx_t k, int d,
     arr_t & field, const double dx[], real_t c)
 {
-  if( c > 0) return c * forward_derivative(i,j,k,d,field, dx);
-  else return c * backward_derivative(i,j,k,d,field, dx);
+  if( c > 0) return c * lop_forward_derivative(i,j,k,d,field, dx);
+  else return c * lop_backward_derivative(i,j,k,d,field, dx);
 }
 
 inline real_t bd_derivative(
