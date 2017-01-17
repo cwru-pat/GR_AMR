@@ -6,11 +6,34 @@ using namespace SAMRAI;
 
 namespace cosmo{
 
+/**
+ * @brief   some comments for Sommerfield boundary:
+ *          1. because it would be complicated to deal with inter patch communication 
+ *             if we set the physical boundary of sommerfield on ghost cells, we use 
+ *             most outer part of the inner cells of each patch on coarsest level as physical 
+ *             boundaries. As the following example with ghost_width = 2, 
+ *             where "*" represents cells on physical boundary, "x" represents
+ *             the "real" inner cells. There are also ghost cells enclose all the "*" cells, but they are irrelevent 
+ *             in our realization of Sommerfield boundary condition so are not shown here.
+ *
+ *            ***********
+ *            ***********
+ *            **xxxxxxx**
+ *            **xxxxxxx**
+ *            **xxxxxxx** 
+ *            **xxxxxxx**
+ *            **xxxxxxx**
+ *            ***********
+ *            ***********
+ *
+ *          2. this also means it would be unpredictable if we refine the most outer "*" cells,
+ *             since the interpolation will be unprecise. So, let's try to avoid this case.
+*/
 SommerfieldBD::SommerfieldBD(
   const tbox::Dimension& dim_in,
   std::string object_name_in):
   CosmoPatchStrategy(dim_in, object_name_in),
-  is_time_dependent(true)
+  is_time_dependent(true) // if boundary is time dependent, it would not do anything when setting physical boundary conditions
 {
 
 }
@@ -29,14 +52,9 @@ void SommerfieldBD::setPhysicalBoundaryConditions(
   return;
 }
 
-// void DirichletBD::preprocessRefineBoxes(
-//   hier::Patch& fine,
-//   const hier::Patch& coarse,
-//   const hier::BoxContainer& fine_boxes,
-//   const hier::IntVector& ratio)
-// {
-  
-// }
+/*
+ * @brief should be useless
+ */
 void SommerfieldBD::preprocessRefine(
   hier::Patch& fine,
   const hier::Patch& coarse,
@@ -215,14 +233,6 @@ void SommerfieldBD::preprocessRefine(
   }
 
 }
-// void DirichletBD::postprocessRefineBoxes(
-//   hier::Patch& fine,
-//   const hier::Patch& coarse,
-//   const hier::BoxContainer& fine_boxes,
-//   const hier::IntVector& ratio)
-// {
-  
-// }
 void SommerfieldBD::postprocessRefine(
   hier::Patch& fine,
   const hier::Patch& coarse,

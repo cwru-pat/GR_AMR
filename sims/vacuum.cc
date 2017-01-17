@@ -61,8 +61,6 @@ void VacuumSim::init()
 /**
  * @brief      Set vacuum initial conditions
  *
- * @param[in]  map to BSSN fields
- * @param      initialized IOData
  */
 void VacuumSim::setICs(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
@@ -72,9 +70,11 @@ void VacuumSim::setICs(
   TBOX_ASSERT(gridding_algorithm);
   
   gridding_algorithm->printClassData(tbox::plog);
+
+  // set initial condition by calling function initializeLevelData()
   gridding_algorithm->makeCoarsestLevel(0.0);
 
-  
+  // regrid initial hierarchy if needed
   while(hierarchy->getNumberOfLevels() < hierarchy->getMaxNumberOfLevels())
   {
     int pre_level_num = hierarchy->getNumberOfLevels();
@@ -88,6 +88,7 @@ void VacuumSim::setICs(
       0,
       0.0);
     int post_level_num = hierarchy->getNumberOfLevels();
+    // no new level is created
     if(post_level_num == pre_level_num) break;
   }
   
@@ -101,7 +102,11 @@ void VacuumSim::initVacuumStep(
   bssnSim->stepInit(hierarchy);
 }
 
-
+/**
+ * @brief      initilize newly created level
+ *             set value directly if it's possible, interpolate from coraser level if not possible
+ *
+ */
 void VacuumSim::initLevel(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln)
@@ -112,22 +117,25 @@ void VacuumSim::initLevel(
 
   math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
 
+  // zero all fields
   BSSN_APPLY_TO_FIELDS_ARGS(RK4_ARRAY_ZERO,hcellmath);
   BSSN_APPLY_TO_SOURCES_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
   BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
 
   if(ic_type == "static_blackhole")
   {
-
-    bssn_ic_static_blackhole(hierarchy,ln);
-    
+    bssn_ic_static_blackhole(hierarchy,ln); 
   }
   else
     TBOX_ERROR("Undefined IC type!\n");
 
 }
 
-  
+/**
+ * @brief      compute weight for each grid, corresponds grid volumn, 
+ *             equals to 0 if it's covered by finer level
+ *
+ */  
 void VacuumSim::computeVectorWeights(
    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
@@ -246,12 +254,6 @@ void VacuumSim::initializeLevelData(
     * Reference the level object with the given index from the hierarchy.
     */
    boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
-
-   /*
-    * If instructed, allocate all patch data on the level.
-    * Allocate only persistent data.  Scratch data will
-    * generally be allocated and deallocated as needed.
-    */
    
 
    math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
@@ -264,9 +266,9 @@ void VacuumSim::initializeLevelData(
      BSSN_APPLY_TO_GEN1_EXTRAS(EXTRA_ARRAY_ALLOC);
      level->allocatePatchData(weight_idx);
    }
-   
+
+   //at beginning, initialize new level
    if(init_data_time < EPS)
-   //at beginning, get initial value somehow directly
    {
      initLevel(patch_hierarchy, ln);
 
@@ -349,6 +351,10 @@ void VacuumSim::initializeLevelData(
    computeVectorWeights(hierarchy);
 }
 
+/**
+ * @brief tag the grids that need to be refined
+ *
+ */  
 void VacuumSim::applyGradientDetector(
    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy_,
    const int ln,
@@ -480,6 +486,10 @@ void VacuumSim::runVacuumStep(
   t_RK_steps->stop();
 }
 
+/**
+ * @brief  get dt for each step, currently will return the same value
+ *
+ */  
 double VacuumSim::getDt(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
@@ -492,6 +502,11 @@ double VacuumSim::getDt(
   return (grid_geometry.getDx()[0]) * dt_frac;
 }
 
+
+/**
+ * @brief run each step
+ *
+ */  
 void VacuumSim::runStep(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
@@ -518,7 +533,11 @@ void VacuumSim::addBSSNExtras(
   return;
 }
 
-  
+
+/**
+ * @brief RK evolve level
+ *
+ */  
 void VacuumSim::RKEvolveLevel(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln,
@@ -539,7 +558,7 @@ void VacuumSim::RKEvolveLevel(
   
   bssnSim->registerRKRefiner(refiner, space_refine_op);
 
-  bssnSim->prepairForK1(coarser_level, to_t);
+  bssnSim->prepareForK1(coarser_level, to_t);
 
 
   
@@ -588,7 +607,7 @@ void VacuumSim::RKEvolveLevel(
   bssnSim->set_norm(level);
   
   /**************Starting K2 *********************************/
-  bssnSim->prepairForK2(coarser_level, to_t);
+  bssnSim->prepareForK2(coarser_level, to_t);
   
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
@@ -617,7 +636,7 @@ void VacuumSim::RKEvolveLevel(
   
   /**************Starting K3 *********************************/
 
-  bssnSim->prepairForK3(coarser_level, to_t);
+  bssnSim->prepareForK3(coarser_level, to_t);
     
 
   
@@ -649,7 +668,7 @@ void VacuumSim::RKEvolveLevel(
   
   /**************Starting K4 *********************************/
 
-  bssnSim->prepairForK4(coarser_level, to_t);
+  bssnSim->prepareForK4(coarser_level, to_t);
 
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
@@ -675,7 +694,12 @@ void VacuumSim::RKEvolveLevel(
   bssnSim->set_norm(level);
 }
 
-
+/**
+ * @brief advance a single level by:
+ *        1. RK evolve this level(including evolve the interior and interpolate the boundary)
+ *        2. evolve its son levels recursively
+ *        3. doing coarsen operation
+ */ 
 void VacuumSim::advanceLevel(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   int ln,
@@ -696,8 +720,7 @@ void VacuumSim::advanceLevel(
   //RK advance interior(including innner ghost cells) of level
 
 
-  RKEvolveLevel(
-    hierarchy, ln, from_t, to_t);
+  RKEvolveLevel(hierarchy, ln, from_t, to_t);
 
 
   level->getBoxLevel()->getMPI().Barrier();
@@ -750,6 +773,8 @@ void VacuumSim::advanceLevel(
 
   level->getBoxLevel()->getMPI().Barrier();
 }
+
+
 void VacuumSim::resetHierarchyConfiguration(
   /*! New hierarchy */
   const boost::shared_ptr<hier::PatchHierarchy>& new_hierarchy,

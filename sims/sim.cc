@@ -79,7 +79,7 @@ void CosmoSim::setGriddingAlgs(
   gridding_algorithm = gridding_algorithm_in;
 }
 /**
- * @brief      Initialize individual simulation class instances
+ * @brief  set refine and coarsen operators
  */
 void CosmoSim::setRefineCoarsenOps(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
@@ -92,7 +92,7 @@ void CosmoSim::setRefineCoarsenOps(
   TBOX_ASSERT(grid_geometry_);
 
   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
-  
+
   space_refine_op =
     grid_geometry.
     lookupRefineOperator(bssnSim->DIFFchi, refine_op_type);
@@ -125,7 +125,11 @@ void CosmoSim::run(
   tbox::plog<<"\nEnding simulation.";
 }
 
-               
+
+
+/**
+ * @brief regrid when necessary and detect NaNs.
+ */
 void CosmoSim::runCommonStepTasks(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
@@ -184,7 +188,11 @@ bool CosmoSim::hasNaNs(
   }
   return 0;
 }
-  
+
+
+/**
+ * @brief      detect NaNs for the whole hierarchy
+ */
 bool CosmoSim::isValid(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy) 
 {
@@ -211,12 +219,6 @@ bool CosmoSim::isValid(
      
     }
 
-    /*
-     * On all but the finest level, assign 0 to vector
-     * weight to cells covered by finer cells.
-     */
-
-  // all levels except finest
   }  // loop over levels
   
   

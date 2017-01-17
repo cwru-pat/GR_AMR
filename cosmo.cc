@@ -69,6 +69,7 @@ int main(int argc, char* argv[])
 
   boost::shared_ptr<tbox::InputDatabase> input_db(
     new tbox::InputDatabase("input_db"));
+
   tbox::InputManager::getManager()->parseInputFile(input_filename, input_db);
 
   if (input_db->isDatabase("TimerManager"))
@@ -104,8 +105,10 @@ int main(int argc, char* argv[])
   else
     tbox::PIO::logOnlyNodeZero(log_filename);
 
-  tbox::pout.precision(PRINT_PRECISION);
-  tbox::plog.precision(PRINT_PRECISION);
+  //set output precision
+  int print_precision = main_db->getIntegerWithDefault("print_precision", 9);
+  tbox::pout.precision(print_precision);
+  tbox::plog.precision(print_precision);
 
   
   std::string simulation_type =
@@ -134,7 +137,7 @@ int main(int argc, char* argv[])
  
 
   
-
+  // get file name for VisIt file
   std::string vis_filename =
     main_db->getStringWithDefault("vis_filename", base_name);
 
@@ -193,25 +196,23 @@ int main(int argc, char* argv[])
 
 
 
-  //deliver the gridding algorithm
+  //pass the gridding algorithm
   cosmoSim->setGriddingAlgs(gridding_algorithm);
 
-  // Initialize simulation 
-
+  // Initialize refine and coarsen operators
   cosmoSim->setRefineCoarsenOps(patch_hierarchy);
   // Generate initial conditions
   cosmoSim->setICs(patch_hierarchy);
-
-
 
   cosmoSim->setRefineCoarsenOps(patch_hierarchy);
   // Run simulation
   cosmoSim->run(patch_hierarchy);
 
   
-  
+  // print time info
   tbox::TimerManager::getManager()->print(tbox::plog);
-  
+
+  // reset and close stuff
   patch_hierarchy.reset();
   load_balancer.reset();
   gridding_algorithm.reset();

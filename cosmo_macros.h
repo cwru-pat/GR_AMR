@@ -28,9 +28,6 @@
   #define STENCIL_ORDER_WIDTH STENCIL_ORDER
 #endif
 
-#ifndef PRINT_PRECISION
-  #define PRINT_PRECISION 9
-#endif
 
 #ifndef REFINEMENT_ORDER
   #define REFINEMENT_ORDER 1

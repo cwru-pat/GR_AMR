@@ -19,6 +19,9 @@ CosmoIO::CosmoIO(
   TBOX_ASSERT(output_list.size() == output_interval.size());
 }
 
+/**
+ * @brief  only need it when you need to output derived varibles(variables are not stored directly)
+ */
 bool CosmoIO::packDerivedDataIntoDoubleBuffer(
   double* buffer,
   const hier::Patch& patch,
@@ -30,7 +33,7 @@ bool CosmoIO::packDerivedDataIntoDoubleBuffer(
   NULL_USE(depth_id);
   NULL_USE(simulation_time);
 
-   return true;
+  return true;
 }
 
 void CosmoIO::registerVariablesWithPlotter(
@@ -80,6 +83,9 @@ void CosmoIO::dumpData(
              << step_num << '\n';
 }
 
+/**
+ * @brief print patch for debuging
+ */
 void CosmoIO::printPatch(
   const boost::shared_ptr<hier::Patch> & patch,
   std::ostream &os,
@@ -89,7 +95,7 @@ void CosmoIO::printPatch(
     BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
       patch->getPatchData(idx)));
   const hier::Box& ghost_box = pd->getGhostBox();
-  pd->print(ghost_box, 0, os, PRINT_PRECISION);
+  pd->print(ghost_box, 0, os, 9);
 }
   
 }

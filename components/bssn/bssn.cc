@@ -10,8 +10,6 @@ namespace cosmo
 
 /**
  * @brief Constructor for BSSN class
- * @details Allocate memory for fields, add fields to map,
- * create reference FRW integrator, and call BSSN::init.
  */
 BSSN::BSSN(
   const tbox::Dimension& dim_in,
@@ -82,7 +80,9 @@ BSSN::~BSSN()
   // BSSN_APPLY_TO_GEN1_EXTRAS(GEN1_ARRAY_DELETE)
 }
 
-
+/**
+ * @brief  normalize Aij or gammaij or both
+ */
 void BSSN::set_norm(
   const boost::shared_ptr<hier::PatchLevel>& level)
 {
@@ -186,8 +186,8 @@ void BSSN::init()
 
 
 /**
- * @brief Call RK4Register class step initialization; normalize Aij and DIFFgammaIJ fields
- * @details See RK4Register::stepInit() method.
+ * @brief  some initialization for each step
+ * 
  */
 void BSSN::stepInit(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
@@ -195,7 +195,7 @@ void BSSN::stepInit(
   
   //BSSN_RK_INITIALIZE; // macro calls stepInit for all fields
 
-    boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
      BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
        hierarchy->getGridGeometry()));
    TBOX_ASSERT(grid_geometry_);
@@ -211,6 +211,10 @@ void BSSN::stepInit(
   chi_lower_bd = pow((dx[0] / (1<<(hierarchy->getNumberOfLevels()-1)))/4.0, 4.0) / 10.0; 
 }
 
+/**
+ * @brief  RK evolve physical boundary for particular patch
+ * 
+ */
 void BSSN::RKEvolvePatchBD(
   const boost::shared_ptr<hier::Patch> & patch,
   real_t dt)
@@ -224,6 +228,7 @@ void BSSN::RKEvolvePatchBD(
 
   const idx_t n_codim1_boxes = static_cast<idx_t>(codim1_boxes.size());
 
+  // if it has no codimention 1 boundary, it has no other type of boundaries
   if(n_codim1_boxes == 0) return;
 
   initPData(patch);
@@ -419,7 +424,7 @@ void BSSN::RKEvolvePatchBD(
 }
 
 /**
- * @brief Call BSSN::RKEvolvePt for all points
+ * @brief RK evolve patch interior
  */
 void BSSN::RKEvolvePatch(
   const boost::shared_ptr<hier::Patch> & patch, real_t dt)
@@ -455,8 +460,11 @@ void BSSN::RKEvolvePatch(
   }
 }
 
-
-void BSSN::prepairForK1(
+/**
+ * @brief calculate K1 value on coarser level
+ * 
+ */
+void BSSN::prepareForK1(
   const boost::shared_ptr<hier::PatchLevel> & level,
   real_t to_t)
 {
@@ -513,7 +521,11 @@ void BSSN::prepairForK1(
   }
 }
 
-void BSSN::prepairForK2(
+/**
+ * @brief calculate K2 value on coarser level
+ * 
+ */
+void BSSN::prepareForK2(
   const boost::shared_ptr<hier::PatchLevel> & level,
   real_t to_t)
 {
@@ -566,7 +578,11 @@ void BSSN::prepairForK2(
   }
 }
 
-void BSSN::prepairForK3(
+/**
+ * @brief calculate K3 value on coarser level
+ * 
+ */  
+void BSSN::prepareForK3(
   const boost::shared_ptr<hier::PatchLevel> & level,
   real_t to_t)
 {
@@ -583,8 +599,6 @@ void BSSN::prepairForK3(
 
     const int * lower = &box.lower()[0];
     const int * upper = &box.upper()[0];
-
-    BSSNData bd = {0};
 
     // right branch of the tree
     if(tbox::MathUtilities<real_t>::Abs(to_t - patch->getPatchData(DIFFchi_a_idx)->getTime()) < EPS)
@@ -620,8 +634,11 @@ void BSSN::prepairForK3(
   }
 }
 
-//final step
-void BSSN::prepairForK4(
+/**
+ * @brief calculate K4 value on coarser level
+ * 
+ */
+void BSSN::prepareForK4(
   const boost::shared_ptr<hier::PatchLevel> & level,
   double to_t)
 {
@@ -641,7 +658,6 @@ void BSSN::prepairForK4(
 
     
     
-    BSSNData bd = {0};
 
 
     // right branch of the tree
@@ -677,7 +693,11 @@ void BSSN::prepairForK4(
     }
   }
 }  
-  
+
+/**
+ * @brief register refiner for BSSN fields
+ * 
+ */
 void BSSN::registerRKRefiner(
   xfer::RefineAlgorithm& refiner,
   boost::shared_ptr<hier::RefineOperator> &space_refine_op)
@@ -685,6 +705,10 @@ void BSSN::registerRKRefiner(
   BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_RK_REFINER, refiner, space_refine_op);
 }
 
+/**
+ * @brief  register fields for same level refine
+ * 
+ */
 void BSSN::registerSameLevelRefinerActive(
   xfer::RefineAlgorithm& refiner,
   boost::shared_ptr<hier::RefineOperator> &space_refine_op)
@@ -694,7 +718,10 @@ void BSSN::registerSameLevelRefinerActive(
 
 
 
-
+/**
+ * @brief register fields for coarsen
+ * 
+ */
 void BSSN::registerCoarsenActive(
   xfer::CoarsenAlgorithm& coarsener,
   boost::shared_ptr<hier::CoarsenOperator>& coarsen_op)
@@ -706,7 +733,10 @@ void BSSN::registerCoarsenActive(
 
 
 
-
+/**
+ * @brief copy active component to previous component of all BSSN fields
+ * 
+ */
 void BSSN::copyAToP(
   math::HierarchyCellDataOpsReal<real_t> & hcellmath)
 {
@@ -734,8 +764,10 @@ void BSSN::initMDA(
   BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(BSSN_MDA_ACCESS_INIT, a);
 }
 
-
-    
+/**
+ * @brief set the time of previous components of all BSSN fields as from_t
+ *        set the time of active components of all BSSN fields as to_t
+ */ 
 void BSSN::setLevelTime(
   const boost::shared_ptr<hier::PatchLevel> & level,
   double from_t, double to_t)
@@ -747,7 +779,11 @@ void BSSN::setLevelTime(
     BSSN_APPLY_TO_FIELDS_ARGS(BSSN_SET_PATCH_TIME, from_t, to_t);
   }
 }
-  
+
+/**
+ * @brief  finalize k1 step for RK on both interior and boundary
+ * 
+ */
 void BSSN::K1FinalizePatch(
   const boost::shared_ptr<hier::Patch> & patch)
 {
@@ -902,7 +938,7 @@ void BSSN::set_bd_values_bd(
           
   bd->norm = sqrt(bd->x*bd->x + bd->y*bd->y + bd->z*bd->z);
   #endif
-
+  
   if(bd->chi < chi_lower_bd) bd->chi = chi_lower_bd;
 }
 
@@ -1735,13 +1771,6 @@ void BSSN::output_max_H_constaint(
   for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln ++)
   {
     boost::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
-
-    boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-     BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
-       hierarchy->getGridGeometry()));
-   TBOX_ASSERT(grid_geometry_);
-   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
-
     
     for( hier::PatchLevel::iterator pit(level->begin());
          pit != level->end(); ++pit)
@@ -1843,16 +1872,10 @@ void BSSN::output_L2_H_constaint(
   idx_t weight_idx)
 {
   double H_L2=0;
-  idx_t mp[3] = {0}, hp[3] = {0};  
+
   for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln ++)
   {
     boost::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
-
-    boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-     BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
-       hierarchy->getGridGeometry()));
-   TBOX_ASSERT(grid_geometry_);
-   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
 
     
     for( hier::PatchLevel::iterator pit(level->begin());

@@ -72,13 +72,13 @@ public:
   void RKEvolvePatch(
     const boost::shared_ptr<hier::Patch> & patch, real_t dt);
 
-  void prepairForK1(
+  void prepareForK1(
     const boost::shared_ptr<hier::PatchLevel> & level, real_t to_t);
-  void prepairForK2(
+  void prepareForK2(
     const boost::shared_ptr<hier::PatchLevel> & level, real_t to_t);
-  void prepairForK3(
+  void prepareForK3(
     const boost::shared_ptr<hier::PatchLevel> & level, real_t to_t);
-  void prepairForK4(
+  void prepareForK4(
     const boost::shared_ptr<hier::PatchLevel> & level, real_t to_t);
 
   void registerRKRefiner(

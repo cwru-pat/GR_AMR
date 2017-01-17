@@ -3,6 +3,7 @@ Main
   simulation_type = "vacuum"  
   dim = 3
   base_name = "blackhole"
+  print_precision = 9
 }
 
 CartesianGridGeometry {

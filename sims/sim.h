@@ -29,7 +29,6 @@ public:
     void);
 
 
-  // These functions will be called in main();
   // Each derived class should implement them.
   virtual void init() = 0;
   virtual void runStep(
@@ -37,7 +36,7 @@ public:
   virtual void setICs(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy) = 0;
 
-    virtual void
+  virtual void
     initializeLevelData(
       /*! Hierarchy to initialize */
       const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,

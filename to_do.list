@@ -11,3 +11,11 @@
 6. move all the BSSN operation to functions in bssn class, not calling macros from CosmoSim.
 
 7. currently mixing int and double with user defined variable idx_t and real_t, is it necessary to unify since SAMRAI only supports certain types of variables
+
+8. the quadratic interpolation operator does not good enough, we can easily see this by a simple example
+
+9. make function setRefineCoarsenOps() decouple with BSSN object
+
+10. may improve the efficiency of function initializeLevelData() by changing the way of enumerating index?
+
+11. need to find a better way to set the variable chi_lower_bd
