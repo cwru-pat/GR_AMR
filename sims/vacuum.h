@@ -4,6 +4,7 @@
 #include "sim.h"
 #include "../cosmo_includes.h"
 #include "../components/boundaries/sommerfield.h"
+#include "../components/boundaries/periodic.h"
 #include "../components/bssn/bssn.h"
 #include "../components/bssn/bssn_ic.h"
 #include "vacuum_macros.h"
@@ -22,11 +23,12 @@ class VacuumSim:
 {
 public:
   VacuumSim(
-  const tbox::Dimension& dim_in,
-  boost::shared_ptr<tbox::InputDatabase>& input_db_in,
-  std::ostream* l_stream_in,
-  std::string simulation_type_in,
-  std::string vis_filename_in);
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    const tbox::Dimension& dim_in,
+    boost::shared_ptr<tbox::InputDatabase>& input_db_in,
+    std::ostream* l_stream_in,
+    std::string simulation_type_in,
+    std::string vis_filename_in);
 
   virtual ~VacuumSim(
     void);

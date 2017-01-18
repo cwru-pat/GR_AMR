@@ -17,7 +17,8 @@ CosmoPatchStrategy::CosmoPatchStrategy(
   std::string object_name_in):
   xfer::RefinePatchStrategy(),
   dim(dim_in),
-  object_name(object_name_in)
+  object_name(object_name_in),
+  is_time_dependent(false)
 {
 
 }

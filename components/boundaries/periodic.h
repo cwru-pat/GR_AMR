@@ -1,5 +1,5 @@
-#ifndef COSMO_SOMMERFIELD_H
-#define COSMO_SOMMERFIELD_H
+#ifndef COSMO_PERIODIC_H
+#define COSMO_PERIODIC_H
 
 #include "../../cosmo_includes.h"
 #include "../../cosmo_ps.h"
@@ -8,15 +8,15 @@ using namespace SAMRAI;
 
 namespace cosmo{
 
-class SommerfieldBD:public CosmoPatchStrategy
+class periodicBD:public CosmoPatchStrategy
 {
  public:
 
- SommerfieldBD(
+ periodicBD(
     const tbox::Dimension& dim_in,
     std::string object_name);
 
-  virtual ~SommerfieldBD(
+  virtual ~periodicBD(
     void);
 
 

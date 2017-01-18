@@ -10,11 +10,13 @@ namespace cosmo
 {
   
 VacuumSim::VacuumSim(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   const tbox::Dimension& dim_in,
   boost::shared_ptr<tbox::InputDatabase>& input_db_in,
   std::ostream* l_stream_in,
   std::string simulation_type_in,
   std::string vis_filename_in):CosmoSim(
+    hierarchy,
     dim_in, input_db_in, l_stream_in, simulation_type_in, vis_filename_in),
   cosmo_vacuum_db(input_db_in->getDatabase("VacuumSim"))
 {
@@ -30,10 +32,13 @@ VacuumSim::VacuumSim(
     cosmoPS = new SommerfieldBD(dim, bd_type);
 
   }
+  else if(bd_type == "periodic")
+  {
+    cosmoPS = new periodicBD(dim, bd_type);
+  }
   else
     TBOX_ERROR("Unsupported boundary type!\n");
 
-  // initialize base class
 
   cosmo_vacuum_db = input_db->getDatabase("VacuumSim");
     
@@ -125,6 +130,10 @@ void VacuumSim::initLevel(
   if(ic_type == "static_blackhole")
   {
     bssn_ic_static_blackhole(hierarchy,ln); 
+  }
+  else if(ic_type == "awa_stability")
+  {
+    bssn_ic_awa_stability(hierarchy,ln,1e-10);
   }
   else
     TBOX_ERROR("Undefined IC type!\n");
@@ -465,7 +474,7 @@ void VacuumSim::outputVacuumStep(
 
   tbox::pout<<"step: "<<step<<"/"<<num_steps<<"\n";
   
-  bssnSim->output_L2_H_constaint(hierarchy, weight_idx);
+  bssnSim->output_max_H_constaint(hierarchy, weight_idx);
  
   cosmo_io->registerVariablesWithPlotter(*visit_writer, step);
   cosmo_io->dumpData(hierarchy, *visit_writer, step, cur_t);

@@ -16,6 +16,7 @@ boost::shared_ptr<tbox::Timer> CosmoSim::t_RK_steps;
 
   
 CosmoSim::CosmoSim(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   const tbox::Dimension& dim_in,
   boost::shared_ptr<tbox::InputDatabase>& input_db_in,
   std::ostream* l_stream_in = 0,
@@ -48,7 +49,9 @@ CosmoSim::CosmoSim(
   t_RK_steps = tbox::TimerManager::getManager()->
     getTimer("RK_steps");
 
-  bssnSim = new BSSN(dim,input_db->getDatabase("BSSN"), lstream,KO_damping_coefficient);
+  bssnSim = new BSSN(
+    hierarchy, dim,input_db->getDatabase("BSSN"), lstream,KO_damping_coefficient);
+
   cosmo_io = new CosmoIO(dim, input_db->getDatabase("IO"), lstream);
 
   hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();

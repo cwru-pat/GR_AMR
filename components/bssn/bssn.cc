@@ -12,6 +12,7 @@ namespace cosmo
  * @brief Constructor for BSSN class
  */
 BSSN::BSSN(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   const tbox::Dimension& dim_in,
   boost::shared_ptr<tbox::Database> database_in,
   std::ostream* l_stream_in,
@@ -27,7 +28,7 @@ BSSN::BSSN(
   Z4c_K1_DAMPING_AMPLITUDE(cosmo_bssn_db->getDoubleWithDefault("ccz4_k1", 0.0)),
   Z4c_K2_DAMPING_AMPLITUDE(cosmo_bssn_db->getDoubleWithDefault("ccz4_k2", 0.0)),
   Z4c_K3_DAMPING_AMPLITUDE(cosmo_bssn_db->getDoubleWithDefault("ccz4_k3", 0.0)),
-  chi_lower_bd(0),
+  chi_lower_bd(cosmo_bssn_db->getDoubleWithDefault("chi_lower_bd", 0)),
   alpha_lower_bd_for_L2(cosmo_bssn_db->getDoubleWithDefault("alpha_lower_bd_for_L2", 0.3))
 {
   if(!USE_CCZ4)
@@ -69,7 +70,7 @@ BSSN::BSSN(
 
   BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(BSSN_REG_TO_CONTEXT, context_active, a, STENCIL_ORDER);
 
-  init();
+  init(hierarchy);
   
 }
 
@@ -179,27 +180,13 @@ void BSSN::set_norm(
 }
 
   
-void BSSN::init()
+void BSSN::init(const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
-  
-}
-
-
-/**
- * @brief  some initialization for each step
- * 
- */
-void BSSN::stepInit(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
-{
-  
-  //BSSN_RK_INITIALIZE; // macro calls stepInit for all fields
-
   boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-     BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
-       hierarchy->getGridGeometry()));
-   TBOX_ASSERT(grid_geometry_);
-   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
+    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+      hierarchy->getGridGeometry()));
+  TBOX_ASSERT(grid_geometry_);
+  geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
 
   const double * domain_lower = &grid_geometry.getXLower()[0];
   const double * domain_upper = &grid_geometry.getXUpper()[0];
@@ -208,7 +195,23 @@ void BSSN::stepInit(
     L[i] = domain_upper[i] - domain_lower[i];
 
   const double * dx = &grid_geometry.getDx()[0];
-  chi_lower_bd = pow((dx[0] / (1<<(hierarchy->getNumberOfLevels()-1)))/4.0, 4.0) / 10.0; 
+
+  std::string chi_lower_bd_type =
+    cosmo_bssn_db->getStringWithDefault("chi_lower_bd_type", "");
+  if(chi_lower_bd_type == "static_blackhole")
+    chi_lower_bd = pow((dx[0] / (1<<(hierarchy->getMaxNumberOfLevels()-1)))/4.0, 4.0) / 10.0;
+  
+}
+
+
+/**
+ * @brief  some initialization for each step, currently does nothing
+ * 
+ */
+void BSSN::stepInit(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+{
+  
 }
 
 /**
@@ -1767,7 +1770,6 @@ void BSSN::output_max_H_constaint(
 {
   double max_H=0, max_H_scaled = 0;
   double max_M=0, max_M_scaled = 0;
-  idx_t mp[3] = {0}, hp[3] = {0};  
   for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln ++)
   {
     boost::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
@@ -1817,11 +1819,6 @@ void BSSN::output_max_H_constaint(
             set_bd_values(i,j,k,&bd,dx);
             if(weight_array(i,j,k) > 0)
             {
-              if(tbox::MathUtilities<double>::Abs(
-                  hamiltonianConstraintCalc(&bd, dx)) > max_H)
-              {
-                hp[0] = i, hp[1] = j, hp[2] = k;
-              }
               max_H = tbox::MathUtilities<double>::Max(
                 max_H, tbox::MathUtilities<double>::Abs(
                   hamiltonianConstraintCalc(&bd, dx)));
@@ -1829,12 +1826,6 @@ void BSSN::output_max_H_constaint(
                 max_H_scaled, tbox::MathUtilities<double>::Abs(
                   hamiltonianConstraintCalc(&bd, dx)/
                   hamiltonianConstraintScale(&bd,dx)));
-
-               if(tbox::MathUtilities<double>::Abs(
-                  momentumConstraintCalc(&bd, dx)) > max_M)
-               {
-                 mp[0]=i, mp[1] =j , mp[2] = k;
-               }
 
                max_M = tbox::MathUtilities<double>::Max(
                 max_M, tbox::MathUtilities<double>::Abs(
@@ -1861,9 +1852,9 @@ void BSSN::output_max_H_constaint(
   }
 
   tbox::pout<<"Max Hamiltonian constraint is "
-            <<max_H<<"/"<<max_H_scaled<<"\n at position "<<hp[0]<<" "<<hp[1]<<" "<<hp[2]<<"\n";
+            <<max_H<<"\n";
   tbox::pout<<"Max Momentum constraint is "
-            <<max_M<<"/"<<max_M_scaled<<"\n at position "<<mp[0]<<" "<<mp[1]<<" "<<mp[2]<<"\n";
+            <<max_M<<"\n";
   return;
 }
 

@@ -32,10 +32,10 @@ namespace cosmo{
 SommerfieldBD::SommerfieldBD(
   const tbox::Dimension& dim_in,
   std::string object_name_in):
-  CosmoPatchStrategy(dim_in, object_name_in),
-  is_time_dependent(true) // if boundary is time dependent, it would not do anything when setting physical boundary conditions
+  CosmoPatchStrategy(dim_in, object_name_in)
+   // if boundary is time dependent, it would not do anything when setting physical boundary conditions
 {
-
+  is_time_dependent = true;
 }
 
 SommerfieldBD::~SommerfieldBD() {

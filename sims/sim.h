@@ -19,6 +19,7 @@ public:
 
   BSSN * bssnSim;
   CosmoSim(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
     const tbox::Dimension& dim_in,
     boost::shared_ptr<tbox::InputDatabase>& input_db_in,
     std::ostream* l_stream_in,

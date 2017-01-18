@@ -153,7 +153,7 @@ int main(int argc, char* argv[])
   else if(simulation_type == "vacuum")
   {
     cosmoSim = new VacuumSim(
-      dim, input_db, &tbox::plog, simulation_type, vis_filename);
+      patch_hierarchy, dim, input_db, &tbox::plog, simulation_type, vis_filename);
   }
   else
   {

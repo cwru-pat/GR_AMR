@@ -37,6 +37,7 @@ public:
 
   
   BSSN(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
     const tbox::Dimension& dim_in,
     boost::shared_ptr<tbox::Database> database_in,
     std::ostream* l_stream_in,
@@ -58,7 +59,7 @@ public:
   BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(RK4_MDA_ACCESS_CREATE,a)
   
 
-  void init();
+  void init(const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
 
   void stepInit(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
