@@ -134,6 +134,27 @@ void VacuumSim::initLevel(
   else if(ic_type == "awa_stability")
   {
     bssn_ic_awa_stability(hierarchy,ln,1e-10);
+
+    xfer::RefineAlgorithm refiner;
+
+    boost::shared_ptr<hier::RefineOperator> accurate_refine_op =
+      space_refine_op;
+     
+    TBOX_ASSERT(accurate_refine_op);
+
+    //registering refine variables
+    BSSN_APPLY_TO_FIELDS_ARGS(VAC_REGISTER_SPACE_REFINE_A,refiner,accurate_refine_op);
+                             
+    boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
+
+    refine_schedule =
+      refiner.createSchedule(level,
+                             NULL);
+       
+    level->getBoxLevel()->getMPI().Barrier();
+     
+    refine_schedule->fillData(0.0);
+
   }
   else
     TBOX_ERROR("Undefined IC type!\n");

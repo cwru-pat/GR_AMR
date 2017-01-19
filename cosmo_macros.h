@@ -83,7 +83,7 @@
 
 // not really tested:
 #ifndef USE_CCZ4
-  #define USE_CCZ4 false
+  #define USE_CCZ4 true
 #endif
 
 /* #if USE_CCZ4 */

@@ -27,7 +27,7 @@ void bssn_ic_awa_stability(
 
 
 
-  int rho = 0.02 / grid_geometry.getDx()[0];
+  double rho = 0.02 / grid_geometry.getDx()[0];
   
   std::uniform_real_distribution<real_t> dist(
     -A/rho/rho, A/rho/rho
@@ -188,7 +188,7 @@ void bssn_ic_awa_stability(
           patch->getPatchGeometry()));
 
     
-    const hier::Box& box = DIFFchi_a_pdata->getGhostBox();
+    const hier::Box& box = DIFFchi_a_pdata->getBox();
 
     //const double *dx = &grid_geometry.getDx()[0];
       

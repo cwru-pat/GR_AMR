@@ -73,10 +73,10 @@ class CosmoPatchStrategy:public xfer::RefinePatchStrategy
 
    std::vector<idx_t> target_id_list;
 
-   bool is_time_dependent;
 
    const tbox::Dimension dim;
    std::string object_name;
+   bool is_time_dependent;
 
 };
 

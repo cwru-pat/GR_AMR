@@ -528,7 +528,7 @@
 )
 
 #define BSSN_CALCULATE_DIZJ_TERM2(M, N, I, J)       \
-  bd->gammai##M##N*(                                \
+  (bd->gammai##M##N*(                              \
     bd->d##I##d##M##g##J##N                         \
     - bd->G1##I##M*bd->d1g##J##N                    \
     - bd->G2##I##M*bd->d2g##J##N                    \
@@ -539,24 +539,24 @@
     - bd->G1##I##N*bd->d##M##g##J##1                \
     - bd->G2##I##N*bd->d##M##g##J##2                \
     - bd->G3##I##N*bd->d##M##g##J##3                \
-)
+  ))
 
 #define BSSN_CALCULATE_DIZJ(I, J)                 \
   bd->D##I##Z##J = 0.5*bd->gamma##J##1*(          \
     derivative(bd->i,bd->j,bd->k,I,Gamma1_a,dx)   \
-    + bd->G1##I##1*Gamma1_a(bd->i,bd->j,bd->k)    \
-    + bd->G1##I##2*Gamma2_a(bd->i,bd->j,bd->k)    \
-    + bd->G1##I##3*Gamma3_a(bd->i,bd->j,bd->k))   \
+    + bd->G1##I##1*bd->Gamma1    \
+    + bd->G1##I##2*bd->Gamma2    \
+    + bd->G1##I##3*bd->Gamma3)   \
     + 0.5*bd->gamma##J##2*(                       \
       derivative(bd->i,bd->j,bd->k,I,Gamma2_a,dx) \
-      + bd->G2##I##1*Gamma1_a(bd->i,bd->j,bd->k)  \
-      + bd->G2##I##2*Gamma2_a(bd->i,bd->j,bd->k)  \
-      + bd->G2##I##3*Gamma3_a(bd->i,bd->j,bd->k)) \
+      + bd->G2##I##1*bd->Gamma1  \
+      + bd->G2##I##2*bd->Gamma2  \
+      + bd->G2##I##3*bd->Gamma3) \
     + 0.5*bd->gamma##J##3*(                         \
       derivative(bd->i,bd->j,bd->k,I,Gamma3_a,dx) \
-      + bd->G3##I##1*Gamma1_a(bd->i,bd->j,bd->k)  \
-      + bd->G3##I##2*Gamma2_a(bd->i,bd->j,bd->k)  \
-      + bd->G3##I##3*Gamma3_a(bd->i,bd->j,bd->k)) \
+      + bd->G3##I##1*bd->Gamma1  \
+      + bd->G3##I##2*bd->Gamma2  \
+      + bd->G3##I##3*bd->Gamma3) \
     - 0.5 * COSMO_SUMMATION_2_ARGS(BSSN_CALCULATE_DIZJ_TERM2, I, J)     \
     + (bd->d##I##chi*bd->Z##J + bd->d##J##chi*bd->Z##I                  \
        - bd->gamma##I##J * (                                            \
@@ -780,14 +780,6 @@
 #define D3D1chi D1D3chi
 #define D3D2chi D2D3chi
 
-//covariant derivative of Z^i
-/* #define D2Z1 D1Z2 */
-/* #define D3Z1 D1Z3 */
-/* #define D3Z2 D2Z3 */
-
-/* #define D2Z1TF D1Z2TF */
-/* #define D3Z1TF D1Z3TF */
-/* #define D3Z2TF D2Z3TF */
 
 // covariant double-derivatives of alpha
 #define D2D1aTF D1D2aTF
