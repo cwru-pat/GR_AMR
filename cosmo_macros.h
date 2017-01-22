@@ -86,15 +86,6 @@
   #define USE_CCZ4 true
 #endif
 
-/* #if USE_CCZ4 */
-/*   #define Z4c_K1_DAMPING_AMPLITUDE 0.01 */
-/*   #define Z4c_K2_DAMPING_AMPLITUDE 0.0 */
-/*   #define Z4c_K3_DAMPING_AMPLITUDE 0.0 */
-/* #else */
-/*   #define Z4c_K1_DAMPING_AMPLITUDE 0.0 */
-/*   #define Z4c_K2_DAMPING_AMPLITUDE 0.0 */
-/*   #define Z4c_K3_DAMPING_AMPLITUDE 0.0 */
-/* #endif */
 
 #define STENCIL_CONCATENATOR(function, order) function ## order
 #define STENCIL_EVALUATOR(function, order) STENCIL_CONCATENATOR(function, order)

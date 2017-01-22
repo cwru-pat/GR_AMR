@@ -11,16 +11,6 @@
   function(theta, __VA_ARGS__);
 
 
-/* #if USE_Z4c_DAMPING */
-/*   #define Z4c_APPLY_TO_FIELDS(function)  \ */
-/*     function(theta); */
-/*   #define Z4c_APPLY_TO_FIELDS_ARGS(function, ...) \ */
-/*     function(theta, __VA_ARGS__); */
-/* #else */
-/*   #define Z4c_APPLY_TO_FIELDS(function) */
-/*   #define Z4c_APPLY_TO_FIELDS_ARGS(function, ...) */
-/* #endif */
-
 #if USE_BSSN_SHIFT
   #define BSSN_APPLY_TO_SHIFT(function)  \
     function(beta1); \
@@ -173,43 +163,6 @@
   function(3, 2, 3);                  \
   function(3, 3, 3);
 
-#define BSSN_APPLY_TO_IJKL_PERMS(function)   \
-  function(1, 1, 1, 1);                      \
-  function(1, 1, 1, 2);                      \
-  function(1, 1, 1, 3);                      \
-  function(1, 1, 2, 2);                      \
-  function(1, 1, 2, 3);                      \
-  function(1, 1, 3, 3);                      \
-  function(1, 2, 1, 1);                      \
-  function(1, 2, 1, 2);                      \
-  function(1, 2, 1, 3);                      \
-  function(1, 2, 2, 2);                      \
-  function(1, 2, 2, 3);                      \
-  function(1, 2, 3, 3);                      \
-  function(1, 3, 1, 1);                      \
-  function(1, 3, 1, 2);                      \
-  function(1, 3, 1, 3);                      \
-  function(1, 3, 2, 2);                      \
-  function(1, 3, 2, 3);                      \
-  function(1, 3, 3, 3);                      \
-  function(2, 2, 1, 1);                      \
-  function(2, 2, 1, 2);                      \
-  function(2, 2, 1, 3);                      \
-  function(2, 2, 2, 2);                      \
-  function(2, 2, 2, 3);                      \
-  function(2, 2, 3, 3);                      \
-  function(2, 3, 1, 1);                      \
-  function(2, 3, 1, 2);                      \
-  function(2, 3, 1, 3);                      \
-  function(2, 3, 2, 2);                      \
-  function(2, 3, 2, 3);                      \
-  function(2, 3, 3, 3);                      \
-  function(3, 3, 1, 1);                      \
-  function(3, 3, 1, 2);                      \
-  function(3, 3, 1, 3);                      \
-  function(3, 3, 2, 2);                      \
-  function(3, 3, 2, 3);                      \
-  function(3, 3, 3, 3);                      
 
     
 
@@ -384,30 +337,6 @@
 
  
 
-/* #define BSSN_REGISTER_INTER_LEVEL_REFINE_A(field, refiner,space_refine_op, time_refine_op) \ */
-/*   refiner.registerRefine(field##_a_idx,  \ */
-/*                            field##_a_idx,  \ */
-/*                            field##_p_idx,  \ */
-/*                            field##_f_idx,  \ */
-/*                            field##_a_idx,  \ */
-/*                            space_refine_op,  \ */
-/*                            time_refine_op) */
-/* #define BSSN_REGISTER_INTER_LEVEL_REFINE_P(field, refiner,space_refine_op, time_refine_op) \ */
-/*   refiner.registerRefine(field##_p_idx,  \ */
-/*                            field##_p_idx,  \ */
-/*                            field##_p_idx,  \ */
-/*                            field##_f_idx,  \ */
-/*                            field##_p_idx,  \ */
-/*                            space_refine_op,  \ */
-/*                            time_refine_op) */
-/* #define BSSN_REGISTER_INTER_LEVEL_REFINE_C(field, refiner,space_refine_op, time_refine_op) \ */
-/*   refiner.registerRefine(field##_c_idx,  \ */
-/*                            field##_c_idx,  \ */
-/*                            field##_p_idx,  \ */
-/*                            field##_f_idx,  \ */
-/*                            field##_c_idx,  \ */
-/*                            space_refine_op,  \ */
-/*                            time_refine_op) */
 
 #define BSSN_REGISTER_COARSEN_A(field,coarsener,coarsen_op)  \
   coarsener.registerCoarsen(field##_a_idx,                   \
@@ -519,57 +448,57 @@
   bd->d##I##d##J##g23 = double_derivative(bd->i, bd->j, bd->k, I, J, DIFFgamma23##_a, dx); \
   bd->d##I##d##J##g33 = double_derivative(bd->i, bd->j, bd->k, I, J, DIFFgamma33##_a, dx)
 
-#if USE_CCZ4
-#define BSSN_CALCULATE_ZI(I)                         \
-  bd->Z##I = 0.5 * (                                 \
-    bd->gamma##I##1 * (bd->Gamma1 - bd->Gammad1)     \
-    +bd->gamma##I##2 * (bd->Gamma2 - bd->Gammad2)    \
-    +bd->gamma##I##3 * (bd->Gamma3 - bd->Gammad3)    \
-)
+/* /\* #if USE_CCZ4 *\/ */
+/* /\* #define BSSN_CALCULATE_ZI(I)                         \ *\/ */
+/* /\*   bd->Z##I = 0.5 * (                                 \ *\/ */
+/* /\*     bd->gamma##I##1 * (bd->Gamma1 - bd->Gammad1)     \ *\/ */
+/* /\*     +bd->gamma##I##2 * (bd->Gamma2 - bd->Gammad2)    \ *\/ */
+/* /\*     +bd->gamma##I##3 * (bd->Gamma3 - bd->Gammad3)    \ *\/ */
+/* ) */
 
-#define BSSN_CALCULATE_DIZJ_TERM2(M, N, I, J)       \
-  (bd->gammai##M##N*(                              \
-    bd->d##I##d##M##g##J##N                         \
-    - bd->G1##I##M*bd->d1g##J##N                    \
-    - bd->G2##I##M*bd->d2g##J##N                    \
-    - bd->G3##I##M*bd->d3g##J##N                    \
-    - bd->G1##I##J*bd->d##M##g##1##N                \
-    - bd->G2##I##J*bd->d##M##g##2##N                \
-    - bd->G3##I##J*bd->d##M##g##3##N                \
-    - bd->G1##I##N*bd->d##M##g##J##1                \
-    - bd->G2##I##N*bd->d##M##g##J##2                \
-    - bd->G3##I##N*bd->d##M##g##J##3                \
-  ))
+/* #define BSSN_CALCULATE_DIZJ_TERM2(M, N, I, J)       \ */
+/*   (bd->gammai##M##N*(                              \ */
+/*     bd->d##I##d##M##g##J##N                         \ */
+/*     - bd->G1##I##M*bd->d1g##J##N                    \ */
+/*     - bd->G2##I##M*bd->d2g##J##N                    \ */
+/*     - bd->G3##I##M*bd->d3g##J##N                    \ */
+/*     - bd->G1##I##J*bd->d##M##g##1##N                \ */
+/*     - bd->G2##I##J*bd->d##M##g##2##N                \ */
+/*     - bd->G3##I##J*bd->d##M##g##3##N                \ */
+/*     - bd->G1##I##N*bd->d##M##g##J##1                \ */
+/*     - bd->G2##I##N*bd->d##M##g##J##2                \ */
+/*     - bd->G3##I##N*bd->d##M##g##J##3                \ */
+/*   )) */
 
-#define BSSN_CALCULATE_DIZJ(I, J)                 \
-  bd->D##I##Z##J = 0.5*bd->gamma##J##1*(          \
-    derivative(bd->i,bd->j,bd->k,I,Gamma1_a,dx)   \
-    + bd->G1##I##1*bd->Gamma1    \
-    + bd->G1##I##2*bd->Gamma2    \
-    + bd->G1##I##3*bd->Gamma3)   \
-    + 0.5*bd->gamma##J##2*(                       \
-      derivative(bd->i,bd->j,bd->k,I,Gamma2_a,dx) \
-      + bd->G2##I##1*bd->Gamma1  \
-      + bd->G2##I##2*bd->Gamma2  \
-      + bd->G2##I##3*bd->Gamma3) \
-    + 0.5*bd->gamma##J##3*(                         \
-      derivative(bd->i,bd->j,bd->k,I,Gamma3_a,dx) \
-      + bd->G3##I##1*bd->Gamma1  \
-      + bd->G3##I##2*bd->Gamma2  \
-      + bd->G3##I##3*bd->Gamma3) \
-    - 0.5 * COSMO_SUMMATION_2_ARGS(BSSN_CALCULATE_DIZJ_TERM2, I, J)     \
-    + (bd->d##I##chi*bd->Z##J + bd->d##J##chi*bd->Z##I                  \
-       - bd->gamma##I##J * (                                            \
-         bd->gammai11 * bd->d1chi * bd->Z1                              \
-         +bd->gammai12 * bd->d1chi * bd->Z2                             \
-         +bd->gammai13 * bd->d1chi * bd->Z3                             \
-         +bd->gammai21 * bd->d2chi * bd->Z1                             \
-         +bd->gammai22 * bd->d2chi * bd->Z2                             \
-         +bd->gammai23 * bd->d2chi * bd->Z3                             \
-         +bd->gammai31 * bd->d3chi * bd->Z1                             \
-         +bd->gammai32 * bd->d3chi * bd->Z2                             \
-         +bd->gammai33 * bd->d3chi * bd->Z3))/bd->chi
-#endif
+/* #define BSSN_CALCULATE_DIZJ(I, J)                 \ */
+/*   bd->D##I##Z##J = 0.5*bd->gamma##J##1*(          \ */
+/*     derivative(bd->i,bd->j,bd->k,I,Gamma1_a,dx)   \ */
+/*     + bd->G1##I##1*bd->Gamma1    \ */
+/*     + bd->G1##I##2*bd->Gamma2    \ */
+/*     + bd->G1##I##3*bd->Gamma3)   \ */
+/*     + 0.5*bd->gamma##J##2*(                       \ */
+/*       derivative(bd->i,bd->j,bd->k,I,Gamma2_a,dx) \ */
+/*       + bd->G2##I##1*bd->Gamma1  \ */
+/*       + bd->G2##I##2*bd->Gamma2  \ */
+/*       + bd->G2##I##3*bd->Gamma3) \ */
+/*     + 0.5*bd->gamma##J##3*(                         \ */
+/*       derivative(bd->i,bd->j,bd->k,I,Gamma3_a,dx) \ */
+/*       + bd->G3##I##1*bd->Gamma1  \ */
+/*       + bd->G3##I##2*bd->Gamma2  \ */
+/*       + bd->G3##I##3*bd->Gamma3) \ */
+/*     - 0.5 * COSMO_SUMMATION_2_ARGS(BSSN_CALCULATE_DIZJ_TERM2, I, J)     \ */
+/*     + (bd->d##I##chi*bd->Z##J + bd->d##J##chi*bd->Z##I                  \ */
+/*        - bd->gamma##I##J * (                                            \ */
+/*          bd->gammai11 * bd->d1chi * bd->Z1                              \ */
+/*          +bd->gammai12 * bd->d1chi * bd->Z2                             \ */
+/*          +bd->gammai13 * bd->d1chi * bd->Z3                             \ */
+/*          +bd->gammai21 * bd->d2chi * bd->Z1                             \ */
+/*          +bd->gammai22 * bd->d2chi * bd->Z2                             \ */
+/*          +bd->gammai23 * bd->d2chi * bd->Z3                             \ */
+/*          +bd->gammai31 * bd->d3chi * bd->Z1                             \ */
+/*          +bd->gammai32 * bd->d3chi * bd->Z2                             \ */
+/*          +bd->gammai33 * bd->d3chi * bd->Z3))/bd->chi */
+/* #endif */
 
 
 /*
@@ -595,7 +524,7 @@
 #if EXCLUDE_SECOND_ORDER_SMALL
 # define BSSN_DT_AIJ_SECOND_ORDER_AA(I, J) 0
 #else
-# define BSSN_DT_AIJ_SECOND_ORDER_AA(I, J) ( \
+# define BSSN_DT_AIJ_SECOND_ORDER_AA(I, J) (                            \
       bd->gammai11*bd->A1##I*bd->A1##J + bd->gammai12*bd->A1##I*bd->A2##J + bd->gammai13*bd->A1##I*bd->A3##J \
       + bd->gammai21*bd->A2##I*bd->A1##J + bd->gammai22*bd->A2##I*bd->A2##J + bd->gammai23*bd->A2##I*bd->A3##J \
       + bd->gammai31*bd->A3##I*bd->A1##J + bd->gammai32*bd->A3##I*bd->A2##J + bd->gammai33*bd->A3##I*bd->A3##J \
@@ -608,14 +537,14 @@
   )
 #else
 # define BSSN_DT_AIJ_SECOND_ORDER_KA(I, J) ( \
-    (bd->K - 2.0*bd->theta)*bd->A##I##J \
+    (bd->K + 2.0*bd->theta)*bd->A##I##J \
   )
 #endif
 
 #if USE_BSSN_SHIFT
 #define BSSN_DT_AIJ(I, J) ( \
     pw2(bd->chi)*( bd->alpha*(bd->ricciTF##I##J - 8.0*PI*bd->STF##I##J          \
-    + bd->D##I##Z##J##TF + bd->D##J##Z##I##TF) - bd->D##I##D##J##aTF )          \
+    ) - bd->D##I##D##J##aTF )          \
     + bd->alpha*(BSSN_DT_AIJ_SECOND_ORDER_KA(I,J) - 2.0*BSSN_DT_AIJ_SECOND_ORDER_AA(I,J)) \
     + upwind_derivative(bd->i, bd->j, bd->k, 1, A##I##J##_a, dx, bd->beta1)     \
     + upwind_derivative(bd->i, bd->j, bd->k, 2, A##I##J##_a, dx, bd->beta2)     \
@@ -651,12 +580,12 @@
             2.0*(bd->gammai##I##1*bd->d1K + bd->gammai##I##2*bd->d2K + bd->gammai##I##3*bd->d3K) \
           ) \
         - 1.0*Z4c_K1_DAMPING_AMPLITUDE*( \
-            (bd->gammai##I##1*bd->Z1 + bd->gammai##I##2*bd->Z2 + bd->gammai##I##3*bd->Z3) \
+            (bd->Gamma##I - bd->Gammad##I) \
           ) \
         - 8.0*PI*(bd->gammai##I##1*bd->S1 + bd->gammai##I##2*bd->S2 + bd->gammai##I##3*bd->S3))  \
-    + 2.0 * bd->gammai##I##1 * (bd->alpha * bd->d1theta - bd->theta * bd->d1a - 2.0/3.0*bd->alpha * bd->K*bd->Z1)  \
-    + 2.0 * bd->gammai##I##2 * (bd->alpha * bd->d2theta - bd->theta * bd->d2a - 2.0/3.0*bd->alpha * bd->K*bd->Z2)  \
-    + 2.0 * bd->gammai##I##3 * (bd->alpha * bd->d3theta - bd->theta * bd->d3a - 2.0/3.0*bd->alpha * bd->K*bd->Z3)  \
+    + 2.0/3.0 * bd->gammai##I##1 * (bd->alpha * bd->d1theta )  \
+    + 2.0/3.0 * bd->gammai##I##2 * (bd->alpha * bd->d2theta )  \
+    + 2.0/3.0 * bd->gammai##I##3 * (bd->alpha * bd->d3theta )  \
     )
 
 #if USE_BSSN_SHIFT
@@ -675,17 +604,6 @@
         bd->gammai11*double_derivative(bd->i, bd->j, bd->k, 1, 1, beta##I##_a, dx) + bd->gammai22*double_derivative(bd->i, bd->j, bd->k, 2, 2, beta##I##_a, dx) + bd->gammai33*double_derivative(bd->i, bd->j, bd->k, 3, 3, beta##I##_a, dx) \
         + 2.0*(bd->gammai12*double_derivative(bd->i, bd->j, bd->k, 1, 2, beta##I##_a, dx) + bd->gammai13*double_derivative(bd->i, bd->j, bd->k, 1, 3, beta##I##_a, dx) + bd->gammai23*double_derivative(bd->i, bd->j, bd->k, 2, 3, beta##I##_a, dx)) \
       ) \
-    + 2.0 * Z4c_K3_DAMPING_AMPLITUDE * (  \
-      2.0/3.0 * (bd->d1beta1 + bd->d2beta2 + bd->d3beta3) * \
-                 (bd->gammai##I##1 * bd->Z1  \
-                 +bd->gammai##I##2 * bd->Z2  \
-                 +bd->gammai##I##3 * bd->Z3  \
-      ) \
-      - bd->gammai11*bd->Z1*bd->d1beta##I - bd->gammai22*bd->Z2*bd->d2beta##I  \
-      - bd->gammai33*bd->Z3*bd->d3beta##I - bd->gammai12*bd->Z1*bd->d2beta##I  \
-      - bd->gammai13*bd->Z1*bd->d3beta##I - bd->gammai23*bd->Z2*bd->d3beta##I  \
-      - bd->gammai21*bd->Z2*bd->d1beta##I - bd->gammai31*bd->Z3*bd->d1beta##I  \
-      - bd->gammai32*bd->Z3*bd->d2beta##I)                                     \
 )
 #else
 #define BSSN_DT_GAMMAI_SHIFT(I) 0.0

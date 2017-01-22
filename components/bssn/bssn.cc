@@ -1048,7 +1048,7 @@ void BSSN::set_bd_values(idx_t i, idx_t j, idx_t k, BSSNData *bd, const real_t d
 
 # if USE_CCZ4
   calculate_dtheta(bd,dx);
-  calculateDZ(bd,dx);
+  //calculateDZ(bd,dx);
 # endif
 
   if(bd->chi < chi_lower_bd) bd->chi = chi_lower_bd;
@@ -1244,37 +1244,37 @@ void BSSN::calculateDZ(BSSNData *bd, const real_t dx[])
 {
   //BSSN_APPLY_TO_IJKL_PERMS(BSSN_CALCULATE_DDGAMMA);
 
-  BSSN_CALCULATE_ZI(1);
-  BSSN_CALCULATE_ZI(2);
-  BSSN_CALCULATE_ZI(3);
+  // BSSN_CALCULATE_ZI(1);
+  // BSSN_CALCULATE_ZI(2);
+  // BSSN_CALCULATE_ZI(3);
 
-  BSSN_CALCULATE_DIZJ(1,1);
-  BSSN_CALCULATE_DIZJ(1,2);
-  BSSN_CALCULATE_DIZJ(1,3);
-  BSSN_CALCULATE_DIZJ(2,1);
-  BSSN_CALCULATE_DIZJ(2,2);
-  BSSN_CALCULATE_DIZJ(2,3);
-  BSSN_CALCULATE_DIZJ(3,1);
-  BSSN_CALCULATE_DIZJ(3,2);
-  BSSN_CALCULATE_DIZJ(3,3);
+  // BSSN_CALCULATE_DIZJ(1,1);
+  // BSSN_CALCULATE_DIZJ(1,2);
+  // BSSN_CALCULATE_DIZJ(1,3);
+  // BSSN_CALCULATE_DIZJ(2,1);
+  // BSSN_CALCULATE_DIZJ(2,2);
+  // BSSN_CALCULATE_DIZJ(2,3);
+  // BSSN_CALCULATE_DIZJ(3,1);
+  // BSSN_CALCULATE_DIZJ(3,2);
+  // BSSN_CALCULATE_DIZJ(3,3);
 
-  bd->DZTR = bd->gammai11 * bd->D1Z1 + bd->gammai22 * bd->D2Z2 + bd->gamma33 * bd->D3Z3
-    + (bd->gammai12 * bd->D1Z2 + bd->gammai13 * bd->D1Z3 + bd->gamma23 * bd->D2Z3)
-    + (bd->gammai21 * bd->D2Z1 + bd->gammai31 * bd->D3Z1 + bd->gamma32 * bd->D3Z2);
+  // bd->DZTR = bd->gammai11 * bd->D1Z1 + bd->gammai22 * bd->D2Z2 + bd->gamma33 * bd->D3Z3
+  //   + (bd->gammai12 * bd->D1Z2 + bd->gammai13 * bd->D1Z3 + bd->gamma23 * bd->D2Z3)
+  //   + (bd->gammai21 * bd->D2Z1 + bd->gammai31 * bd->D3Z1 + bd->gamma32 * bd->D3Z2);
 
-  bd->D1Z1TF = bd->D1Z1 - (1.0/3.0) * bd->gamma11 * bd->DZTR;
-  bd->D2Z2TF = bd->D2Z2 - (1.0/3.0) * bd->gamma22 * bd->DZTR;
-  bd->D3Z3TF = bd->D3Z3 - (1.0/3.0) * bd->gamma33 * bd->DZTR;
+  // bd->D1Z1TF = bd->D1Z1 - (1.0/3.0) * bd->gamma11 * bd->DZTR;
+  // bd->D2Z2TF = bd->D2Z2 - (1.0/3.0) * bd->gamma22 * bd->DZTR;
+  // bd->D3Z3TF = bd->D3Z3 - (1.0/3.0) * bd->gamma33 * bd->DZTR;
 
-  bd->D1Z2TF = bd->D1Z2 - (1.0/3.0) * bd->gamma12 * bd->DZTR;
-  bd->D1Z3TF = bd->D1Z3 - (1.0/3.0) * bd->gamma13 * bd->DZTR;
-  bd->D2Z3TF = bd->D2Z3 - (1.0/3.0) * bd->gamma23 * bd->DZTR;
+  // bd->D1Z2TF = bd->D1Z2 - (1.0/3.0) * bd->gamma12 * bd->DZTR;
+  // bd->D1Z3TF = bd->D1Z3 - (1.0/3.0) * bd->gamma13 * bd->DZTR;
+  // bd->D2Z3TF = bd->D2Z3 - (1.0/3.0) * bd->gamma23 * bd->DZTR;
 
-  bd->D2Z1TF = bd->D2Z1 - (1.0/3.0) * bd->gamma21 * bd->DZTR;
-  bd->D3Z1TF = bd->D3Z1 - (1.0/3.0) * bd->gamma31 * bd->DZTR;
-  bd->D3Z2TF = bd->D3Z2 - (1.0/3.0) * bd->gamma32 * bd->DZTR;
+  // bd->D2Z1TF = bd->D2Z1 - (1.0/3.0) * bd->gamma21 * bd->DZTR;
+  // bd->D3Z1TF = bd->D3Z1 - (1.0/3.0) * bd->gamma31 * bd->DZTR;
+  // bd->D3Z2TF = bd->D3Z2 - (1.0/3.0) * bd->gamma32 * bd->DZTR;
 
-  bd->DZTR *= pw2(bd->chi);
+  // bd->DZTR *= pw2(bd->chi);
 }
 #endif
 
@@ -1427,20 +1427,18 @@ real_t BSSN::ev_DIFFK(BSSNData *bd, const real_t dx[])
 #       if EXCLUDE_SECOND_ORDER_FRW
           1.0/3.0*(bd->DIFFK + 2.0*bd->theta)*2.0*bd->K_FRW
 #       else
-          (bd->K)*(bd->K)
+          pw2(bd->K + 2.0 * bd->theta)/3.0
 #       endif
 
 #       if !(EXCLUDE_SECOND_ORDER_SMALL)
-          + bd->ricci
+          + bd->AijAij
 #       endif
-          + 2.0 * bd->DZTR
-          - 2.0 * bd->theta * bd->K
     )
-    + 4.0*PI*bd->alpha*(-3.0*bd->r + bd->S)
+    + 4.0*PI*bd->alpha*(bd->r + bd->S)
     + upwind_derivative(bd->i, bd->j, bd->k, 1, DIFFK_a, dx, bd->beta1)
     + upwind_derivative(bd->i, bd->j, bd->k, 2, DIFFK_a, dx, bd->beta2)
     + upwind_derivative(bd->i, bd->j, bd->k, 3, DIFFK_a, dx, bd->beta3)
-    - 3.0*bd->alpha*Z4c_K1_DAMPING_AMPLITUDE*(1.0 + Z4c_K2_DAMPING_AMPLITUDE)*bd->theta
+    - bd->alpha*Z4c_K1_DAMPING_AMPLITUDE*(1.0 - Z4c_K2_DAMPING_AMPLITUDE)*bd->theta
     - KO_dissipation_Q(bd->i, bd->j, bd->k, DIFFK_a, dx, KO_damping_coefficient)
   );
 }
@@ -1451,7 +1449,7 @@ real_t BSSN::ev_DIFFchi(BSSNData *bd, const real_t dx[])
 {
   return (
     1.0/3.0*(
-      bd->alpha* bd->chi * bd->K
+      bd->alpha* bd->chi * (bd->K + 2.0 * bd->theta)
       #if USE_BSSN_SHIFT
       - bd->chi * ( bd->d1beta1 + bd->d2beta2 + bd->d3beta3 )
       #endif
@@ -1482,23 +1480,13 @@ real_t BSSN::ev_theta(BSSNData *bd, const real_t dx[])
   #if USE_CCZ4
   return (
     0.5*bd->alpha*(
-      bd->ricci + 2.0/3.0*pw2( bd->K) - 2.0 * bd->theta * bd->K + 2.0 * bd->DZTR
+      bd->ricci + 2.0/3.0*pw2(bd->K + 2.0 * bd->theta)
       - bd->AijAij - 16.0*PI* bd->r)
     #if USE_BSSN_SHIFT
     + upwind_derivative(bd->i, bd->j, bd->k, 1, theta_a, dx, bd->beta1)
     + upwind_derivative(bd->i, bd->j, bd->k, 2, theta_a, dx, bd->beta2)
     + upwind_derivative(bd->i, bd->j, bd->k, 3, theta_a, dx, bd->beta3)
     #endif
-    -                   
-    ( bd->gammai11 * bd->Z1 * bd->d1a
-    + bd->gammai12 * bd->Z1 * bd->d2a
-    + bd->gammai13 * bd->Z1 * bd->d3a
-    + bd->gammai21 * bd->Z2 * bd->d1a
-    + bd->gammai22 * bd->Z2 * bd->d2a
-    + bd->gammai23 * bd->Z2 * bd->d3a
-    + bd->gammai31 * bd->Z3 * bd->d1a
-    + bd->gammai32 * bd->Z3 * bd->d2a
-    + bd->gammai33 * bd->Z3 * bd->d3a) * pw2(bd->chi)
     - bd->alpha*Z4c_K1_DAMPING_AMPLITUDE*(2.0 + Z4c_K2_DAMPING_AMPLITUDE)*bd->theta
   ) - KO_dissipation_Q(bd->i, bd->j, bd->k, theta_a, dx, KO_damping_coefficient);
   #endif
@@ -1985,7 +1973,7 @@ Constraint violtion calculations
 real_t BSSN::hamiltonianConstraintCalc(BSSNData *bd, const real_t dx[])
 {
   return -pow(bd->chi, -2.5)/8.0*(
-      bd->ricci + 2.0/3.0*pw2(bd->K ) - bd->AijAij - 16.0*PI*bd->r
+      bd->ricci + 2.0/3.0*pw2(bd->K + 2.0 * bd->theta) - bd->AijAij - 16.0*PI*bd->r
     );
 }
 
@@ -1995,7 +1983,7 @@ real_t BSSN::hamiltonianConstraintScale(BSSNData *bd, const real_t dx[])
   // sqrt sum of sq. of terms for appx. mag / scale
   return 
     pow(bd->chi, -2.5)/8.0*sqrt( pw2(bd->ricci) + pw2(bd->AijAij)
-          + pw2(2.0/3.0*pw2(bd->K ))
+          + pw2(2.0/3.0*pw2(bd->K + 2.0 * bd->theta))
           + pw2(16.0*PI*bd->r)
     );
 }
