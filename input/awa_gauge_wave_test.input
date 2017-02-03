@@ -7,7 +7,7 @@ Main
 }
 
 CartesianGridGeometry {
-  domain_boxes = [(0,0,0), (49,3,3)]
+  domain_boxes = [(0,0,0), (199,7,7)]
   x_lo         = 0, 0, 0
   x_up         = 1, 1, 1
   periodic_dimension = 1, 1, 1
@@ -69,28 +69,27 @@ GriddingAlgorithm {
 }
 
 CosmoSim{
-  steps = 5000
+  steps = 400000
   do_plot = TRUE
-  dt_frac = 0.1
-  regridding_interval = 100000
+  dt_frac = 0.25
+  regridding_interval = 10000000
   adaption_threshold = 0.004
-  KO_damping_coefficient = 0.0
+  KO_damping_coefficient = 1.0
   refine_op_type = "LINEAR_REFINE"
   coarsen_op_type = "CONSERVATIVE_COARSEN"
 }
 
 VacuumSim{
-  ic_type = "awa_stability"
+  ic_type = "awa_gauge_wave"
   boundary_type = "periodic"
 }
 
 BSSN{
-  lapse = "OnePlusLog"
-  Shift = "GammaDriver"
+  lapse = "AwAGaugeWave"
   g_eta = 2
   normalize_Aij = TRUE
-  normalize_gammaij = TRUE
-  ccz4_k1 = 0.1
+  normalize_gammaij = FALSE
+  ccz4_k1 = 0.02
   ccz4_k2 = 0
   ccz4_k3 = 0.5
   alpha_lower_bd_for_L2 = 0.3
@@ -99,7 +98,7 @@ BSSN{
 }
 
 IO{
-  output_list = "DIFFchi","DIFFK"
-  output_interval = 5000, 5000
+  output_list = "DIFFgamma22","DIFFgamma33"
+  output_interval = 10000, 10000
   gd_c = 1
 }

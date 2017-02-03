@@ -1393,31 +1393,6 @@ real_t BSSN::ev_Gamma1(BSSNData *bd, const real_t dx[]) { return BSSN_DT_GAMMAI(
 real_t BSSN::ev_Gamma2(BSSNData *bd, const real_t dx[]) { return BSSN_DT_GAMMAI(2) - KO_dissipation_Q(bd->i, bd->j, bd->k, Gamma2_a, dx, KO_damping_coefficient); }
 real_t BSSN::ev_Gamma3(BSSNData *bd, const real_t dx[]) { return BSSN_DT_GAMMAI(3) - KO_dissipation_Q(bd->i, bd->j, bd->k, Gamma3_a, dx, KO_damping_coefficient); }
 
-// real_t BSSN::ev_DIFFK(BSSNData *bd, const real_t dx[])
-// {
-//   return (
-//     - bd->DDaTR
-//     + bd->alpha*(
-// #       if EXCLUDE_SECOND_ORDER_FRW
-//           1.0/3.0*(bd->DIFFK + 2.0*bd->theta)*2.0*bd->K_FRW
-// #       else
-//           1.0/3.0*(bd->K)*(bd->K)
-// #       endif
-
-// #       if !(EXCLUDE_SECOND_ORDER_SMALL)
-//           + bd->AijAij
-// #       endif
-//           + 2.0 * bd->DZTR
-//           - 2.0 * bd->theta * bd->K
-//     )
-//     + 4.0*PI*bd->alpha*(bd->r + bd->S)
-//     + upwind_derivative(bd->i, bd->j, bd->k, 1, DIFFK_a, dx, bd->beta1)
-//     + upwind_derivative(bd->i, bd->j, bd->k, 2, DIFFK_a, dx, bd->beta2)
-//     + upwind_derivative(bd->i, bd->j, bd->k, 3, DIFFK_a, dx, bd->beta3)
-//     - 3.0*bd->alpha*Z4c_K1_DAMPING_AMPLITUDE*(1.0 + Z4c_K2_DAMPING_AMPLITUDE)*bd->theta
-//     - KO_dissipation_Q(bd->i, bd->j, bd->k, DIFFK_a, dx, KO_damping_coefficient)
-//   );
-// }
 
 real_t BSSN::ev_DIFFK(BSSNData *bd, const real_t dx[])
 {

@@ -95,8 +95,8 @@ inline real_t KO_dissipation_Q(
       +  45.0*field(i+3,j,k) +  45.0*field(i,j+3,k) +  45.0*field(i,j,k+3)
       -  10.0*field(i+4,j,k) -  10.0*field(i,j+4,k) -  10.0*field(i,j,k+4)
       +   1.0*field(i+5,j,k) +   1.0*field(i,j+5,k) +   1.0*field(i,j,k+5)
-    )/pow(dx, 10.0);
-    real_t dissipation = -ko_coeff*pow(dx, 9.0)/1024.0*stencil;
+    )/pow(dx[0], 10.0);
+    real_t dissipation = -ko_coeff*pow(dx[0], 9.0)/1024.0*stencil;
     return dissipation;
 # endif
 
@@ -260,6 +260,18 @@ inline real_t lop_forward_derivative_Odx4(idx_t i, idx_t j, idx_t k, int d,
   }
 
   /* XXX */
+  return 0;
+}
+inline real_t lop_forward_derivative_Odx8(idx_t i, idx_t j, idx_t k, int d,
+    arr_t & field, const double dx[])
+{
+
+  /* XXX */
+  return 0;
+}
+inline real_t lop_backward_derivative_Odx8(idx_t i, idx_t j, idx_t k, int d,
+    arr_t & field, const double dx[])
+{
   return 0;
 }
  

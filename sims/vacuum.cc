@@ -112,7 +112,7 @@ void VacuumSim::initVacuumStep(
  *             set value directly if it's possible, interpolate from coraser level if not possible
  *
  */
-void VacuumSim::initLevel(
+bool VacuumSim::initLevel(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln)
 {
@@ -129,36 +129,35 @@ void VacuumSim::initLevel(
 
   if(ic_type == "static_blackhole")
   {
-    bssn_ic_static_blackhole(hierarchy,ln); 
+    bssn_ic_static_blackhole(hierarchy,ln);
+    return true;
   }
   else if(ic_type == "awa_stability")
   {
     bssn_ic_awa_stability(hierarchy,ln,1e-10);
-
-    xfer::RefineAlgorithm refiner;
-
-    boost::shared_ptr<hier::RefineOperator> accurate_refine_op =
-      space_refine_op;
-     
-    TBOX_ASSERT(accurate_refine_op);
-
-    //registering refine variables
-    BSSN_APPLY_TO_FIELDS_ARGS(VAC_REGISTER_SPACE_REFINE_A,refiner,accurate_refine_op);
-                             
-    boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
-
-    refine_schedule =
-      refiner.createSchedule(level,
-                             NULL);
-       
-    level->getBoxLevel()->getMPI().Barrier();
-     
-    refine_schedule->fillData(0.0);
-
+    return true;
   }
+  else if(ic_type == "awa_linear_wave")
+  {
+    
+    bssn_ic_awa_linear_wave(hierarchy,ln,1e-8,1);
+    return true;
+  }
+  else if(ic_type == "awa_gauge_wave")
+  {
+    bssn_ic_awa_gauge_wave(hierarchy,ln,1);
+    return true;
+  }
+  else if(ic_type == "awa_shifted_gauge_wave")
+  {
+    bssn_ic_awa_shifted_gauge_wave(hierarchy,ln,1);
+    return true;
+  }
+
   else
     TBOX_ERROR("Undefined IC type!\n");
 
+  return false;
 }
 
 /**
@@ -297,83 +296,85 @@ void VacuumSim::initializeLevelData(
      level->allocatePatchData(weight_idx);
    }
 
+   // marks whether we have solved initial value for certain level,
+   // if so, there is no need to interpolate from coarser level
+   bool has_initial = false;
+   
    //at beginning, initialize new level
    if(init_data_time < EPS)
    {
-     initLevel(patch_hierarchy, ln);
+     has_initial = initLevel(patch_hierarchy, ln);
+   }
 
+   //BSSN_APPLY_TO_FIELDS_ARGS(RK4_ARRAY_ZERO,hcellmath);
+   BSSN_APPLY_TO_SOURCES_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
+   BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
+       
+   /*
+    * Refine solution data from coarser level and, if provided, old level.
+    */
+   
+   xfer::RefineAlgorithm refiner;
+
+   boost::shared_ptr<hier::RefineOperator> accurate_refine_op =
+     space_refine_op;
+     
+   TBOX_ASSERT(accurate_refine_op);
+
+   //registering refine variables
+   BSSN_APPLY_TO_FIELDS_ARGS(VAC_REGISTER_SPACE_REFINE_A,refiner,accurate_refine_op);
+                             
+   boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
+
+   level->getBoxLevel()->getMPI().Barrier();
+   if (ln > 0 || (!has_initial))
+   {
+     /*
+      * Include coarser levels in setting data
+      */
+     refine_schedule =
+       refiner.createSchedule(
+         level,
+         old_level,
+         ln - 1,
+         hierarchy,
+         cosmoPS);
    }
    else
    {
-     //BSSN_APPLY_TO_FIELDS_ARGS(RK4_ARRAY_ZERO,hcellmath);
-     BSSN_APPLY_TO_SOURCES_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
-     BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
-       
      /*
-      * Refine solution data from coarser level and, if provided, old level.
+      * There is no coarser level, and source data comes only
+      * from old_level, if any.
       */
-   
-     xfer::RefineAlgorithm refiner;
-
-     boost::shared_ptr<hier::RefineOperator> accurate_refine_op =
-       space_refine_op;
-     
-     TBOX_ASSERT(accurate_refine_op);
-
-     //registering refine variables
-     BSSN_APPLY_TO_FIELDS_ARGS(VAC_REGISTER_SPACE_REFINE_A,refiner,accurate_refine_op);
-                             
-     boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
-
-     level->getBoxLevel()->getMPI().Barrier();
-     if (ln > 0)
+     if (old_level)
      {
-       /*
-        * Include coarser levels in setting data
-        */
        refine_schedule =
-         refiner.createSchedule(
-           level,
-           old_level,
-           ln - 1,
-           hierarchy,
-           cosmoPS);
+         refiner.createSchedule(level,
+                                old_level,
+                                NULL);
      }
      else
      {
-       /*
-        * There is no coarser level, and source data comes only
-        * from old_level, if any.
-        */
-       if (old_level)
-       {
-         refine_schedule =
-           refiner.createSchedule(level,
-                                  old_level,
-                                  NULL);
-       }
-       else
-       {
-         refine_schedule =
-           refiner.createSchedule(level,
-                                  level,
-                                  NULL);
-       }
-     }
-     level->getBoxLevel()->getMPI().Barrier();
-     
-
-     if (refine_schedule)
-     {
-       refine_schedule->fillData(0.0);
-       // It is null if this is the bottom level.
-     }
-     else
-     {
-       TBOX_ERROR(
-         "Can not get refine schedule, check your code!\n");
+       refine_schedule =
+         refiner.createSchedule(level,
+                                level,
+                                NULL);
      }
    }
+   level->getBoxLevel()->getMPI().Barrier();
+     
+
+   if (refine_schedule)
+   {
+     refine_schedule->fillData(0.0);
+     // It is null if this is the bottom level.
+   }
+   else
+   {
+     TBOX_ERROR(
+       "Can not get refine schedule, check your code!\n");
+   }
+ 
    bssnSim->copyAToP(hcellmath);
    
    level->getBoxLevel()->getMPI().Barrier();

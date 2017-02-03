@@ -84,7 +84,7 @@ public:
  private:
   boost::shared_ptr<tbox::Database> cosmo_vacuum_db;
 
-  void initLevel(
+  bool initLevel(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
   void computeVectorWeights(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
