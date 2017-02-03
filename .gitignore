@@ -1,0 +1,8 @@
+COPYING.LESSER
+COPYRIGHT
+bin/*
+build/*
+config/*
+include/*
+lib/*
+obj/*
