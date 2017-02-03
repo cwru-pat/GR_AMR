@@ -31,6 +31,10 @@ make library
 make tools
 make install
 ```
+Optionally build SAMRAI's documentation:
+`make dox`
+(documentation will be in obj/docs/samrai-dox)
+
 
 ## Setting up GR_AMR:
 
