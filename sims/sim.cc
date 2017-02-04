@@ -49,13 +49,16 @@ CosmoSim::CosmoSim(
   t_RK_steps = tbox::TimerManager::getManager()->
     getTimer("RK_steps");
 
+  // initialzing BSSN object
   bssnSim = new BSSN(
     hierarchy, dim,input_db->getDatabase("BSSN"), lstream,KO_damping_coefficient);
 
+  // initializing IO object
   cosmo_io = new CosmoIO(dim, input_db->getDatabase("IO"), lstream);
 
   hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
-  
+
+  // get context ACTIVE to initilize these two extra fields 
   boost::shared_ptr<hier::VariableContext> context_active(
     variable_db->getContext("ACTIVE"));
 
@@ -75,7 +78,10 @@ CosmoSim::~CosmoSim()
 {
 
 }
-
+  
+/**
+ * @brief  set regriding algorithm
+ */
 void CosmoSim::setGriddingAlgs(
   boost::shared_ptr<mesh::GriddingAlgorithm>& gridding_algorithm_in)
 {
@@ -136,7 +142,9 @@ void CosmoSim::run(
 void CosmoSim::runCommonStepTasks(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
-  if(step % regridding_interval == 0)
+  // since all neccecery levels were built when setting IC
+  // no need to regrid again at zero step
+  if(step > 0 && (step % regridding_interval == 0))
   {
     std::vector<int> tag_buffer(hierarchy->getMaxNumberOfLevels());
     for (idx_t ln = 0; ln < static_cast<int>(tag_buffer.size()); ++ln) {
@@ -150,9 +158,13 @@ void CosmoSim::runCommonStepTasks(
     tbox::plog << "Newly adapted hierarchy\n";
     hierarchy->recursivePrint(tbox::plog, "    ", 1);
   }
+  // detecting NaNs
   isValid(hierarchy);
 }
 
+/**
+ * @brief detect NaNs for field with data_id for in patch
+ */
 bool CosmoSim::hasNaNs(
   const boost::shared_ptr<hier::Patch>& patch, idx_t data_id)
 {
@@ -194,7 +206,7 @@ bool CosmoSim::hasNaNs(
 
 
 /**
- * @brief      detect NaNs for the whole hierarchy
+ * @brief detect NaNs for all fields in the whole hierarchy
  */
 bool CosmoSim::isValid(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy) 

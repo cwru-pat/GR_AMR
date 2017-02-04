@@ -25,12 +25,10 @@ VacuumSim::VacuumSim(
 
   std::string bd_type = cosmo_vacuum_db->getString("boundary_type");
 
-  
+  // setting boundary type
   if(bd_type == "sommerfield")
   {
-
     cosmoPS = new SommerfieldBD(dim, bd_type);
-
   }
   else if(bd_type == "periodic")
   {
@@ -45,6 +43,7 @@ VacuumSim::VacuumSim(
 
   tbox::pout<<"Running 'vacuum' type simulation.\n";
 
+  // adding all fields to a list
   BSSN_APPLY_TO_FIELDS(ADD_VAR_TO_LIST);
 
   variable_id_list.push_back(weight_idx);
@@ -109,7 +108,8 @@ void VacuumSim::initVacuumStep(
 
 /**
  * @brief      initilize newly created level
- *             set value directly if it's possible, interpolate from coraser level if not possible
+ *             set value directly if it's possible and return true
+ *             do nothing when it's not possible and return false
  *
  */
 bool VacuumSim::initLevel(
@@ -529,7 +529,10 @@ double VacuumSim::getDt(
       hierarchy->getGridGeometry()));
   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
 
-  
+  return tbox::MathUtilities<double>::Min(
+    tbox::MathUtilities<double>::Min(grid_geometry.getDx()[0], grid_geometry.getDx()[1]),
+    grid_geometry.getDx()[2])
+    * dt_frac;
   return (grid_geometry.getDx()[0]) * dt_frac;
 }
 
@@ -624,7 +627,7 @@ void VacuumSim::RKEvolveLevel(
   }
 
   
-
+  // fill ghost cells 
   level->getBoxLevel()->getMPI().Barrier();
   refine_schedule->fillData(to_t);
 
@@ -645,13 +648,14 @@ void VacuumSim::RKEvolveLevel(
   {
     const boost::shared_ptr<hier::Patch> & patch = *pit;
 
-        //Evolve inner grids
+    //Evolve inner grids
     bssnSim->RKEvolvePatch(patch, to_t - from_t);
     //Evolve physical boundary
     // would not do anything if boundary is time dependent
     bssnSim->RKEvolvePatchBD(patch, to_t - from_t);  
   }
 
+  // fill ghost cells 
   level->getBoxLevel()->getMPI().Barrier();
   refine_schedule->fillData(to_t);
 
@@ -684,6 +688,7 @@ void VacuumSim::RKEvolveLevel(
     bssnSim->RKEvolvePatchBD(patch, to_t - from_t);  
   }
 
+  // fill ghost cells 
   level->getBoxLevel()->getMPI().Barrier();
   refine_schedule->fillData(to_t);
 
@@ -712,6 +717,7 @@ void VacuumSim::RKEvolveLevel(
     bssnSim->RKEvolvePatchBD(patch, to_t - from_t);  
   }
 
+  // fill ghost cells 
   level->getBoxLevel()->getMPI().Barrier();
   refine_schedule->fillData(to_t);
 
@@ -744,7 +750,7 @@ void VacuumSim::advanceLevel(
   const boost::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
 
-  //updating extra fields like before advance any level
+  //updating extra fields before advancing any level
   addBSSNExtras(level);
 
   bssnSim->setLevelTime(level, from_t, to_t);
@@ -755,7 +761,8 @@ void VacuumSim::advanceLevel(
 
 
   level->getBoxLevel()->getMPI().Barrier();
-     
+
+  // recursively advancing children levels
   advanceLevel(hierarchy, ln+1, from_t, from_t + (to_t - from_t)/2.0);
 
   level->getBoxLevel()->getMPI().Barrier();
@@ -763,7 +770,8 @@ void VacuumSim::advanceLevel(
   advanceLevel(hierarchy, ln+1, from_t + (to_t - from_t)/2.0, to_t);
 
    
-
+  // do some coarsening and
+  // then update ghost cells through doing refinement if it has finer level
   if(ln < hierarchy->getNumberOfLevels() -1 )
   {
     xfer::CoarsenAlgorithm coarsener(dim);
@@ -794,7 +802,6 @@ void VacuumSim::advanceLevel(
   // copy _a to _p and set _p time to next timestamp
 
   math::HierarchyCellDataOpsReal<real_t> hcellmath(hierarchy,ln,ln);
-
 
   bssnSim->set_norm(level);
   

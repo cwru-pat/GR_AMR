@@ -30,7 +30,7 @@ public:
   const tbox::Dimension& dim;
   real_t KO_damping_coefficient;
   BSSNGaugeHandler * gaugeHandler;
-  real_t g_eta;
+  real_t gd_eta;
 
   
 
@@ -130,7 +130,7 @@ public:
 
   void calculate_dK(BSSNData *bd, const real_t dx[]);
   
-#ifdef USE_CCZ4
+#ifdef USE_Z4C
   void calculate_dtheta(BSSNData *bd, const real_t dx[]);
 #endif
 
@@ -256,7 +256,7 @@ public:
 
   bool normalize_Aij, normalize_gammaij;
 
-  real_t Z4c_K1_DAMPING_AMPLITUDE, Z4c_K2_DAMPING_AMPLITUDE, Z4c_K3_DAMPING_AMPLITUDE;
+  real_t Z4c_K1_DAMPING_AMPLITUDE, Z4c_K2_DAMPING_AMPLITUDE;
 
   real_t chi_lower_bd;
 

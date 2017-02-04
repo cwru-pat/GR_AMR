@@ -87,12 +87,12 @@ VacuumSim{
 BSSN{
   lapse = "AwAGaugeWave"
   shift = "AwAShiftedWave"
-  g_eta = 2
+  gd_eta = 2
   normalize_Aij = TRUE
   normalize_gammaij = FALSE
-  ccz4_k1 = 0.02
-  ccz4_k2 = 0
-  ccz4_k3 = 0.5
+  z4c_k1 = 0.02
+  z4c_k2 = 0
+  z4c_k3 = 0.5
   alpha_lower_bd_for_L2 = 0.3
   chi_lower_bd_type = "constant"
   chi_lower_bd = 1e-9

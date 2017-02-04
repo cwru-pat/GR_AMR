@@ -194,6 +194,70 @@ inline real_t backward_derivative_Odx2(idx_t i, idx_t j, idx_t k, int d,
   /* XXX */
   return 0;
 }
+
+inline real_t lop_forward_derivative_Odx2(idx_t i, idx_t j, idx_t k, int d,
+    arr_t & field, const double dx[])
+{
+  switch (d) {
+    case 1:
+      return ((
+        - 1.0/2.0*field(i+2,j,k)
+        + 2.0*field(i+1,j,k)
+        - 3.0/2.0*field(i,j,k)
+      )/dx[0]);
+      break;
+    case 2:
+      return ((
+        - 1.0/2.0*field(i,j+2,k)
+        + 2.0*field(i,j+1,k)
+        - 3.0/2.0*field(i,j,k)
+      )/dx[1]);
+      break;
+    case 3:
+      return ((
+        - 1.0/2.0*field(i,j,k+2)
+        + 2.0*field(i,j,k+1)
+        - 3.0/2.0*field(i,j,k)
+      )/dx[2]);
+      break;
+  }
+
+  /* XXX */
+  return 0;
+}
+
+
+
+inline real_t lop_backward_derivative_Odx2(idx_t i, idx_t j, idx_t k, int d,
+    arr_t & field, const double dx[])
+{
+  switch (d) {
+    case 1:
+      return ((
+        + 1.0/2.0*field(i-2,j,k)
+        - 2.0*field(i-1,j,k)
+        + 3.0/2.0*field(i,j,k)
+      )/dx[0]);
+      break;
+    case 2:
+      return ((
+        + 1.0/2.0*field(i,j-2,k)
+        - 2.0*field(i,j-1,k)
+        + 3.0/2.0*field(i,j,k)
+      )/dx[1]);
+      break;
+    case 3:
+      return ((
+        + 1.0/2.0*field(i,j,k-2)
+        - 2.0*field(i,j,k-1)
+        + 3.0/2.0*field(i,j,k)
+      )/dx[2]);
+      break;
+  }
+
+  /* XXX */
+  return 0;
+}
  
 inline real_t derivative_Odx4(idx_t i, idx_t j, idx_t k, int d,
     arr_t & field, const double dx[])
@@ -260,18 +324,6 @@ inline real_t lop_forward_derivative_Odx4(idx_t i, idx_t j, idx_t k, int d,
   }
 
   /* XXX */
-  return 0;
-}
-inline real_t lop_forward_derivative_Odx8(idx_t i, idx_t j, idx_t k, int d,
-    arr_t & field, const double dx[])
-{
-
-  /* XXX */
-  return 0;
-}
-inline real_t lop_backward_derivative_Odx8(idx_t i, idx_t j, idx_t k, int d,
-    arr_t & field, const double dx[])
-{
   return 0;
 }
  
@@ -509,6 +561,19 @@ inline real_t derivative_Odx6(idx_t i, idx_t j, idx_t k, int d,
   /* XXX */
   return 0;
 }
+inline real_t lop_forward_derivative_Odx6(idx_t i, idx_t j, idx_t k, int d,
+    arr_t & field, const double dx[])
+{
+  TBOX_ERROR("lop forward 6th order stencil has been finished!");
+  /* XXX */
+  return 0;
+}
+inline real_t lop_backward_derivative_Odx6(idx_t i, idx_t j, idx_t k, int d,
+    arr_t & field, const double dx[])
+{
+  TBOX_ERROR("lop forward 6th order stencil has been finished!");
+  return 0;
+}
 
  
 inline real_t derivative_Odx8(idx_t i, idx_t j, idx_t k, int d,
@@ -618,7 +683,19 @@ inline real_t backward_derivative_Odx8(idx_t i, idx_t j, idx_t k, int d,
   /* XXX */
   return 0;
 }
-
+inline real_t lop_forward_derivative_Odx8(idx_t i, idx_t j, idx_t k, int d,
+    arr_t & field, const double dx[])
+{
+  TBOX_ERROR("lop forward 8th order stencil has been finished!");
+  /* XXX */
+  return 0;
+}
+inline real_t lop_backward_derivative_Odx8(idx_t i, idx_t j, idx_t k, int d,
+    arr_t & field, const double dx[])
+{
+  TBOX_ERROR("lop forward 8th order stencil has been finished!");
+  return 0;
+}
  
 inline real_t mixed_derivative_stencil_Odx2(
   idx_t i, idx_t j, idx_t k, int d1, int d2, arr_t & field, const double dx[])
@@ -1192,6 +1269,7 @@ inline real_t upwind_derivative(idx_t i, idx_t j, idx_t k, int d,
   else return c * lop_backward_derivative(i,j,k,d,field, dx);
 }
 
+// directional derivative function for cells on boundary
 inline real_t bd_derivative(
   idx_t i, idx_t j, idx_t k, int d,
   arr_t & field, const double dx[], idx_t l_idx, idx_t codim)
@@ -1379,210 +1457,6 @@ inline real_t laplacian(idx_t i, idx_t j, idx_t k, arr_t & field, const double d
     + double_derivative(i, j, k, 3, 3, field, dx)
   );
 }
-
-/**
- * @brief Compute the average of a field
- * 
- * @param field field to average
- * @return average
- */
-/* inline real_t average(arr_t & field) */
-/* { */
-/*   // note this may have poor precision for large datasets */
-/*   real_t sum = 0.0;  */
-/*   idx_t i=0, j=0, k=0; */
-  
-/*   LOOP3(i, j, k) */
-/*   { */
-/*     sum += field(i,j,k); */
-/*   } */
-/*   return sum/POINTS; */
-/* } */
-
-/* /\** */
-/*  * @brief Compute the average volume of a simulation */
-/*  *  */
-/*  * @param DIFFphi difference variable conformal factor field */
-/*  * @param phi_FRW reference FRW conformal factor */
-/*  *  */
-/*  * @return [description] */
-/*  *\/ */
-/* inline real_t volume_average(arr_t & DIFFphi, real_t phi_FRW) */
-/* { */
-/*   real_t sum = 0.0;  */
-/*   idx_t i=0, j=0, k=0; */
-
-/*   #pragma omp parallel for default(shared) private(i, j, k) reduction(+:sum) */
-/*   LOOP3(i, j, k) */
-/*   { */
-/*     sum += exp(6.0*(DIFFphi(i,j,k) + phi_FRW)); */
-/*   } */
-/*   return sum/POINTS; */
-/* } */
-
-/* /\** */
-/*  * @brief Compute the volume-weighted average of a field */
-/*  *  */
-/*  * @param field field to average */
-/*  * @param DIFFphi difference variable conformal factor field */
-/*  * @param phi_FRW reference FRW conformal factor */
-/*  * @return volume-weighted average */
-/*  *\/ */
-/* inline real_t conformal_average(arr_t & field, arr_t & DIFFphi, real_t phi_FRW) */
-/* { */
-/*   real_t sum = 0.0;  */
-/*   idx_t i=0, j=0, k=0; */
-
-/*   #pragma omp parallel for default(shared) private(i, j, k) reduction(+:sum) */
-/*   LOOP3(i, j, k) */
-/*   { */
-/*     sum += exp(6.0*(DIFFphi(i,j,k) + phi_FRW))*field(i,j,k); */
-/*   } */
-/*   real_t vol = volume_average(DIFFphi, phi_FRW); */
-/*   return sum/POINTS/vol; */
-/* } */
-
-/* /\** */
-/*  * @brief Compute the standard deviation of a field */
-/*  *  */
-/*  * @param field field to analyze */
-/*  * @param avg pre-computed average of a field */
-/*  * @return standard deviation */
-/*  *\/ */
-/* inline real_t standard_deviation(arr_t & field, real_t avg) */
-/* { */
-/*   // note this may have poor precision for large datasets */
-/*   idx_t i=0, j=0, k=0; */
-/*   real_t sum = 0.0; */
-/*   #pragma omp parallel for default(shared) private(i, j, k) reduction(+:sum) */
-/*   LOOP3(i, j, k) */
-/*   { */
-/*     sum += pw2(avg - field(i,j,k)); */
-/*   } */
-/*   return sqrt(sum/(POINTS-1)); */
-/* } */
-
-/* /\** */
-/*  * @brief Compute the standard deviation of a field */
-/*  *  */
-/*  * @param field field to analyze */
-/*  * @return standard deviation */
-/*  *\/ */
-/* inline real_t standard_deviation(arr_t & field) */
-/* { */
-/*   real_t avg = average(field); */
-/*   return standard_deviation(field, avg); */
-/* } */
-
-/* /\** */
-/*  * @brief Compute the volume-weighted standard deviation of a field */
-/*  *  */
-/*  * @param field field to analyze */
-/*  * @param DIFFphi difference variable conformal factor field */
-/*  * @param phi_FRW reference FRW conformal factor */
-/*  * @param avg pre-computed volume-weighted average */
-/*  * @return volume-weighted standard deviation */
-/*  *\/ */
-/* inline real_t conformal_standard_deviation( */
-/*   arr_t & field, arr_t & DIFFphi, real_t phi_FRW, real_t avg) */
-/* { */
-/*   real_t sum = 0.0;  */
-/*   idx_t i=0, j=0, k=0; */
-
-/*   #pragma omp parallel for default(shared) private(i, j, k) reduction(+:sum) */
-/*   LOOP3(i, j, k) */
-/*   { */
-/*     sum += exp(6.0*(DIFFphi(i,j,k) + phi_FRW))*pw2(avg - field(i,j,k)); */
-/*   } */
-/*   real_t vol = volume_average(DIFFphi, phi_FRW); */
-/*   return sqrt(sum/(POINTS-1)/vol); */
-/* } */
-
-/* /\** */
-/*  * @brief Compute the volume-weighted standard deviation of a field */
-/*  *  */
-/*  * @param field field to analyze */
-/*  * @param DIFFphi difference variable conformal factor field */
-/*  * @param phi_FRW reference FRW conformal factor */
-/*  * @return volume-weighted standard deviation */
-/*  *\/ */
-/* inline real_t conformal_standard_deviation( */
-/*   arr_t & field, arr_t & DIFFphi, real_t phi_FRW) */
-/* { */
-/*   real_t avg = conformal_average(field, DIFFphi, phi_FRW); */
-/*   return conformal_standard_deviation(field, DIFFphi, phi_FRW, avg); */
-/* } */
-
-/* /\** */
-/*  * @brief Compute the maximum value of a field */
-/*  *\/ */
-/* inline real_t max(arr_t & field) */
-/* { */
-/*   idx_t i=0, j=0, k=0; */
-/*   real_t max_val = field[0]; */
-/*   LOOP3(i, j, k) */
-/*   { */
-/*     if(field(i,j,k) > max_val) { */
-/*       max_val = field(i,j,k); */
-/*     } */
-/*   } */
-/*   return max_val; */
-/* } */
-
-/* /\** */
-/*  * @brief Compute the minimum value of a field */
-/*  *\/ */
-/* inline real_t min(arr_t & field) */
-/* { */
-/*   idx_t i=0, j=0, k=0; */
-/*   real_t min_val = field[0]; */
-/*   LOOP3(i, j, k) */
-/*   { */
-/*     if(field(i,j,k) < min_val) { */
-/*       min_val = field(i,j,k); */
-/*     } */
-/*   } */
-/*   return min_val; */
-/* } */
-
-/* /\** */
-/*  * @brief compute the number of NAN values in a field */
-/*  * @details may have portability issues */
-/*  *\/ */
-/* inline idx_t numNaNs(arr_t & field) */
-/* { */
-/*   idx_t i=0, j=0, k=0; */
-/*   idx_t NaNs = 0; */
-  
-/*   LOOP3(i,j,k) */
-/*   { */
-/*     real_t val = field(i,j,k); */
-/*     union { float val; uint32_t x; } u = { (float) val }; */
-/*     if((u.x << 1) > 0xff000000u) */
-/*     { */
-/*       NaNs += 1; */
-/*     } */
-/*   } */
-
-/*   return NaNs; */
-/* } */
-
-
-/* inline idx_t idx_t_mod(idx_t n, idx_t d) */
-/* { */
-/*   idx_t mod = n % d; */
-/*   if(mod < 0) */
-/*     mod += d; */
-/*   return mod; */
-/* } */
-
-/* inline real_t real_t_mod(real_t n, real_t d) */
-/* { */
-/*   return n - d*std::floor(n/d); */
-/* } */
-
-
-
 
 
 }

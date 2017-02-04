@@ -1,16 +1,12 @@
 #ifndef COSMO_MACROS
 #define COSMO_MACROS
 
-//#include "cosmo_includes.h"
 #include "cosmo_types.h"
 /************************************************/
 /* Variables that can be changed at compilation */
 /* time using, eg, the -D option for gcc.       */
 /************************************************/
 
-
-
-// Stencil order
 
 #ifndef DIM
   #define DIM 3
@@ -82,8 +78,8 @@
 /*****************************************/
 
 // not really tested:
-#ifndef USE_CCZ4
-  #define USE_CCZ4 true
+#ifndef USE_Z4C
+  #define USE_Z4C true
 #endif
 
 
@@ -104,107 +100,97 @@
 #define DECLARE_REAL_T(name) \
   real_t name
 
-// RK4 method, using 4 "registers".  One for the "_p"revious step data, one
-// for the data being "_a"ctively used for calculation, one for the
-// Runge-Kutta "_c"oefficient being calculated, and lastly the "_f"inal
-// result of the calculation.
 
+#define VAR_CREATE(field)                               \
+  boost::shared_ptr<pdat::CellVariable<real_t>> field
 
-#define VAR_CREATE(field)  \
-        boost::shared_ptr<pdat::CellVariable<real_t>> field
+#define VAR_INIT(field)                                         \
+  field = boost::shared_ptr<pdat::CellVariable<real_t>> (       \
+    new pdat::CellVariable<real_t>(dim, #field, 1))
 
-#define VAR_INIT(field)  \
-        field = boost::shared_ptr<pdat::CellVariable<real_t>> (  \
-          new pdat::CellVariable<real_t>(dim, #field, 1))
+#define RK4_PDATA_CREATE(field, type)                                   \
+  boost::shared_ptr<pdat::CellData<real_t>> field##_##type##_pdata
 
-#define RK4_PDATA_CREATE(field, type)                \
-        boost::shared_ptr<pdat::CellData<real_t>> field##_##type##_pdata
-#define RK4_MDA_ACCESS_CREATE(field,type)           \
-        arr_t field##_##type
+#define RK4_MDA_ACCESS_CREATE(field,type)       \
+  arr_t field##_##type
 
-#define RK4_PDATA_ALL_CREATE(field)  \
-        boost::shared_ptr<pdat::CellData<real_t>> field##_a_pdata;  \
-        boost::shared_ptr<pdat::CellData<real_t>> field##_s_pdata;  \
-        boost::shared_ptr<pdat::CellData<real_t>> field##_p_pdata;  \
-        boost::shared_ptr<pdat::CellData<real_t>> field##_k1_pdata;             \
-        boost::shared_ptr<pdat::CellData<real_t>> field##_k2_pdata;             \
-        boost::shared_ptr<pdat::CellData<real_t>> field##_k3_pdata;             \
-        boost::shared_ptr<pdat::CellData<real_t>> field##_k4_pdata
+#define RK4_PDATA_ALL_CREATE(field)                             \
+  boost::shared_ptr<pdat::CellData<real_t>> field##_a_pdata;    \
+  boost::shared_ptr<pdat::CellData<real_t>> field##_s_pdata;    \
+  boost::shared_ptr<pdat::CellData<real_t>> field##_p_pdata;    \
+  boost::shared_ptr<pdat::CellData<real_t>> field##_k1_pdata;   \
+  boost::shared_ptr<pdat::CellData<real_t>> field##_k2_pdata;   \
+  boost::shared_ptr<pdat::CellData<real_t>> field##_k3_pdata;   \
+  boost::shared_ptr<pdat::CellData<real_t>> field##_k4_pdata
 
-#define RK4_MDA_ACCESS_ALL_CREATE(field)                          \
-  arr_t field##_a;  \
-  arr_t field##_s;  \
-  arr_t field##_p;  \
-  arr_t field##_k1; \
-  arr_t field##_k2; \
-  arr_t field##_k3; \
+#define RK4_MDA_ACCESS_ALL_CREATE(field)        \
+  arr_t field##_a;                              \
+  arr_t field##_s;                              \
+  arr_t field##_p;                              \
+  arr_t field##_k1;                             \
+  arr_t field##_k2;                             \
+  arr_t field##_k3;                             \
   arr_t field##_k4
 
-
-#define RK4_IDX_ALL_CREATE(name) \
-        idx_t name##_a_idx, name##_s_idx, name##_p_idx, name##_k1_idx, \
-          name##_k2_idx, name##_k3_idx, name##_k4_idx
+// RK4 method, using 4 "registers" plus _p represents "previous,
+// _a represents "active", _s represents "scratch".
+// for the data being "_a"ctively used for calculation
+// "_p" stores results on previous step 
+// "_s" is used when you need a temperary register to store somthing
+#define RK4_IDX_ALL_CREATE(name)                                        \
+  idx_t name##_a_idx, name##_s_idx, name##_p_idx, name##_k1_idx,        \
+    name##_k2_idx, name##_k3_idx, name##_k4_idx
 
 #define RK4_IDX_CREATE(name, type)              \
-        idx_t name##_##type##_idx
+  idx_t name##_##type##_idx
 
-#define RK4_ARRAY_ALLOC(field) \
-        level->allocatePatchData(bssnSim->field##_a_idx);  \
-        level->allocatePatchData(bssnSim->field##_s_idx);  \
-        level->allocatePatchData(bssnSim->field##_p_idx);  \
-        level->allocatePatchData(bssnSim->field##_k1_idx); \
-        level->allocatePatchData(bssnSim->field##_k2_idx); \
-        level->allocatePatchData(bssnSim->field##_k3_idx); \
-        level->allocatePatchData(bssnSim->field##_k4_idx)
 
-#define EXTRA_ARRAY_ALLOC(field) \
-        level->allocatePatchData(bssnSim->field##_a_idx)
+#define RK4_ARRAY_ALLOC(field)                          \
+  level->allocatePatchData(bssnSim->field##_a_idx);     \
+  level->allocatePatchData(bssnSim->field##_s_idx);     \
+  level->allocatePatchData(bssnSim->field##_p_idx);     \
+  level->allocatePatchData(bssnSim->field##_k1_idx);    \
+  level->allocatePatchData(bssnSim->field##_k2_idx);    \
+  level->allocatePatchData(bssnSim->field##_k3_idx);    \
+  level->allocatePatchData(bssnSim->field##_k4_idx)
 
-#define RK4_ARRAY_ZERO(field, hcellmath)                  \
-  hcellmath.setToScalar(bssnSim->field##_a_idx, 0, 0);     \
-  hcellmath.setToScalar(bssnSim->field##_s_idx, 0, 0);     \
-  hcellmath.setToScalar(bssnSim->field##_p_idx, 0, 0);     \
-  hcellmath.setToScalar(bssnSim->field##_k1_idx, 0, 0);     \
-  hcellmath.setToScalar(bssnSim->field##_k2_idx, 0, 0);     \
-  hcellmath.setToScalar(bssnSim->field##_k3_idx, 0, 0);     \
+#define EXTRA_ARRAY_ALLOC(field)                        \
+  level->allocatePatchData(bssnSim->field##_a_idx)
+
+#define RK4_ARRAY_ZERO(field, hcellmath)                \
+  hcellmath.setToScalar(bssnSim->field##_a_idx, 0, 0);  \
+  hcellmath.setToScalar(bssnSim->field##_s_idx, 0, 0);  \
+  hcellmath.setToScalar(bssnSim->field##_p_idx, 0, 0);  \
+  hcellmath.setToScalar(bssnSim->field##_k1_idx, 0, 0); \
+  hcellmath.setToScalar(bssnSim->field##_k2_idx, 0, 0); \
+  hcellmath.setToScalar(bssnSim->field##_k3_idx, 0, 0); \
   hcellmath.setToScalar(bssnSim->field##_k4_idx, 0, 0)
 
-#define EXTRA_ARRAY_ZERO(field, hcellmath)                  \
+#define EXTRA_ARRAY_ZERO(field, hcellmath)              \
   hcellmath.setToScalar(bssnSim->field##_a_idx, 0, 0)
 
-#define RK4_B1(theta) \
-        (theta - 3.0 * pw2(theta) /2.0 + 2.0 * pw3(theta) / 3.0)
-
-#define RK4_B2(theta)                                                   \
-        (pw2(theta) -  2.0 * pw3(theta) / 3.0)
-
-#define RK4_B3(theta)                                                   \
-        (pw2(theta) -  2.0 * pw3(theta) / 3.0)
-
-#define RK4_B4(theta)                                                  \
-        (-pw2(theta)/2.0 + 2.0 * pw3(theta) / 3.0)
 
 
-#define RK4_SET_LOCAL_VALUES(name) \
-        bd->name = name##_a(bd->i, bd->j, bd->k);
+#define RK4_SET_LOCAL_VALUES(name)              \
+  bd->name = name##_a(bd->i, bd->j, bd->k);
 
-//only add active field ids
-#define ADD_VAR_TO_LIST(field)  \
-        variable_id_list.push_back(bssnSim->field##_a_idx)
+//only add active field idx
+#define ADD_VAR_TO_LIST(field)                          \
+  variable_id_list.push_back(bssnSim->field##_a_idx)
 
-#define GEN1_IDX_CREATE(name) \
-        idx_t name##_a_idx
+#define GEN1_IDX_CREATE(name)                   \
+  idx_t name##_a_idx
 
-#define GEN1_PDATA_CREATE(field)  \
-        boost::shared_ptr<pdat::CellData<real_t>> field##_a_pdata;  \
+#define GEN1_PDATA_CREATE(field)                                \
+  boost::shared_ptr<pdat::CellData<real_t>> field##_a_pdata;    \
 
-#define GEN1_MDA_ACCESS_CREATE(field)                          \
-  arr_t field##_a;   \
+#define GEN1_MDA_ACCESS_CREATE(field)           \
+  arr_t field##_a;                              \
 
 
 
-#define GEN1_SET_LOCAL_VALUES(name) \
-        bd->name = name##_a(bd->i, bd->j, bd->k);
+#define GEN1_SET_LOCAL_VALUES(name)             \
+  bd->name = name##_a(bd->i, bd->j, bd->k);
 
 
 // macros for summing

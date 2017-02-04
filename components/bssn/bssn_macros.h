@@ -5,9 +5,9 @@
  * applying functions to lots of vars
  */
 
-#define CCZ4_APPLY_TO_FIELDS(function)           \
+#define Z4C_APPLY_TO_FIELDS(function)           \
   function(theta);
-#define CCZ4_APPLY_TO_FIELDS_ARGS(function, ...) \
+#define Z4C_APPLY_TO_FIELDS_ARGS(function, ...) \
   function(theta, __VA_ARGS__);
 
 
@@ -69,7 +69,7 @@
   function(Gamma2, __VA_ARGS__);                   \
   function(Gamma3, __VA_ARGS__);                   \
   function(DIFFalpha, __VA_ARGS__);                \
-  CCZ4_APPLY_TO_FIELDS_ARGS(function, __VA_ARGS__) \
+  Z4C_APPLY_TO_FIELDS_ARGS(function, __VA_ARGS__) \
   BSSN_APPLY_TO_SHIFT_ARGS(function, __VA_ARGS__)  \
   BSSN_APPLY_TO_AUX_B_ARGS(function, __VA_ARGS__)  \
   BSSN_APPLY_TO_EXP_N_ARGS(function, __VA_ARGS__)
@@ -93,7 +93,7 @@
   function(Gamma2);                    \
   function(Gamma3);                    \
   function(DIFFalpha);                 \
-  CCZ4_APPLY_TO_FIELDS(function)        \
+  Z4C_APPLY_TO_FIELDS(function)        \
   BSSN_APPLY_TO_SHIFT(function)        \
   BSSN_APPLY_TO_AUX_B(function)        \
   BSSN_APPLY_TO_EXP_N(function)
@@ -448,7 +448,7 @@
   bd->d##I##d##J##g23 = double_derivative(bd->i, bd->j, bd->k, I, J, DIFFgamma23##_a, dx); \
   bd->d##I##d##J##g33 = double_derivative(bd->i, bd->j, bd->k, I, J, DIFFgamma33##_a, dx)
 
-/* /\* #if USE_CCZ4 *\/ */
+/* /\* #if USE_Z4C *\/ */
 /* /\* #define BSSN_CALCULATE_ZI(I)                         \ *\/ */
 /* /\*   bd->Z##I = 0.5 * (                                 \ *\/ */
 /* /\*     bd->gamma##I##1 * (bd->Gamma1 - bd->Gammad1)     \ *\/ */
