@@ -205,7 +205,65 @@ void BSSN::init(const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
   
 }
 
+void BSSN::allocField(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln)
+{
+  boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+  BSSN_APPLY_TO_FIELDS(BSSN_RK4_ARRAY_ALLOC);
+}
 
+void BSSN::allocSrc(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln)
+{
+  boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+  BSSN_APPLY_TO_SOURCES(BSSN_EXTRA_ARRAY_ALLOC);
+}
+  
+void BSSN::allocGen1(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln) 
+{
+  boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+  BSSN_APPLY_TO_GEN1_EXTRAS(BSSN_EXTRA_ARRAY_ALLOC);
+}
+
+void BSSN::clearField(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln)
+{
+  math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
+  BSSN_ZERO_FIELDS();
+}
+
+  
+void BSSN::clearSrc(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+{
+  for(idx_t ln = 0; ln < hierarchy->getMaxNumberOfLevels(); ln++)
+  {
+    clearSrc(hierarchy, ln);
+  }
+}
+
+void BSSN::clearSrc(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln)
+{
+    
+  math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
+
+  // zero all fields
+  BSSN_ZERO_SOURCES();
+}
+
+void BSSN::clearGen1(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln) 
+{
+  math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
+  BSSN_ZERO_GEN1_EXTRAS();
+}
+
+void BSSN::addFieldsToList(std::vector<idx_t> &list)
+{
+  BSSN_APPLY_TO_FIELDS_ARGS(BSSN_ADD_TO_LIST, list);
+}
 /**
  * @brief  some initialization for each step, currently does nothing
  * 
@@ -699,6 +757,18 @@ void BSSN::prepareForK4(
   }
 }  
 
+/**
+ * @brief register refiner for BSSN fields
+ * 
+ */
+void BSSN::registerRKRefinerActive(
+  xfer::RefineAlgorithm& refiner,
+  boost::shared_ptr<hier::RefineOperator> &space_refine_op)
+{
+  BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_SPACE_REFINE_A, refiner, space_refine_op);
+}
+
+  
 /**
  * @brief register refiner for BSSN fields
  * 
@@ -1371,9 +1441,11 @@ real_t BSSN::ev_DIFFK(BSSNData *bd, const real_t dx[])
 #       endif
     )
     + 4.0*PI*bd->alpha*(bd->r + bd->S)
+#if USE_BSSN_SHIFT
     + upwind_derivative(bd->i, bd->j, bd->k, 1, DIFFK_a, dx, bd->beta1)
     + upwind_derivative(bd->i, bd->j, bd->k, 2, DIFFK_a, dx, bd->beta2)
     + upwind_derivative(bd->i, bd->j, bd->k, 3, DIFFK_a, dx, bd->beta3)
+#endif
     - bd->alpha*Z4c_K1_DAMPING_AMPLITUDE*(1.0 - Z4c_K2_DAMPING_AMPLITUDE)*bd->theta
     - KO_dissipation_Q(bd->i, bd->j, bd->k, DIFFK_a, dx, KO_damping_coefficient)
   );

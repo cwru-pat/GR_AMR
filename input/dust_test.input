@@ -1,16 +1,16 @@
 Main
 {
-  simulation_type = "vacuum"  
+  simulation_type = "dust"  
   dim = 3
-  base_name = "blackhole"
+  base_name = "dust"
   print_precision = 9
 }
 
 CartesianGridGeometry {
-  domain_boxes = [(0,0,0), (31,31,31)]
+  domain_boxes = [(0,0,0), (15,15,15)]
   x_lo         = 0, 0, 0
-  x_up         = 100, 100, 100
-  periodic_dimension = 0, 0, 0
+  x_up         = 0.5, 0.5, 0.5
+  periodic_dimension = 1, 1, 1
 }
 
 
@@ -37,7 +37,7 @@ TimerManager{
 
 
 PatchHierarchy {
-   max_levels = 4
+   max_levels = 1
    proper_nesting_buffer = 3, 3, 3, 3, 3, 3   
    largest_patch_size {
       level_0 = -1, -1, -1
@@ -69,9 +69,9 @@ GriddingAlgorithm {
 }
 
 CosmoSim{
-  steps = 500
+  steps = 100
   do_plot = TRUE
-  dt_frac = 0.05
+  dt_frac = 0.1
   regridding_interval = 100000
   adaption_threshold = 0.004
   KO_damping_coefficient = 0.0
@@ -79,26 +79,34 @@ CosmoSim{
   coarsen_op_type = "CONSERVATIVE_COARSEN"
 }
 
-VacuumSim{
-  ic_type = "static_blackhole"
-  boundary_type = "sommerfield"
+DustSim{
+  ic_type = "gaussian_random"
+  boundary_type = "periodic"
 }
 
 BSSN{
-  lapse = "OnePlusLog"
-  Shift = "GammaDriver"
+  lapse = "Static"
+  Shift = "Static"
   gd_eta = 2
-  normalize_Aij = TRUE
+  normalize_Aij = FALSE
   normalize_gammaij = FALSE
   z4c_k1 = 0.1
   z4c_k2 = 0
+  z4c_k3 = 0.5
   alpha_lower_bd_for_L2 = 0.3
-  chi_lower_bd_type = "static_blackhole"
+  chi_lower_bd_type = "constant"
   chi_lower_bd = 1e-9
 }
 
 IO{
   output_list = "DIFFchi","DIFFK"
-  output_interval = 50, 50
+  output_interval = 5000, 5000
   gd_c = 1
+}
+
+Static{
+  peak_amplitude_frac = 5.0
+  rho_K_lambda_frac = 0.0
+  ic_spec_cut = 1
+  IC_viol_amp = 0.0
 }

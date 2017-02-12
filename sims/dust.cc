@@ -1,6 +1,5 @@
-#include "vacuum.h"
+#include "dust.h"
 #include "../cosmo_includes.h"
-#include "vacuum_macros.h"
 #include "../utils/math.h"
 #include "SAMRAI/xfer/PatchLevelBorderFillPattern.h"
 
@@ -8,8 +7,8 @@ using namespace SAMRAI;
 
 namespace cosmo
 {
-  
-VacuumSim::VacuumSim(
+
+DustSim::DustSim(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   const tbox::Dimension& dim_in,
   boost::shared_ptr<tbox::InputDatabase>& input_db_in,
@@ -18,19 +17,17 @@ VacuumSim::VacuumSim(
   std::string vis_filename_in):CosmoSim(
     hierarchy,
     dim_in, input_db_in, l_stream_in, simulation_type_in, vis_filename_in),
-  cosmo_vacuum_db(input_db_in->getDatabase("VacuumSim"))
+  cosmo_dust_db(input_db_in->getDatabase("DustSim"))
 {
 
+  if(USE_BSSN_SHIFT)
+    TBOX_ERROR("Current dust simulation is done under static gauge (no shift)");
+  
   t_init->start();
 
-  std::string bd_type = cosmo_vacuum_db->getString("boundary_type");
+  std::string bd_type = cosmo_dust_db->getString("boundary_type");
 
-  // setting boundary type
-  if(bd_type == "sommerfield")
-  {
-    cosmoPS = new SommerfieldBD(dim, bd_type);
-  }
-  else if(bd_type == "periodic")
+  if(bd_type == "periodic")
   {
     cosmoPS = new periodicBD(dim, bd_type);
   }
@@ -38,14 +35,19 @@ VacuumSim::VacuumSim(
     TBOX_ERROR("Unsupported boundary type!\n");
 
 
-  cosmo_vacuum_db = input_db->getDatabase("VacuumSim");
+  cosmo_dust_db = input_db->getDatabase("DustSim");
     
 
-  tbox::pout<<"Running 'vacuum' type simulation.\n";
+  tbox::pout<<"Running 'dust' type simulation.\n";
 
   // adding all fields to a list
   bssnSim->addFieldsToList(variable_id_list);
 
+  staticSim = new Static(
+    hierarchy, dim, input_db->getDatabase("Static"), lstream);
+
+  variable_id_list.push_back(staticSim->DIFFD_a_idx);
+  
   variable_id_list.push_back(weight_idx);
 
   hier::VariableDatabase::getDatabase()->printClassData(tbox::plog);
@@ -53,11 +55,11 @@ VacuumSim::VacuumSim(
   t_init->stop();  
 }
 
-VacuumSim::~VacuumSim() {
+DustSim::~DustSim() {
 }
 
   
-void VacuumSim::init()
+void DustSim::init()
 {
   
 }
@@ -66,7 +68,7 @@ void VacuumSim::init()
  * @brief      Set vacuum initial conditions
  *
  */
-void VacuumSim::setICs(
+void DustSim::setICs(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   tbox::plog<<"Setting initial conditions (ICs).";
@@ -100,10 +102,12 @@ void VacuumSim::setICs(
             <<hierarchy->getNumberOfLevels()<<" levels\n";
 }
 
-void VacuumSim::initVacuumStep(
+void DustSim::initDustStep(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   bssnSim->stepInit(hierarchy);
+  bssnSim->clearSrc(hierarchy);
+  staticSim->addBSSNSrc(bssnSim, hierarchy);
 }
 
 /**
@@ -112,50 +116,30 @@ void VacuumSim::initVacuumStep(
  *             do nothing when it's not possible and return false
  *
  */
-bool VacuumSim::initLevel(
+bool DustSim::initLevel(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln)
 {
-  std::string ic_type = cosmo_vacuum_db->getString("ic_type");
+  std::string ic_type = cosmo_dust_db->getString("ic_type");
 
   boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
 
   math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
 
   // zero all fields
-  BSSN_APPLY_TO_FIELDS_ARGS(RK4_ARRAY_ZERO,hcellmath);
-  BSSN_APPLY_TO_SOURCES_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
-  BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
+  bssnSim->clearField(hierarchy, ln);
+  bssnSim->clearSrc(hierarchy, ln);
+  bssnSim->clearGen1(hierarchy, ln);
 
-  if(ic_type == "static_blackhole")
+  
+  hcellmath.setToScalar(staticSim->DIFFD_a_idx, 0, 0);
+  
+  if(ic_type == "gaussian_random")
   {
-    if(!USE_BSSN_SHIFT)
-      TBOX_ERROR("Must enable shift for blackhole simulation!\n");
-    bssn_ic_static_blackhole(hierarchy,ln);
+    if(ln > 0) return false;
+    dust_ic_set_random(hierarchy,ln, input_db->getDatabase("Static"));
     return true;
   }
-  else if(ic_type == "awa_stability")
-  {
-    bssn_ic_awa_stability(hierarchy,ln,1e-10);
-    return true;
-  }
-  else if(ic_type == "awa_linear_wave")
-  {
-    
-    bssn_ic_awa_linear_wave(hierarchy,ln,1e-8,1);
-    return true;
-  }
-  else if(ic_type == "awa_gauge_wave")
-  {
-    bssn_ic_awa_gauge_wave(hierarchy,ln,1);
-    return true;
-  }
-  else if(ic_type == "awa_shifted_gauge_wave")
-  {
-    bssn_ic_awa_shifted_gauge_wave(hierarchy,ln,1);
-    return true;
-  }
-
   else
     TBOX_ERROR("Undefined IC type!\n");
 
@@ -167,7 +151,7 @@ bool VacuumSim::initLevel(
  *             equals to 0 if it's covered by finer level
  *
  */  
-void VacuumSim::computeVectorWeights(
+void DustSim::computeVectorWeights(
    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   TBOX_ASSERT(hierarchy);
@@ -189,6 +173,7 @@ void VacuumSim::computeVectorWeights(
     for (hier::PatchLevel::iterator p(level->begin());
          p != level->end(); ++p) {
       const boost::shared_ptr<hier::Patch>& patch = *p;
+      
       boost::shared_ptr<geom::CartesianPatchGeometry> patch_geometry(
         BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
           patch->getPatchGeometry()));
@@ -262,7 +247,7 @@ void VacuumSim::computeVectorWeights(
 }
 
   
-void VacuumSim::initializeLevelData(
+void DustSim::initializeLevelData(
    /*! Hierarchy to initialize */
    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
    /*! Level to initialize */
@@ -295,6 +280,7 @@ void VacuumSim::initializeLevelData(
      bssnSim->allocField(patch_hierarchy, ln);
      bssnSim->allocSrc(patch_hierarchy, ln);
      bssnSim->allocGen1(patch_hierarchy, ln);
+     level->allocatePatchData(staticSim->DIFFD_a_idx);
      level->allocatePatchData(weight_idx);
    }
 
@@ -307,10 +293,8 @@ void VacuumSim::initializeLevelData(
    {
      has_initial = initLevel(patch_hierarchy, ln);
    }
-   
    bssnSim->clearSrc(patch_hierarchy, ln);
    bssnSim->clearGen1(patch_hierarchy, ln);
-       
    /*
     * Refine solution data from coarser level and, if provided, old level.
     */
@@ -323,8 +307,14 @@ void VacuumSim::initializeLevelData(
    TBOX_ASSERT(accurate_refine_op);
 
    //registering refine variables
+   //BSSN_APPLY_TO_FIELDS_ARGS(DUS_REGISTER_SPACE_REFINE_A,refiner,accurate_refine_op);
+
    bssnSim->registerRKRefinerActive(refiner, accurate_refine_op);
-                             
+   refiner.registerRefine(staticSim->DIFFD_a_idx,               
+                          staticSim->DIFFD_a_idx,                
+                          staticSim->DIFFD_a_idx,                
+                          accurate_refine_op);
+   
    boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
 
    level->getBoxLevel()->getMPI().Barrier();
@@ -387,7 +377,7 @@ void VacuumSim::initializeLevelData(
  * @brief tag the grids that need to be refined
  *
  */  
-void VacuumSim::applyGradientDetector(
+void DustSim::applyGradientDetector(
    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy_,
    const int ln,
    const double error_data_time,
@@ -488,7 +478,7 @@ void VacuumSim::applyGradientDetector(
    tbox::plog << "Max norm is " << max_der_norm << "\n";
 }
   
-void VacuumSim::outputVacuumStep(
+void DustSim::outputDustStep(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   boost::shared_ptr<appu::VisItDataWriter> visit_writer(
@@ -497,14 +487,14 @@ void VacuumSim::outputVacuumStep(
 
   tbox::pout<<"step: "<<step<<"/"<<num_steps<<"\n";
   
-  bssnSim->output_L2_H_constaint(hierarchy, weight_idx);
+  bssnSim->output_max_H_constaint(hierarchy, weight_idx);
  
   cosmo_io->registerVariablesWithPlotter(*visit_writer, step);
   cosmo_io->dumpData(hierarchy, *visit_writer, step, cur_t);
   
 }
 
-void VacuumSim::runVacuumStep(
+void DustSim::runDustStep(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   double from_t, double to_t)
 {
@@ -522,7 +512,7 @@ void VacuumSim::runVacuumStep(
  * @brief  get dt for each step, currently will return the same value
  *
  */  
-double VacuumSim::getDt(
+double DustSim::getDt(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
@@ -542,27 +532,27 @@ double VacuumSim::getDt(
  * @brief run each step
  *
  */  
-void VacuumSim::runStep(
+void DustSim::runStep(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   runCommonStepTasks(hierarchy);
-
   double dt = getDt(hierarchy);
-  initVacuumStep(hierarchy);
+  initDustStep(hierarchy);
   
-  outputVacuumStep(hierarchy);
-  runVacuumStep(hierarchy, cur_t, cur_t + dt);
+  outputDustStep(hierarchy);
+  
+  runDustStep(hierarchy, cur_t, cur_t + dt);
   cur_t += dt;
 }
 
 
-void VacuumSim::addBSSNExtras(
+void DustSim::addBSSNExtras(
   const boost::shared_ptr<hier::PatchLevel> & level)
 {
   return;
 }
 
-void VacuumSim::addBSSNExtras(
+void DustSim::addBSSNExtras(
   const boost::shared_ptr<hier::Patch> & patch)
 {
   return;
@@ -573,7 +563,7 @@ void VacuumSim::addBSSNExtras(
  * @brief RK evolve level
  *
  */  
-void VacuumSim::RKEvolveLevel(
+void DustSim::RKEvolveLevel(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln,
   double from_t,
@@ -632,12 +622,14 @@ void VacuumSim::RKEvolveLevel(
   level->getBoxLevel()->getMPI().Barrier();
   refine_schedule->fillData(to_t);
 
+  bssnSim->clearSrc(hierarchy, ln);
+  
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
     const boost::shared_ptr<hier::Patch> & patch = *pit;
     bssnSim->K1FinalizePatch(patch);
-    addBSSNExtras(patch);
+    staticSim->addBSSNSrc(bssnSim,patch);
   }
   bssnSim->set_norm(level);
   
@@ -660,12 +652,14 @@ void VacuumSim::RKEvolveLevel(
   level->getBoxLevel()->getMPI().Barrier();
   refine_schedule->fillData(to_t);
 
+  bssnSim->clearSrc(hierarchy, ln);
+  
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
     const boost::shared_ptr<hier::Patch> & patch = *pit;
     bssnSim->K2FinalizePatch(patch);
-    addBSSNExtras(patch);
+    staticSim->addBSSNSrc(bssnSim, patch);
   }
 
   bssnSim->set_norm(level);
@@ -693,12 +687,14 @@ void VacuumSim::RKEvolveLevel(
   level->getBoxLevel()->getMPI().Barrier();
   refine_schedule->fillData(to_t);
 
+  bssnSim->clearSrc(hierarchy, ln);
+  
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
     const boost::shared_ptr<hier::Patch> & patch = *pit;
     bssnSim->K3FinalizePatch(patch);
-    addBSSNExtras(patch);
+    staticSim->addBSSNSrc(bssnSim,patch);
   }
 
   bssnSim->set_norm(level);
@@ -722,12 +718,13 @@ void VacuumSim::RKEvolveLevel(
   level->getBoxLevel()->getMPI().Barrier();
   refine_schedule->fillData(to_t);
 
+  bssnSim->clearSrc(hierarchy, ln);
+  
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
     const boost::shared_ptr<hier::Patch> & patch = *pit;
     bssnSim->K4FinalizePatch(patch);
-    addBSSNExtras(patch);
   }
   bssnSim->set_norm(level);
 }
@@ -738,7 +735,7 @@ void VacuumSim::RKEvolveLevel(
  *        2. evolve its son levels recursively
  *        3. doing coarsen operation
  */ 
-void VacuumSim::advanceLevel(
+void DustSim::advanceLevel(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   int ln,
   double from_t,
@@ -814,7 +811,7 @@ void VacuumSim::advanceLevel(
 }
 
 
-void VacuumSim::resetHierarchyConfiguration(
+void DustSim::resetHierarchyConfiguration(
   /*! New hierarchy */
   const boost::shared_ptr<hier::PatchHierarchy>& new_hierarchy,
   /*! Coarsest level */ int coarsest_level,
@@ -824,5 +821,4 @@ void VacuumSim::resetHierarchyConfiguration(
 }
   
 
-
-} /* namespace cosmo */
+}

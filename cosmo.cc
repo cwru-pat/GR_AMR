@@ -1,6 +1,7 @@
 #include "cosmo_includes.h"
 #include "sims/sim.h"
 #include "sims/vacuum.h"
+#include "sims/dust.h"
 #include "utils/CartesianCellDoubleQuadraticRefine.h"
 
 using namespace SAMRAI;
@@ -155,6 +156,11 @@ int main(int argc, char* argv[])
     cosmoSim = new VacuumSim(
       patch_hierarchy, dim, input_db, &tbox::plog, simulation_type, vis_filename);
   }
+  else if(simulation_type == "dust")
+  {
+    cosmoSim = new DustSim(
+      patch_hierarchy, dim, input_db, &tbox::plog, simulation_type, vis_filename);
+  }
   else
   {
     TBOX_ERROR("Invalid simulation type specified.");
@@ -195,17 +201,19 @@ int main(int argc, char* argv[])
   tbox::plog << "Gridding algorithm:" << std::endl;
 
 
-
   //pass the gridding algorithm
   cosmoSim->setGriddingAlgs(gridding_algorithm);
 
   // Initialize refine and coarsen operators
   cosmoSim->setRefineCoarsenOps(patch_hierarchy);
+
   // Generate initial conditions
   cosmoSim->setICs(patch_hierarchy);
 
   cosmoSim->setRefineCoarsenOps(patch_hierarchy);
   // Run simulation
+
+
   cosmoSim->run(patch_hierarchy);
 
   

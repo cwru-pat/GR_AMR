@@ -82,9 +82,27 @@ public:
   void prepareForK4(
     const boost::shared_ptr<hier::PatchLevel> & level, real_t to_t);
 
+  void allocField(  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
+  void allocSrc(  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
+  void allocGen1(  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
+  
+  void clearSrc(const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
+  void clearSrc(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
+  void clearField(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
+  void clearGen1(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
+
+  void addFieldsToList(std::vector<idx_t> &list);
+  
   void registerRKRefiner(
     xfer::RefineAlgorithm& refiner,
     boost::shared_ptr<hier::RefineOperator> &space_refine_op);
+  void registerRKRefinerActive(
+    xfer::RefineAlgorithm& refiner,
+    boost::shared_ptr<hier::RefineOperator> &space_refine_op);
+
   void registerSameLevelRefinerActive(
     xfer::RefineAlgorithm& refiner,
     boost::shared_ptr<hier::RefineOperator> &space_refine_op);

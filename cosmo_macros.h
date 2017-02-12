@@ -17,7 +17,7 @@
 #endif
 
 #ifndef HALF_STENCIL_ORDER
-  #define HALF_STENCIL_ORDER 2
+  #define HALF_STENCIL_ORDER 4
 #endif
 
 #ifndef STENCIL_ORDER_WIDTH
@@ -79,7 +79,7 @@
 
 // not really tested:
 #ifndef USE_Z4C
-  #define USE_Z4C true
+  #define USE_Z4C false
 #endif
 
 

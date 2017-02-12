@@ -225,10 +225,18 @@
   field##_k4 = pdat::ArrayDataAccess::access<DIM, double>(  \
     field##_k4_pdata->getArrayData())                  
 
+#define BSSN_ZERO_FIELD(field)             \
+  hcellmath.setToScalar(field##_a_idx, 0, 0);  \
+  hcellmath.setToScalar(field##_s_idx, 0, 0);  \
+  hcellmath.setToScalar(field##_p_idx, 0, 0);  \
+  hcellmath.setToScalar(field##_k1_idx, 0, 0); \
+  hcellmath.setToScalar(field##_k2_idx, 0, 0); \
+  hcellmath.setToScalar(field##_k3_idx, 0, 0); \
+  hcellmath.setToScalar(field##_k4_idx, 0, 0)
 
 // macro requires idx to be set
-#define BSSN_ZERO_GEN1_FIELD(field) \
-  field##_a[idx] = 0.0;
+#define BSSN_ZERO_GEN1_FIELD(field)            \
+  hcellmath.setToScalar(field##_a_idx, 0, 0)
 
 // macro requires idx to be set
 #define BSSN_ZERO_GEN1_EXTRAS() \
@@ -238,7 +246,11 @@
 #define BSSN_ZERO_SOURCES() \
   BSSN_APPLY_TO_SOURCES(BSSN_ZERO_GEN1_FIELD)
 
+#define BSSN_ZERO_FIELDS() \
+  BSSN_APPLY_TO_FIELDS(BSSN_ZERO_FIELD)
 
+#define BSSN_ADD_TO_LIST(field, list)        \
+  list.push_back(field##_a_idx)
 
 // Evolve all fields
 #define BSSN_RK_EVOLVE_PT_FIELD(field) \
@@ -312,10 +324,31 @@
 #define BSSN_FINALIZE_K(n) \
   BSSN_APPLY_TO_FIELDS(BSSN_FINALIZE_FIELD##_##n)
 
+#define BSSN_RK4_ARRAY_ALLOC(field)                          \
+  level->allocatePatchData(field##_a_idx);     \
+  level->allocatePatchData(field##_s_idx);     \
+  level->allocatePatchData(field##_p_idx);     \
+  level->allocatePatchData(field##_k1_idx);    \
+  level->allocatePatchData(field##_k2_idx);    \
+  level->allocatePatchData(field##_k3_idx);    \
+  level->allocatePatchData(field##_k4_idx)
+
+#define BSSN_EXTRA_ARRAY_ALLOC(field)                        \
+  level->allocatePatchData(field##_a_idx)
+
+
+
+
 #define BSSN_REGISTER_RK_REFINER(field, refiner,refine_op)  \
   refiner.registerRefine(field##_s_idx,  \
                            field##_s_idx,  \
                            field##_s_idx,  \
+                           refine_op)
+
+#define BSSN_REGISTER_SPACE_REFINE_A(field, refiner,refine_op)  \
+  refiner.registerRefine(field##_a_idx,  \
+                           field##_a_idx,  \
+                           field##_a_idx,  \
                            refine_op)
 
 #define BSSN_REGISTER_SAME_LEVEL_REFINE_A(field, refiner,refine_op)  \
