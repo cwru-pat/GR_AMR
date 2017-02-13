@@ -328,7 +328,7 @@ void VacuumSim::initializeLevelData(
    boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
 
    level->getBoxLevel()->getMPI().Barrier();
-   if (ln > 0 || (!has_initial))
+   if (ln > 0 && (!has_initial))
    {
      /*
       * Include coarser levels in setting data

@@ -114,9 +114,6 @@ void set_gaussian_random_field(
   fftw_plan p_c2r;
   fftw_plan p_r2c;
 
-  p_r2c = fftw_plan_dft_r2c_3d(NX, NY, NZ,
-                               r_field, f_field,
-                               FFTW_MEASURE);
   p_c2r = fftw_plan_dft_c2r_3d(NX, NY, NZ,
                                f_field, r_field,
                                FFTW_MEASURE);
