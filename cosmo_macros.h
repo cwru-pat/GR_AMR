@@ -17,7 +17,7 @@
 #endif
 
 #ifndef HALF_STENCIL_ORDER
-  #define HALF_STENCIL_ORDER 4
+  #define HALF_STENCIL_ORDER 2
 #endif
 
 #ifndef STENCIL_ORDER_WIDTH
@@ -144,32 +144,44 @@
 #define RK4_IDX_CREATE(name, type)              \
   idx_t name##_##type##_idx
 
+#define REG_TO_CONTEXT(field, context, name, width)  \
+  field##_##name##_idx =  \
+    variable_db->registerVariableAndContext(  \
+      field,  \
+      context,  \
+      hier::IntVector(dim, width))
 
-#define RK4_ARRAY_ALLOC(field)                          \
-  level->allocatePatchData(bssnSim->field##_a_idx);     \
-  level->allocatePatchData(bssnSim->field##_s_idx);     \
-  level->allocatePatchData(bssnSim->field##_p_idx);     \
-  level->allocatePatchData(bssnSim->field##_k1_idx);    \
-  level->allocatePatchData(bssnSim->field##_k2_idx);    \
-  level->allocatePatchData(bssnSim->field##_k3_idx);    \
-  level->allocatePatchData(bssnSim->field##_k4_idx)
 
-#define EXTRA_ARRAY_ALLOC(field)                        \
-  level->allocatePatchData(bssnSim->field##_a_idx)
 
 #define RK4_ARRAY_ZERO(field, hcellmath)                \
-  hcellmath.setToScalar(bssnSim->field##_a_idx, 0, 0);  \
-  hcellmath.setToScalar(bssnSim->field##_s_idx, 0, 0);  \
-  hcellmath.setToScalar(bssnSim->field##_p_idx, 0, 0);  \
-  hcellmath.setToScalar(bssnSim->field##_k1_idx, 0, 0); \
-  hcellmath.setToScalar(bssnSim->field##_k2_idx, 0, 0); \
-  hcellmath.setToScalar(bssnSim->field##_k3_idx, 0, 0); \
-  hcellmath.setToScalar(bssnSim->field##_k4_idx, 0, 0)
+  hcellmath.setToScalar(field##_a_idx, 0, 0);  \
+  hcellmath.setToScalar(field##_s_idx, 0, 0);  \
+  hcellmath.setToScalar(field##_p_idx, 0, 0);  \
+  hcellmath.setToScalar(field##_k1_idx, 0, 0); \
+  hcellmath.setToScalar(field##_k2_idx, 0, 0); \
+  hcellmath.setToScalar(field##_k3_idx, 0, 0); \
+  hcellmath.setToScalar(field##_k4_idx, 0, 0)
 
-#define EXTRA_ARRAY_ZERO(field, hcellmath)              \
-  hcellmath.setToScalar(bssnSim->field##_a_idx, 0, 0)
+#define RK4_ARRAY_ALLOC(field)                 \
+  level->allocatePatchData(field##_a_idx);     \
+  level->allocatePatchData(field##_s_idx);     \
+  level->allocatePatchData(field##_p_idx);     \
+  level->allocatePatchData(field##_k1_idx);    \
+  level->allocatePatchData(field##_k2_idx);    \
+  level->allocatePatchData(field##_k3_idx);    \
+  level->allocatePatchData(field##_k4_idx)
+
+#define EXTRA_ARRAY_ZERO(field, hcellmath)                \
+  hcellmath.setToScalar(field##_a_idx, 0, 0);  
 
 
+#define EXTRA_ARRAY_ALLOC(field)                        \
+  level->allocatePatchData(field##_a_idx)
+
+
+
+#define ADD_TO_LIST(field, list)        \
+  list.push_back(field##_a_idx)
 
 #define RK4_SET_LOCAL_VALUES(name)              \
   bd->name = name##_a(bd->i, bd->j, bd->k);
@@ -191,6 +203,135 @@
 
 #define GEN1_SET_LOCAL_VALUES(name)             \
   bd->name = name##_a(bd->i, bd->j, bd->k);
+
+#define RK4_INIT_L_K1(field)  \
+  field##_s(i,j,k) =  field##_k1(i,j,k) / 2.0
+
+#define RK4_INIT_L_K2(field)  \
+  field##_s(i,j,k) =         \
+    (3.0*field##_k1(i,j,k) + 4.0*field##_k2(i,j,k)  \
+     + 2.0*field##_k3(i,j,k) - field##_k4(i,j,k))/16.0
+
+#define RK4_INIT_L_K3(field)  \
+    field##_s(i,j,k) =         \
+      (3.0*field##_k1(i,j,k) + 2.0*field##_k2(i,j,k) \
+       + 4.0*field##_k3(i,j,k) - field##_k4(i,j,k))/16.0
+
+#define RK4_INIT_L_K4(field)  \
+    field##_s(i,j,k) =         \
+      (field##_k2(i,j,k) + field##_k3(i,j,k))/4.0
+
+
+#define RK4_INIT_R_K1(field)  \
+  field##_s(i,j,k) =  (field##_k2(i,j,k) + field##_k3(i,j,k)) / 4.0
+
+#define RK4_INIT_R_K2(field)  \
+  field##_s(i,j,k) =         \
+    (-field##_k1(i,j,k) + 4.0*field##_k2(i,j,k)  \
+     + 2.0*field##_k3(i,j,k) + 3.0*field##_k4(i,j,k))/16.0
+
+#define RK4_INIT_R_K3(field)  \
+    field##_s(i,j,k) =         \
+      (-field##_k1(i,j,k) + 2.0*field##_k2(i,j,k) \
+       + 4.0*field##_k3(i,j,k) + 3.0*field##_k4(i,j,k))/16.0
+
+#define RK4_INIT_R_K4(field)  \
+    field##_s(i,j,k) = field##_k4(i,j,k)/2.0
+
+#define REGISTER_SPACE_REFINE_A(field, refiner,refine_op)       \
+  refiner.registerRefine(field##_a_idx,                         \
+                         field##_a_idx,                         \
+                         field##_a_idx,                         \
+                         refine_op)
+
+#define REGISTER_SPACE_REFINE_S(field, refiner,refine_op)       \
+  refiner.registerRefine(field##_s_idx,                         \
+                         field##_s_idx,                         \
+                         field##_s_idx,                         \
+                         refine_op)
+
+#define REGISTER_COARSEN_A(field,coarsener,coarsen_op)       \
+  coarsener.registerCoarsen(field##_a_idx,                   \
+                            field##_a_idx,                   \
+                            coarsen_op,                      \
+                            NULL)
+
+
+#define RK4_FINALIZE_FIELD_1(field)      \
+  field##_k1(i,j,k) =  field##_s(i,j,k);  \
+  field##_a(i,j,k) = field##_p(i,j,k) + field##_k1(i,j,k)/2.0  
+
+#define RK4_FINALIZE_FIELD_2(field)              \
+  field##_k2(i,j,k) = field##_s(i,j,k);  \
+  field##_a(i,j,k) = field##_p(i,j,k) + field##_k2(i,j,k)/2.0  
+
+#define RK4_FINALIZE_FIELD_3(field) \
+  field##_k3(i,j,k) = field##_s(i,j,k);  \
+  field##_a(i,j,k) = field##_p(i,j,k) + field##_k3(i,j,k)  
+
+#define RK4_FINALIZE_FIELD_4(field) \
+  field##_k4(i,j,k) = field##_s(i,j,k);    \
+  field##_a(i,j,k) =  field##_p(i,j,k) +                                  \
+    (field##_k4(i,j,k) + 2.0*field##_k3(i,j,k) + 2.0*field##_k2(i,j,k) + field##_k1(i,j,k))/6.0  
+
+#define COPY_A_TO_P(field)  \
+  hcellmath.copyData(field##_p_idx, field##_a_idx, 0)
+
+#define PDATA_INIT(field, type)   \
+  field##_##type##_pdata =  \
+    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+      patch->getPatchData(field##_##type##_idx))
+
+#define MDA_ACCESS_INIT(field,type)   \
+  field##_##type = pdat::ArrayDataAccess::access<DIM, double>(  \
+    field##_##type##_pdata->getArrayData())
+
+
+#define PDATA_ALL_INIT(field)  \
+  field##_p_pdata =  \
+    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+      patch->getPatchData(field##_p##_idx));  \
+  field##_s_pdata =  \
+    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+      patch->getPatchData(field##_s##_idx));  \
+  field##_a_pdata =  \
+    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+      patch->getPatchData(field##_a##_idx));  \
+  field##_k1_pdata =  \
+    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+      patch->getPatchData(field##_k1##_idx));             \
+  field##_k2_pdata =                                      \
+    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(    \
+      patch->getPatchData(field##_k2##_idx));               \
+  field##_k3_pdata =  \
+    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+      patch->getPatchData(field##_k3##_idx));             \
+  field##_k4_pdata =  \
+    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+      patch->getPatchData(field##_k4##_idx))
+
+
+
+
+#define MDA_ACCESS_ALL_INIT(field)  \
+  field##_p = pdat::ArrayDataAccess::access<DIM, double>(  \
+    field##_p_pdata->getArrayData());                    \
+  field##_a = pdat::ArrayDataAccess::access<DIM, double>(  \
+    field##_a_pdata->getArrayData());                    \
+  field##_s = pdat::ArrayDataAccess::access<DIM, double>(  \
+    field##_s_pdata->getArrayData());                    \
+  field##_k1 = pdat::ArrayDataAccess::access<DIM, double>(  \
+    field##_k1_pdata->getArrayData());                    \
+  field##_k2 = pdat::ArrayDataAccess::access<DIM, double>(  \
+    field##_k2_pdata->getArrayData());                    \
+  field##_k3 = pdat::ArrayDataAccess::access<DIM, double>(  \
+    field##_k3_pdata->getArrayData());                    \
+  field##_k4 = pdat::ArrayDataAccess::access<DIM, double>(  \
+    field##_k4_pdata->getArrayData())                  
+
+#define SET_PATCH_TIME(field, from_t, to_t)        \
+  patch->getPatchData(field##_a_idx)->setTime(to_t); \
+  patch->getPatchData(field##_p_idx)->setTime(from_t)  \
 
 
 // macros for summing

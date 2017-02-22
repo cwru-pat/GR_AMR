@@ -72,7 +72,10 @@ public:
 
   void RKEvolvePatch(
     const boost::shared_ptr<hier::Patch> & patch, real_t dt);
-
+  void RKEvolvePt(
+    idx_t i, idx_t j, idx_t k, BSSNData &bd, const real_t dx[], real_t dt);
+  
+  
   void prepareForK1(
     const boost::shared_ptr<hier::PatchLevel> & level, real_t to_t);
   void prepareForK2(
@@ -103,9 +106,6 @@ public:
     xfer::RefineAlgorithm& refiner,
     boost::shared_ptr<hier::RefineOperator> &space_refine_op);
 
-  void registerSameLevelRefinerActive(
-    xfer::RefineAlgorithm& refiner,
-    boost::shared_ptr<hier::RefineOperator> &space_refine_op);
   void registerCoarsenActive(
     xfer::CoarsenAlgorithm& coarsener,
     boost::shared_ptr<hier::CoarsenOperator>& coarsen_op);

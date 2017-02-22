@@ -58,19 +58,19 @@ BSSN::BSSN(
 
 
   // creating BSSN fields with contexts 
-  BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REG_TO_CONTEXT, context_scratch, s, STENCIL_ORDER);
-  BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REG_TO_CONTEXT, context_previous, p, STENCIL_ORDER);
-  BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REG_TO_CONTEXT, context_active, a, STENCIL_ORDER);
-  BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REG_TO_CONTEXT, context_k1, k1, STENCIL_ORDER);
-  BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REG_TO_CONTEXT, context_k2, k2, STENCIL_ORDER);
-  BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REG_TO_CONTEXT, context_k3, k3, STENCIL_ORDER);
-  BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REG_TO_CONTEXT, context_k4, k4, STENCIL_ORDER);
+  BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_scratch, s, STENCIL_ORDER);
+  BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_previous, p, STENCIL_ORDER);
+  BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_active, a, STENCIL_ORDER);
+  BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_k1, k1, STENCIL_ORDER);
+  BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_k2, k2, STENCIL_ORDER);
+  BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_k3, k3, STENCIL_ORDER);
+  BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_k4, k4, STENCIL_ORDER);
 
   // creating source fields only with ACTIVE context
-  BSSN_APPLY_TO_SOURCES_ARGS(BSSN_REG_TO_CONTEXT, context_active, a, STENCIL_ORDER);
+  BSSN_APPLY_TO_SOURCES_ARGS(REG_TO_CONTEXT, context_active, a, STENCIL_ORDER);
 
   // creating extra fields with with ACTIVE context
-  BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(BSSN_REG_TO_CONTEXT, context_active, a, STENCIL_ORDER);
+  BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(REG_TO_CONTEXT, context_active, a, STENCIL_ORDER);
 
   init(hierarchy);  
 }
@@ -209,28 +209,28 @@ void BSSN::allocField(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln)
 {
   boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
-  BSSN_APPLY_TO_FIELDS(BSSN_RK4_ARRAY_ALLOC);
+  BSSN_APPLY_TO_FIELDS(RK4_ARRAY_ALLOC);
 }
 
 void BSSN::allocSrc(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln)
 {
   boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
-  BSSN_APPLY_TO_SOURCES(BSSN_EXTRA_ARRAY_ALLOC);
+  BSSN_APPLY_TO_SOURCES(EXTRA_ARRAY_ALLOC);
 }
   
 void BSSN::allocGen1(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln) 
 {
   boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
-  BSSN_APPLY_TO_GEN1_EXTRAS(BSSN_EXTRA_ARRAY_ALLOC);
+  BSSN_APPLY_TO_GEN1_EXTRAS(EXTRA_ARRAY_ALLOC);
 }
 
 void BSSN::clearField(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln)
 {
   math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
-  BSSN_ZERO_FIELDS();
+  BSSN_APPLY_TO_FIELDS_ARGS(RK4_ARRAY_ZERO, hcellmath);
 }
 
   
@@ -248,21 +248,20 @@ void BSSN::clearSrc(
 {
     
   math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
-
+  BSSN_APPLY_TO_SOURCES_ARGS(EXTRA_ARRAY_ZERO, hcellmath);
   // zero all fields
-  BSSN_ZERO_SOURCES();
 }
 
 void BSSN::clearGen1(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln) 
 {
   math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
-  BSSN_ZERO_GEN1_EXTRAS();
+  BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(EXTRA_ARRAY_ZERO, hcellmath);
 }
 
 void BSSN::addFieldsToList(std::vector<idx_t> &list)
 {
-  BSSN_APPLY_TO_FIELDS_ARGS(BSSN_ADD_TO_LIST, list);
+  BSSN_APPLY_TO_FIELDS_ARGS(ADD_TO_LIST, list);
 }
 /**
  * @brief  some initialization for each step, currently does nothing
@@ -492,6 +491,7 @@ void BSSN::RKEvolvePatchBD(
 void BSSN::RKEvolvePatch(
   const boost::shared_ptr<hier::Patch> & patch, real_t dt)
 {
+  // might not need this function
   initPData(patch);
   initMDA(patch);
   const hier::Box& box = patch->getBox();
@@ -521,7 +521,16 @@ void BSSN::RKEvolvePatch(
       }
     }
   }
+  return;
 }
+
+void BSSN::RKEvolvePt(
+  idx_t i, idx_t j, idx_t k, BSSNData &bd, const real_t dx[], real_t dt)
+{
+  set_bd_values(i, j, k, &bd, dx);
+  BSSN_RK_EVOLVE_PT;
+}
+  
 
 /**
  * @brief calculate K1 value on coarser level
@@ -556,7 +565,7 @@ void BSSN::prepareForK1(
         {
           for(int i = lower[0]; i <= upper[0]; i++)
           {
-            BSSN_APPLY_TO_FIELDS(BSSN_INIT_R_K1);
+            BSSN_APPLY_TO_FIELDS(RK4_INIT_R_K1);
           }
         }
       }
@@ -573,7 +582,7 @@ void BSSN::prepareForK1(
         {
           for(int i = lower[0]; i <= upper[0]; i++)
           {
-            BSSN_APPLY_TO_FIELDS(BSSN_INIT_L_K1);
+            BSSN_APPLY_TO_FIELDS(RK4_INIT_L_K1);
           }
         }
       }
@@ -616,7 +625,7 @@ void BSSN::prepareForK2(
         {
           for(int i = lower[0]; i <= upper[0]; i++)
           {
-            BSSN_APPLY_TO_FIELDS(BSSN_INIT_R_K2);
+            BSSN_APPLY_TO_FIELDS(RK4_INIT_R_K2);
           }
         }
       }
@@ -633,7 +642,7 @@ void BSSN::prepareForK2(
         {
           for(int i = lower[0]; i <= upper[0]; i++)
           {
-            BSSN_APPLY_TO_FIELDS(BSSN_INIT_L_K2);
+            BSSN_APPLY_TO_FIELDS(RK4_INIT_L_K2);
           }
         }
       }
@@ -672,7 +681,7 @@ void BSSN::prepareForK3(
         {
           for(int i = lower[0]; i <= upper[0]; i++)
           {
-            BSSN_APPLY_TO_FIELDS(BSSN_INIT_R_K3);
+            BSSN_APPLY_TO_FIELDS(RK4_INIT_R_K3);
           }
         }
       }
@@ -689,7 +698,7 @@ void BSSN::prepareForK3(
         {
           for(int i = lower[0]; i <= upper[0]; i++)
           {
-            BSSN_APPLY_TO_FIELDS(BSSN_INIT_L_K3);
+            BSSN_APPLY_TO_FIELDS(RK4_INIT_L_K3);
           }
         }
       }
@@ -732,7 +741,7 @@ void BSSN::prepareForK4(
         {
           for(int i = lower[0]; i <= upper[0]; i++)
           {
-            BSSN_APPLY_TO_FIELDS(BSSN_INIT_R_K4);
+            BSSN_APPLY_TO_FIELDS(RK4_INIT_R_K4);
           }
         }
       }
@@ -749,7 +758,7 @@ void BSSN::prepareForK4(
         {
           for(int i = lower[0]; i <= upper[0]; i++)
           {
-            BSSN_APPLY_TO_FIELDS(BSSN_INIT_L_K4);
+            BSSN_APPLY_TO_FIELDS(RK4_INIT_L_K4);
           }
         }
       }
@@ -765,7 +774,7 @@ void BSSN::registerRKRefinerActive(
   xfer::RefineAlgorithm& refiner,
   boost::shared_ptr<hier::RefineOperator> &space_refine_op)
 {
-  BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_SPACE_REFINE_A, refiner, space_refine_op);
+  BSSN_APPLY_TO_FIELDS_ARGS(REGISTER_SPACE_REFINE_A, refiner, space_refine_op);
 }
 
   
@@ -777,19 +786,9 @@ void BSSN::registerRKRefiner(
   xfer::RefineAlgorithm& refiner,
   boost::shared_ptr<hier::RefineOperator> &space_refine_op)
 {
-  BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_RK_REFINER, refiner, space_refine_op);
+  BSSN_APPLY_TO_FIELDS_ARGS(REGISTER_SPACE_REFINE_S, refiner, space_refine_op);
 }
 
-/**
- * @brief  register fields for same level refine
- * 
- */
-void BSSN::registerSameLevelRefinerActive(
-  xfer::RefineAlgorithm& refiner,
-  boost::shared_ptr<hier::RefineOperator> &space_refine_op)
-{
-  BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_SAME_LEVEL_REFINE_A,refiner,space_refine_op);
-}
 
 
 
@@ -801,7 +800,7 @@ void BSSN::registerCoarsenActive(
   xfer::CoarsenAlgorithm& coarsener,
   boost::shared_ptr<hier::CoarsenOperator>& coarsen_op)
 {
-  BSSN_APPLY_TO_FIELDS_ARGS(BSSN_REGISTER_COARSEN_A, coarsener, coarsen_op);
+  BSSN_APPLY_TO_FIELDS_ARGS(REGISTER_COARSEN_A, coarsener, coarsen_op);
 }
 
 
@@ -815,7 +814,7 @@ void BSSN::registerCoarsenActive(
 void BSSN::copyAToP(
   math::HierarchyCellDataOpsReal<real_t> & hcellmath)
 {
-  BSSN_APPLY_TO_FIELDS(BSSN_COPY_A_TO_P);
+  BSSN_APPLY_TO_FIELDS(COPY_A_TO_P);
 }
 
 
@@ -824,19 +823,19 @@ void BSSN::copyAToP(
 void BSSN::initPData(
   const boost::shared_ptr<hier::Patch> & patch)
 {
-  BSSN_APPLY_TO_FIELDS(BSSN_PDATA_ALL_INIT);
-  BSSN_APPLY_TO_SOURCES_ARGS(BSSN_PDATA_INIT, a);
-  BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(BSSN_PDATA_INIT, a);
+  BSSN_APPLY_TO_FIELDS(PDATA_ALL_INIT);
+  BSSN_APPLY_TO_SOURCES_ARGS(PDATA_INIT, a);
+  BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(PDATA_INIT, a);
 }
 
 void BSSN::initMDA(
   const boost::shared_ptr<hier::Patch> & patch)
 {
-  BSSN_APPLY_TO_FIELDS(BSSN_MDA_ACCESS_ALL_INIT);
+  BSSN_APPLY_TO_FIELDS(MDA_ACCESS_ALL_INIT);
 
-  BSSN_APPLY_TO_SOURCES_ARGS(BSSN_MDA_ACCESS_INIT, a);
+  BSSN_APPLY_TO_SOURCES_ARGS(MDA_ACCESS_INIT, a);
   
-  BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(BSSN_MDA_ACCESS_INIT, a);
+  BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(MDA_ACCESS_INIT, a);
 }
 
 /**
@@ -851,7 +850,7 @@ void BSSN::setLevelTime(
        pit != level->end(); ++pit)
   {
     const boost::shared_ptr<hier::Patch> & patch = *pit;
-    BSSN_APPLY_TO_FIELDS_ARGS(BSSN_SET_PATCH_TIME, from_t, to_t);
+    BSSN_APPLY_TO_FIELDS_ARGS(SET_PATCH_TIME, from_t, to_t);
   }
 }
 

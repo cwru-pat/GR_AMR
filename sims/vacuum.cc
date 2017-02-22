@@ -123,10 +123,14 @@ bool VacuumSim::initLevel(
   math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
 
   // zero all fields
-  BSSN_APPLY_TO_FIELDS_ARGS(RK4_ARRAY_ZERO,hcellmath);
-  BSSN_APPLY_TO_SOURCES_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
-  BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
+  // BSSN_APPLY_TO_FIELDS_ARGS(RK4_ARRAY_ZERO,hcellmath);
+  //BSSN_APPLY_TO_SOURCES_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
+  //BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
 
+  bssnSim->clearSrc(hierarchy, ln);
+  bssnSim->clearField(hierarchy, ln);
+  bssnSim->clearGen1(hierarchy, ln);
+  
   if(ic_type == "static_blackhole")
   {
     if(!USE_BSSN_SHIFT)
@@ -792,7 +796,7 @@ void VacuumSim::advanceLevel(
 
     
 
-    bssnSim->registerSameLevelRefinerActive(post_refiner, space_refine_op);
+    bssnSim->registerRKRefinerActive(post_refiner, space_refine_op);
     
     refine_schedule = post_refiner.createSchedule(level, NULL);
 

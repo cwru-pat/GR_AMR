@@ -112,7 +112,6 @@ void set_gaussian_random_field(
                                          *((long long) sizeof(fftw_complex)));
   // plans for taking FFTs
   fftw_plan p_c2r;
-  fftw_plan p_r2c;
 
   p_c2r = fftw_plan_dft_c2r_3d(NX, NY, NZ,
                                f_field, r_field,

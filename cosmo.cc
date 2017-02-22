@@ -2,6 +2,7 @@
 #include "sims/sim.h"
 #include "sims/vacuum.h"
 #include "sims/dust.h"
+#include "sims/scalar.h"
 #include "utils/CartesianCellDoubleQuadraticRefine.h"
 
 using namespace SAMRAI;
@@ -148,8 +149,8 @@ int main(int argc, char* argv[])
   
   if(simulation_type == "scalar")
   {
-    //cosmoSim = new ScalarSim();
-    TBOX_ERROR("Have not finished scalar part yet.");
+    cosmoSim = new ScalarSim(
+      patch_hierarchy, dim, input_db, &tbox::plog, simulation_type, vis_filename);
   }
   else if(simulation_type == "vacuum")
   {

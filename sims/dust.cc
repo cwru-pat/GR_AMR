@@ -789,7 +789,7 @@ void DustSim::advanceLevel(
 
     
 
-    bssnSim->registerSameLevelRefinerActive(post_refiner, space_refine_op);
+    bssnSim->registerRKRefinerActive(post_refiner, space_refine_op);
     
     refine_schedule = post_refiner.createSchedule(level, NULL);
 
