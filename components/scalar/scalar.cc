@@ -365,8 +365,10 @@ void Scalar::prepareForK4(
 
 
 /**
- * @brief register refiner for BSSN fields
+ * @brief register "active" component of the fields to refiner
  * 
+ * @param refiner
+ * @param refiner operator
  */
 void Scalar::registerRKRefinerActive(
   xfer::RefineAlgorithm& refiner,
@@ -377,8 +379,10 @@ void Scalar::registerRKRefinerActive(
 
   
 /**
- * @brief register refiner for BSSN fields
+ * @brief register "scratch" component of the fields to refiner
  * 
+ * @param refiner
+ * @param refiner operator
  */
 void Scalar::registerRKRefiner(
   xfer::RefineAlgorithm& refiner,
@@ -387,7 +391,12 @@ void Scalar::registerRKRefiner(
   SCALAR_APPLY_TO_FIELDS_ARGS(REGISTER_SPACE_REFINE_S, refiner, space_refine_op);
 }
 
-
+/**
+ * @brief register "active" component of the fields to coarsener 
+ * 
+ * @param coarsener
+ * @param coarse operator
+ */
 void Scalar::registerCoarsenActive(
   xfer::CoarsenAlgorithm& coarsener,
   boost::shared_ptr<hier::CoarsenOperator>& coarsen_op)
@@ -404,13 +413,20 @@ void Scalar::copyAToP(
 
 
 
-
+/**
+ * @brief initilizing all pointers for every components's patchdata
+ * 
+ */
 void Scalar::initPData(
   const boost::shared_ptr<hier::Patch> & patch)
 {
   SCALAR_APPLY_TO_FIELDS(PDATA_ALL_INIT);
 }
 
+/**
+ * @brief initilizing all pointers for every components's array access
+ * 
+ */
 void Scalar::initMDA(
   const boost::shared_ptr<hier::Patch> & patch)
 {

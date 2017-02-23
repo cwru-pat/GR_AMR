@@ -14,4 +14,6 @@
 
 8. the quadratic interpolation operator does not good enough, we can easily see this by a simple example
 
+9. scalar field currently does not support boundary other than periodic boundary
+
 10. may improve the efficiency of function initializeLevelData() by changing the way of enumerating index?

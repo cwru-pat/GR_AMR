@@ -92,8 +92,10 @@ public:
   void clearSrc(const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
   void clearSrc(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
+  void clearField(const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
   void clearField(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
+  void clearGen1(const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
   void clearGen1(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
 
@@ -128,8 +130,6 @@ public:
     const boost::shared_ptr<hier::Patch> & patch);
 
   void set_bd_values_bd(
-    idx_t i, idx_t j, idx_t k, BSSNData *bd, const real_t dx[]);
-  void set_bd_values_for_extra_fields(
     idx_t i, idx_t j, idx_t k, BSSNData *bd, const real_t dx[]);
   void set_bd_values(
     idx_t i, idx_t j, idx_t k, BSSNData *bd, const real_t dx[]);

@@ -227,6 +227,15 @@ void BSSN::allocGen1(
 }
 
 void BSSN::clearField(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+{
+  for(idx_t ln = 0; ln < hierarchy->getMaxNumberOfLevels(); ln++)
+  {
+    clearField(hierarchy, ln);
+  }
+}
+  
+void BSSN::clearField(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln)
 {
   math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
@@ -249,9 +258,17 @@ void BSSN::clearSrc(
     
   math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
   BSSN_APPLY_TO_SOURCES_ARGS(EXTRA_ARRAY_ZERO, hcellmath);
-  // zero all fields
 }
 
+void BSSN::clearGen1(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+{
+  for(idx_t ln = 0; ln < hierarchy->getMaxNumberOfLevels(); ln++)
+  {
+    clearGen1(hierarchy, ln);
+  }
+}
+  
 void BSSN::clearGen1(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln) 
 {
@@ -259,6 +276,10 @@ void BSSN::clearGen1(
   BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(EXTRA_ARRAY_ZERO, hcellmath);
 }
 
+/**
+ * @brief  adding all active components to a list 
+ * 
+ */
 void BSSN::addFieldsToList(std::vector<idx_t> &list)
 {
   BSSN_APPLY_TO_FIELDS_ARGS(ADD_TO_LIST, list);
@@ -285,6 +306,8 @@ void BSSN::RKEvolvePatchBD(
   boost::shared_ptr<hier::PatchGeometry> geom (patch->getPatchGeometry());
 
   idx_t codim = 1;
+
+  // getting all codimension 1 boxes
   const std::vector<hier::BoundaryBox> & codim1_boxes =
     geom->getCodimensionBoundaries(codim);
 
@@ -301,12 +324,8 @@ void BSSN::RKEvolvePatchBD(
       patch->getPatchGeometry()));
 
     
-  //initialize dx for each patch
-  //const real_t * dx = &(patch_geom->getDx())[0];
-
   const hier::Box& patch_box = patch->getBox();
 
-  //hier::Box & boundary_fill_box;
 
   for(int i = 0 ; i < n_codim1_boxes; i++)
   {
@@ -524,6 +543,10 @@ void BSSN::RKEvolvePatch(
   return;
 }
 
+/**
+ * @brief evolve fields on one cell
+ * 
+ */
 void BSSN::RKEvolvePt(
   idx_t i, idx_t j, idx_t k, BSSNData &bd, const real_t dx[], real_t dt)
 {
@@ -767,8 +790,10 @@ void BSSN::prepareForK4(
 }  
 
 /**
- * @brief register refiner for BSSN fields
+ * @brief register "active" component of the fields to refiner
  * 
+ * @param refiner
+ * @param refiner operator
  */
 void BSSN::registerRKRefinerActive(
   xfer::RefineAlgorithm& refiner,
@@ -779,8 +804,10 @@ void BSSN::registerRKRefinerActive(
 
   
 /**
- * @brief register refiner for BSSN fields
+ * @brief register "scratch" component of the fields to refiner
  * 
+ * @param refiner
+ * @param refiner operator
  */
 void BSSN::registerRKRefiner(
   xfer::RefineAlgorithm& refiner,
@@ -790,11 +817,11 @@ void BSSN::registerRKRefiner(
 }
 
 
-
-
 /**
- * @brief register fields for coarsen
+ * @brief register "active" component of the fields to coarsener 
  * 
+ * @param coarsener
+ * @param coarse operator
  */
 void BSSN::registerCoarsenActive(
   xfer::CoarsenAlgorithm& coarsener,
@@ -819,7 +846,10 @@ void BSSN::copyAToP(
 
 
 
-
+/**
+ * @brief initilizing all pointers for every components's patchdata
+ * 
+ */
 void BSSN::initPData(
   const boost::shared_ptr<hier::Patch> & patch)
 {
@@ -828,6 +858,11 @@ void BSSN::initPData(
   BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(PDATA_INIT, a);
 }
 
+
+/**
+ * @brief initilizing all pointers for every components's array access
+ * 
+ */
 void BSSN::initMDA(
   const boost::shared_ptr<hier::Patch> & patch)
 {
@@ -1014,44 +1049,6 @@ void BSSN::set_bd_values_bd(
   if(bd->chi < chi_lower_bd) bd->chi = chi_lower_bd;
 }
 
-void BSSN::set_bd_values_for_extra_fields(
-  idx_t i, idx_t j, idx_t k, BSSNData *bd, const real_t dx[])
-{
-  bd->i = i;
-  bd->j = j;
-  bd->k = k;
-  
-  // need to set FRW quantities first
-
-  //Have not figured out the initial value of FRW 
-  
-  bd->chi_FRW = 1;
-  bd->K_FRW = 0;
-  bd->rho_FRW = 0;
-  bd->S_FRW = 0;
-  
-  // draw data from cache
-  //set_local_vals(bd);
-  BSSN_APPLY_TO_FIELDS(RK4_SET_LOCAL_VALUES);
-  set_gammai_values(i, j, k, bd);
-
-  // non-DIFF quantities
-  bd->chi      =   bd->DIFFchi + bd->chi_FRW;
-  bd->K        =   bd->DIFFK + bd->K_FRW;
-  bd->gamma11  =   bd->DIFFgamma11 + 1.0;
-  bd->gamma12  =   bd->DIFFgamma12;
-  bd->gamma13  =   bd->DIFFgamma13;
-  bd->gamma22  =   bd->DIFFgamma22 + 1.0;
-  bd->gamma23  =   bd->DIFFgamma23;
-  bd->gamma33  =   bd->DIFFgamma33 + 1.0;
-  bd->r        =   bd->DIFFr + bd->rho_FRW;
-  bd->S        =   bd->DIFFS + bd->S_FRW;
-  bd->alpha    =   bd->DIFFalpha + 1.0;
-  
-  calculate_dgamma(bd, dx);
-  calculate_conformal_christoffels(bd, dx);
-  if(bd->chi < chi_lower_bd) bd->chi = chi_lower_bd;
-}
 /**
  * @brief Populate values in a BSSNData struct
  * @details Compute all of them, except full metric m (TODO)

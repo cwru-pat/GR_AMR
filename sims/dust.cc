@@ -7,6 +7,16 @@ using namespace SAMRAI;
 
 namespace cosmo
 {
+/**
+ * @brief Constructing CosmoSim object
+ * 
+ * @param hierarchy 
+ * @param dimenstion
+ * @param input database, which includes ALL sub databases
+ * @param IO stream
+ * @param name of simulation type
+ * @param name of output file for VisIt
+ */
 
 DustSim::DustSim(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
@@ -65,7 +75,7 @@ void DustSim::init()
 }
 
 /**
- * @brief      Set vacuum initial conditions
+ * @brief      Set dust initial conditions
  *
  */
 void DustSim::setICs(
@@ -114,7 +124,8 @@ void DustSim::initDustStep(
  * @brief      initilize newly created level
  *             set value directly if it's possible and return true
  *             do nothing when it's not possible and return false
- *
+ * @param hierarchy
+ * @param level index
  */
 bool DustSim::initLevel(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
@@ -246,19 +257,26 @@ void DustSim::computeVectorWeights(
   
 }
 
+/**
+ * @brief initializeLevelData when there is new level created
+ * 
+ * @param Hierarchy to initialize 
+ * @param level index
+ * @param the time to initialize the level
+ * @param whether the level can be refined
+ * @param whether level is being introduced for the first time
+ * @param level to copy data from
+ * @param whether the level has been alocated memories
+ */
   
 void DustSim::initializeLevelData(
-   /*! Hierarchy to initialize */
-   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
-   /*! Level to initialize */
-   const int ln,
-   const double init_data_time,
-   const bool can_be_refined,
-   /*! Whether level is being introduced for the first time */
-   const bool initial_time,
-   /*! Level to copy data from */
-   const boost::shared_ptr<hier::PatchLevel>& old_level,
-   const bool allocate_data)
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const int ln,
+  const double init_data_time,
+  const bool can_be_refined,
+  const bool initial_time,
+  const boost::shared_ptr<hier::PatchLevel>& old_level,
+  const bool allocate_data)
 {
    NULL_USE(init_data_time);
    NULL_USE(can_be_refined);
@@ -494,6 +512,13 @@ void DustSim::outputDustStep(
   
 }
 
+/**
+ * @brief advance hierarchy from time "from_t" to "to_t"
+ * 
+ * @param hierarchy
+ * @param starting time
+ * @param ending time
+ */  
 void DustSim::runDustStep(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   double from_t, double to_t)
@@ -561,7 +586,11 @@ void DustSim::addBSSNExtras(
 
 /**
  * @brief RK evolve level
- *
+ * 
+ * @param hierarchy
+ * @param level index
+ * @param starting time
+ * @param ending time
  */  
 void DustSim::RKEvolveLevel(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,

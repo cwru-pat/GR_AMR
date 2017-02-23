@@ -8,7 +8,18 @@ using namespace SAMRAI;
 
 namespace cosmo
 {
-  
+
+/**
+ * @brief Constructing VacuumSim object
+ * 
+ * @param hierarchy 
+ * @param dimenstion
+ * @param input database, which includes ALL sub databases
+ * @param IO stream
+ * @param name of simulation type
+ * @param name of output file for VisIt
+ */
+
 VacuumSim::VacuumSim(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   const tbox::Dimension& dim_in,
@@ -265,7 +276,17 @@ void VacuumSim::computeVectorWeights(
   
 }
 
-  
+/**
+ * @brief initializeLevelData when there is new level created
+ * 
+ * @param Hierarchy to initialize 
+ * @param level index
+ * @param the time to initialize the level
+ * @param whether the level can be refined
+ * @param whether level is being introduced for the first time
+ * @param level to copy data from
+ * @param whether the level has been alocated memories
+ */
 void VacuumSim::initializeLevelData(
    /*! Hierarchy to initialize */
    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
@@ -508,6 +529,13 @@ void VacuumSim::outputVacuumStep(
   
 }
 
+/**
+ * @brief advance hierarchy from time "from_t" to "to_t"
+ * 
+ * @param hierarchy
+ * @param starting time
+ * @param ending time
+ */  
 void VacuumSim::runVacuumStep(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   double from_t, double to_t)
@@ -572,10 +600,13 @@ void VacuumSim::addBSSNExtras(
   return;
 }
 
-
 /**
  * @brief RK evolve level
- *
+ * 
+ * @param hierarchy
+ * @param level index
+ * @param starting time
+ * @param ending time
  */  
 void VacuumSim::RKEvolveLevel(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,

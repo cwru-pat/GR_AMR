@@ -7,6 +7,16 @@ using namespace SAMRAI;
 
 namespace cosmo
 {
+/**
+ * @brief Constructing CosmoSim object
+ * 
+ * @param hierarchy 
+ * @param dimenstion
+ * @param input database, which includes ALL sub databases
+ * @param IO stream
+ * @param name of simulation type
+ * @param name of output file for VisIt
+ */
 
 ScalarSim::ScalarSim(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
@@ -245,7 +255,18 @@ void ScalarSim::computeVectorWeights(
   
 }
 
-  
+/**
+ * @brief initializeLevelData when there is new level created
+ * 
+ * @param Hierarchy to initialize 
+ * @param level index
+ * @param the time to initialize the level
+ * @param whether the level can be refined
+ * @param whether level is being introduced for the first time
+ * @param level to copy data from
+ * @param whether the level has been alocated memories
+ */
+
 void ScalarSim::initializeLevelData(
    /*! Hierarchy to initialize */
    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
@@ -491,6 +512,13 @@ void ScalarSim::outputScalarStep(
   
 }
 
+/**
+ * @brief advance hierarchy from time "from_t" to "to_t"
+ * 
+ * @param hierarchy
+ * @param starting time
+ * @param ending time
+ */  
 void ScalarSim::runScalarStep(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   double from_t, double to_t)
@@ -594,7 +622,11 @@ void ScalarSim::RKEvolve(
   
 /**
  * @brief RK evolve level
- *
+ * 
+ * @param hierarchy
+ * @param level index
+ * @param starting time
+ * @param ending time
  */  
 void ScalarSim::RKEvolveLevel(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,

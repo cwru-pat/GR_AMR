@@ -9,12 +9,23 @@ using namespace SAMRAI;
 
 namespace cosmo
 {
-  
+/*
+ * Claming timers 
+ */  
 boost::shared_ptr<tbox::Timer> CosmoSim::t_loop;
 boost::shared_ptr<tbox::Timer> CosmoSim::t_init;
 boost::shared_ptr<tbox::Timer> CosmoSim::t_RK_steps;
 
-  
+/**
+ * @brief Constructing CosmoSim object
+ * 
+ * @param hierarchy 
+ * @param dimenstion
+ * @param input database, which includes ALL sub databases
+ * @param IO stream
+ * @param name of simulation type
+ * @param name of output file for VisIt
+ */
 CosmoSim::CosmoSim(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   const tbox::Dimension& dim_in,
@@ -62,11 +73,13 @@ CosmoSim::CosmoSim(
   boost::shared_ptr<hier::VariableContext> context_active(
     variable_db->getContext("ACTIVE"));
 
+  // weight component stores volume for each cell
   weight_idx = variable_db->registerVariableAndContext( 
       weight, 
       context_active,
       hier::IntVector(dim, STENCIL_ORDER));
 
+  // scractch component for refinement, currently not in use
   refine_scratch_idx = variable_db->registerVariableAndContext( 
       refine_scratch, 
       context_active,
@@ -164,6 +177,9 @@ void CosmoSim::runCommonStepTasks(
 
 /**
  * @brief detect NaNs for field with data_id for in patch
+ * 
+ * @param patch where we want to fine NaNs
+ * @param component id we are looking at 
  */
 bool CosmoSim::hasNaNs(
   const boost::shared_ptr<hier::Patch>& patch, idx_t data_id)
