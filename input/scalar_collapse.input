@@ -1,0 +1,118 @@
+Main
+{
+  simulation_type = "scalar"  
+  dim = 3
+  base_name = "scalar"
+  print_precision = 9
+}
+
+CartesianGridGeometry {
+  domain_boxes = [(0,0,0), (63,63,63)]
+  x_lo         = 0, 0, 0
+  x_up         = 100, 100, 100
+  periodic_dimension = 1, 1, 1
+}
+
+
+StandardTagAndInitialize {
+  tagging_method = "GRADIENT_DETECTOR"
+}
+
+
+TreeLoadBalancer {
+  DEV_report_load_balance = TRUE
+  DEV_barrier_before = FALSE
+  DEV_barrier_after = FALSE
+}
+
+BergerRigoutsos {
+   combine_efficiency = 0.1
+   efficiency_tolerance = 0.1
+}
+
+TimerManager{
+    print_exclusive      = TRUE
+    timer_list = "loop", "init", "RK_steps"
+}
+
+
+PatchHierarchy {
+   max_levels = 2
+   proper_nesting_buffer = 3, 3, 3, 3, 3, 3   
+   largest_patch_size {
+      level_0 = -1, -1, -1
+      // all finer levels will use same values as level_0...
+   }
+   smallest_patch_size {
+      level_0 = 1, 1, 1   
+      // all finer levels will use same values as level_0...
+   }
+   ratio_to_coarser {
+     level_1            = 2, 2, 2
+     level_2            = 2, 2, 2
+     level_3            = 2, 2, 2
+     level_4            = 2, 2, 2
+     level_5            = 2, 2, 2
+     level_6            = 2, 2, 2
+     level_7            = 2, 2, 2
+   }
+   allow_patches_smaller_than_ghostwidth = TRUE
+   allow_patches_smaller_than_minimum_size_to_prevent_overlaps = TRUE
+}
+
+GriddingAlgorithm {
+   enforce_proper_nesting = TRUE
+   DEV_extend_to_domain_boundary = FALSE
+   // DEV_load_balance = FALSE
+   check_nonrefined_tags = "IGNORE"
+   sequentialize_patch_indices = TRUE
+}
+
+CosmoSim{
+  steps = 100
+  do_plot = TRUE
+  dt_frac = 0.1
+  regridding_interval = 100000
+  adaption_threshold = 0.1
+  KO_damping_coefficient = 0.0
+  refine_op_type = "LINEAR_REFINE"
+  coarsen_op_type = "CONSERVATIVE_COARSEN"
+}
+
+ScalarSim{
+  ic_type = "scalar_collapse"
+  boundary_type = "periodic"
+  stop_after_setting_init = TRUE
+  relaxation_tolerance = 1e-8
+  delta_phi = 0.1
+  n_max = 1
+  phi_0 = 1
+  vcycles = 30
+  omp_num_threads = 8
+}
+
+BSSN{
+  lapse = "OnePlusLog"
+  Shift = "GammaDriver"
+  gd_eta = 2
+  normalize_Aij = TRUE
+  normalize_gammaij = FALSE
+  z4c_k1 = 0.1
+  z4c_k2 = 0
+  z4c_k3 = 0.5
+  alpha_lower_bd_for_L2 = 0.3
+  chi_lower_bd_type = "constant"
+  chi_lower_bd = 1e-9
+}
+
+IO{
+  output_list = "DIFFchi","DIFFK"
+  output_interval = 1, 1
+  gd_c = 1
+}
+
+Scalar{
+  potential_type = "Quadratic"
+  q_coef = 1e-7
+  Lambda = 1.0
+}

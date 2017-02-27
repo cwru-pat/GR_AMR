@@ -31,13 +31,16 @@ include(cmake/compiler.cmake)
 # check fftw
 include(cmake/fftw.cmake)
 
+# check openmp
+include(cmake/openmp.cmake)
+
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 set(SAMRAI_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib)
 
 message(STATUS " SAMRAI_LIBRARIES: ${SAMRAI_LIB_DIR}")
 unset(COSMO_SOURCES CACHE)
-file(GLOB COSMO_SOURCES cosmo*.cc components/bssn/*.cc utils/*.cc components/IO/*.cc components/boundaries/*.cc sims/*.cc components/static/*.cc components/scalar/*.cc ICs/*.cc )
+file(GLOB COSMO_SOURCES cosmo*.cc components/bssn/*.cc utils/*.cc components/IO/*.cc components/boundaries/*.cc sims/*.cc components/static/*.cc components/scalar/*.cc ICs/*.cc components/elliptic_solver/*.cc)
 
 add_executable(cosmo ${COSMO_SOURCES})
 target_link_libraries(cosmo ${MPI_LIBRARIES} ${HDF5_LIBRARIES} ${FFTW_LIBRARY} ${SAMRAI_LIB_DIR}/libSAMRAI_appu.a ${SAMRAI_LIB_DIR}/libSAMRAI_algs.a ${SAMRAI_LIB_DIR}/libSAMRAI_solv.a ${SAMRAI_LIB_DIR}/libSAMRAI_geom.a   ${SAMRAI_LIB_DIR}/libSAMRAI_mesh.a ${SAMRAI_LIB_DIR}/libSAMRAI_math.a  ${SAMRAI_LIB_DIR}/libSAMRAI_pdat.a ${SAMRAI_LIB_DIR}/libSAMRAI_xfer.a ${SAMRAI_LIB_DIR}/libSAMRAI_hier.a ${SAMRAI_LIB_DIR}/libSAMRAI_tbox.a)

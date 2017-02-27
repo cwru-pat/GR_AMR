@@ -29,7 +29,9 @@ ScalarSim::ScalarSim(
     dim_in, input_db_in, l_stream_in, simulation_type_in, vis_filename_in),
   cosmo_scalar_db(input_db_in->getDatabase("ScalarSim"))
 {
-  
+  stop_after_setting_init =
+    cosmo_scalar_db->getBoolWithDefault("stop_after_setting_init", false);
+
   t_init->start();
 
   std::string bd_type = cosmo_scalar_db->getString("boundary_type");
@@ -117,6 +119,8 @@ void ScalarSim::initScalarStep(
   bssnSim->stepInit(hierarchy);
   bssnSim->clearSrc(hierarchy);
   scalarSim->addBSSNSrc(bssnSim, hierarchy);
+  if(stop_after_setting_init)
+    TBOX_ERROR("Stop after initializing hierarchy as demanded\n");
 }
 
 /**
@@ -147,6 +151,12 @@ bool ScalarSim::initLevel(
   {
     if(ln > 0) return false;
     scalar_ic_set_semianalytic_test(hierarchy, ln, bssnSim, scalarSim, input_db->getDatabase("Scalar"));
+    return true;
+  }
+  else if(ic_type == "scalar_collapse")
+  {
+    // which means not initial data file exist
+    scalar_ic_set_scalar_collapse(hierarchy, ln, bssnSim, scalarSim, input_db->getDatabase("Scalar"));
     return true;
   }
   else
@@ -505,7 +515,7 @@ void ScalarSim::outputScalarStep(
 
   tbox::pout<<"step: "<<step<<"/"<<num_steps<<"\n";
   
-  bssnSim->output_max_H_constaint(hierarchy, weight_idx);
+  bssnSim->output_L2_H_constaint(hierarchy, weight_idx);
  
   cosmo_io->registerVariablesWithPlotter(*visit_writer, step);
   cosmo_io->dumpData(hierarchy, *visit_writer, step, cur_t);

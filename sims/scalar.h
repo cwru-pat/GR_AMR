@@ -100,9 +100,11 @@ public:
     double from_t,
     double to_t);
 
+  
 
  private:
   boost::shared_ptr<tbox::Database> cosmo_scalar_db;
+  bool stop_after_setting_init;
 };
 
 } /* namespace cosmo */
