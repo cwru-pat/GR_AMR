@@ -229,7 +229,7 @@ void BSSN::allocGen1(
 void BSSN::clearField(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
-  for(idx_t ln = 0; ln < hierarchy->getMaxNumberOfLevels(); ln++)
+  for(idx_t ln = 0; ln < hierarchy->getNumberOfLevels(); ln++)
   {
     clearField(hierarchy, ln);
   }
@@ -246,7 +246,7 @@ void BSSN::clearField(
 void BSSN::clearSrc(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
-  for(idx_t ln = 0; ln < hierarchy->getMaxNumberOfLevels(); ln++)
+  for(idx_t ln = 0; ln < hierarchy->getNumberOfLevels(); ln++)
   {
     clearSrc(hierarchy, ln);
   }
@@ -263,7 +263,7 @@ void BSSN::clearSrc(
 void BSSN::clearGen1(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
-  for(idx_t ln = 0; ln < hierarchy->getMaxNumberOfLevels(); ln++)
+  for(idx_t ln = 0; ln < hierarchy->getNumberOfLevels(); ln++)
   {
     clearGen1(hierarchy, ln);
   }

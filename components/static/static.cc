@@ -39,7 +39,7 @@ Static::~Static()
 void Static::addBSSNSrc(
   BSSN *bssn,   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
-  for(idx_t ln = 0; ln < hierarchy->getMaxNumberOfLevels(); ln++)
+  for(idx_t ln = 0; ln < hierarchy->getNumberOfLevels(); ln++)
   {
     const boost::shared_ptr<hier::PatchLevel> level(
       hierarchy->getPatchLevel(ln));
