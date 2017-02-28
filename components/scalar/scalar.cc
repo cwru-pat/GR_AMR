@@ -703,6 +703,10 @@ void Scalar::addBSSNSrc(
   bssn->initPData(patch);
   bssn->initMDA(patch);
 
+  initPData(patch);
+  initMDA(patch);
+
+  
   arr_t & DIFFr_a = bssn->DIFFr_a;
   arr_t & DIFFS_a = bssn->DIFFS_a;
   arr_t & S1_a = bssn->S1_a;
