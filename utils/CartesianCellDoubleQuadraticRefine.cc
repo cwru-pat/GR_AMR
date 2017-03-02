@@ -191,10 +191,10 @@ CartesianCellDoubleQuadraticRefine::refine(
            // enumerating shift around coarse coordinate
            for(int sk = -1; sk <= 1; sk++)
            {
-             int tempj = 0;
+             double tempj = 0;
              for(int sj = -1; sj <= 1; sj++)
              {
-               int tempi = 0;
+               double tempi = 0;
                for(int si = -1; si <= 1; si++)
                {
                  tempi += carray(ci+si, cj+sj,ck+sk) * coef[si + 1][pi];

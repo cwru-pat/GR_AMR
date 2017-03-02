@@ -688,12 +688,7 @@ void Scalar::setLevelTime(
   const boost::shared_ptr<hier::PatchLevel> & level,
   double from_t, double to_t)
 {
-  for( hier::PatchLevel::iterator pit(level->begin());
-       pit != level->end(); ++pit)
-  {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
-    SCALAR_APPLY_TO_FIELDS_ARGS(SET_PATCH_TIME, from_t, to_t);
-  }
+  SCALAR_APPLY_TO_FIELDS_ARGS(SET_LEVEL_TIME, from_t, to_t);
 }
 
   

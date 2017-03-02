@@ -101,7 +101,7 @@ void VacuumSim::setICs(
       0,
       tag_buffer,
       0,
-      0.0);
+      cur_t);
     int post_level_num = hierarchy->getNumberOfLevels();
     // no new level is created
     if(post_level_num == pre_level_num) break;
@@ -300,7 +300,6 @@ void VacuumSim::initializeLevelData(
    const boost::shared_ptr<hier::PatchLevel>& old_level,
    const bool allocate_data)
 {
-   NULL_USE(init_data_time);
    NULL_USE(can_be_refined);
    NULL_USE(initial_time);
 
@@ -436,7 +435,7 @@ void VacuumSim::applyGradientDetector(
    double max_der_norm = 0;
    hier::PatchLevel& level =
       (hier::PatchLevel &) * hierarchy.getPatchLevel(ln);
-   size_t ntag = 0, ntotal = 0;
+   int ntag = 0, ntotal = 0;
    //double maxestimate = 0;
    for (hier::PatchLevel::iterator pi(level.begin());
         pi != level.end(); ++pi)
@@ -505,6 +504,8 @@ void VacuumSim::applyGradientDetector(
    if (mpi.getSize() > 1)
    {
      mpi.AllReduce(&max_der_norm, 1, MPI_MAX);
+     mpi.AllReduce(&ntag, 1, MPI_SUM);
+     mpi.AllReduce(&ntotal, 1, MPI_SUM);
    }
 
    tbox::plog << "Adaption threshold is " << adaption_threshold << "\n";

@@ -333,6 +333,10 @@
   patch->getPatchData(field##_a_idx)->setTime(to_t); \
   patch->getPatchData(field##_p_idx)->setTime(from_t)  \
 
+#define SET_LEVEL_TIME(field, from_t, to_t) \
+  level->setTime(to_t, field##_a_idx);		    \
+  level->setTime(from_t, field##_p_idx)			    \
+
 
 // macros for summing
 #define COSMO_SUMMATION_1(MACRO) \

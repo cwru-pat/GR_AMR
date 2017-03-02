@@ -102,7 +102,7 @@ void DustSim::setICs(
       0,
       tag_buffer,
       0,
-      0.0);
+      cur_t);
     int post_level_num = hierarchy->getNumberOfLevels();
     // no new level is created
     if(post_level_num == pre_level_num) break;
@@ -278,7 +278,6 @@ void DustSim::initializeLevelData(
   const boost::shared_ptr<hier::PatchLevel>& old_level,
   const bool allocate_data)
 {
-   NULL_USE(init_data_time);
    NULL_USE(can_be_refined);
    NULL_USE(initial_time);
 

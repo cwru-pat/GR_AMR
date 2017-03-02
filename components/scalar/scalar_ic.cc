@@ -439,7 +439,6 @@ bool scalar_ic_set_scalar_collapse(
   }
 
   
-  
   return flag;
 }
   

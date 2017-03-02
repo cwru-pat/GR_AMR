@@ -2,7 +2,7 @@ Main
 {
   simulation_type = "scalar"  
   dim = 3
-  base_name = "scalar"
+  base_name = "scalar_q"
   print_precision = 9
 }
 
@@ -26,8 +26,8 @@ TreeLoadBalancer {
 }
 
 BergerRigoutsos {
-   combine_efficiency = 0.1
-   efficiency_tolerance = 0.1
+   combine_efficiency = 0.8
+   efficiency_tolerance = 0.8
 }
 
 TimerManager{
@@ -37,7 +37,7 @@ TimerManager{
 
 
 PatchHierarchy {
-   max_levels = 2
+   max_levels = 4
    proper_nesting_buffer = 3, 3, 3, 3, 3, 3   
    largest_patch_size {
       level_0 = -1, -1, -1
@@ -69,25 +69,20 @@ GriddingAlgorithm {
 }
 
 CosmoSim{
-  steps = 100
+  steps = 1000
   do_plot = TRUE
   dt_frac = 0.1
-  regridding_interval = 100000
-  adaption_threshold = 0.1
+  regridding_interval = 10
+  adaption_threshold = 0.085
   KO_damping_coefficient = 0.0
-  refine_op_type = "LINEAR_REFINE"
+  refine_op_type = "QUADRATIC_REFINE"
   coarsen_op_type = "CONSERVATIVE_COARSEN"
 }
 
 ScalarSim{
   ic_type = "scalar_collapse"
   boundary_type = "periodic"
-  stop_after_setting_init = TRUE
-  relaxation_tolerance = 1e-8
-  delta_phi = 0.1
-  n_max = 1
-  phi_0 = 1
-  vcycles = 30
+  stop_after_setting_init = FALSE
   omp_num_threads = 8
 }
 
@@ -107,12 +102,17 @@ BSSN{
 
 IO{
   output_list = "DIFFchi","DIFFK"
-  output_interval = 1, 1
+  output_interval = 10, 10
   gd_c = 1
 }
 
 Scalar{
   potential_type = "Quadratic"
-  q_coef = 1e-7
+  q_coef = 1e-5
   Lambda = 1.0
+  delta_phi = 0.4
+  n_max = 1
+  phi_0 = 1
+  relaxation_tolerance = 1e-8
+  vcycles = 30
 }

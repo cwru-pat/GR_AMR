@@ -290,7 +290,6 @@ void ScalarSim::initializeLevelData(
    const boost::shared_ptr<hier::PatchLevel>& old_level,
    const bool allocate_data)
 {
-   NULL_USE(init_data_time);
    NULL_USE(can_be_refined);
    NULL_USE(initial_time);
 
@@ -317,7 +316,7 @@ void ScalarSim::initializeLevelData(
    // marks whether we have solved initial value for certain level,
    // if so, there is no need to interpolate from coarser level
    bool has_initial = false;
-   
+
    //at beginning, initialize new level
    if(init_data_time < EPS)
    {

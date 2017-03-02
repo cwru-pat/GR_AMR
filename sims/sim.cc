@@ -167,7 +167,7 @@ void CosmoSim::runCommonStepTasks(
       0,
       tag_buffer,
       0,
-      0.0);
+      cur_t);
     tbox::plog << "Newly adapted hierarchy\n";
     hierarchy->recursivePrint(tbox::plog, "    ", 1);
   }
