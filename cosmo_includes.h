@@ -32,6 +32,7 @@
 #include "SAMRAI/tbox/BalancedDepthFirstTree.h"
 #include "SAMRAI/tbox/Database.h"
 #include "SAMRAI/tbox/InputManager.h"
+#include "SAMRAI/tbox/RestartManager.h"
 #include "SAMRAI/pdat/CellVariable.h"
 #include "SAMRAI/mesh/StandardTagAndInitStrategy.h"
 #include "SAMRAI/mesh/BergerRigoutsos.h"
@@ -41,6 +42,7 @@
 #include "SAMRAI/geom/CartesianCellDoubleLinearRefine.h"
 #include "SAMRAI/geom/CartesianGridGeometry.h"
 #include "SAMRAI/geom/CartesianPatchGeometry.h"
+#include "SAMRAI/hier/PatchDataRestartManager.h"
 
 #include "SAMRAI/appu/VisItDataWriter.h"
 

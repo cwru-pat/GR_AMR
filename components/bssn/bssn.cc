@@ -327,16 +327,16 @@ void BSSN::RKEvolvePatchBD(
   const hier::Box& patch_box = patch->getBox();
 
 
-  for(int i = 0 ; i < n_codim1_boxes; i++)
+  for(int l = 0 ; l < n_codim1_boxes; l++)
   {
     hier::Box boundary_fill_box =
       geom->getBoundaryFillBox(
-        codim1_boxes[i], patch_box, DIFFchi_a_pdata->getGhostCellWidth());
+        codim1_boxes[l], patch_box, DIFFchi_a_pdata->getGhostCellWidth());
 
     if(boundary_fill_box.empty()) continue;
 
 
-    idx_t l_idx = codim1_boxes[i].getLocationIndex();
+    idx_t l_idx = codim1_boxes[l].getLocationIndex();
     
     BSSNData bd = {0};
 
@@ -362,6 +362,7 @@ void BSSN::RKEvolvePatchBD(
         {
           set_bd_values_bd(i, j, k, &bd, dx);
           BSSN_RK_EVOLVE_BD;
+
         }
       }
     }
@@ -377,16 +378,16 @@ void BSSN::RKEvolvePatchBD(
 
 
 
-  for(int i = 0 ; i < n_codim2_boxes; i++)
+  for(int l = 0 ; l < n_codim2_boxes; l++)
   {
     hier::Box  boundary_fill_box =
       geom->getBoundaryFillBox(
-        codim2_boxes[i], patch_box, DIFFchi_a_pdata->getGhostCellWidth());
+        codim2_boxes[l], patch_box, DIFFchi_a_pdata->getGhostCellWidth());
     
     if(boundary_fill_box.empty()) continue;  
 
 
-    idx_t l_idx = codim2_boxes[i].getLocationIndex();
+    idx_t l_idx = codim2_boxes[l].getLocationIndex();
     
     BSSNData bd = {0};
 
@@ -447,15 +448,15 @@ void BSSN::RKEvolvePatchBD(
 
 
 
-  for(int i = 0 ; i < n_codim3_boxes; i++)
+  for(int l = 0 ; l < n_codim3_boxes; l++)
   {
     hier::Box boundary_fill_box =
       geom->getBoundaryFillBox(
-        codim3_boxes[i], patch_box, DIFFchi_a_pdata->getGhostCellWidth());
+        codim3_boxes[l], patch_box, DIFFchi_a_pdata->getGhostCellWidth());
 
     if(boundary_fill_box.empty()) continue;
 
-    idx_t l_idx = codim3_boxes[i].getLocationIndex();
+    idx_t l_idx = codim3_boxes[l].getLocationIndex();
 
     std::vector<idx_t> shift_vec;
     
@@ -478,7 +479,6 @@ void BSSN::RKEvolvePatchBD(
 
     boundary_fill_box *= patch_box;
 
-    
     const idx_t * lower = &boundary_fill_box.lower()[0];
     const idx_t * upper = &boundary_fill_box.upper()[0];
 
@@ -513,6 +513,42 @@ void BSSN::RKEvolvePatch(
   // might not need this function
   initPData(patch);
   initMDA(patch);
+
+  const hier::Box& box = patch->getBox();
+  
+  const int * lower = &box.lower()[0];
+  const int * upper = &box.upper()[0];
+
+  BSSNData bd = {0};
+  
+  const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(  
+    BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+      patch->getPatchGeometry()));
+
+  //initialize dx for each patch
+  const real_t * dx = &(patch_geom->getDx())[0];
+
+
+  bool flag = 0;
+  for(int k = lower[2]; k <= upper[2]; k++)
+  {
+    for(int j = lower[1]; j <= upper[1]; j++)
+    {
+      for(int i = lower[0]; i <= upper[0]; i++)
+      {
+        set_bd_values(i, j, k, &bd, dx);
+        BSSN_RK_EVOLVE_PT;
+      }
+    }
+  }
+
+  return;
+}
+
+void BSSN::deBug(  const boost::shared_ptr<hier::Patch> & patch)
+{
+  initPData(patch);
+  initMDA(patch);
   const hier::Box& box = patch->getBox();
   
   const int * lower = &box.lower()[0];
@@ -535,8 +571,7 @@ void BSSN::RKEvolvePatch(
     {
       for(int i = lower[0]; i <= upper[0]; i++)
       {
-        set_bd_values(i, j, k, &bd, dx);
-        BSSN_RK_EVOLVE_PT;
+        BSSN_APPLY_TO_FIELDS(BSSN_DEBUG);
       }
     }
   }
@@ -1027,9 +1062,6 @@ void BSSN::set_bd_values_bd(
   bd->r        =   bd->DIFFr + bd->rho_FRW;
   bd->S        =   bd->DIFFS + bd->S_FRW;
   bd->alpha    =   bd->DIFFalpha + 1.0;
-
-  calculate_dgamma(bd, dx);
-  calculate_conformal_christoffels(bd, dx);
 
   
   #if USE_SOMMERFIELD_BOUNDARY
@@ -1660,21 +1692,21 @@ real_t BSSN::ev_Gamma1_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t co
   return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, Gamma1_a, dx, l_idx, codim) * bd->x
             + bd_derivative(bd->i, bd->j, bd->k, 2, Gamma1_a, dx, l_idx, codim) * bd->y
             + bd_derivative(bd->i, bd->j, bd->k, 3, Gamma1_a, dx, l_idx, codim) * bd->z 
-            + bd->Gammad1           );
+            + bd->Gamma1           );
 }
 real_t BSSN::ev_Gamma2_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
   return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, Gamma2_a, dx, l_idx, codim) * bd->x
             + bd_derivative(bd->i, bd->j, bd->k, 2, Gamma2_a, dx, l_idx, codim) * bd->y
             + bd_derivative(bd->i, bd->j, bd->k, 3, Gamma2_a, dx, l_idx, codim) * bd->z 
-            + bd->Gammad2           );
+            + bd->Gamma2           );
 }
 real_t BSSN::ev_Gamma3_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
 {
   return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, Gamma3_a, dx, l_idx, codim) * bd->x
             + bd_derivative(bd->i, bd->j, bd->k, 2, Gamma3_a, dx, l_idx, codim) * bd->y
             + bd_derivative(bd->i, bd->j, bd->k, 3, Gamma3_a, dx, l_idx, codim) * bd->z 
-            + bd->Gammad3           );
+            + bd->Gamma3           );
 }
 
 

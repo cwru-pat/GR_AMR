@@ -279,6 +279,12 @@ public:
   real_t chi_lower_bd;
 
   real_t alpha_lower_bd_for_L2;
+
+  double  domain_lower[3];
+  double  domain_upper[3];
+
+  std::vector<double> origin;
+  void deBug(  const boost::shared_ptr<hier::Patch> & patch);
 };
 
 }

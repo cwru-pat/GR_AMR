@@ -9,7 +9,8 @@ namespace cosmo
 {
 
 #define DIM 3
-#define EPS (1e-8)
+#define EPS (1e-11)
+#define INF 1e100
 // changing this affects FFTs:
 typedef double real_t; /**< real type; changing this may require changes to HDF5 and FFTW functionality */
 // see http://www.fftw.org/doc/Precision.html

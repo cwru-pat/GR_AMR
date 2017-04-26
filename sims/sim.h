@@ -7,17 +7,24 @@
 #include "../cosmo_ps.h"
 #include "../cosmo_macros.h"
 #include "../cosmo_types.h"
+#include "../components/horizon/horizon.h"
+#include "SAMRAI/tbox/Serializable.h"
 
 using namespace SAMRAI;
 
 namespace cosmo
 {
 
-class CosmoSim:public mesh::StandardTagAndInitStrategy
+class CosmoSim:
+  public mesh::StandardTagAndInitStrategy,
+  public tbox::Serializable
 {  
 public:
 
   BSSN * bssnSim;
+
+  Horizon * horizon;
+  
   CosmoSim(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
     const tbox::Dimension& dim_in,
@@ -69,6 +76,10 @@ public:
       const bool initial_time,
       const bool uses_richardson_extrapolation) = 0;
 
+  virtual void
+   putToRestart(
+      const boost::shared_ptr<tbox::Database>& restart_db) const = 0;
+
   
   void setRefineCoarsenOps(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
@@ -83,6 +94,24 @@ public:
   bool hasNaNs(
     const boost::shared_ptr<hier::Patch>& patch, idx_t data_id);
 
+  void findHorizon(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
+
+  bool advanceHorizonLevel(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    int ln,
+    double from_t,
+    double to_t);
+
+  void RKEvolveHorizonLevel(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    idx_t ln,
+    double from_t,
+    double to_t);
+  void initHorizonStep(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
+
+  
   
   boost::shared_ptr<tbox::InputDatabase>& input_db;
   boost::shared_ptr<tbox::Database> cosmo_sim_db;
@@ -92,17 +121,18 @@ public:
 
   const tbox::Dimension dim;
 
-  int step;
+  int step, starting_step;
   int num_steps;
 
   std::string simulation_type;
-
+  std::string comments;
+  
   bool do_plot;
   real_t dt_frac;
 
   std::string vis_filename;
 
-  real_t cur_t;
+  real_t cur_t, starting_t;
   static boost::shared_ptr<tbox::Timer> t_loop;
   static boost::shared_ptr<tbox::Timer> t_init;
   static boost::shared_ptr<tbox::Timer> t_RK_steps;
@@ -125,7 +155,20 @@ public:
 
   std::vector<int> variable_id_list;
 
-  std::string refine_op_type, coarsen_op_type;
+  std::string refine_op_type;
+  std::string coarsen_op_type;
+
+  bool use_AHFinder;
+
+  idx_t AHFinder_interval;
+
+  idx_t AHFinder_iter_limit;
+
+  real_t **angle_map, AHFinder_dt_frac;
+
+  real_t surface_move_shreshold;
+
+  idx_t save_interval;
 };
 
 } /* namespace cosmo */

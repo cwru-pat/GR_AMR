@@ -883,7 +883,6 @@ void bssn_ic_static_blackhole(
           real_t norm = sqrt(x*x + y*y + z*z);
 
           chi_p(i,j,k) = chi_a(i,j,k)
-            //= 1/pw2((1.0 + 1.0/(2.0*norm))) - 1.0;
             = pw2(2.0*norm / (1+ 2.0 * norm)) - 1.0;
         }
       }

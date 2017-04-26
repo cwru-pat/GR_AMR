@@ -24,6 +24,9 @@
   #define STENCIL_ORDER_WIDTH STENCIL_ORDER
 #endif
 
+#ifndef STEP_NUM_WIDTH
+  #define STEP_NUM_WIDTH 8
+#endif
 
 #ifndef REFINEMENT_ORDER
   #define REFINEMENT_ORDER 1

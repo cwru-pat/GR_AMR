@@ -35,14 +35,16 @@ public:
     std::ostream* l_stream_in);
   
   ~Static();
+  
   void addBSSNSrc(
     BSSN *bssn,   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
   void addBSSNSrc(
     BSSN *bssn, const boost::shared_ptr<hier::PatchLevel> & level);
-
   void addBSSNSrc(
     BSSN *bssn, const boost::shared_ptr<hier::Patch> & patch);
 
+  
+  
 };
 
 }

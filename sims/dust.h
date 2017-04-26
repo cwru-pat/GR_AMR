@@ -79,6 +79,10 @@ public:
       const bool initial_time,
       const bool uses_richardson_extrapolation);
 
+  virtual void putToRestart(
+    const boost::shared_ptr<tbox::Database>& restart_db) const;
+  void getFromRestart();
+  
   bool initLevel(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
   void computeVectorWeights(

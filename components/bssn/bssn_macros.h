@@ -164,6 +164,10 @@
   function(3, 3, 3);
 
 
+#define BSSN_DEBUG(field) \
+  if(tbox::MathUtilities< double >::isNaN(field##_s(i,j,k)))  \
+    std::cout<<i<<" "<<j<<" "<<k<<" "<<" "<<#field<<"\n";
+
     
 // Evolve all fields
 #define BSSN_RK_EVOLVE_PT_FIELD(field) \

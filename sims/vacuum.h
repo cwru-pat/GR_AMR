@@ -82,6 +82,11 @@ public:
       const bool initial_time,
       const bool uses_richardson_extrapolation);
 
+  virtual void putToRestart(
+    const boost::shared_ptr<tbox::Database>& restart_db) const;
+  void getFromRestart();
+
+  
   boost::shared_ptr<tbox::Database> cosmo_vacuum_db;
 
   bool initLevel(

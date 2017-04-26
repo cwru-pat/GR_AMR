@@ -5,6 +5,7 @@
 #include "sims/scalar.h"
 #include "utils/CartesianCellDoubleQuadraticRefine.h"
 
+
 using namespace SAMRAI;
 using namespace cosmo;
 
@@ -60,7 +61,9 @@ int main(int argc, char* argv[])
   tbox::SAMRAIManager::initialize();
   tbox::SAMRAIManager::startup();
 
+  tbox::RestartManager* restart_manager = tbox::RestartManager::getManager();
 
+  
   tbox::pout << "Input file was " << input_filename << std::endl;
 
   std::string case_name;
@@ -112,6 +115,21 @@ int main(int argc, char* argv[])
   tbox::pout.precision(print_precision);
   tbox::plog.precision(print_precision);
 
+  if(main_db->getBoolWithDefault("restart", false))
+  {
+    std::string restart_name = main_db->getString("restart_basename")+ ".restart";
+      
+    if(restart_manager->openRestartFile(restart_name,
+                                        main_db->getInteger("restart_step"),
+                                        main_db->getInteger("restart_nodes")))
+    {
+      tbox::pout<<"Restarting from file "<<restart_name
+                << " with step "<<main_db->getInteger("restart_step")<<"\n";
+    }
+    else
+      tbox::pout<<"Cannot find restart file, will start program from ZERO!\n";
+  }
+  
   
   std::string simulation_type =
     main_db->getString("simulation_type");
@@ -129,16 +147,15 @@ int main(int argc, char* argv[])
   add_extra_operators(grid_geometry);
   
   tbox::plog << "Grid Geometry:" << std::endl;
+  
   grid_geometry->printClassData(tbox::plog);
+  
   boost::shared_ptr<hier::PatchHierarchy> patch_hierarchy(
     new hier::PatchHierarchy(
       "Patch Hierarchy",
       grid_geometry,
       input_db->getDatabase("PatchHierarchy")));
- 
- 
 
-  
   // get file name for VisIt file
   std::string vis_filename =
     main_db->getStringWithDefault("vis_filename", base_name);
@@ -201,22 +218,19 @@ int main(int argc, char* argv[])
 
   tbox::plog << "Gridding algorithm:" << std::endl;
 
-
   //pass the gridding algorithm
   cosmoSim->setGriddingAlgs(gridding_algorithm);
 
   // Initialize refine and coarsen operators
   cosmoSim->setRefineCoarsenOps(patch_hierarchy);
 
+
   // Generate initial conditions
   cosmoSim->setICs(patch_hierarchy);
 
-  cosmoSim->setRefineCoarsenOps(patch_hierarchy);
   // Run simulation
-
-
   cosmoSim->run(patch_hierarchy);
-
+  patch_hierarchy->getGridGeometry()->printClassData(tbox::plog);
   
   // print time info
   tbox::TimerManager::getManager()->print(tbox::plog);

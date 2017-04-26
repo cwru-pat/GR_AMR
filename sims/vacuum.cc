@@ -60,6 +60,18 @@ VacuumSim::VacuumSim(
   variable_id_list.push_back(weight_idx);
 
   hier::VariableDatabase::getDatabase()->printClassData(tbox::plog);
+
+  tbox::RestartManager::getManager()->registerRestartItem(simulation_type_in,
+                                                          this);
+
+  for(int i = 0; i < static_cast<idx_t>(variable_id_list.size()); i++)
+  {
+    hier::PatchDataRestartManager::getManager()->
+      registerPatchDataForRestart(variable_id_list[i]);
+  }
+
+  if(tbox::RestartManager::getManager()->isFromRestart())
+    getFromRestart();
   
   t_init->stop();  
 }
@@ -67,7 +79,28 @@ VacuumSim::VacuumSim(
 VacuumSim::~VacuumSim() {
 }
 
+
+void VacuumSim::getFromRestart()
+{
+  boost::shared_ptr<tbox::Database> root_db(
+    tbox::RestartManager::getManager()->getRootDatabase());
+
+  if (!root_db->isDatabase(simulation_type)) {
+    TBOX_ERROR("Restart database corresponding to "
+               << simulation_type << " not found in restart file" << std::endl);
+  }
+
+  boost::shared_ptr<tbox::Database> db(root_db->getDatabase(simulation_type));
   
+  cur_t = db->getDouble("cur_t");
+
+  starting_t = cur_t;
+
+  step = db->getInteger("step");
+
+  starting_step = step;
+
+}
 void VacuumSim::init()
 {
   
@@ -86,11 +119,29 @@ void VacuumSim::setICs(
   
   gridding_algorithm->printClassData(tbox::plog);
 
-  // set initial condition by calling function initializeLevelData()
-  gridding_algorithm->makeCoarsestLevel(0.0);
+  bool is_from_restart = tbox::RestartManager::getManager()->isFromRestart();
 
+  if(is_from_restart)
+    hierarchy->initializeHierarchy();
+  
+  // set initial condition by calling function initializeLevelData()
+  gridding_algorithm->makeCoarsestLevel(cur_t);
+
+  if(is_from_restart)
+  {
+    std::vector<int> tag_buffer(hierarchy->getMaxNumberOfLevels());
+    for (idx_t ln = 0; ln < static_cast<int>(tag_buffer.size()); ++ln) {
+      tag_buffer[ln] = 1;
+    }
+    gridding_algorithm->regridAllFinerLevels(
+      0,
+      tag_buffer,
+      0,
+      cur_t); 
+  }
+  
   // regrid initial hierarchy if needed
-  while(hierarchy->getNumberOfLevels() < hierarchy->getMaxNumberOfLevels())
+  while(!is_from_restart && hierarchy->getNumberOfLevels() < hierarchy->getMaxNumberOfLevels())
   {
     int pre_level_num = hierarchy->getNumberOfLevels();
     std::vector<int> tag_buffer(hierarchy->getMaxNumberOfLevels());
@@ -134,13 +185,10 @@ bool VacuumSim::initLevel(
   math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
 
   // zero all fields
-  // BSSN_APPLY_TO_FIELDS_ARGS(RK4_ARRAY_ZERO,hcellmath);
-  //BSSN_APPLY_TO_SOURCES_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
-  //BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(EXTRA_ARRAY_ZERO,hcellmath);
-
   bssnSim->clearSrc(hierarchy, ln);
   bssnSim->clearField(hierarchy, ln);
   bssnSim->clearGen1(hierarchy, ln);
+
   
   if(ic_type == "static_blackhole")
   {
@@ -312,14 +360,15 @@ void VacuumSim::initializeLevelData(
    
 
    math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
-      
-   
+
    if (allocate_data)
    {
      bssnSim->allocField(patch_hierarchy, ln);
      bssnSim->allocSrc(patch_hierarchy, ln);
      bssnSim->allocGen1(patch_hierarchy, ln);
      level->allocatePatchData(weight_idx);
+     if(use_AHFinder)
+       horizon->alloc(patch_hierarchy, ln);
    }
 
    // marks whether we have solved initial value for certain level,
@@ -327,14 +376,18 @@ void VacuumSim::initializeLevelData(
    bool has_initial = false;
    
    //at beginning, initialize new level
-   if(init_data_time < EPS)
+   if(fabs(init_data_time - starting_t)< EPS)
    {
+     if(step != starting_step)
+       TBOX_ERROR("Level is initialized after 0 step!");
+
      has_initial = initLevel(patch_hierarchy, ln);
    }
    
    bssnSim->clearSrc(patch_hierarchy, ln);
    bssnSim->clearGen1(patch_hierarchy, ln);
-       
+   if(use_AHFinder)
+     horizon->clear(patch_hierarchy, ln);
    /*
     * Refine solution data from coarser level and, if provided, old level.
     */
@@ -401,6 +454,9 @@ void VacuumSim::initializeLevelData(
    }
  
    bssnSim->copyAToP(hcellmath);
+
+   if(use_AHFinder)
+     horizon->copyAToP(hcellmath);
    
    level->getBoxLevel()->getMPI().Barrier();
    /* Set vector weight. */
@@ -578,6 +634,7 @@ double VacuumSim::getDt(
 void VacuumSim::runStep(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
+  //  std::cout<<cur_t<<" ";
   runCommonStepTasks(hierarchy);
 
   double dt = getDt(hierarchy);
@@ -660,7 +717,7 @@ void VacuumSim::RKEvolveLevel(
     // Evolve physical boundary
     // would not do anything if boundary is time independent
 
-    bssnSim->RKEvolvePatchBD(patch, to_t - from_t);  
+    bssnSim->RKEvolvePatchBD(patch, to_t - from_t);
   }
 
   
@@ -672,11 +729,11 @@ void VacuumSim::RKEvolveLevel(
        pit != level->end(); ++pit)
   {
     const boost::shared_ptr<hier::Patch> & patch = *pit;
-    bssnSim->K1FinalizePatch(patch);
+    bssnSim->K1FinalizePatch(patch);    
     addBSSNExtras(patch);
   }
   bssnSim->set_norm(level);
-  
+
   /**************Starting K2 *********************************/
   bssnSim->prepareForK2(coarser_level, to_t);
   
@@ -705,7 +762,7 @@ void VacuumSim::RKEvolveLevel(
   }
 
   bssnSim->set_norm(level);
-  
+
   /**************Starting K3 *********************************/
 
   bssnSim->prepareForK3(coarser_level, to_t);
@@ -738,7 +795,7 @@ void VacuumSim::RKEvolveLevel(
   }
 
   bssnSim->set_norm(level);
-  
+
   /**************Starting K4 *********************************/
 
   bssnSim->prepareForK4(coarser_level, to_t);
@@ -765,6 +822,7 @@ void VacuumSim::RKEvolveLevel(
     bssnSim->K4FinalizePatch(patch);
     addBSSNExtras(patch);
   }
+
   bssnSim->set_norm(level);
 }
 
@@ -825,7 +883,6 @@ void VacuumSim::advanceLevel(
     xfer::RefineAlgorithm post_refiner;
 
     boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
-
     
 
     bssnSim->registerRKRefinerActive(post_refiner, space_refine_op);
@@ -859,6 +916,13 @@ void VacuumSim::resetHierarchyConfiguration(
   return;
 }
   
+void VacuumSim::putToRestart(
+    const boost::shared_ptr<tbox::Database>& restart_db) const
+{
+  restart_db->putDouble("cur_t", cur_t);
+  restart_db->putInteger("step", step);
+  return;
+}
 
 
 } /* namespace cosmo */

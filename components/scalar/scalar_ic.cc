@@ -235,9 +235,9 @@ bool scalar_ic_set_scalar_collapse(
       {
         // some sinusoidal modes
         phi[INDEX(i,j,k)] += delta_phi*(
-                cos(2.0*PI*((real_t) n/NX)*i + x_phase )
-                 + cos(2.0*PI*((real_t) n/NY)*j + y_phase )
-                 + cos(2.0*PI*((real_t) n/NZ)*k + z_phase )
+          cos(2.0*PI*((real_t) n/NX)*((real_t)i + 0.5) )
+          + cos(2.0*PI*((real_t) n/NY)*((real_t)j + 0.5) )
+          + cos(2.0*PI*((real_t) n/NZ)*((real_t)k+ 0.5) )
             );
       }
     }
