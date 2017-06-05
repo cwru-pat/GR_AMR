@@ -793,6 +793,323 @@ void bssn_ic_awa_shifted_gauge_wave(
 
 
   
+void bssn_ic_kerr_blackhole(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  idx_t ln)
+{
+# if ! USE_BSSN_SHIFT
+  std::cerr << "Waning! USE_BSSN_SHIFT is suggested to be enabled in blackhole test " << std::endl;
+# endif
+
+  // spin of momentum
+  real_t a = 0.5;
+
+  hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
+
+  idx_t DIFFchi_a_idx =
+    variable_db->mapVariableAndContextToIndex(
+      variable_db->getVariable("DIFFchi"), variable_db->getContext("ACTIVE"));
+
+  idx_t DIFFgamma11_a_idx =
+    variable_db->mapVariableAndContextToIndex(
+      variable_db->getVariable("DIFFgamma11"), variable_db->getContext("ACTIVE"));
+  idx_t DIFFgamma12_a_idx =
+    variable_db->mapVariableAndContextToIndex(
+      variable_db->getVariable("DIFFgamma12"), variable_db->getContext("ACTIVE"));
+  idx_t DIFFgamma13_a_idx =
+    variable_db->mapVariableAndContextToIndex(
+      variable_db->getVariable("DIFFgamma13"), variable_db->getContext("ACTIVE"));
+  idx_t DIFFgamma22_a_idx =
+    variable_db->mapVariableAndContextToIndex(
+      variable_db->getVariable("DIFFgamma22"), variable_db->getContext("ACTIVE"));
+  idx_t DIFFgamma23_a_idx =
+    variable_db->mapVariableAndContextToIndex(
+      variable_db->getVariable("DIFFgamma23"), variable_db->getContext("ACTIVE"));
+  idx_t DIFFgamma33_a_idx =
+    variable_db->mapVariableAndContextToIndex(
+      variable_db->getVariable("DIFFgamma33"), variable_db->getContext("ACTIVE"));
+
+  
+  idx_t A11_a_idx =
+    variable_db->mapVariableAndContextToIndex(
+      variable_db->getVariable("A11"), variable_db->getContext("ACTIVE"));
+  idx_t A12_a_idx =
+    variable_db->mapVariableAndContextToIndex(
+      variable_db->getVariable("A12"), variable_db->getContext("ACTIVE"));
+  idx_t A13_a_idx =
+    variable_db->mapVariableAndContextToIndex(
+      variable_db->getVariable("A13"), variable_db->getContext("ACTIVE"));
+  idx_t A22_a_idx =
+    variable_db->mapVariableAndContextToIndex(
+      variable_db->getVariable("A22"), variable_db->getContext("ACTIVE"));
+  idx_t A23_a_idx =
+    variable_db->mapVariableAndContextToIndex(
+      variable_db->getVariable("A23"), variable_db->getContext("ACTIVE"));
+  idx_t A33_a_idx =
+    variable_db->mapVariableAndContextToIndex(
+      variable_db->getVariable("A33"), variable_db->getContext("ACTIVE"));
+
+  idx_t DIFFK_a_idx =
+    variable_db->mapVariableAndContextToIndex(
+      variable_db->getVariable("DIFFK"), variable_db->getContext("ACTIVE"));
+
+  
+  boost::shared_ptr<hier::PatchLevel> level(
+    hierarchy->getPatchLevel(ln));
+
+  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+     BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+       hierarchy->getGridGeometry()));
+   TBOX_ASSERT(grid_geometry_);
+   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
+  
+  for( hier::PatchLevel::iterator pit(level->begin());
+       pit != level->end(); ++pit)
+  {
+    const boost::shared_ptr<hier::Patch> & patch = *pit;
+
+
+    const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+          patch->getPatchGeometry()));
+
+    boost::shared_ptr<pdat::CellData<real_t> > chi_a_pdata(
+       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+         patch->getPatchData(DIFFchi_a_idx)));
+    
+
+    const hier::Box& box = chi_a_pdata->getGhostBox();
+    
+
+
+    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma11_a_pdata(
+      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+        patch->getPatchData(DIFFgamma11_a_idx)));
+    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma12_a_pdata(
+       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+         patch->getPatchData(DIFFgamma12_a_idx)));
+    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma13_a_pdata(
+       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+         patch->getPatchData(DIFFgamma13_a_idx)));
+    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma22_a_pdata(
+       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+         patch->getPatchData(DIFFgamma22_a_idx)));
+    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma23_a_pdata(
+       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+         patch->getPatchData(DIFFgamma23_a_idx)));
+    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma33_a_pdata(
+       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+         patch->getPatchData(DIFFgamma33_a_idx)));
+
+
+    boost::shared_ptr<pdat::CellData<real_t> > A11_a_pdata(
+      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+        patch->getPatchData(A11_a_idx)));
+    boost::shared_ptr<pdat::CellData<real_t> > A12_a_pdata(
+       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+         patch->getPatchData(A12_a_idx)));
+    boost::shared_ptr<pdat::CellData<real_t> > A13_a_pdata(
+       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+         patch->getPatchData(A13_a_idx)));
+    boost::shared_ptr<pdat::CellData<real_t> > A22_a_pdata(
+       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+         patch->getPatchData(A22_a_idx)));
+    boost::shared_ptr<pdat::CellData<real_t> > A23_a_pdata(
+       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+         patch->getPatchData(A23_a_idx)));
+    boost::shared_ptr<pdat::CellData<real_t> > A33_a_pdata(
+       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+         patch->getPatchData(A33_a_idx)));
+
+    boost::shared_ptr<pdat::CellData<real_t> > DIFFK_a_pdata(
+      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+        patch->getPatchData(DIFFK_a_idx)));
+
+    arr_t chi_a =
+      pdat::ArrayDataAccess::access<DIM, real_t>(
+        chi_a_pdata->getArrayData());
+
+    arr_t DIFFgamma11_a =
+      pdat::ArrayDataAccess::access<DIM, real_t>(
+        DIFFgamma11_a_pdata->getArrayData());
+    arr_t DIFFgamma12_a =
+      pdat::ArrayDataAccess::access<DIM, real_t>(
+        DIFFgamma12_a_pdata->getArrayData());
+    arr_t DIFFgamma13_a =
+      pdat::ArrayDataAccess::access<DIM, real_t>(
+        DIFFgamma13_a_pdata->getArrayData());
+    arr_t DIFFgamma22_a =
+      pdat::ArrayDataAccess::access<DIM, real_t>(
+        DIFFgamma22_a_pdata->getArrayData());
+    arr_t DIFFgamma23_a =
+      pdat::ArrayDataAccess::access<DIM, real_t>(
+        DIFFgamma23_a_pdata->getArrayData());
+    arr_t DIFFgamma33_a =
+      pdat::ArrayDataAccess::access<DIM, real_t>(
+        DIFFgamma33_a_pdata->getArrayData());
+
+    arr_t A11_a =
+      pdat::ArrayDataAccess::access<DIM, real_t>(
+        A11_a_pdata->getArrayData());
+    arr_t A12_a =
+      pdat::ArrayDataAccess::access<DIM, real_t>(
+        A12_a_pdata->getArrayData());
+    arr_t A13_a =
+      pdat::ArrayDataAccess::access<DIM, real_t>(
+        A13_a_pdata->getArrayData());
+    arr_t A22_a =
+      pdat::ArrayDataAccess::access<DIM, real_t>(
+        A22_a_pdata->getArrayData());
+    arr_t A23_a =
+      pdat::ArrayDataAccess::access<DIM, real_t>(
+        A23_a_pdata->getArrayData());
+    arr_t A33_a =
+      pdat::ArrayDataAccess::access<DIM, real_t>(
+        A33_a_pdata->getArrayData());
+
+    arr_t DIFFK_a =
+      pdat::ArrayDataAccess::access<DIM, real_t>(
+        DIFFK_a_pdata->getArrayData());
+
+    
+    const double * domain_lower = &grid_geometry.getXLower()[0];
+    const double * domain_upper = &grid_geometry.getXUpper()[0];
+
+    //const double *dx = &grid_geometry.getDx()[0];
+    const double *dx = &patch_geom->getDx()[0];
+      
+    double L[3];
+
+
+    for(int i = 0 ; i < 3; i++)
+      L[i] = domain_upper[i] - domain_lower[i];
+
+    const int * lower = &box.lower()[0];
+    const int * upper = &box.upper()[0];
+
+    for(int k = lower[2]; k <= upper[2]; k++)
+    {
+      for(int j = lower[1]; j <= upper[1]; j++)
+      {
+        for(int i = lower[0]; i <= upper[0]; i++)
+        {
+          real_t x = (dx[0] * ((real_t)i + 0.5)) - L[0] / 2.0 ;
+          real_t y = (dx[1] * ((real_t)j + 0.5)) - L[1] / 2.0 ;
+          real_t z = (dx[2] * ((real_t)k + 0.5)) - L[2] / 2.0 ;
+
+          real_t r = sqrt(pw2(x ) + pw2(y ) + pw2(z ));
+          real_t phi = atan(y / x);
+          real_t theta = acos(z / sqrt(pw2(x) + pw2(y) + pw2(z))); 
+
+          
+          real_t rp = 1 + sqrt(1 - pw2(a));
+          real_t rm = 1 - sqrt(1 - pw2(a));
+          real_t r_BL = r * pw2(1 + rp / (4.0 * r));
+          real_t Sigma = pw2(r_BL) + pw2(a) * pw2(cos(theta));
+          real_t Delta = pw2(r_BL) - 2.0 * r_BL + pw2(a);
+          real_t A = pw2(pw2(r_BL) + pw2(a))
+            - Delta * pw2(a * sin(theta));
+          
+          real_t ms11 = Sigma * pw2(r + rp / 4.0 ) / (pw3(r) * (r_BL - rm));
+          real_t ms22 = Sigma;
+          real_t ms33 = A * pw2(sin(theta)) / Sigma;
+
+          real_t Ks13 = a * pw2(sin(theta)) / (Sigma * sqrt(Sigma  * A * r * (r_BL - rm)))
+            * (1 + rp / (4.0 * r)) * (3.0 * pw2(pw2(r_BL)) + 2.0 * pw2(a) * pw2(r_BL)
+                                      - pw2(pw2(a)) - pw2(a * sin(theta)) * (pw2(r_BL) - pw2(a)));
+          real_t Ks23 = - (r - rp / (4.0 )) * sqrt( (r_BL - rm)/r ) * 2.0 * a * a * a
+            * r_BL * cos(theta) * pw2(sin(theta)) * sin(theta) / (Sigma * sqrt(A * Sigma));
+
+
+          
+          DIFFgamma11_a(i, j, k) = (pw2(x)*ms11)/pw2(r) + 
+            ((pw2(x)*(pw2(x) + pw2(y))*pw2(z)*ms22)/pow(r,4) 
+             +  pw2(y)*ms33)/pow(pw2(x) + pw2(y),2);
+
+          DIFFgamma12_a(i, j, k) = (x*y*(pw2(r)*pow(pw2(x) + pw2(y),2)*ms11 + 
+       (pw2(x) + pw2(y))*pw2(z)*ms22 - pow(r,4)*ms33))/
+            (pow(r,4)*pow(pw2(x) + pw2(y),2));
+
+          DIFFgamma13_a(i, j, k) = (x*z*(pw2(r)*ms11 - ms22))/pow(r,4);
+
+          DIFFgamma22_a(i, j, k)  = (pw2(y)*ms11)/pw2(r) + 
+            ((pw2(y)*(pw2(x) + pw2(y))*pw2(z)*ms22)/pow(r,4) 
+             + pw2(x)*ms33)/pow(pw2(x) + pw2(y),2);
+          DIFFgamma23_a(i, j, k) = (y*z*(pw2(r)*ms11 - ms22))/pow(r,4);
+
+          DIFFgamma33_a(i, j, k) = (pw2(r)*pw2(z)*ms11 + (pw2(x) + pw2(y))*ms22)/
+   pow(r,4);
+          
+          real_t det = DIFFgamma11_a(i, j, k) * DIFFgamma22_a(i, j, k) * DIFFgamma33_a(i, j, k)
+            + DIFFgamma12_a(i, j, k) * DIFFgamma23_a(i, j, k) * DIFFgamma13_a(i, j, k)
+            + DIFFgamma12_a(i, j, k) * DIFFgamma23_a(i, j, k) * DIFFgamma13_a(i, j, k)
+            - DIFFgamma13_a(i, j, k) * DIFFgamma22_a(i, j, k) * DIFFgamma13_a(i, j, k)
+            - DIFFgamma12_a(i, j, k) * DIFFgamma12_a(i, j, k) * DIFFgamma33_a(i, j, k)
+            - DIFFgamma23_a(i, j, k) * DIFFgamma23_a(i, j, k) * DIFFgamma11_a(i, j, k);
+
+          chi_a(i,j,k) = pow(det, - 1/6.0);
+
+          
+          real_t gammai11 = (DIFFgamma22_a(i, j, k) * DIFFgamma33_a(i, j, k) - pw2(DIFFgamma23_a(i, j, k))) / det;
+          real_t gammai22 = (DIFFgamma11_a(i, j, k) * DIFFgamma33_a(i, j, k) - pw2(DIFFgamma13_a(i, j, k))) / det;
+          real_t gammai33 = (DIFFgamma11_a(i, j, k) * DIFFgamma22_a(i, j, k) - pw2(DIFFgamma12_a(i, j, k))) / det;
+          real_t gammai12 = (DIFFgamma13_a(i, j, k) * DIFFgamma23_a(i, j, k) - DIFFgamma12_a(i, j, k)*(DIFFgamma33_a(i, j, k))) / det;
+          real_t gammai13 = (DIFFgamma12_a(i, j, k) * DIFFgamma23_a(i, j, k) - DIFFgamma13_a(i, j, k)*(DIFFgamma22_a(i, j, k))) / det;
+          real_t gammai23 = (DIFFgamma12_a(i, j, k) * DIFFgamma13_a(i, j, k) - DIFFgamma23_a(i, j, k)*(DIFFgamma11_a(i, j, k))) / det;
+
+
+          real_t K11 = (-2*x*y*((pw2(x) + pw2(y))*Ks13 + 
+                                sqrt((pw2(x) + pw2(y))/pw2(r))*z*Ks23))/
+            (sqrt(pw2(r))*pow(pw2(x) + pw2(y),2));
+          
+          real_t K12 = ((x - y)*(x + y)*((pw2(x) + pw2(y))*Ks13 + 
+                                         sqrt((pw2(x) + pw2(y))/pw2(r))*z*Ks23))/
+            (sqrt(pw2(r))*pow(pw2(x) + pw2(y),2));
+          
+          real_t K13 = (y*(-(z*Ks13) + sqrt((pw2(x) + pw2(y))/pw2(r))*Ks23))/
+            (sqrt(pw2(r))*(pw2(x) + pw2(y)));
+
+          real_t K22 = (2*x*y*((pw2(x) + pw2(y))*Ks13 + 
+                               sqrt((pw2(x) + pw2(y))/pw2(r))*z*Ks23))/
+            (sqrt(pw2(r))*pow(pw2(x) + pw2(y),2));
+          real_t K23 = (x*(z*Ks13 - sqrt((pw2(x) + pw2(y))/pw2(r))*Ks23))/
+            (sqrt(pw2(r))*(pw2(x) + pw2(y)));
+          real_t K33 = 0;
+
+          
+          
+          real_t K = gammai11 * K11 + gammai22 * K22 + gammai33 * K33
+            + 2.0 * (gammai12 * K12 + gammai13 * K13 + gammai23 * K23);
+
+          DIFFK_a(i, j, k) = K;
+          A11_a(i, j, k) = (K11 - DIFFgamma11_a(i, j, k) * K / 3.0) * pw2(chi_a(i, j, k));
+          A12_a(i, j, k) = (K12 - DIFFgamma12_a(i, j, k) * K / 3.0) * pw2(chi_a(i, j, k));
+          A13_a(i, j, k) = (K13 - DIFFgamma13_a(i, j, k) * K / 3.0) * pw2(chi_a(i, j, k));
+          A22_a(i, j, k) = (K22 - DIFFgamma22_a(i, j, k) * K / 3.0) * pw2(chi_a(i, j, k));
+          A23_a(i, j, k) = (K23 - DIFFgamma23_a(i, j, k) * K / 3.0) * pw2(chi_a(i, j, k));
+          A33_a(i, j, k) = (K33 - DIFFgamma33_a(i, j, k) * K / 3.0) * pw2(chi_a(i, j, k));
+
+          DIFFgamma11_a(i, j, k) *= pw2(chi_a(i, j, k));
+          DIFFgamma22_a(i, j, k) *= pw2(chi_a(i, j, k));
+          DIFFgamma33_a(i, j, k) *= pw2(chi_a(i, j, k));
+          DIFFgamma12_a(i, j, k) *= pw2(chi_a(i, j, k));
+          DIFFgamma13_a(i, j, k) *= pw2(chi_a(i, j, k));
+          DIFFgamma23_a(i, j, k) *= pw2(chi_a(i, j, k));
+
+          DIFFgamma11_a(i, j, k) -= 1.0;
+          DIFFgamma22_a(i, j, k) -= 1.0;
+          DIFFgamma33_a(i, j, k) -= 1.0;
+
+          chi_a(i, j, k) -= 1.0;
+
+        }
+      }
+    }
+                
+  }
+  
+}
+
 void bssn_ic_static_blackhole(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln)
@@ -891,5 +1208,5 @@ void bssn_ic_static_blackhole(
   }
   
 }
-  
+
 } // namespace cosmo

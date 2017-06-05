@@ -197,6 +197,14 @@ bool VacuumSim::initLevel(
     bssn_ic_static_blackhole(hierarchy,ln);
     return true;
   }
+  else if(ic_type == "kerr_blackhole")
+  {
+    if(!USE_BSSN_SHIFT)
+      TBOX_ERROR("Must enable shift for blackhole simulation!\n");
+    bssn_ic_kerr_blackhole(hierarchy,ln);
+    return true;
+  }
+
   else if(ic_type == "awa_stability")
   {
     bssn_ic_awa_stability(hierarchy,ln,1e-10);

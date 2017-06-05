@@ -60,7 +60,8 @@ CosmoSim::CosmoSim(
   AHFinder_iter_limit(cosmo_sim_db->getIntegerWithDefault("AHFinder_iter_limit", 100)),
   AHFinder_dt_frac(cosmo_sim_db->getDoubleWithDefault("AHFinder_dt_frac", 0.1)),
   surface_move_shreshold(cosmo_sim_db->getDoubleWithDefault("surface_move_shreshold", 1e-9)),
-  save_interval(cosmo_sim_db->getIntegerWithDefault("save_interval", std::numeric_limits<int>::max()))
+  save_interval(cosmo_sim_db->getIntegerWithDefault("save_interval", std::numeric_limits<int>::max())),
+  use_anguler_momentum_finder(cosmo_sim_db->getBoolWithDefault("use_anguler_momentum_finder", false))
 {
   t_loop = tbox::TimerManager::getManager()->
     getTimer("loop");
@@ -73,10 +74,6 @@ CosmoSim::CosmoSim(
   bssnSim = new BSSN(
     hierarchy, dim,input_db->getDatabase("BSSN"), lstream,KO_damping_coefficient);
 
-  horizon = new Horizon(
-    hierarchy, dim,input_db->getDatabase("Horizon"), lstream);
-
-  
   // initializing IO object
   cosmo_io = new CosmoIO(dim, input_db->getDatabase("IO"), lstream);
 
@@ -92,6 +89,10 @@ CosmoSim::CosmoSim(
       context_active,
       hier::IntVector(dim, STENCIL_ORDER));
 
+  horizon = new Horizon(
+    hierarchy, dim,input_db->getDatabase("Horizon"), lstream, weight_idx);
+
+  
   // scractch component for refinement, currently not in use
   refine_scratch_idx = variable_db->registerVariableAndContext( 
       refine_scratch, 
@@ -197,7 +198,10 @@ void CosmoSim::runCommonStepTasks(
     tbox::RestartManager::getManager()->writeRestartFile(restart_file_name, step);
   }
 
-  if(step > 0 && use_AHFinder && (step % AHFinder_interval == 0))
+  bool found_horizon = false;
+  
+  if(// step > 0 &&
+     use_AHFinder && (step % AHFinder_interval == 0))
   {
 
     // starting finding apparent horizon
@@ -245,9 +249,12 @@ void CosmoSim::runCommonStepTasks(
       horizon->copyAToP(hcellmath);
     }
     
-    findHorizon(hierarchy);
+    found_horizon = findHorizon(hierarchy);
   }
-  
+  if(found_horizon && use_anguler_momentum_finder)
+  {
+    horizon->findKilling(hierarchy, bssnSim);
+  }
 }
 
 void CosmoSim::initHorizonStep(
@@ -492,7 +499,7 @@ bool CosmoSim::advanceHorizonLevel(
 }
 
 
-void CosmoSim::findHorizon(
+bool CosmoSim::findHorizon(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   int cnt = 0;
@@ -518,13 +525,14 @@ void CosmoSim::findHorizon(
                         cur_lambda + delta_lambda))
     {
       tbox::pout<<"No surface exists or the movement of surface is blow the threshold!\n";
-      break;
+      return false;
     }
 
     tbox::pout<<cnt<<"\n";
     cnt++;
     cur_lambda += delta_lambda;
   }
+  return true;
 }
 
   

@@ -338,8 +338,10 @@ void DustSim::initializeLevelData(
    bool has_initial = false;
    
    //at beginning, initialize new level
-   if(init_data_time < EPS)
+   if(fabs(init_data_time - starting_t)< EPS)
    {
+     if(step != starting_step)
+       TBOX_ERROR("Level is initialized after 0 step!");
      has_initial = initLevel(patch_hierarchy, ln);
    }
    bssnSim->clearSrc(patch_hierarchy, ln);

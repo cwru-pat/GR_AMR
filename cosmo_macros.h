@@ -94,6 +94,7 @@
 #define PI (4.0*atan(1.0))
 #define SIGN(x) (((x) < 0.0) ? -1 : ((x) > 0.0))
 #define pw2(x) ((x)*(x))
+#define PW2(x) ((x)*(x))
 #define pw3(x) ((x)*(x)*(x))
 #define C_RE(c) ((c)[0])
 #define C_IM(c) ((c)[1])
@@ -383,6 +384,34 @@
   + MACRO(3, 2, 1, __VA_ARGS__) + MACRO(3, 2, 2, __VA_ARGS__) + MACRO(3, 2, 3, __VA_ARGS__) \
   + MACRO(3, 3, 1, __VA_ARGS__) + MACRO(3, 3, 2, __VA_ARGS__) + MACRO(3, 3, 3, __VA_ARGS__) \
   )
+
+#define COSMO_APPLY_TO_IJK_PERMS(function)   \
+  function(1, 1, 1);                  \
+  function(1, 1, 2);                  \
+  function(1, 1, 3);                  \
+  function(1, 2, 2);                  \
+  function(1, 2, 3);                  \
+  function(1, 3, 3);                  \
+  function(2, 1, 1);                  \
+  function(2, 1, 2);                  \
+  function(2, 1, 3);                  \
+  function(2, 2, 2);                  \
+  function(2, 2, 3);                  \
+  function(2, 3, 3);                  \
+  function(3, 1, 1);                  \
+  function(3, 1, 2);                  \
+  function(3, 1, 3);                  \
+  function(3, 2, 2);                  \
+  function(3, 2, 3);                  \
+  function(3, 3, 3);
+
+#define COSMO_APPLY_TO_IJ_PERMS(function) \
+  function(1, 1);                        \
+  function(1, 2);                        \
+  function(1, 3);                        \
+  function(2, 2);                        \
+  function(2, 3);                        \
+  function(3, 3);
 
 
 #endif

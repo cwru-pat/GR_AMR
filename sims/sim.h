@@ -94,7 +94,7 @@ public:
   bool hasNaNs(
     const boost::shared_ptr<hier::Patch>& patch, idx_t data_id);
 
-  void findHorizon(
+  bool findHorizon(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
 
   bool advanceHorizonLevel(
@@ -169,6 +169,8 @@ public:
   real_t surface_move_shreshold;
 
   idx_t save_interval;
+
+  bool use_anguler_momentum_finder;
 };
 
 } /* namespace cosmo */
