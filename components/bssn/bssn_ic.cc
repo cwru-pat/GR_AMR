@@ -802,7 +802,7 @@ void bssn_ic_kerr_blackhole(
 # endif
 
   // spin of momentum
-  real_t a = 0.5;
+  real_t a = 0.6;
 
   hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
 
@@ -1000,7 +1000,7 @@ void bssn_ic_kerr_blackhole(
           real_t r = sqrt(pw2(x ) + pw2(y ) + pw2(z ));
           real_t phi = atan(y / x);
           real_t theta = acos(z / sqrt(pw2(x) + pw2(y) + pw2(z))); 
-
+          
           
           real_t rp = 1 + sqrt(1 - pw2(a));
           real_t rm = 1 - sqrt(1 - pw2(a));

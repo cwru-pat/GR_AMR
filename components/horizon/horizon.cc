@@ -19,6 +19,8 @@ Horizon::Horizon(
   cosmo_horizon_db(database_in),
   dim(dim_in),
   is_periodic(cosmo_horizon_db->getBoolWithDefault("is_periodic", false)),
+  is_sphere(cosmo_horizon_db->getBoolWithDefault("is_sphere", false)),
+  radius_limit(cosmo_horizon_db->getDoubleWithDefault("radius_limit", INF)),
   w_idx(w_idx_in),
   invalid_id( hier::LocalId::getInvalidId(), tbox::SAMRAI_MPI::getInvalidRank())
 {
@@ -96,6 +98,166 @@ void Horizon::clear(
   EXTRA_ARRAY_ZERO(s3, hcellmath);
 }
 
+bool Horizon::initSphericalSurface(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  BSSN * bssn, boost::shared_ptr<hier::RefineOperator> space_refine_op)
+{
+  if(!is_sphere)
+    TBOX_ERROR("The shape of apparent horizon is not set to sphere!\n");
+
+  const_radius = 0;
+  int cnt = 0;
+  
+  addNormVector(bssn, hierarchy);
+
+  bool has_surface = false;
+  
+  int ln_num = hierarchy->getNumberOfLevels();
+  for(int ln = 0 ; ln < ln_num; ln ++)
+  {
+    boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+
+    for (hier::PatchLevel::iterator p(level->begin());
+         p != level->end(); ++p)
+    {
+      const boost::shared_ptr<hier::Patch>& patch = *p;
+      boost::shared_ptr<geom::CartesianPatchGeometry> patch_geometry(
+        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+          patch->getPatchGeometry()));
+  
+      initPData(patch);
+      initMDA(patch);
+      bssn->initPData(patch);
+      bssn->initMDA(patch);
+
+      boost::shared_ptr<pdat::CellData<real_t>> w_pdata (    
+        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  
+          patch->getPatchData(w_idx)));
+      arr_t w = pdat::ArrayDataAccess::access<DIM, double>(  
+        w_pdata->getArrayData());
+    
+      const hier::Box& box = patch->getBox();
+  
+      const int * lower = &box.lower()[0];
+      const int * upper = &box.upper()[0];
+
+      const real_t * dx = &(patch_geometry->getDx())[0];
+
+      BSSNData bd = {0};
+      HorizonData hd = {0};
+    
+      for(int k = lower[2]; k <= upper[2]; k++)
+      {
+        for(int j = lower[1]; j <= upper[1]; j++)
+        {
+          for(int i = lower[0]; i <= upper[0]; i++)
+          {
+            bssn->set_bd_values(i, j, k, &bd, dx);
+            hd = getHorizonData(i, j, k, &bd, dx);
+
+            F_p(i, j, k) =
+              ev_F(&bd, &hd, dx) / (bd.chi *
+    sqrt(hd.d1F * hd.d1F * bd.gammai11 + hd.d2F * hd.d2F * bd.gammai22 + hd.d3F * hd.d3F * bd.gammai33
+         + 2.0 * (hd.d1F * hd.d2F * bd.gammai12 + hd.d1F * hd.d3F * bd.gammai13 + hd.d2F * hd.d3F * bd.gammai23 )));
+
+          }
+        }
+      }
+    
+      for(int k = lower[2]; k <= upper[2]; k++)
+      {
+        for(int j = lower[1]; j <= upper[1]; j++)
+        {
+          for(int i = lower[0]; i <= upper[0]; i++)
+          {
+            F_a(i, j, k) = F_p(i, j, k);
+          }
+        }
+      }
+
+    }
+
+
+    xfer::RefineAlgorithm refiner;
+    boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
+
+  
+    registerRKRefinerActive(refiner, space_refine_op);
+
+    level->getBoxLevel()->getMPI().Barrier();
+    refine_schedule =
+      refiner.createSchedule(level,
+                             level,
+                             NULL);
+
+    
+    level->getBoxLevel()->getMPI().Barrier();
+    refine_schedule->fillData(0.0);
+
+    for (hier::PatchLevel::iterator p(level->begin());
+         p != level->end(); ++p)
+    {
+      const boost::shared_ptr<hier::Patch>& patch = *p;
+      boost::shared_ptr<geom::CartesianPatchGeometry> patch_geometry(
+        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+          patch->getPatchGeometry()));
+  
+      initPData(patch);
+      initMDA(patch);
+      bssn->initPData(patch);
+      bssn->initMDA(patch);
+
+      boost::shared_ptr<pdat::CellData<real_t>> w_pdata (    
+        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  
+          patch->getPatchData(w_idx)));
+      arr_t w = pdat::ArrayDataAccess::access<DIM, double>(  
+        w_pdata->getArrayData());
+    
+      const hier::Box& box = patch->getBox();
+  
+      const int * lower = &box.lower()[0];
+      const int * upper = &box.upper()[0];
+
+      const real_t * dx = &(patch_geometry->getDx())[0];    
+      for(int k = lower[2]; k <= upper[2]; k++)
+      {
+        for(int j = lower[1]; j <= upper[1]; j++)
+        {
+          for(int i = lower[0]; i <= upper[0]; i++)
+          {
+            if(w(i, j, k) > 0 && onTheSurface(i, j, k))
+            {
+              real_t x = domain_lower[0] + (double)i * dx[0] + dx[0]/2.0;
+              real_t y = domain_lower[1] + (double)j * dx[1] + dx[1]/2.0;
+              real_t z = domain_lower[2] + (double)k * dx[2] + dx[2]/2.0;
+              real_t min_r = sqrt(pw2(x - origin[0]) + pw2(y - origin[1]) + pw2(z - origin[2]));
+              if(min_r < radius_limit)
+              {
+                has_surface = true;
+                const_radius += min_r;
+                cnt ++;
+              }
+            }
+
+          }
+        }
+      }
+    }    
+
+  }
+
+  const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
+  mpi.Barrier();
+  if (mpi.getSize() > 1) {
+    mpi.AllReduce(&const_radius, 1, MPI_SUM);
+    mpi.AllReduce(&cnt, 1, MPI_SUM);
+  }
+  mpi.Barrier();
+  const_radius = const_radius / (double) cnt;
+  //  std::cout<<const_radius<<"\n";
+  return has_surface;
+  
+}
   
 void Horizon::initSurface(const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
@@ -136,15 +298,14 @@ void Horizon::initSurface(const boost::shared_ptr<hier::PatchHierarchy>& hierarc
               real_t y = domain_lower[1] + (double)j * dx[1] + dx[1]/2.0;
               real_t z = domain_lower[2] + (double)k * dx[2] + dx[2]/2.0;
               real_t min_r = pw2(x - origin[0]) + pw2(y - origin[1]) + pw2(z - origin[2]);
-              min_r = tbox::MathUtilities<double>::Min(min_r, pw2(x - domain_lower[0]) + pw2(y - domain_lower[1]) + pw2(z - domain_lower[2]));
-              min_r = tbox::MathUtilities<double>::Min(min_r, pw2(x - domain_upper[0]) + pw2(y - domain_lower[1]) + pw2(z - domain_lower[2]));
-              min_r = tbox::MathUtilities<double>::Min(min_r, pw2(x - domain_lower[0]) + pw2(y - domain_upper[1]) + pw2(z - domain_lower[2]));
-              min_r = tbox::MathUtilities<double>::Min(min_r, pw2(x - domain_lower[0]) + pw2(y - domain_lower[1]) + pw2(z - domain_upper[2]));
-              min_r = tbox::MathUtilities<double>::Min(min_r, pw2(x - domain_lower[0]) + pw2(y - domain_upper[1]) + pw2(z - domain_upper[2]));
-              min_r = tbox::MathUtilities<double>::Min(min_r, pw2(x - domain_upper[0]) + pw2(y - domain_lower[1]) + pw2(z - domain_upper[2]));
-              min_r = tbox::MathUtilities<double>::Min(min_r, pw2(x - domain_upper[0]) + pw2(y - domain_upper[1]) + pw2(z - domain_lower[2]));
-              min_r = tbox::MathUtilities<double>::Min(min_r, pw2(x - domain_upper[0]) + pw2(y - domain_upper[1]) + pw2(z - domain_upper[2]));
-
+              // min_r = tbox::MathUtilities<double>::Min(min_r, pw2(x - domain_lower[0]) + pw2(y - domain_lower[1]) + pw2(z - domain_lower[2]));
+              // min_r = tbox::MathUtilities<double>::Min(min_r, pw2(x - domain_upper[0]) + pw2(y - domain_lower[1]) + pw2(z - domain_lower[2]));
+              // min_r = tbox::MathUtilities<double>::Min(min_r, pw2(x - domain_lower[0]) + pw2(y - domain_upper[1]) + pw2(z - domain_lower[2]));
+              // min_r = tbox::MathUtilities<double>::Min(min_r, pw2(x - domain_lower[0]) + pw2(y - domain_lower[1]) + pw2(z - domain_upper[2]));
+              // min_r = tbox::MathUtilities<double>::Min(min_r, pw2(x - domain_lower[0]) + pw2(y - domain_upper[1]) + pw2(z - domain_upper[2]));
+              // min_r = tbox::MathUtilities<double>::Min(min_r, pw2(x - domain_upper[0]) + pw2(y - domain_lower[1]) + pw2(z - domain_upper[2]));
+              // min_r = tbox::MathUtilities<double>::Min(min_r, pw2(x - domain_upper[0]) + pw2(y - domain_upper[1]) + pw2(z - domain_lower[2]));
+              // min_r = tbox::MathUtilities<double>::Min(min_r, pw2(x - domain_upper[0]) + pw2(y - domain_upper[1]) + pw2(z - domain_upper[2]));
               min_r = sqrt(min_r);
             
               F_a(i, j, k) = F_p(i, j, k) =
@@ -191,7 +352,7 @@ void Horizon::initSurface(const boost::shared_ptr<hier::PatchHierarchy>& hierarc
             real_t y = domain_lower[1] + (double)j * dx[1] + dx[1]/2.0;
             real_t z = domain_lower[2] + (double)k * dx[2] + dx[2]/2.0;
             F_a(i, j, k) = F_p(i, j, k) =
-              sqrt(pw2(x - origin[0]) + pw2(y - origin[1]) + pw2(z - origin[2])) - radius; 
+              sqrt(pw2(x - origin[0]) + pw2(y - origin[1]) + pw2(z - origin[2])) - radius;
           }
         }
       }     
@@ -345,26 +506,7 @@ real_t Horizon::ev_F(BSSNData *bd, HorizonData *hd, const real_t dx[])
   real_t diFdiF = pw2(bd->chi) * (hd->d1F * hd->d1F * bd->gammai11 + hd->d2F * hd->d2F * bd->gammai22 + hd->d3F * hd->d3F * bd->gammai33
          + 2.0 * (hd->d1F * hd->d2F * bd->gammai12 + hd->d1F * hd->d3F * bd->gammai13 + hd->d2F * hd->d3F * bd->gammai23 ));
 
-  
-  if(bd->i == 32 && bd->j == 32 && bd->k ==32)
-  {
-
-    
-    std::cout<<((pw2(bd->chi) * COSMO_SUMMATION_2(HORIZON_CALCULATE_DS0)) / sqrt(diFdiF)
-           - pw2(bd->chi) * pw2(bd->chi) * COSMO_SUMMATION_2(HORIZON_CALCULATE_DS) / pow(diFdiF, 1.5)
-    - bd->K
-    +  1.0 / pw2(bd->chi) * (
-      (bd->A11 + bd->K * bd->gamma11 / 3.0) * hd->s1 * hd->s1
-      + (bd->A22 + bd->K * bd->gamma22 / 3.0) * hd->s2 * hd->s2
-      + (bd->A33 + bd->K * bd->gamma33 / 3.0) * hd->s3 * hd->s3
-      + 2.0 * (bd->A12 + bd->K * bd->gamma12 / 3.0) * hd->s1 * hd->s2
-      + 2.0 * (bd->A13 + bd->K * bd->gamma13 / 3.0) * hd->s1 * hd->s3
-      + 2.0 * (bd->A23 + bd->K * bd->gamma23 / 3.0) * hd->s2 * hd->s3
-    ))<<"\n";
-  }
-                
-  
-  return ((pw2(bd->chi) * COSMO_SUMMATION_2(HORIZON_CALCULATE_DS0)) / sqrt(diFdiF)
+  real_t kappa =  ((pw2(bd->chi) * COSMO_SUMMATION_2(HORIZON_CALCULATE_DS0)) / sqrt(diFdiF)
            - pw2(bd->chi) * pw2(bd->chi) * COSMO_SUMMATION_2(HORIZON_CALCULATE_DS) / pow(diFdiF, 1.5)
     - bd->K
     +  1.0 / pw2(bd->chi) * (
@@ -376,9 +518,20 @@ real_t Horizon::ev_F(BSSNData *bd, HorizonData *hd, const real_t dx[])
       + 2.0 * (bd->A23 + bd->K * bd->gamma23 / 3.0) * hd->s2 * hd->s3
     )) * bd->chi *
     sqrt(hd->d1F * hd->d1F * bd->gammai11 + hd->d2F * hd->d2F * bd->gammai22 + hd->d3F * hd->d3F * bd->gammai33
-         + 2.0 * (hd->d1F * hd->d2F * bd->gammai12 + hd->d1F * hd->d3F * bd->gammai13 + hd->d2F * hd->d3F * bd->gammai23 ))  ;
-}    
+         + 2.0 * (hd->d1F * hd->d2F * bd->gammai12 + hd->d1F * hd->d3F * bd->gammai13 + hd->d2F * hd->d3F * bd->gammai23 ));
 
+  real_t x = domain_lower[0] + (double)bd->i * dx[0] + dx[0]/2.0;
+  real_t y = domain_lower[1] + (double)bd->j * dx[1] + dx[1]/2.0;
+  real_t z = domain_lower[2] + (double)bd->k * dx[2] + dx[2]/2.0;
+
+  if(bd->i == 105 && bd->j == 64 && bd->k ==64)
+  {
+    std::cout<<kappa <<"\n";
+  }
+                
+  
+  return kappa ;
+}
 void Horizon::RKEvolvePt(
   idx_t i, idx_t j, idx_t k, BSSNData &bd, const real_t dx[], real_t dt)
 {
@@ -825,8 +978,8 @@ void Horizon::RKEvolveHorizon(
     {
       for(int i = lower[0]; i <= upper[0]; i++)
       {
-        if( i == 32 && j == 32 && k == 32)
-          std::cout<<F_a(i, j, k)<<" ";
+        if( i == 105 && j == 64 && k == 64)
+          std::cout<<"Level set function at closest point is "<<F_a(i, j, k)<<"\n";
         bssn->set_bd_values(i, j, k, &bd, dx);
         RKEvolvePt(i, j, k, bd, dx, dt);
         
@@ -1266,6 +1419,7 @@ real_t Horizon::findMaxHorizonRadius(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   double theta_0, double phi_0)
 {
+  if(is_sphere) return const_radius;
   real_t max_r = -1;
   int ln_num = hierarchy->getNumberOfLevels();
 
@@ -1309,20 +1463,25 @@ real_t Horizon::findMaxHorizonRadius(
               real_t y = domain_lower[1] + (double)j * dx[1] + dx[1]/2.0 - origin[1];
               real_t z = domain_lower[2] + (double)k * dx[2] + dx[2]/2.0 - origin[2];
 
-              // distance plus correction
+              // distance plus correctino
               real_t r = sqrt(pw2(x ) + pw2(y ) + pw2(z )) - F_a(i, j, k);
 
-              max_r = tbox::MathUtilities<double>::Max(max_r, r);
+              //              std::cout<<i<<" "<<j<<" "<<k<<" "<<r<<"\n";
+              if(r < radius_limit)
+              {
+              
+                max_r = tbox::MathUtilities<double>::Max(max_r, r);
 
 
               
-              real_t phi = atan(y / x);
-              real_t theta = acos(z / sqrt(pw2(x) + pw2(y) + pw2(z))); 
+                real_t phi = atan(y / x);
+                real_t theta = acos(z / sqrt(pw2(x) + pw2(y) + pw2(z))); 
 
-              //getting the minimum distance between grid cell and certain direction
-              min_d = tbox::MathUtilities<double>::Min(
-                //min_d, sqrt(PW2(r *(theta - theta_0 ) ) + PW2(r*(phi-phi_0))));
-                min_d, r * acos(cos(theta) * cos(theta_0) + sin(theta) * sin(theta_0) * cos(phi-phi_0)));
+                //getting the minimum distance between grid cell and certain direction
+                min_d = tbox::MathUtilities<double>::Min(
+                  //min_d, sqrt(PW2(r *(theta - theta_0 ) ) + PW2(r*(phi-phi_0))));
+                  min_d, r * acos(cos(theta) * cos(theta_0) + sin(theta) * sin(theta_0) * cos(phi-phi_0)));
+              }
             }
           }
         }
@@ -1349,6 +1508,8 @@ real_t Horizon::findRadius(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   double theta_0, double phi_0)
 {
+
+  if(is_sphere) return const_radius;
   real_t res = -1;
   min_d = INF;
   int ln_num = hierarchy->getNumberOfLevels();
@@ -1356,7 +1517,7 @@ real_t Horizon::findRadius(
 
   // marks whether patch needs to be changed
   int need_to_change_patch = 0;
-  //std::cout<<"mpi rank "<<patch_work_mpi_rank<<"\n";
+
   if(mpi.getRank() == patch_work_mpi_rank)
   {
   for (int ln = 0; ln < ln_num; ln++)
@@ -1396,12 +1557,16 @@ real_t Horizon::findRadius(
                  + pw2(domain_lower[1] + (double)patch_work_j * dx[1] + dx[1]/2.0 - origin[1] )
                  + pw2(domain_lower[2] + (double)patch_work_k * dx[2] + dx[2]/2.0 - origin[2] ))
       - F_a(patch_work_i, patch_work_j, patch_work_k);
+
+      int lk = patch_work_k - STENCIL_ORDER+1, uk = patch_work_k + STENCIL_ORDER-1;
+      int lj = patch_work_j - STENCIL_ORDER+1, uj = patch_work_j + STENCIL_ORDER-1;
+      int li = patch_work_i - STENCIL_ORDER+1, ui = patch_work_i + STENCIL_ORDER-1;
       
-      
-      for(int k = patch_work_k - STENCIL_ORDER; k < patch_work_k + STENCIL_ORDER; k++)
-        for(int j = patch_work_j - STENCIL_ORDER; j < patch_work_j + STENCIL_ORDER; j++)
-          for(int i = patch_work_i - STENCIL_ORDER; i < patch_work_i + STENCIL_ORDER; i++)
+      for(int k = lk; k <= uk; k++)
+        for(int j = lj; j <= uj; j++)
+          for(int i = li; i <= ui; i++)
           {
+
             if(w(i, j, k) > 0 && belowTheSurface(i, j, k))
             {
               real_t x = domain_lower[0] + (double)i * dx[0] + dx[0]/2.0 - origin[0];
@@ -1438,7 +1603,7 @@ real_t Horizon::findRadius(
     }
   }
   }
-  
+
   mpi.Barrier();
 
   if (mpi.getSize() > 1){
@@ -1455,6 +1620,7 @@ real_t Horizon::findRadius(
   }
   mpi.Barrier();
 
+  
   if(need_to_change_patch)
   {
 
@@ -1719,7 +1885,7 @@ void Horizon::set_kd_values(
   real_t ct = cos(theta);
   real_t sp = sin(phi);
   real_t cp = cos(phi);
-  if(r < 0.45 || r > 0.47) TBOX_ERROR("oiojuiojio\n");
+
   for (ln = ln_num - 1; ln >= 0; ln--)
   {
     boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
@@ -2473,7 +2639,6 @@ void Horizon::initG(
   int theta_i = n_theta, phi_i = 0;
 
   double phi, theta;
-
   for(phi_i = 0; phi_i < n_phi*2; phi_i++)
   {
     int patch_work_i_bak = patch_work_i,
@@ -2493,10 +2658,8 @@ void Horizon::initG(
     real_t r =  findRadius(hierarchy, theta, phi);
     mpi.Barrier();
 
-
     kd = {0};
     set_G_values(hierarchy, theta, phi, theta_i, phi_i, r, &kd, bssn);
-
     ah_radius[theta_i][phi_i] = r;
     for(theta_i = n_theta+1; theta_i < 2 * n_theta; theta_i++)
     {
@@ -2534,7 +2697,6 @@ void Horizon::initG(
     patch_work_mpi_rank = patch_work_mpi_rank_bak;
 
   }
-
   phi = 2.0 * PI * ((double) 0.5) / (double)n_phi / 2.0;
   theta =  PI * ((double) n_theta + 0.5) / (double)n_theta / 2.0;
   mpi.Barrier();
@@ -2547,7 +2709,6 @@ void Horizon::initG(
   r =  findRadius(hierarchy, PI/2, 0);
   mpi.Barrier();
 
-  
   if(min_d > min_d0 + EPS)
   {
 
@@ -2563,12 +2724,13 @@ void Horizon::findPatch(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   double theta_0, double phi_0)
 {
+
   int ln_num = hierarchy->getNumberOfLevels();
   const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
   patch_work_mpi_rank = -1, patch_work_level = -1, local_id = -1;
 
   patch_work_id = hier::GlobalId();
-  
+
   for (int ln = 0; ln < ln_num; ln++)
   {
     boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
@@ -2611,6 +2773,7 @@ void Horizon::findPatch(
         {
           for(int i = lower[0]; i <= upper[0]; i++)
           {
+
             if(w(i, j, k) > 0 && belowTheSurface(i, j, k))
             {
               real_t x = domain_lower[0] + (double)i * dx[0] + dx[0]/2.0 - origin[0];
@@ -2639,12 +2802,14 @@ void Horizon::findPatch(
           }
         }
       }
+
     }
   }
 
-
+  
   mpi.Barrier();
 
+  
   if (mpi.getSize() > 1)
   {
     mpi.AllReduce(&patch_work_mpi_rank, 1, MPI_MAX);
@@ -2661,8 +2826,10 @@ void Horizon::findPatch(
     mpi.Bcast(&patch_work_level, 1, MPI_INT, patch_work_mpi_rank);
     mpi.Bcast(&local_id, 1, MPI_INT, patch_work_mpi_rank);
   }
-  
   mpi.Barrier();
+
+
+  
 
 }
 
@@ -2672,6 +2839,8 @@ void Horizon::initGridding(
   min_d = INF;
   real_t max_r = findMaxHorizonRadius(hierarchy, PI / 2.0, 0);
 
+  if(is_sphere)
+    tbox::pout<<"For spherical horizon, using the radius "<<max_r<<"\n";
   findPatch(hierarchy, PI / 2.0 , 0);
   
   boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
@@ -2689,7 +2858,7 @@ void Horizon::initGridding(
 
   n_phi = 2.0 * PI * max_r / dx;
 
-  tbox::pout<<"Dividing the space into n_theta = "<<n_theta
+  tbox::pout<<"Dibviding the space into n_theta = "<<n_theta
             <<" and n_phi = "<<n_phi<<"\n";
 
   // initializing spherical mesh
@@ -2726,8 +2895,8 @@ void Horizon::initGridding(
 
 bool solve_linear_eqn(int n,double a[][3],double b[])
 {
-  int i,j,k,row;
-  double maxp,t;
+  int i,j,k;
+  double maxp;
   for (k = 0; k < n; k++)
   {
     maxp = a[k][k];
@@ -2768,7 +2937,7 @@ void Horizon::findM(
 
 
   transportKillingPhi(hierarchy, n_theta/2, n_phi, 0, 1, 0, bssn);
-  
+
   M[0][1] = k_theta[n_theta/2][0];
   M[1][1] = k_phi[n_theta/2][0];
   M[2][1] = k_L[n_theta/2][0];
@@ -2783,7 +2952,7 @@ void Horizon::findM(
 
 
 
-  std::cout<<"\n";
+  tbox::pout<<"\n";
   for(int i = 0; i < 3; i++){
     for(int j = 0; j < 3; j++)
     {
@@ -3139,7 +3308,7 @@ real_t Horizon::getNormFactor()
   real_t dtheta = PI / (double)n_theta;
   real_t pre_phi = 0;
 
-  real_t dt = dtheta * 0.01;
+  real_t dt = 0.01 / std::max(k_phi[0][0],k_theta[0][0]) ;
 
   real_t t = 0;
   // advance theta and phi
@@ -3155,23 +3324,19 @@ real_t Horizon::getNormFactor()
     real_t k1_phi = interp_k_phi(theta, phi);
 
     theta = theta_0 + k1_theta * dt / 2.0, phi = phi_0 + k1_phi * dt / 2.0;
-    
     real_t k2_theta = interp_k_theta(theta , phi);
     real_t k2_phi = interp_k_phi(theta , phi);
 
     theta = theta_0 + k2_theta * dt / 2.0, phi = phi_0 + k2_phi * dt / 2.0;
-
     real_t k3_theta = interp_k_theta(theta, phi);
     real_t k3_phi = interp_k_phi(theta, phi);
 
     theta = theta_0 + k3_theta * dt, phi = phi_0 + k3_phi * dt;
-
     real_t k4_theta = interp_k_theta(theta , phi);
     real_t k4_phi = interp_k_phi(theta , phi);
 
     theta = theta_0 + dt * (k1_theta + 2.0 * k2_theta + 2.0 * k3_theta + k4_theta) / 6.0;
     phi = phi_0 + dt * (k1_phi + 2.0 * k2_phi + 2.0 * k3_phi + k4_phi) / 6.0;
-
     t += dt;
   }
 
@@ -3285,6 +3450,49 @@ void Horizon::convertToVector(
 
     }
   }
+
+
+}
+
+real_t Horizon::area(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn)
+{
+  const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
+  real_t dtheta = PI / (double)n_theta;
+  real_t dphi = 2.0 * PI / (double)n_phi;
+  real_t res = 0;
+  for(int theta_i = 0; theta_i < n_theta; theta_i++)
+  {
+    for(int phi_i = 0; phi_i < n_phi; phi_i++)
+    {
+      double theta = PI * ((double) theta_i +0.5) / (double)n_theta;
+      double phi = 2.0 * PI * ((double) phi_i +0.5) / (double)n_phi;
+
+      real_t st = sin(theta);
+      real_t ct = cos(theta);
+      real_t sp = sin(phi);
+      real_t cp = cos(phi);
+      
+      real_t r = getRadius(theta_i*2, phi_i*2);
+      
+      KillingData kd = {0};
+
+      set_kd_values(hierarchy, theta, phi, theta_i*2, phi_i*2,
+                    r, &kd, bssn);
+
+      double det = kd.q11 * kd.q22 - kd.q12 * kd.q12;
+      
+      res += sqrt(det) * dtheta * dphi;
+
+      mpi.Barrier();
+      if (mpi.getSize() > 1 ) {
+        mpi.Bcast(&res, 1, MPI_DOUBLE, cur_mpi_rank);
+      }
+      mpi.Barrier();
+    }
+  }
+  return res;
+
 }
 
 void Horizon::findKilling(
@@ -3313,8 +3521,16 @@ void Horizon::findKilling(
 
   normKilling();
 
-  std::cout<<"Angular momentum is "<<angularMomentum(hierarchy, bssn)<<"\n";
-  TBOX_ERROR("eND\n");
+  double angular_m = angularMomentum(hierarchy, bssn);
+  tbox::pout<<"Angular momentum is "<<angular_m<<"\n";
+
+  double a = area(hierarchy, bssn);
+
+  double R_Delta = sqrt(a / (4.0 * PI));
+  
+  double mass = sqrt(pw2(pw2(R_Delta)) + 4.0 * pw2(angular_m)) / (2.0 * R_Delta);
+
+  tbox::pout<<"Mass is "<<mass<<"\n";
 }
   
 }

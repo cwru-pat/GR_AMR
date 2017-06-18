@@ -4,14 +4,14 @@ Main
   dim = 3
   base_name = "blackhole"
   print_precision = 9
-  restart = TRUE
+  restart = FALSE
   restart_basename = "vacuum"
   restart_step = 2
   restart_nodes = 4
 }
 
 CartesianGridGeometry {
-  domain_boxes = [(0,0,0), (31,31,31)]
+  domain_boxes = [(0,0,0), (95,95,95)]
   x_lo         = 0, 0, 0
   x_up         = 100, 100, 100
   periodic_dimension = 0, 0, 0
@@ -41,7 +41,7 @@ TimerManager{
 
 
 PatchHierarchy {
-   max_levels = 2
+   max_levels = 4
    proper_nesting_buffer = 3, 3, 3, 3, 3, 3   
    largest_patch_size {
       level_0 = -1, -1, -1
@@ -73,7 +73,7 @@ GriddingAlgorithm {
 }
 
 CosmoSim{
-  steps = 10
+  steps = 1
   save_interval = 2
   do_plot = TRUE
   dt_frac = 0.05
@@ -83,10 +83,11 @@ CosmoSim{
   refine_op_type = "LINEAR_REFINE"
   coarsen_op_typ = "CONSERVATIVE_COARSEN"
   use_AHFinder = TRUE
-  AHFinder_interval = 5
-  AHFinder_iter_limit = 400
-  AHFinder_dt_frac = 0.2
+  AHFinder_interval = 1
+  AHFinder_iter_limit = 0
+  AHFinder_dt_frac = 0.01
   surface_move_shreshold = 0
+  use_anguler_momentum_finder = TRUE
   comments = ""
 }
 
@@ -110,11 +111,12 @@ BSSN{
 
 Horizon{
   origin = 50, 50, 50
-  radius = 3
+  radius = 0.5
+  doing_statistic = TRUE
 }
 
 IO{
   output_list = "DIFFchi","DIFFK", "F"
-  output_interval = 50, 50, 5
+  output_interval = 50, 50, 1
   gd_c = 1
 }

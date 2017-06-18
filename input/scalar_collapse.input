@@ -6,8 +6,8 @@ Main
   print_precision = 9
   restart = TRUE
   restart_basename = "scalar"
-  restart_step = 5
-  restart_nodes = 10
+  restart_step = 100
+  restart_nodes = 8
 
 }
 
@@ -42,7 +42,7 @@ TimerManager{
 
 
 PatchHierarchy {
-   max_levels = 1
+   max_levels = 2
    proper_nesting_buffer = 3, 3, 3, 3, 3, 3   
    largest_patch_size {
       level_0 = -1, -1, -1
@@ -60,6 +60,7 @@ PatchHierarchy {
      level_5            = 2, 2, 2
      level_6            = 2, 2, 2
      level_7            = 2, 2, 2
+     level_8            = 2, 2, 2  
    }
    allow_patches_smaller_than_ghostwidth = TRUE
    allow_patches_smaller_than_minimum_size_to_prevent_overlaps = TRUE
@@ -74,20 +75,21 @@ GriddingAlgorithm {
 }
 
 CosmoSim{
-  steps = 15
-  save_interval = 5
+  steps = 200
+  save_interval = 100
   do_plot = TRUE
   dt_frac = 0.05
-  regridding_interval = 100
-  adaption_threshold = 0.0095
+  regridding_interval = 1
+  adaption_threshold = 100000
   KO_damping_coefficient = 0
   refine_op_type = "QUADRATIC_REFINE"
   coarsen_op_type = "CONSERVATIVE_COARSEN"
   use_AHFinder = TRUE
-  AHFinder_interval = 150
+  AHFinder_interval = 10
   AHFinder_iter_limit = 20000
   AHFinder_dt_frac = 0.2
   surface_move_shreshold = 0
+  use_anguler_momentum_finder = TRUE
   comments = ""
 }
 
@@ -100,8 +102,11 @@ ScalarSim{
 
 Horizon{
   origin = 0.005, 0.005, 0.005
-  radius = 0.003
+  radius = 0.0005
   is_periodic = TRUE
+  doing_statistic = TRUE
+  is_sphere = TRUE
+  radius_limit = 0.0005
 }
 
 BSSN{
@@ -119,9 +124,10 @@ BSSN{
 }
 
 IO{
-  output_list = "DIFFchi","DIFFK", "F"
-  output_interval = 50, 50, 150
+  output_list = "DIFFK", "F"
+  output_interval =  10, 10
   gd_c = 1
+  
 }
 
 Scalar{

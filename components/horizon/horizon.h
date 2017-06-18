@@ -302,6 +302,8 @@ public:
     const boost::shared_ptr<hier::Patch> & patch);
 
   void initSurface(const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
+  bool initSphericalSurface(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn,   boost::shared_ptr<hier::RefineOperator> space_refine_op);
 
   void stepInit(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
@@ -382,6 +384,8 @@ public:
     double theta, double phi, int theta_i, int phi_i, double r, KillingData *kd, BSSN * bssn);
   real_t angularMomentum(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn);
+  real_t area(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn);
 
   
   real_t ev_k_theta_dtheta(KillingData *kd, int theta_i, int phi_i);
@@ -408,8 +412,16 @@ public:
   real_t domain_lower[3], domain_upper[3], radius;
   std::vector<double> origin;
 
+  // whether or not periodic boundary is used,
+  // if so, will initialize 2 initial surface
   bool is_periodic;
 
+  bool is_sphere;
+
+  double const_radius;
+  
+  double radius_limit;
+  
   std::vector<std::vector<double>> k_theta, k_phi, k_L;
   idx_t n_theta, n_phi;
 

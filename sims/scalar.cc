@@ -496,14 +496,14 @@ void ScalarSim::applyGradientDetector(
       
       boost::shared_ptr<pdat::CellData<double>> K_data(
         BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
-          patch.getPatchData(bssnSim->DIFFchi_a_idx)));
+          patch.getPatchData(bssnSim->DIFFK_a_idx)));
 
 
       arr_t K = pdat::ArrayDataAccess::access<DIM, real_t>(
         K_data->getArrayData());
       
       if (!K_data) {
-         TBOX_ERROR("Data index " << bssnSim->DIFFchi_p_idx
+         TBOX_ERROR("Data index " << bssnSim->DIFFK_p_idx
                                   << " does not exist for patch.\n");
       }
       pdat::CellData<idx_t>& tag_cell_data = *tag_cell_data_;

@@ -10,9 +10,9 @@ Main{
 }
 
 CartesianGridGeometry {
-  domain_boxes = [(0,0,0), (255,255,255)]
+  domain_boxes = [(0,0,0), (127,127,127)]
   x_lo         = 0, 0, 0
-  x_up         = 1, 1, 1
+  x_up         = 3, 3, 3
   periodic_dimension = 0, 0, 0
 }
 
@@ -72,7 +72,7 @@ GriddingAlgorithm {
 }
 
 CosmoSim{
-  steps = 1
+  steps = 0
   save_interval = 2
   do_plot = TRUE
   dt_frac = 0.05
@@ -83,8 +83,8 @@ CosmoSim{
   coarsen_op_typ = "CONSERVATIVE_COARSEN"
   use_AHFinder = TRUE
   AHFinder_interval = 1
-  AHFinder_iter_limit = 0
-  AHFinder_dt_frac = 0.01
+  AHFinder_iter_limit = 200000
+  AHFinder_dt_frac = 0.02
   surface_move_shreshold = 0
   use_anguler_momentum_finder = TRUE
   comments = ""
@@ -109,9 +109,10 @@ BSSN{
 }
 
 Horizon{
-  origin = 0.5, 0.5, 0.5
-  radius = 0.466506
+  origin = 1.5, 1.5, 1.5
+  radius = 0.5
   doing_statistic = TRUE
+  is_sphere = TRUE
 }
 
 IO{

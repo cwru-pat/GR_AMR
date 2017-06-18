@@ -200,7 +200,7 @@ void CosmoSim::runCommonStepTasks(
 
   bool found_horizon = false;
   
-  if(// step > 0 &&
+  if( step > 0 &&
      use_AHFinder && (step % AHFinder_interval == 0))
   {
 
@@ -513,7 +513,14 @@ bool CosmoSim::findHorizon(
     tbox::MathUtilities<double>::Min(grid_geometry.getDx()[0], grid_geometry.getDx()[1]),
     grid_geometry.getDx()[2]));
 
-    
+  std::cout<<"delta_lambda "<<delta_lambda<<"\n";
+
+  // if we could make sure that the horizon is a shpere
+  if(horizon->is_sphere)
+  {
+    tbox::pout<<"Only checking for sphere horizon!\n";
+        return horizon->initSphericalSurface(hierarchy, bssnSim, space_refine_op);
+  }
   
   while(cnt < AHFinder_iter_limit)
   {
