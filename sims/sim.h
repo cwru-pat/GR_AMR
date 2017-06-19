@@ -171,6 +171,11 @@ public:
   idx_t save_interval;
 
   bool use_anguler_momentum_finder;
+
+  std::string gradiant_indicator;
+  idx_t gradiant_indicator_idx;
+
+  idx_t regridding_step_bound;
 };
 
 } /* namespace cosmo */

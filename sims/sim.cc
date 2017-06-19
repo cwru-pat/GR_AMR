@@ -61,7 +61,9 @@ CosmoSim::CosmoSim(
   AHFinder_dt_frac(cosmo_sim_db->getDoubleWithDefault("AHFinder_dt_frac", 0.1)),
   surface_move_shreshold(cosmo_sim_db->getDoubleWithDefault("surface_move_shreshold", 1e-9)),
   save_interval(cosmo_sim_db->getIntegerWithDefault("save_interval", std::numeric_limits<int>::max())),
-  use_anguler_momentum_finder(cosmo_sim_db->getBoolWithDefault("use_anguler_momentum_finder", false))
+  use_anguler_momentum_finder(cosmo_sim_db->getBoolWithDefault("use_anguler_momentum_finder", false)),
+  gradiant_indicator(cosmo_sim_db->getStringWithDefault("gradiant_indicator", "DIFFchi")),
+  regridding_step_bound(cosmo_sim_db->getIntegerWithDefault("regridding_step_bound", 0))
 {
   t_loop = tbox::TimerManager::getManager()->
     getTimer("loop");
@@ -101,7 +103,6 @@ CosmoSim::CosmoSim(
 
   AHFinder_interval = cosmo_sim_db->getIntegerWithDefault("AHFinder_interval" , 0);
 
-  
 }
 
 CosmoSim::~CosmoSim()
@@ -177,7 +178,7 @@ void CosmoSim::runCommonStepTasks(
   isValid(hierarchy);
   // since all neccecery levels were built when setting IC
   // no need to regrid again at zero step
-  if(step > starting_step && (step % regridding_interval == 0))
+  if(step > starting_step && step > regridding_step_bound && (step % regridding_interval == 0))
   {
     std::vector<int> tag_buffer(hierarchy->getMaxNumberOfLevels());
     for (idx_t ln = 0; ln < static_cast<int>(tag_buffer.size()); ++ln) {
@@ -203,7 +204,6 @@ void CosmoSim::runCommonStepTasks(
   if( step > 0 &&
      use_AHFinder && (step % AHFinder_interval == 0))
   {
-
     // starting finding apparent horizon
     horizon->initSurface(hierarchy);
 
@@ -573,6 +573,7 @@ bool CosmoSim::hasNaNs(
   const int * lower = &box.lower()[0];
   const int * upper = &box.upper()[0];
 
+#pragma omp parallel for collapse(2)
   for(int k = lower[2]; k <= upper[2]; k++)
   {
     for(int j = lower[1]; j <= upper[1]; j++)
@@ -582,8 +583,7 @@ bool CosmoSim::hasNaNs(
         if(w(i,j,k) > 0 && tbox::MathUtilities< double >::isNaN(d(i,j,k)))
         {
           TBOX_ERROR("NaN detected for variable with id " << data_id <<" "<<i<<" "<<j<<" "<<k<<"\n");
-          return 1;
-        }
+          }
       }
     }
   }
