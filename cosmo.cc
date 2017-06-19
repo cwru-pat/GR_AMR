@@ -115,6 +115,12 @@ int main(int argc, char* argv[])
   tbox::pout.precision(print_precision);
   tbox::plog.precision(print_precision);
 
+  int num_threads = main_db->getIntegerWithDefault("omp_num_threads", 1);
+  // if num_treads == 0, means enable maximum threads
+  if(num_threads >= 1)
+    omp_set_num_threads(num_threads);
+
+  
   if(main_db->getBoolWithDefault("restart", false))
   {
     std::string restart_name = main_db->getString("restart_basename")+ ".restart";

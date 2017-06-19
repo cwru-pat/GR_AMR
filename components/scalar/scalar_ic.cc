@@ -362,9 +362,6 @@ bool scalar_ic_set_scalar_collapse(
       DIFFchi[0][idx] = std::pow(-avg1/avg5,1.0/4.0);
     }
 
-    int num_threads = cosmo_scalar_db->getIntegerWithDefault("omp_num_threads", 0);
-    if(num_threads > 0)
-      omp_set_num_threads(num_threads);
     
     multigrid.VCycles(num_vcycles);
 

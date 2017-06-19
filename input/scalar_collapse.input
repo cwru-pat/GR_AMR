@@ -4,11 +4,11 @@ Main
   dim = 3
   base_name = "scalar"
   print_precision = 9
-  restart = TRUE
+  restart = FALSE
   restart_basename = "scalar"
   restart_step = 100
   restart_nodes = 8
-
+  omp_num_threads = 8 //enable maximum threads if equals to 0
 }
 
 CartesianGridGeometry {
@@ -31,8 +31,8 @@ TreeLoadBalancer {
 }
 
 BergerRigoutsos {
-   combine_efficiency = 0.8
-   efficiency_tolerance = 0.8
+   combine_efficiency = 0.6
+   efficiency_tolerance = 0.6
 }
 
 TimerManager{
@@ -49,7 +49,7 @@ PatchHierarchy {
       // all finer levels will use same values as level_0...
    }
    smallest_patch_size {
-      level_0 = 1, 1, 1   
+      level_0 = 4, 4, 4   
       // all finer levels will use same values as level_0...
    }
    ratio_to_coarser {
@@ -80,7 +80,7 @@ CosmoSim{
   do_plot = TRUE
   dt_frac = 0.05
   regridding_interval = 1
-  adaption_threshold = 100000
+  adaption_threshold = 1000
   KO_damping_coefficient = 0
   refine_op_type = "QUADRATIC_REFINE"
   coarsen_op_type = "CONSERVATIVE_COARSEN"
@@ -90,6 +90,8 @@ CosmoSim{
   AHFinder_dt_frac = 0.2
   surface_move_shreshold = 0
   use_anguler_momentum_finder = TRUE
+  gradiant_indicator = "DIFFK"
+  regridding_step_bound = 0
   comments = ""
 }
 
@@ -97,7 +99,6 @@ ScalarSim{
   ic_type = "scalar_collapse"
   boundary_type = "periodic"
   stop_after_setting_init = FALSE
-  omp_num_threads = 8
 }
 
 Horizon{

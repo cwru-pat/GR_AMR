@@ -156,6 +156,7 @@ void Scalar::prepareForK1(
     // right branch of the tree
     if(tbox::MathUtilities<real_t>::Abs(to_t - patch->getPatchData(phi_a_idx)->getTime()) < EPS)
     {
+#pragma omp parallel for collapse(2)        
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -173,6 +174,7 @@ void Scalar::prepareForK1(
        - (patch->getPatchData(phi_a_idx)->getTime()
           - patch->getPatchData(phi_p_idx)->getTime())) < EPS)
     {
+          #pragma omp parallel for collapse(2)        
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -216,6 +218,7 @@ void Scalar::prepareForK2(
     // right branch of the tree
     if(tbox::MathUtilities<real_t>::Abs(to_t - patch->getPatchData(phi_a_idx)->getTime()) < EPS)
     {
+          #pragma omp parallel for collapse(2)        
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -233,6 +236,7 @@ void Scalar::prepareForK2(
        - (patch->getPatchData(phi_a_idx)->getTime()
           - patch->getPatchData(phi_p_idx)->getTime())) < EPS)
     {
+                #pragma omp parallel for collapse(2)        
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -272,6 +276,7 @@ void Scalar::prepareForK3(
     // right branch of the tree
     if(tbox::MathUtilities<real_t>::Abs(to_t - patch->getPatchData(phi_a_idx)->getTime()) < EPS)
     {
+          #pragma omp parallel for collapse(2)        
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -289,6 +294,7 @@ void Scalar::prepareForK3(
        - (patch->getPatchData(phi_a_idx)->getTime()
           - patch->getPatchData(phi_p_idx)->getTime())) < EPS)
     {
+          #pragma omp parallel for collapse(2)        
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -332,6 +338,7 @@ void Scalar::prepareForK4(
     // right branch of the tree
     if(tbox::MathUtilities<real_t>::Abs(to_t - patch->getPatchData(phi_a_idx)->getTime()) < EPS)
     {
+          #pragma omp parallel for collapse(2)        
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -349,6 +356,7 @@ void Scalar::prepareForK4(
        - (patch->getPatchData(phi_a_idx)->getTime()
           - patch->getPatchData(phi_p_idx)->getTime())) < EPS)
     {
+          #pragma omp parallel for collapse(2)        
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -449,7 +457,7 @@ void Scalar::K1FinalizePatch(
   const int * lower = &box.lower()[0];
   const int * upper = &box.upper()[0];
 
-  
+      #pragma omp parallel for collapse(2)        
   for(int k = lower[2]; k <= upper[2]; k++)
   {
     for(int j = lower[1]; j <= upper[1]; j++)
@@ -473,7 +481,7 @@ void Scalar::K2FinalizePatch(
   const int * lower = &box.lower()[0];
   const int * upper = &box.upper()[0];
 
-  
+    #pragma omp parallel for collapse(2)          
   for(int k = lower[2]; k <= upper[2]; k++)
   {
     for(int j = lower[1]; j <= upper[1]; j++)
@@ -498,7 +506,7 @@ void Scalar::K3FinalizePatch(
   const int * lower = &box.lower()[0];
   const int * upper = &box.upper()[0];
 
-  
+      #pragma omp parallel for collapse(2)        
   for(int k = lower[2]; k <= upper[2]; k++)
   {
     for(int j = lower[1]; j <= upper[1]; j++)
@@ -524,7 +532,7 @@ void Scalar::K4FinalizePatch(
   const int * lower = &box.lower()[0];
   const int * upper = &box.upper()[0];
 
-  
+    #pragma omp parallel for collapse(2)          
   for(int k = lower[2]; k <= upper[2]; k++)
   {
     for(int j = lower[1]; j <= upper[1]; j++)
@@ -725,7 +733,7 @@ void Scalar::addBSSNSrc(
   const int * lower = &box.lower()[0];
   const int * upper = &box.upper()[0];
 
-  
+      #pragma omp parallel for collapse(2)        
   for(int k = lower[2]; k <= upper[2]; k++)
   {
     for(int j = lower[1]; j <= upper[1]; j++)

@@ -104,7 +104,7 @@ void BSSN::set_norm(
     const int * lower = &box.lower()[0];
     const int * upper = &box.upper()[0];
 
-        
+    #pragma omp parallel for collapse(2)        
     for(int k = lower[2]; k <= upper[2]; k++)
     {
       for(int j = lower[1]; j <= upper[1]; j++)
@@ -338,7 +338,6 @@ void BSSN::RKEvolvePatchBD(
 
     idx_t l_idx = codim1_boxes[l].getLocationIndex();
     
-    BSSNData bd = {0};
 
     boundary_fill_box.shift(
       (hier::Box::dir_t)l_idx/2,
@@ -353,16 +352,17 @@ void BSSN::RKEvolvePatchBD(
     const idx_t * lower = &boundary_fill_box.lower()[0];
     const idx_t * upper = &boundary_fill_box.upper()[0];
 
-    
+    #pragma omp parallel for collapse(2)
     for(int k = lower[2]; k <= upper[2]; k++)
     {
       for(int j = lower[1]; j <= upper[1]; j++)
       {
         for(int i = lower[0]; i <= upper[0]; i++)
         {
+          BSSNData bd = {0};
+
           set_bd_values_bd(i, j, k, &bd, dx);
           BSSN_RK_EVOLVE_BD;
-
         }
       }
     }
@@ -389,7 +389,6 @@ void BSSN::RKEvolvePatchBD(
 
     idx_t l_idx = codim2_boxes[l].getLocationIndex();
     
-    BSSNData bd = {0};
 
     std::vector<idx_t> shift_vec;
     if(l_idx == 0 || l_idx == 2 || l_idx == 4 || l_idx == 6)
@@ -423,13 +422,14 @@ void BSSN::RKEvolvePatchBD(
     const idx_t * lower = &boundary_fill_box.lower()[0];
     const idx_t * upper = &boundary_fill_box.upper()[0];
 
-    
+#pragma omp parallel for collapse(2)    
     for(int k = lower[2]; k <= upper[2]; k++)
     {
       for(int j = lower[1]; j <= upper[1]; j++)
       {
         for(int i = lower[0]; i <= upper[0]; i++)
         {
+          BSSNData bd = {0};
           set_bd_values_bd(i, j, k, &bd, dx);
           BSSN_RK_EVOLVE_BD;
         }
@@ -483,18 +483,18 @@ void BSSN::RKEvolvePatchBD(
     const idx_t * upper = &boundary_fill_box.upper()[0];
 
     
-    BSSNData bd = {0};
 
 
     //initialize dx for each patch
     const real_t * dx = &(patch_geom->getDx())[0];
-  
+    #pragma omp parallel for collapse(2)
     for(int k = lower[2]; k <= upper[2]; k++)
     {
       for(int j = lower[1]; j <= upper[1]; j++)
       {
         for(int i = lower[0]; i <= upper[0]; i++)
         {
+          BSSNData bd = {0};
           set_bd_values_bd(i, j, k, &bd, dx);
           BSSN_RK_EVOLVE_BD;
         }
@@ -519,7 +519,6 @@ void BSSN::RKEvolvePatch(
   const int * lower = &box.lower()[0];
   const int * upper = &box.upper()[0];
 
-  BSSNData bd = {0};
   
   const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(  
     BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
@@ -530,12 +529,14 @@ void BSSN::RKEvolvePatch(
 
 
   bool flag = 0;
+#pragma omp parallel for collapse(2)
   for(int k = lower[2]; k <= upper[2]; k++)
   {
     for(int j = lower[1]; j <= upper[1]; j++)
     {
       for(int i = lower[0]; i <= upper[0]; i++)
       {
+        BSSNData bd = {0};
         set_bd_values(i, j, k, &bd, dx);
         BSSN_RK_EVOLVE_PT;
       }
@@ -617,6 +618,7 @@ void BSSN::prepareForK1(
     // right branch of the tree
     if(tbox::MathUtilities<real_t>::Abs(to_t - patch->getPatchData(DIFFchi_a_idx)->getTime()) < EPS)
     {
+#pragma omp parallel for collapse(2)
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -634,6 +636,7 @@ void BSSN::prepareForK1(
        - (patch->getPatchData(DIFFchi_a_idx)->getTime()
           - patch->getPatchData(DIFFchi_p_idx)->getTime())) < EPS)
     {
+#pragma omp parallel for collapse(2)
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -677,6 +680,7 @@ void BSSN::prepareForK2(
     // right branch of the tree
     if(tbox::MathUtilities<real_t>::Abs(to_t - patch->getPatchData(DIFFchi_a_idx)->getTime()) < EPS)
     {
+#pragma omp parallel for collapse(2)
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -694,6 +698,7 @@ void BSSN::prepareForK2(
        - (patch->getPatchData(DIFFchi_a_idx)->getTime()
           - patch->getPatchData(DIFFchi_p_idx)->getTime())) < EPS)
     {
+#pragma omp parallel for collapse(2)
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -733,6 +738,7 @@ void BSSN::prepareForK3(
     // right branch of the tree
     if(tbox::MathUtilities<real_t>::Abs(to_t - patch->getPatchData(DIFFchi_a_idx)->getTime()) < EPS)
     {
+        #pragma omp parallel for collapse(2)
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -750,6 +756,7 @@ void BSSN::prepareForK3(
        - (patch->getPatchData(DIFFchi_a_idx)->getTime()
           - patch->getPatchData(DIFFchi_p_idx)->getTime())) < EPS)
     {
+        #pragma omp parallel for collapse(2)
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -793,6 +800,7 @@ void BSSN::prepareForK4(
     // right branch of the tree
     if(tbox::MathUtilities<real_t>::Abs(to_t - patch->getPatchData(DIFFchi_a_idx)->getTime()) < EPS)
     {
+        #pragma omp parallel for collapse(2)
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -810,6 +818,7 @@ void BSSN::prepareForK4(
        - (patch->getPatchData(DIFFchi_a_idx)->getTime()
           - patch->getPatchData(DIFFchi_p_idx)->getTime())) < EPS)
     {
+        #pragma omp parallel for collapse(2)
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -934,7 +943,7 @@ void BSSN::K1FinalizePatch(
   const int * lower = &box.lower()[0];
   const int * upper = &box.upper()[0];
 
-  
+    #pragma omp parallel for collapse(2)
   for(int k = lower[2]; k <= upper[2]; k++)
   {
     for(int j = lower[1]; j <= upper[1]; j++)
@@ -958,7 +967,7 @@ void BSSN::K2FinalizePatch(
   const int * lower = &box.lower()[0];
   const int * upper = &box.upper()[0];
 
-  
+  #pragma omp parallel for collapse(2)  
   for(int k = lower[2]; k <= upper[2]; k++)
   {
     for(int j = lower[1]; j <= upper[1]; j++)
@@ -983,7 +992,7 @@ void BSSN::K3FinalizePatch(
   const int * lower = &box.lower()[0];
   const int * upper = &box.upper()[0];
 
-  
+    #pragma omp parallel for collapse(2)
   for(int k = lower[2]; k <= upper[2]; k++)
   {
     for(int j = lower[1]; j <= upper[1]; j++)
@@ -1009,7 +1018,7 @@ void BSSN::K4FinalizePatch(
   const int * lower = &box.lower()[0];
   const int * upper = &box.upper()[0];
 
-  
+  #pragma omp parallel for collapse(2)  
   for(int k = lower[2]; k <= upper[2]; k++)
   {
     for(int j = lower[1]; j <= upper[1]; j++)
@@ -1861,15 +1870,15 @@ void BSSN::output_max_H_constaint(
       const double *dx = &patch_geom->getDx()[0];
 
       
-      BSSNData bd = {0};
-
-
+#pragma omp parallel for collapse(2) reduction(max : max_H, max_M, max_H_scaled, max_M_scaled)
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
         {
           for(int i = lower[0]; i <= upper[0]; i++)
           {
+            BSSNData bd = {0};
+
             set_bd_values(i,j,k,&bd,dx);
             if(weight_array(i,j,k) > 0)
             {
@@ -1956,15 +1965,16 @@ void BSSN::output_L2_H_constaint(
       const double *dx = &patch_geom->getDx()[0];
 
       
-      BSSNData bd = {0};
 
-
+#pragma omp parallel for collapse(2) reduction(+:H_L2)
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
         {
           for(int i = lower[0]; i <= upper[0]; i++)
           {
+            BSSNData bd = {0};
+
             set_bd_values(i,j,k,&bd,dx);
             if(weight_array(i,j,k) > 0 && DIFFalpha_a(i,j,k) > alpha_lower_bd_for_L2 - 1.0)
             {

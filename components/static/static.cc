@@ -83,7 +83,7 @@ void Static::addBSSNSrc(
     BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
       patch->getPatchGeometry()));
 
-
+#pragma omp parallel for collapse(2)
   for(int k = lower[2]; k <= upper[2]; k++)
   {
     for(int j = lower[1]; j <= upper[1]; j++)

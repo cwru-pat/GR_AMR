@@ -34,6 +34,7 @@ ScalarSim::ScalarSim(
 
   t_init->start();
 
+  hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
   std::string bd_type = cosmo_scalar_db->getString("boundary_type");
 
   if(bd_type == "periodic")
@@ -61,6 +62,11 @@ ScalarSim::ScalarSim(
   
   variable_id_list.push_back(weight_idx);
 
+  gradiant_indicator_idx =
+    variable_db->mapVariableAndContextToIndex(
+      variable_db->getVariable(gradiant_indicator), variable_db->getContext("ACTIVE"));
+
+  
   hier::VariableDatabase::getDatabase()->printClassData(tbox::plog);
 
   tbox::RestartManager::getManager()->registerRestartItem(simulation_type_in,
@@ -476,63 +482,53 @@ void ScalarSim::applyGradientDetector(
    for (hier::PatchLevel::iterator pi(level.begin());
         pi != level.end(); ++pi)
    {
-      hier::Patch& patch = **pi;
+      const boost::shared_ptr<hier::Patch> & patch = *pi;
 
       const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
         BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
-          patch.getPatchGeometry()));
+          patch->getPatchGeometry()));
 
-      boost::shared_ptr<hier::PatchData> tag_data(
-         patch.getPatchData(tag_index));
-      ntotal += patch.getBox().numberCells().getProduct();
-      if (!tag_data)
+
+      boost::shared_ptr<pdat::CellData<real_t> > f_pdata(
+        BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+          patch->getPatchData(gradiant_indicator_idx)));
+
+      arr_t f =
+      pdat::ArrayDataAccess::access<DIM, real_t>(
+        f_pdata->getArrayData());
+      boost::shared_ptr<pdat::CellData<int> > tag_pdata(
+        BOOST_CAST<pdat::CellData<int>, hier::PatchData>(
+          patch->getPatchData(tag_index)));
+      
+      MDA_Access<int, DIM, MDA_OrderColMajor<DIM>>  tag =
+      pdat::ArrayDataAccess::access<DIM, int>(
+        tag_pdata->getArrayData());
+
+      ntotal += patch->getBox().numberCells().getProduct();
+
+      const hier::Box& box = patch->getBox();
+      const int * lower = &box.lower()[0];
+      const int * upper = &box.upper()[0];
+
+#pragma omp parallel for collapse(2) reduction(+:ntag) reduction( max: max_der_norm)
+      for(int k = lower[2]; k <= upper[2]; k++)
       {
-         TBOX_ERROR(
-            "Data index " << tag_index << " does not exist for patch.\n");
-      }
-      boost::shared_ptr<pdat::CellData<int> > tag_cell_data_(
-         BOOST_CAST<pdat::CellData<int>, hier::PatchData>(tag_data));
-      TBOX_ASSERT(tag_cell_data_);
-      
-      boost::shared_ptr<pdat::CellData<double>> K_data(
-        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
-          patch.getPatchData(bssnSim->DIFFK_a_idx)));
+        for(int j = lower[1]; j <= upper[1]; j++)
+        {
+          for(int i = lower[0]; i <= upper[0]; i++)
+          {
+            max_der_norm = tbox::MathUtilities<double>::Max(
+              max_der_norm,
+              derivative_norm(i, j, k, f));
 
-
-      arr_t K = pdat::ArrayDataAccess::access<DIM, real_t>(
-        K_data->getArrayData());
-      
-      if (!K_data) {
-         TBOX_ERROR("Data index " << bssnSim->DIFFK_p_idx
-                                  << " does not exist for patch.\n");
-      }
-      pdat::CellData<idx_t>& tag_cell_data = *tag_cell_data_;
-          
-      tag_cell_data.fill(0);
-      
-      hier::Box::iterator iend(patch.getBox().end());
-
-      for (hier::Box::iterator i(patch.getBox().begin()); i != iend; ++i)
-      {
-         const pdat::CellIndex cell_index(*i);
-         max_der_norm = tbox::MathUtilities<double>::Max(
-           max_der_norm,
-           derivative_norm(
-             cell_index(0),
-             cell_index(1),
-             cell_index(2),
-             K));
-         if(derivative_norm(
-              cell_index(0),
-              cell_index(1),
-              cell_index(2),
-              K) > adaption_threshold)
-         {
-          
-           tag_cell_data(cell_index) = 1;
-           ++ntag;
-         }
-       
+            if(derivative_norm(i, j, k, f) > adaption_threshold )
+            {
+              tag(i, j, k) = 1;
+              ++ntag;
+            }
+            
+          }
+        }
       }
 
    }
@@ -647,7 +643,6 @@ void ScalarSim::RKEvolve(
   const int * lower = &box.lower()[0];
   const int * upper = &box.upper()[0];
 
-  BSSNData bd = {0};
   
   const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(  
     BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
@@ -657,13 +652,14 @@ void ScalarSim::RKEvolve(
   const real_t * dx = &(patch_geom->getDx())[0];
 
 
-  
+  #pragma omp parallel for collapse(2)
   for(int k = lower[2]; k <= upper[2]; k++)
   {
     for(int j = lower[1]; j <= upper[1]; j++)
     {
       for(int i = lower[0]; i <= upper[0]; i++)
       {
+        BSSNData bd = {0};
         bssnSim->RKEvolvePt(i, j, k, bd, dx, dt);
         scalarSim->RKEvolvePt(i, j, k, bd, dx, dt);
       }

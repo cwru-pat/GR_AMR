@@ -143,17 +143,17 @@ bool Horizon::initSphericalSurface(
 
       const real_t * dx = &(patch_geometry->getDx())[0];
 
-      BSSNData bd = {0};
-      HorizonData hd = {0};
-    
+#pragma omp parallel for collapse(2)        
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
         {
           for(int i = lower[0]; i <= upper[0]; i++)
           {
+            BSSNData bd = {0};
+
             bssn->set_bd_values(i, j, k, &bd, dx);
-            hd = getHorizonData(i, j, k, &bd, dx);
+            HorizonData hd = getHorizonData(i, j, k, &bd, dx);
 
             F_p(i, j, k) =
               ev_F(&bd, &hd, dx) / (bd.chi *
@@ -163,7 +163,8 @@ bool Horizon::initSphericalSurface(
           }
         }
       }
-    
+
+#pragma omp parallel for collapse(2)        
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -218,7 +219,8 @@ bool Horizon::initSphericalSurface(
       const int * lower = &box.lower()[0];
       const int * upper = &box.upper()[0];
 
-      const real_t * dx = &(patch_geometry->getDx())[0];    
+      const real_t * dx = &(patch_geometry->getDx())[0];
+      
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -287,7 +289,7 @@ void Horizon::initSurface(const boost::shared_ptr<hier::PatchHierarchy>& hierarc
         const real_t * dx = &(patch_geometry->getDx())[0];
 
      
-      
+#pragma omp parallel for collapse(2)        
         for(int k = lower[2]; k <= upper[2]; k++)
         {
           for(int j = lower[1]; j <= upper[1]; j++)
@@ -341,7 +343,7 @@ void Horizon::initSurface(const boost::shared_ptr<hier::PatchHierarchy>& hierarc
       const real_t * dx = &(patch_geometry->getDx())[0];
 
      
-      
+      #pragma omp parallel for collapse(2)              
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -466,7 +468,7 @@ void Horizon::addNormVector(
   const int * lower = &box.lower()[0];
   const int * upper = &box.upper()[0];
 
-  
+      #pragma omp parallel for collapse(2)          
   for(int k = lower[2]; k <= upper[2]; k++)
   {
     for(int j = lower[1]; j <= upper[1]; j++)
@@ -584,6 +586,7 @@ void Horizon::prepareForK1(
     // right branch of the tree
     if(tbox::MathUtilities<real_t>::Abs(to_t - patch->getPatchData(F_a_idx)->getTime()) < EPS)
     {
+            #pragma omp parallel for collapse(2)        
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -601,6 +604,7 @@ void Horizon::prepareForK1(
        - (patch->getPatchData(F_a_idx)->getTime()
           - patch->getPatchData(F_p_idx)->getTime())) < EPS)
     {
+            #pragma omp parallel for collapse(2)        
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -644,6 +648,7 @@ void Horizon::prepareForK2(
     // right branch of the tree
     if(tbox::MathUtilities<real_t>::Abs(to_t - patch->getPatchData(F_a_idx)->getTime()) < EPS)
     {
+#pragma omp parallel for collapse(2)        
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -661,6 +666,7 @@ void Horizon::prepareForK2(
        - (patch->getPatchData(F_a_idx)->getTime()
           - patch->getPatchData(F_p_idx)->getTime())) < EPS)
     {
+#pragma omp parallel for collapse(2)        
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -700,6 +706,7 @@ void Horizon::prepareForK3(
     // right branch of the tree
     if(tbox::MathUtilities<real_t>::Abs(to_t - patch->getPatchData(F_a_idx)->getTime()) < EPS)
     {
+#pragma omp parallel for collapse(2)        
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -717,6 +724,7 @@ void Horizon::prepareForK3(
        - (patch->getPatchData(F_a_idx)->getTime()
           - patch->getPatchData(F_p_idx)->getTime())) < EPS)
     {
+#pragma omp parallel for collapse(2)        
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -760,6 +768,7 @@ void Horizon::prepareForK4(
     // right branch of the tree
     if(tbox::MathUtilities<real_t>::Abs(to_t - patch->getPatchData(F_a_idx)->getTime()) < EPS)
     {
+            #pragma omp parallel for collapse(2)        
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -777,6 +786,7 @@ void Horizon::prepareForK4(
        - (patch->getPatchData(F_a_idx)->getTime()
           - patch->getPatchData(F_p_idx)->getTime())) < EPS)
     {
+#pragma omp parallel for collapse(2)        
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -858,7 +868,7 @@ void Horizon::K1FinalizePatch(
   const int * lower = &box.lower()[0];
   const int * upper = &box.upper()[0];
 
-  
+      #pragma omp parallel for collapse(2)          
   for(int k = lower[2]; k <= upper[2]; k++)
   {
     for(int j = lower[1]; j <= upper[1]; j++)
@@ -882,7 +892,7 @@ void Horizon::K2FinalizePatch(
   const int * lower = &box.lower()[0];
   const int * upper = &box.upper()[0];
 
-  
+      #pragma omp parallel for collapse(2)          
   for(int k = lower[2]; k <= upper[2]; k++)
   {
     for(int j = lower[1]; j <= upper[1]; j++)
@@ -907,7 +917,7 @@ void Horizon::K3FinalizePatch(
   const int * lower = &box.lower()[0];
   const int * upper = &box.upper()[0];
 
-  
+      #pragma omp parallel for collapse(2)          
   for(int k = lower[2]; k <= upper[2]; k++)
   {
     for(int j = lower[1]; j <= upper[1]; j++)
@@ -933,7 +943,7 @@ void Horizon::K4FinalizePatch(
   const int * lower = &box.lower()[0];
   const int * upper = &box.upper()[0];
 
-  
+        #pragma omp parallel for collapse(2)        
   for(int k = lower[2]; k <= upper[2]; k++)
   {
     for(int j = lower[1]; j <= upper[1]; j++)
@@ -961,7 +971,6 @@ void Horizon::RKEvolveHorizon(
   const int * lower = &box.lower()[0];
   const int * upper = &box.upper()[0];
 
-  BSSNData bd = {0};
   
   const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(  
     BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
@@ -971,7 +980,7 @@ void Horizon::RKEvolveHorizon(
   const real_t * dx = &(patch_geom->getDx())[0];
 
 
-  
+#pragma omp parallel for collapse(2)          
   for(int k = lower[2]; k <= upper[2]; k++)
   {
     for(int j = lower[1]; j <= upper[1]; j++)
@@ -980,6 +989,8 @@ void Horizon::RKEvolveHorizon(
       {
         if( i == 105 && j == 64 && k == 64)
           std::cout<<"Level set function at closest point is "<<F_a(i, j, k)<<"\n";
+        BSSNData bd = {0};
+
         bssn->set_bd_values(i, j, k, &bd, dx);
         RKEvolvePt(i, j, k, bd, dx, dt);
         
@@ -1019,7 +1030,8 @@ real_t Horizon::maxSurfaceMove(
     const int * upper = &box.upper()[0];
 
     const real_t * dx = &(patch_geometry->getDx())[0];
-
+    
+#pragma omp parallel for collapse(2) reduction(max : max_change)
     for(int k = lower[2]; k <= upper[2]; k++)
     {
       for(int j = lower[1]; j <= upper[1]; j++)
@@ -1180,6 +1192,7 @@ void Horizon::updateBD(
     const idx_t * upper = &boundary_fill_box.upper()[0];
     if(l_idx == 0)
     {
+#pragma omp parallel for collapse(2)        
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -1194,6 +1207,7 @@ void Horizon::updateBD(
     }
     if(l_idx == 1)
     {
+#pragma omp parallel for collapse(2)        
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -1208,6 +1222,7 @@ void Horizon::updateBD(
     }
     if(l_idx == 2)
     {
+#pragma omp parallel for collapse(2)        
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = upper[1]; j >= lower[1]; j--)
@@ -1222,6 +1237,7 @@ void Horizon::updateBD(
     }
     if(l_idx == 3)
     {
+#pragma omp parallel for collapse(2)        
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -1236,6 +1252,7 @@ void Horizon::updateBD(
     }
     if(l_idx == 4)
     {
+#pragma omp parallel for collapse(2)        
       for(int k = upper[2]; k >= lower[2]; k--)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -1250,6 +1267,7 @@ void Horizon::updateBD(
     }
     if(l_idx == 5)
     {
+#pragma omp parallel for collapse(2)        
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
