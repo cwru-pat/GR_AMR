@@ -84,7 +84,7 @@ public:
   void setRefineCoarsenOps(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
   void run(  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
-  void runCommonStepTasks(
+  bool runCommonStepTasks(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
   void setGriddingAlgs(
     boost::shared_ptr<mesh::GriddingAlgorithm>& gridding_algorithm_in);
@@ -176,6 +176,8 @@ public:
   idx_t gradiant_indicator_idx;
 
   idx_t regridding_step_bound;
+
+  bool stop_after_found_horizon;
 };
 
 } /* namespace cosmo */

@@ -608,12 +608,14 @@ double ScalarSim::getDt(
 void ScalarSim::runStep(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
-  runCommonStepTasks(hierarchy);
+  bool found_horizon = runCommonStepTasks(hierarchy);
   double dt = getDt(hierarchy);
   initScalarStep(hierarchy);
   
   outputScalarStep(hierarchy);
 
+  if(found_horizon && stop_after_found_horizon)
+    TBOX_ERROR("Horizon founded, stop the code as demanded!\n");
   runScalarStep(hierarchy, cur_t, cur_t + dt);
   cur_t += dt;
 }

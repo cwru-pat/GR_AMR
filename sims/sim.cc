@@ -63,7 +63,8 @@ CosmoSim::CosmoSim(
   save_interval(cosmo_sim_db->getIntegerWithDefault("save_interval", std::numeric_limits<int>::max())),
   use_anguler_momentum_finder(cosmo_sim_db->getBoolWithDefault("use_anguler_momentum_finder", false)),
   gradiant_indicator(cosmo_sim_db->getStringWithDefault("gradiant_indicator", "DIFFchi")),
-  regridding_step_bound(cosmo_sim_db->getIntegerWithDefault("regridding_step_bound", 0))
+  regridding_step_bound(cosmo_sim_db->getIntegerWithDefault("regridding_step_bound", 0)),
+  stop_after_found_horizon(cosmo_sim_db->getBoolWithDefault("stop_after_found_horizon",false))
 {
   t_loop = tbox::TimerManager::getManager()->
     getTimer("loop");
@@ -171,7 +172,7 @@ void CosmoSim::run(
 /**
  * @brief regrid when necessary and detect NaNs.
  */
-void CosmoSim::runCommonStepTasks(
+bool CosmoSim::runCommonStepTasks(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
     // detecting NaNs
@@ -254,7 +255,9 @@ void CosmoSim::runCommonStepTasks(
   if(found_horizon && use_anguler_momentum_finder)
   {
     horizon->findKilling(hierarchy, bssnSim);
+    
   }
+  return found_horizon;
 }
 
 void CosmoSim::initHorizonStep(
