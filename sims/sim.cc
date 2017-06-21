@@ -188,7 +188,7 @@ bool CosmoSim::runCommonStepTasks(
     gridding_algorithm->regridAllFinerLevels(
       0,
       tag_buffer,
-      0,
+      step,
       cur_t);
     tbox::plog << "Newly adapted hierarchy\n";
     hierarchy->recursivePrint(tbox::plog, "    ", 1);

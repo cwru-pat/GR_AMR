@@ -124,7 +124,7 @@ void ScalarSim::setICs(
     gridding_algorithm->regridAllFinerLevels(
       0,
       tag_buffer,
-      0,
+      setp,
       cur_t); 
   }
 
@@ -517,6 +517,7 @@ void ScalarSim::applyGradientDetector(
         {
           for(int i = lower[0]; i <= upper[0]; i++)
           {
+            tag(i, j, k) = 0;
             max_der_norm = tbox::MathUtilities<double>::Max(
               max_der_norm,
               derivative_norm(i, j, k, f));
