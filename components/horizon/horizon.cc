@@ -3525,7 +3525,6 @@ void Horizon::findKilling(
 {
   tbox::pout<<"Starting the process of finding Killing vectors!\n";
 
-  return;
   initGridding(hierarchy);
 
   initG(hierarchy, bssn);
