@@ -239,10 +239,6 @@ bool Horizon::initSphericalSurface(
               if(min_r < radius_limit)
               {
                 has_surface = true;
-                std::cout<<i<<" "<<j<<" "<<k<<" "<<min_r<<"\n"
-                         <<F_a(i-1, j, k)<<" "<<F_a(i+1, j, k)<<"\n"
-                         <<F_a(i, j-1, k)<<" "<<F_a(i, j+1, k)<<"\n"
-                         <<F_a(i, j, k-1)<<" "<<F_a(i, j, k+1)<<" "<<lower[0]<<"\n";
                 const_radius += min_r;
                 cnt ++;
               }
