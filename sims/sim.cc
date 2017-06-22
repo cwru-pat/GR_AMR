@@ -251,6 +251,11 @@ bool CosmoSim::runCommonStepTasks(
     }
     
     found_horizon = findHorizon(hierarchy);
+    if(found_horizon && horizon->is_sphere)
+    {
+      tbox::pout<<"Spherical horizon found with radius of "
+                <<horizon->const_radius<<"\n";
+    }
   }
   if(found_horizon && use_anguler_momentum_finder)
   {
@@ -516,14 +521,16 @@ bool CosmoSim::findHorizon(
     tbox::MathUtilities<double>::Min(grid_geometry.getDx()[0], grid_geometry.getDx()[1]),
     grid_geometry.getDx()[2]));
 
-  std::cout<<"delta_lambda "<<delta_lambda<<"\n";
-
   // if we could make sure that the horizon is a shpere
   if(horizon->is_sphere)
   {
     tbox::pout<<"Only checking for sphere horizon!\n";
         return horizon->initSphericalSurface(hierarchy, bssnSim, space_refine_op);
   }
+
+  tbox::pout<<"delta_lambda "<<delta_lambda<<"\n";
+
+
   
   while(cnt < AHFinder_iter_limit)
   {

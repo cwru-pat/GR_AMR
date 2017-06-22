@@ -223,7 +223,11 @@ bool Horizon::initSphericalSurface(
       const int * upper = &box.upper()[0];
 
       const real_t * dx = &(patch_geometry->getDx())[0];
+
+      double sum_radius = 0;
+
       
+#pragma omp parallel for collapse(2) reduction(+:sum_radius, cnt)      
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -238,8 +242,7 @@ bool Horizon::initSphericalSurface(
               real_t min_r = sqrt(pw2(x - origin[0]) + pw2(y - origin[1]) + pw2(z - origin[2]));
               if(min_r < radius_limit)
               {
-                has_surface = true;
-                const_radius += min_r;
+                sum_radius += min_r;
                 cnt ++;
               }
             }
@@ -247,6 +250,8 @@ bool Horizon::initSphericalSurface(
           }
         }
       }
+
+      const_radius += sum_radius;
     }    
 
   }
@@ -259,7 +264,8 @@ bool Horizon::initSphericalSurface(
   }
   mpi.Barrier();
   const_radius = const_radius / (double) cnt;
-  //  std::cout<<const_radius<<"\n";
+
+  if(cnt > 0) has_surface = true;
   return has_surface;
   
 }
