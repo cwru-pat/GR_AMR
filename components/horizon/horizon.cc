@@ -189,12 +189,15 @@ bool Horizon::initSphericalSurface(
     refine_schedule =
       refiner.createSchedule(level,
                              level,
+                             ln-1,
+                             hierarchy,
                              NULL);
 
     
     level->getBoxLevel()->getMPI().Barrier();
     refine_schedule->fillData(0.0);
-
+    level->getBoxLevel()->getMPI().Barrier();
+    
     for (hier::PatchLevel::iterator p(level->begin());
          p != level->end(); ++p)
     {
@@ -236,6 +239,10 @@ bool Horizon::initSphericalSurface(
               if(min_r < radius_limit)
               {
                 has_surface = true;
+                std::cout<<i<<" "<<j<<" "<<k<<" "<<min_r<<"\n"
+                         <<F_a(i-1, j, k)<<" "<<F_a(i+1, j, k)<<"\n"
+                         <<F_a(i, j-1, k)<<" "<<F_a(i, j+1, k)<<"\n"
+                         <<F_a(i, j, k-1)<<" "<<F_a(i, j, k+1)<<" "<<lower[0]<<"\n";
                 const_radius += min_r;
                 cnt ++;
               }
@@ -544,9 +551,9 @@ void Horizon::RKEvolvePt(
 
 bool Horizon::onTheSurface(idx_t i, idx_t j, idx_t k)
 {
-  if(SIGN(F_a(i-1, j, k) * F_a(i+1, j, k)) < 0 
-     || SIGN(F_a(i, j-1, k) * F_a(i, j+1, k)) < 0
-     || SIGN(F_a(i, j, k-1) * F_a(i, j, k+1)) < 0)
+  if(SIGN(F_a(i-1, j, k)) * SIGN(F_a(i+1, j, k)) < 0 
+     || SIGN(F_a(i, j-1, k)) * SIGN(F_a(i, j+1, k)) < 0
+     || SIGN(F_a(i, j, k-1)) * SIGN(F_a(i, j, k+1)) < 0)
     return true;
   
   return false;
@@ -3518,6 +3525,7 @@ void Horizon::findKilling(
 {
   tbox::pout<<"Starting the process of finding Killing vectors!\n";
 
+  return;
   initGridding(hierarchy);
 
   initG(hierarchy, bssn);

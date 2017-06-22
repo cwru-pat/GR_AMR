@@ -124,7 +124,7 @@ void ScalarSim::setICs(
     gridding_algorithm->regridAllFinerLevels(
       0,
       tag_buffer,
-      setp,
+      starting_step,
       cur_t); 
   }
 
@@ -194,6 +194,7 @@ bool ScalarSim::initLevel(
   }
   else if(ic_type == "scalar_collapse")
   {
+    if(ln > 0) return false;
     // which means not initial data file exist
     scalar_ic_set_scalar_collapse(hierarchy, ln, bssnSim, scalarSim, input_db->getDatabase("Scalar"));
     return true;
