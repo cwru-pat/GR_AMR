@@ -3,6 +3,7 @@
 #include "../../utils/math.h"
 #include "../bssn/bssn_data.h"
 #include <complex.h>
+#include "../../utils/Eigen/Dense"
 
 using namespace SAMRAI;
 
@@ -2958,113 +2959,59 @@ void Horizon::findM(
 
   transportKillingPhi(hierarchy, n_theta/2, n_phi, 1, 0, 0, bssn);
 
-  M[0][0] = k_theta[n_theta/2][0];
-  M[1][0] = k_phi[n_theta/2][0];
-  M[2][0] = k_L[n_theta/2][0];
+  Eigen::Matrix3d M;
+  
+  M(0, 0) = k_theta[n_theta/2][0];
+  M(1, 0) = k_phi[n_theta/2][0];
+  M(2, 0) = k_L[n_theta/2][0];
 
 
   transportKillingPhi(hierarchy, n_theta/2, n_phi, 0, 1, 0, bssn);
 
-  M[0][1] = k_theta[n_theta/2][0];
-  M[1][1] = k_phi[n_theta/2][0];
-  M[2][1] = k_L[n_theta/2][0];
+  M(0, 1) = k_theta[n_theta/2][0];
+  M(1, 1) = k_phi[n_theta/2][0];
+  M(2, 1) = k_L[n_theta/2][0];
 
 
   
   transportKillingPhi(hierarchy, n_theta/2, n_phi, 0, 0, 1, bssn);
 
-  M[0][2] = k_theta[n_theta/2][0]; 
-  M[1][2] = k_phi[n_theta/2][0];
-  M[2][2] = k_L[n_theta/2][0];
+  M(0, 2) = k_theta[n_theta/2][0]; 
+  M(1, 2) = k_phi[n_theta/2][0];
+  M(2, 2) = k_L[n_theta/2][0];
 
 
 
   tbox::pout<<"\n";
-  for(int i = 0; i < 3; i++){
-    for(int j = 0; j < 3; j++)
-    {
-      tbox::pout<<M[i][j]<<" ";
-    }
-    tbox::pout<<"\n";
-  }
+  std::cout << "Here is the matrix m:\n" << M << std::endl;
 
   // solve the eigenvalue equation to get 3 eigenvalues;
-  std::complex<double> c3, c2, c1, c0;
 
-  std::vector<std::complex<double>> eigenvalues;
-  
-  c3 = -1;
+  Eigen::EigenSolver<Eigen::Matrix3d> eigensolver(M);
 
-  c2 = M[2][2] + M[1][1] + M[0][0];
-
-  c1 = -M[1][1] * M[2][2] - M[0][0] * M[2][2]
-    + M[1][2] * M[2][1] + M[0][2] * M[2][0]
-    - M[0][0] * M[1][1] + M[0][1] * M[1][0];
-
-  c0 = -M[0][2] * M[1][1] * M[2][0] + M[0][1] * M[1][2] * M[2][0]
-    + M[0][2] * M[1][0] * M[2][1] - M[0][0] * M[1][2] * M[2][1]
-    - M[0][1] * M[1][0] * M[2][2] + M[0][0] * M[1][1] * M[2][2];
-
-  
-  eigenvalues.push_back(-c2/(3.*c3) - (pow(2,1.0/3.0)*(-PW2(c2) + 3.0*c1*c3))/
-                        (3.*c3*pow(-2.*pow(c2,3) + 9.*c1*c2*c3 - 27.0*c0*PW2(c3) + 
-                                     sqrt(-4.*pow(PW2(c2) - 3.*c1*c3,3) + 
-                                          pow(2.*pow(c2,3) - 9.*c1*c2*c3 + 27.*c0*PW2(c3),2)),1.0/3.0)) + 
-                        pow(-2.*pow(c2,3) + 9.*c1*c2*c3 - 27.*c0*PW2(c3) + 
-                              sqrt(-4.*pow(PW2(c2) - 3.*c1*c3,3) + 
-                                   pow(2.*pow(c2,3) - 9.*c1*c2*c3 + 27.*c0*PW2(c3),2)),1.0/3.0)/
-                        (3.*pow(2,1.0/3.0)*c3));
-
-  
-  eigenvalues.push_back(-c2/(3.*c3) + ((std::complex<double>(1., sqrt(3)))*(-PW2(c2) + 3.*c1*c3))/
-                        (3.*pow(2,2.0/3.0)*c3*
-                         pow(-2.*pow(c2,3) + 9.*c1*c2*c3 - 27.*c0*PW2(c3) + 
-                               sqrt(4.*pow(-PW2(c2) + 3.*c1*c3,3) + 
-                                    pow(-2.*pow(c2,3) + 9.*c1*c2*c3 - 27.*c0*PW2(c3),2)),1.0/3.0)) - 
-                        ((std::complex<double>(1., -sqrt(3)))*pow(-2.*pow(c2,3) + 9.*c1*c2*c3 - 27.*c0*PW2(c3) + 
-                                                          sqrt(4.*pow(-PW2(c2) + 3.*c1*c3,3) + 
-                                                               pow(-2.*pow(c2,3) + 9.*c1*c2*c3 - 27.*c0*PW2(c3),2)),1.0/3.0))/
-                        (6.*pow(2,1.0/3.0)*c3));
-
-  eigenvalues.push_back(-c2/(3.*c3) + ((std::complex<double>(1., -sqrt(3)))*(-PW2(c2) + 3.*c1*c3))/
-                        (3.*pow(2,2.0/3.0)*c3*
-                         pow(-2.*pow(c2,3) + 9.*c1*c2*c3 - 27.*c0*PW2(c3) + 
-                               sqrt(4.*pow(-PW2(c2) + 3.*c1*c3,3) + 
-                                    pow(-2.*pow(c2,3) + 9.*c1*c2*c3 - 27.*c0*PW2(c3),2)),1.0/3.0)) - 
-                        ((std::complex<double>(1., sqrt(3)))*pow(-2.*pow(c2,3) + 9.*c1*c2*c3 - 27.*c0*PW2(c3) + 
-                                                          sqrt(4.*pow(-PW2(c2) + 3.*c1*c3,3) + 
-                                                               pow(-2.*pow(c2,3) + 9.*c1*c2*c3 - 27.*c0*PW2(c3),2)),1.0/3.0))/
-                        (6.*pow(2,1.0/3.0)*c3));
-
-  for(int i = 0 ; i < 3; i++)
-  {
-    tbox::pout<<"\n Eigenvalue "<<i<<" is "<<eigenvalues[i]<<"\n";
-  }
-
-  double identity = 0, dis_to_I = INF;
-  for(int i = 0; i < 3; i++)
-    if(pw2((eigenvalues[i].real() - 1.0)) + pw2(eigenvalues[i].imag()) < dis_to_I)
-    {
-      dis_to_I = pw2(eigenvalues[i].real() - 1.0) + pw2(eigenvalues[i].imag());
-      identity = eigenvalues[i].real();
-    }
-  
-  for(int i = 0; i < 3; i++)
-    M[i][i] -= identity;
-
-  
-  
-  bool has_solution = solve_linear_eqn(3, M, x);
-
-
-  
-  if(!has_solution)
-  {
+  if (eigensolver.info() != Eigen::Success)
     TBOX_ERROR("Matrix does not have solution with identity eigenvalue!\n");
-  }
+
+  Eigen::EigenSolver< Eigen::Matrix3d >::EigenvalueType e_val = eigensolver.eigenvalues();
+  Eigen::EigenSolver< Eigen::Matrix3d >::EigenvectorsType e_vec = eigensolver.eigenvectors();
+
+  double dis_to_I = INF;
+  int identity_idx=-1;
+  for(int i = 0; i < 3; i++)
+    if(pw2((e_val(i).real() - 1.0)) + pw2(e_val(i).imag()) < dis_to_I)
+    {
+      dis_to_I = pw2(e_val(i).real() - 1.0) + pw2(e_val(i).imag());
+      identity_idx = i;
+    }
+
+  x[0] = e_vec(0, identity_idx).real();
+  x[1] = e_vec(1, identity_idx).real();
+  x[2] = e_vec(2, identity_idx).real();
+  
 
   tbox::pout<<"Solution with identity eigenvalue is ("
             << x[0]<<" "<<x[1]<<" "<<x[2]<<")\n";
+  
   
 }
 
@@ -3335,8 +3282,11 @@ real_t Horizon::getNormFactor()
   real_t dtheta = PI / (double)n_theta;
   real_t pre_phi = 0;
 
-  real_t dt = 0.01 / std::max(k_phi[0][0],k_theta[0][0]) ;
+  real_t dt = 0.001 / std::max(k_phi[0][0],k_theta[0][0]);
 
+  tbox::pout<<"Time interval for process of getting norm factor is "
+            <<dt<<"\n";
+  
   real_t t = 0;
   // advance theta and phi
   while( (pre_phi * phi >= 0)
@@ -3375,7 +3325,7 @@ real_t Horizon::getNormFactor()
 real_t Horizon::angularMomentum(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn)
 {
-    const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
+  const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
   real_t dtheta = PI / (double)n_theta;
   real_t dphi = 2.0 * PI / (double)n_phi;
   real_t res = 0;
@@ -3400,11 +3350,6 @@ real_t Horizon::angularMomentum(
       set_norm_values(hierarchy, theta, phi, theta_i, phi_i,
                       getRadius(theta_i*2, phi_i*2), &kd, bssn);
       
-      // real_t k1 = ah_radius[theta_i*2][phi_i*2] * (k_theta[theta_i][phi_i] * ct * cp
-      //              - k_phi[theta_i][phi_i] * sp * st);
-      // real_t k2 = ah_radius[theta_i*2][phi_i*2] * (k_theta[theta_i][phi_i] * ct * sp
-      //              + k_phi[theta_i][phi_i] * cp * st);
-      // real_t k3 = - ah_radius[theta_i*2][phi_i*2] * k_theta[theta_i][phi_i] * st;
 
       real_t k1 = r * (k_theta[theta_i][phi_i] * ct * cp
                                                    - k_phi[theta_i][phi_i] * sp * st);
@@ -3522,6 +3467,7 @@ real_t Horizon::area(
 
 }
 
+
 void Horizon::findKilling(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn)
 {
@@ -3551,6 +3497,7 @@ void Horizon::findKilling(
   double angular_m = angularMomentum(hierarchy, bssn);
   tbox::pout<<"Angular momentum is "<<angular_m<<"\n";
 
+  
   double a = area(hierarchy, bssn);
 
   double R_Delta = sqrt(a / (4.0 * PI));
