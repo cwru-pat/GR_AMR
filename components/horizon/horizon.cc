@@ -3179,9 +3179,9 @@ real_t Horizon::interp_k_theta(
 
   phi_i0 = (phi_i0 + n_phi)%n_phi;
 
-  if(phi_i0 > n_phi || phi_i0 < 0 || theta_i0 > n_theta || theta_i0 < 0)
+  if(phi_i0 >= n_phi || phi_i0 < 0 || theta_i0 >= n_theta || theta_i0 < 0)
   {
-    TBOX_ERROR("EEEE "<<theta<<" "<<phi<<" "<<theta_i0<<" "<<phi_i0<<"\n");
+    TBOX_ERROR("Step is too large!\n "<<theta<<" "<<phi<<" "<<theta_i0<<" "<<phi_i0<<"\n");
   }
 
   double res = 0;
@@ -3282,15 +3282,23 @@ real_t Horizon::getNormFactor()
   real_t dtheta = PI / (double)n_theta;
   real_t pre_phi = 0;
 
-  real_t dt = 0.001 / std::max(k_phi[0][0],k_theta[0][0]);
+  real_t max_abs = 0;
+
+  for(int i = 0; i < n_theta; i ++)
+    for(int j = 0; j < n_phi; j ++)
+      max_abs = std::max(max_abs, std::max(fabs(k_phi[i][j]), fabs(k_theta[i][j])));
+  
+  real_t dt = 0.01 * dtheta / max_abs;
 
   tbox::pout<<"Time interval for process of getting norm factor is "
             <<dt<<"\n";
+
   
   real_t t = 0;
   // advance theta and phi
-  while( (pre_phi * phi >= 0)
-         && (2.0 * PI - pre_phi) * (2.0 * PI - phi) >= 0 ) 
+  while( (SIGN(pre_phi) * SIGN(phi) >= 0)
+         && (SIGN(2.0 * PI - pre_phi) * SIGN(2.0 * PI - phi) >= 0 )
+         &&(SIGN(-2.0 * PI - pre_phi) * SIGN(-2.0 * PI - phi) >= 0 )) 
   {
     pre_phi = phi;
 
