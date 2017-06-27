@@ -175,7 +175,8 @@ public:
   std::string gradiant_indicator;
   idx_t gradiant_indicator_idx;
 
-  idx_t regridding_step_bound;
+  idx_t regridding_step_lower_bound;
+  idx_t regridding_step_upper_bound;
 
   bool stop_after_found_horizon;
 };

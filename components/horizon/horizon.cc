@@ -2983,7 +2983,7 @@ void Horizon::findM(
 
 
   tbox::pout<<"\n";
-  std::cout << "Here is the matrix m:\n" << M << std::endl;
+  tbox::pout << "Here is the matrix m:\n" << M << "\n";
 
   // solve the eigenvalue equation to get 3 eigenvalues;
 
@@ -2995,6 +2995,8 @@ void Horizon::findM(
   Eigen::EigenSolver< Eigen::Matrix3d >::EigenvalueType e_val = eigensolver.eigenvalues();
   Eigen::EigenSolver< Eigen::Matrix3d >::EigenvectorsType e_vec = eigensolver.eigenvectors();
 
+  std::cout<<"\n Eigenvalues are "<<e_val<<"\n";
+  
   double dis_to_I = INF;
   int identity_idx=-1;
   for(int i = 0; i < 3; i++)
@@ -3272,7 +3274,6 @@ void Horizon::normKilling()
       k_theta[i][j] *= c;
       k_phi[i][j] *= c;
     }
-  double p = getNormFactor();
 }
 
 real_t Horizon::getNormFactor()

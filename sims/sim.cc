@@ -63,7 +63,8 @@ CosmoSim::CosmoSim(
   save_interval(cosmo_sim_db->getIntegerWithDefault("save_interval", std::numeric_limits<int>::max())),
   use_anguler_momentum_finder(cosmo_sim_db->getBoolWithDefault("use_anguler_momentum_finder", false)),
   gradiant_indicator(cosmo_sim_db->getStringWithDefault("gradiant_indicator", "DIFFchi")),
-  regridding_step_bound(cosmo_sim_db->getIntegerWithDefault("regridding_step_bound", 0)),
+  regridding_step_lower_bound(cosmo_sim_db->getIntegerWithDefault("regridding_step_lower_bound", 0)),
+  regridding_step_upper_bound(cosmo_sim_db->getIntegerWithDefault("regridding_step_upper_bound", 100000000)),
   stop_after_found_horizon(cosmo_sim_db->getBoolWithDefault("stop_after_found_horizon",false))
 {
   t_loop = tbox::TimerManager::getManager()->
@@ -179,7 +180,9 @@ bool CosmoSim::runCommonStepTasks(
   isValid(hierarchy);
   // since all neccecery levels were built when setting IC
   // no need to regrid again at zero step
-  if(step > starting_step && step > regridding_step_bound && (step % regridding_interval == 0))
+  if(step > starting_step && step >= regridding_step_lower_bound
+     && step <= regridding_step_upper_bound
+     && (step % regridding_interval == 0))
   {
     std::vector<int> tag_buffer(hierarchy->getMaxNumberOfLevels());
     for (idx_t ln = 0; ln < static_cast<int>(tag_buffer.size()); ++ln) {
@@ -202,8 +205,7 @@ bool CosmoSim::runCommonStepTasks(
 
   bool found_horizon = false;
   
-  if( step > 0 &&
-     use_AHFinder && (step % AHFinder_interval == 0))
+  if(use_AHFinder && (step % AHFinder_interval == 0))
   {
     // starting finding apparent horizon
     horizon->initSurface(hierarchy);
