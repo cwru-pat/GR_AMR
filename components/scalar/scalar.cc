@@ -589,7 +589,8 @@ real_t Scalar::ev_phi(BSSNData *bd, ScalarData *sd, const real_t dx[])
       + upwind_derivative(bd->i, bd->j, bd->k, 3, phi_a, dx, bd->beta3)
     #endif
     - bd->alpha*sd->Pi
-  );
+  )
+    - KO_dissipation_Q(bd->i, bd->j, bd->k, phi_a, dx, KO_damping_coefficient);
 }
 
 real_t Scalar::ev_Pi(BSSNData *bd, ScalarData *sd, const real_t dx[])
@@ -620,7 +621,8 @@ real_t Scalar::ev_Pi(BSSNData *bd, ScalarData *sd, const real_t dx[])
       + bd->K*sd->Pi
       + potentialHandler->ev_der_potential(bd, sd)
      )
-  );
+  )
+    - KO_dissipation_Q(bd->i, bd->j, bd->k, Pi_a, dx, KO_damping_coefficient);
 }
 
 real_t Scalar::ev_psi1(BSSNData *bd, ScalarData *sd, const real_t dx[])
@@ -634,7 +636,8 @@ real_t Scalar::ev_psi1(BSSNData *bd, ScalarData *sd, const real_t dx[])
     #endif
     - bd->alpha*sd->d1Pi
     - sd->Pi*bd->d1a
-  );
+  )
+    - KO_dissipation_Q(bd->i, bd->j, bd->k, psi1_a, dx, KO_damping_coefficient);
 }
 
 real_t Scalar::ev_psi2(BSSNData *bd, ScalarData *sd, const real_t dx[])
@@ -648,7 +651,8 @@ real_t Scalar::ev_psi2(BSSNData *bd, ScalarData *sd, const real_t dx[])
     #endif
     - bd->alpha*sd->d2Pi
     - sd->Pi*bd->d2a
-  );
+  )
+    - KO_dissipation_Q(bd->i, bd->j, bd->k, psi2_a, dx, KO_damping_coefficient);
 }
 
 real_t Scalar::ev_psi3(BSSNData *bd, ScalarData *sd, const real_t dx[])
@@ -662,7 +666,8 @@ real_t Scalar::ev_psi3(BSSNData *bd, ScalarData *sd, const real_t dx[])
     #endif
     - bd->alpha*sd->d3Pi
     - sd->Pi*bd->d3a
-  );
+  )
+    - KO_dissipation_Q(bd->i, bd->j, bd->k, psi3_a, dx, KO_damping_coefficient);
 }
 
 void Scalar::addBSSNSrc(

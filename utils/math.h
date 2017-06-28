@@ -77,7 +77,7 @@ inline real_t KO_dissipation_Q(
       + 1.0*field(i,j,k-3) 
       )/dx[2];
 
-    return stencil * ko_coeff /64.0;
+    return -stencil * ko_coeff /64.0;
     
 # endif
 

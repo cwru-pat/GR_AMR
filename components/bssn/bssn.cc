@@ -1569,7 +1569,8 @@ real_t BSSN::ev_expN(BSSNData *bd, const real_t dx[])
       upwind_derivative(bd->i, bd->j, bd->k, 1, expN_a, dx, bd->beta1)
     + upwind_derivative(bd->i, bd->j, bd->k, 2, expN_a, dx, bd->beta2)
     + upwind_derivative(bd->i, bd->j, bd->k, 3, expN_a, dx, bd->beta3)
-    -bd->alpha * bd->K/3.0;
+    -bd->alpha * bd->K/3.0
+    - KO_dissipation_Q(bd->i, bd->j, bd->k, ev_expN_a, dx, KO_damping_coefficient);
 }
 #endif
 
@@ -1581,7 +1582,8 @@ real_t BSSN::ev_auxB1(BSSNData *bd, const real_t dx[])
     //+ upwind_derivative(bd->i, bd->j, bd->k, 1, auxB1_a, dx, bd->beta1)
     //+ upwind_derivative(bd->i, bd->j, bd->k, 2, auxB1_a, dx, bd->beta2)
     //+ upwind_derivative(bd->i, bd->j, bd->k, 3, auxB1_a, dx, bd->beta3)
-    - gd_eta * bd->auxB1;
+    - gd_eta * bd->auxB1
+    - KO_dissipation_Q(bd->i, bd->j, bd->k, auxB1_a, dx, KO_damping_coefficient);
 }
 
 real_t BSSN::ev_auxB2(BSSNData *bd, const real_t dx[])
@@ -1590,7 +1592,8 @@ real_t BSSN::ev_auxB2(BSSNData *bd, const real_t dx[])
     //+ upwind_derivative(bd->i, bd->j, bd->k, 1, auxB2_a, dx, bd->beta1)
     //+ upwind_derivative(bd->i, bd->j, bd->k, 2, auxB2_a, dx, bd->beta2)
     //+ upwind_derivative(bd->i, bd->j, bd->k, 3, auxB2_a, dx, bd->beta3)
-    - gd_eta * bd->auxB2;
+    - gd_eta * bd->auxB2
+    - KO_dissipation_Q(bd->i, bd->j, bd->k, auxB2_a, dx, KO_damping_coefficient);
 }
 
 real_t BSSN::ev_auxB3(BSSNData *bd, const real_t dx[])
@@ -1599,7 +1602,8 @@ real_t BSSN::ev_auxB3(BSSNData *bd, const real_t dx[])
     //+ upwind_derivative(bd->i, bd->j, bd->k, 1, auxB3_a, dx, bd->beta1)
     //+ upwind_derivative(bd->i, bd->j, bd->k, 2, auxB3_a, dx, bd->beta2)
     //+ upwind_derivative(bd->i, bd->j, bd->k, 3, auxB3_a, dx, bd->beta3)
-    - gd_eta * bd->auxB3;
+    - gd_eta * bd->auxB3
+    - KO_dissipation_Q(bd->i, bd->j, bd->k, auxB3_a, dx, KO_damping_coefficient);
 }
 #endif
 
