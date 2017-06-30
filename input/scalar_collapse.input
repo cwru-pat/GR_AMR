@@ -6,9 +6,9 @@ Main
   print_precision = 9
   restart = FALSE
   restart_basename = "scalar"
-  restart_step = 100
-  restart_nodes = 8
-  omp_num_threads = 8 //enable maximum threads if equals to 0
+  restart_step = 260
+  restart_nodes = 1
+  omp_num_threads = 12 //enable maximum threads if equals to 0
 }
 
 CartesianGridGeometry {
@@ -31,8 +31,8 @@ TreeLoadBalancer {
 }
 
 BergerRigoutsos {
-   combine_efficiency = 0.6
-   efficiency_tolerance = 0.6
+   combine_efficiency = 0.7
+   efficiency_tolerance = 0.7
 }
 
 TimerManager{
@@ -42,14 +42,14 @@ TimerManager{
 
 
 PatchHierarchy {
-   max_levels = 2
+   max_levels = 6
    proper_nesting_buffer = 3, 3, 3, 3, 3, 3   
    largest_patch_size {
       level_0 = -1, -1, -1
       // all finer levels will use same values as level_0...
    }
    smallest_patch_size {
-      level_0 = 4, 4, 4   
+      level_0 = 8, 8, 8   
       // all finer levels will use same values as level_0...
    }
    ratio_to_coarser {
@@ -75,23 +75,25 @@ GriddingAlgorithm {
 }
 
 CosmoSim{
-  steps = 200
-  save_interval = 100
+  steps = 1000
+  save_interval = 240
   do_plot = TRUE
-  dt_frac = 0.05
-  regridding_interval = 1
-  adaption_threshold = 1000
-  KO_damping_coefficient = 0
+  dt_frac = 0.1
+  regridding_interval = 10
+  adaption_threshold = 100
+  KO_damping_coefficient = 0.0
   refine_op_type = "QUADRATIC_REFINE"
   coarsen_op_type = "CONSERVATIVE_COARSEN"
   use_AHFinder = TRUE
-  AHFinder_interval = 10
+  AHFinder_interval = 5
   AHFinder_iter_limit = 20000
   AHFinder_dt_frac = 0.2
   surface_move_shreshold = 0
   use_anguler_momentum_finder = TRUE
   gradiant_indicator = "DIFFK"
-  regridding_step_bound = 0
+  regridding_step_lower_bound = 20
+  regridding_step_upper_bound = 300
+  stop_after_found_horizon = FALSE
   comments = ""
 }
 
@@ -111,9 +113,10 @@ Horizon{
 }
 
 BSSN{
-  lapse = "OnePlusLog"
+  lapse = "Harmonic"
   Shift = "GammaDriver"
   gd_eta = 2
+  gd_c = 0.08
   normalize_Aij = TRUE
   normalize_gammaij = FALSE
   z4c_k1 = 0.1
@@ -125,9 +128,8 @@ BSSN{
 }
 
 IO{
-  output_list = "DIFFK", "F"
-  output_interval =  10, 10
-  gd_c = 1
+  output_list = "DIFFK", "F","DIFFalpha"
+  output_interval =  10, 10, 10
   
 }
 
@@ -139,5 +141,5 @@ Scalar{
   n_max = 1
   phi_0 = 5
   relaxation_tolerance = 1e-8
-  vcycles = 13
+  vcycles =80
 }
