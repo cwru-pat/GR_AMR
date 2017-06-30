@@ -142,4 +142,5 @@ Scalar{
   phi_0 = 5
   relaxation_tolerance = 1e-8
   vcycles =80
+  DIFFalpha = -0.5;
 }

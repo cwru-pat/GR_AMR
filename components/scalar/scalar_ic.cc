@@ -208,6 +208,8 @@ bool scalar_ic_set_scalar_collapse(
 
   int num_vcycles = cosmo_scalar_db->getIntegerWithDefault("vcycles", 20);
 
+  double DIFFalpha_0 = cosmo_scalar_db->getDoubleWithDefault("DIFFalpha", 0);
+
   /******ending collecting parameters from input database****/
 
   double * phi = new double[NX * NY * NZ];
@@ -396,7 +398,8 @@ bool scalar_ic_set_scalar_collapse(
   
     arr_t & K_a = bssn->DIFFK_a; // extrinsic curvature
 
-
+    arr_t & DIFFalpha_a = bssn->DIFFalpha_a;
+    
     const hier::Box& box = bssn->DIFFchi_a_pdata->getGhostBox();
     const hier::Box& inner_box = patch->getBox();
 
@@ -416,6 +419,7 @@ bool scalar_ic_set_scalar_collapse(
           K_a(i, j, k) = K_src;
           DIFFchi_a(i,j,k) = DIFFchi[0][INDEX(i, j, k)];
           phi_a(i, j, k) = phi[INDEX(i, j, k)];
+          DIFFalpha_a(i, j, k) = DIFFalpha_0;
         }
       }
     }
