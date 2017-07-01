@@ -106,6 +106,8 @@ bool Horizon::initSphericalSurface(
   if(!is_sphere)
     TBOX_ERROR("The shape of apparent horizon is not set to sphere!\n");
 
+  const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
+
   const_radius = 0;
   int cnt = 0;
   
@@ -114,6 +116,9 @@ bool Horizon::initSphericalSurface(
   bool has_surface = false;
   
   int ln_num = hierarchy->getNumberOfLevels();
+
+  double global_min_radius = INF;
+  
   for(int ln = 0 ; ln < ln_num; ln ++)
   {
     boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
@@ -179,7 +184,6 @@ bool Horizon::initSphericalSurface(
 
     }
 
-
     xfer::RefineAlgorithm refiner;
     boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
 
@@ -198,7 +202,69 @@ bool Horizon::initSphericalSurface(
     level->getBoxLevel()->getMPI().Barrier();
     refine_schedule->fillData(0.0);
     level->getBoxLevel()->getMPI().Barrier();
+
+    for (hier::PatchLevel::iterator p(level->begin());
+         p != level->end(); ++p)
+    {
+      const boost::shared_ptr<hier::Patch>& patch = *p;
+      boost::shared_ptr<geom::CartesianPatchGeometry> patch_geometry(
+        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+          patch->getPatchGeometry()));
+  
+      initPData(patch);
+      initMDA(patch);
+      bssn->initPData(patch);
+      bssn->initMDA(patch);
+
+      boost::shared_ptr<pdat::CellData<real_t>> w_pdata (    
+        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  
+          patch->getPatchData(w_idx)));
+      arr_t w = pdat::ArrayDataAccess::access<DIM, double>(  
+        w_pdata->getArrayData());
     
+      const hier::Box& box = patch->getBox();
+  
+      const int * lower = &box.lower()[0];
+      const int * upper = &box.upper()[0];
+
+      const real_t * dx = &(patch_geometry->getDx())[0];
+
+#pragma omp parallel for collapse(2)        
+      for(int k = lower[2]; k <= upper[2]; k++)
+      {
+        for(int j = lower[1]; j <= upper[1]; j++)
+        {
+          for(int i = lower[0]; i <= upper[0]; i++)
+          {
+            if(w(i, j, k) > 0 && onTheSurface(i, j, k))
+            {
+              real_t x = domain_lower[0] + (double)i * dx[0] + dx[0]/2.0;
+              real_t y = domain_lower[1] + (double)j * dx[1] + dx[1]/2.0;
+              real_t z = domain_lower[2] + (double)k * dx[2] + dx[2]/2.0;
+              real_t min_r = sqrt(pw2(x - origin[0]) + pw2(y - origin[1]) + pw2(z - origin[2]));
+
+              if(min_r < radius_limit && min_r < global_min_radius)
+                global_min_radius = min_r;
+            }
+          }
+        }
+      }
+    }
+
+       
+  }
+
+  mpi.Barrier();
+  if (mpi.getSize() > 1) {
+    mpi.AllReduce(&global_min_radius, 1, MPI_MIN);
+  }
+  mpi.Barrier();
+
+  
+  for(int ln = 0 ; ln < ln_num; ln ++)
+  {
+    boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+
     for (hier::PatchLevel::iterator p(level->begin());
          p != level->end(); ++p)
     {
@@ -241,7 +307,7 @@ bool Horizon::initSphericalSurface(
               real_t y = domain_lower[1] + (double)j * dx[1] + dx[1]/2.0;
               real_t z = domain_lower[2] + (double)k * dx[2] + dx[2]/2.0;
               real_t min_r = sqrt(pw2(x - origin[0]) + pw2(y - origin[1]) + pw2(z - origin[2]));
-              if(min_r < radius_limit)
+              if(min_r < global_min_radius * 1.2 && min_r > global_min_radius * 0.8)
               {
                 sum_radius += min_r;
                 cnt ++;
@@ -257,7 +323,6 @@ bool Horizon::initSphericalSurface(
 
   }
 
-  const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
   mpi.Barrier();
   if (mpi.getSize() > 1) {
     mpi.AllReduce(&const_radius, 1, MPI_SUM);
@@ -2995,7 +3060,7 @@ void Horizon::findM(
   Eigen::EigenSolver< Eigen::Matrix3d >::EigenvalueType e_val = eigensolver.eigenvalues();
   Eigen::EigenSolver< Eigen::Matrix3d >::EigenvectorsType e_vec = eigensolver.eigenvectors();
 
-  std::cout<<"\n Eigenvalues are "<<e_val<<"\n";
+  tbox::pout<<"\n Eigenvalues are "<<e_val<<"\n";
   
   double dis_to_I = INF;
   int identity_idx=-1;

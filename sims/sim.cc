@@ -178,6 +178,13 @@ bool CosmoSim::runCommonStepTasks(
 {
     // detecting NaNs
   isValid(hierarchy);
+
+  if(step > starting_step && (step %save_interval == 0))
+  {
+    std::string restart_file_name = simulation_type + comments +".restart";
+    tbox::RestartManager::getManager()->writeRestartFile(restart_file_name, step);
+  }
+
   // since all neccecery levels were built when setting IC
   // no need to regrid again at zero step
   if(step > starting_step && step >= regridding_step_lower_bound
@@ -197,11 +204,6 @@ bool CosmoSim::runCommonStepTasks(
     hierarchy->recursivePrint(tbox::plog, "    ", 1);
   }
 
-  if(step > starting_step && (step %save_interval == 0))
-  {
-    std::string restart_file_name = simulation_type + comments +".restart";
-    tbox::RestartManager::getManager()->writeRestartFile(restart_file_name, step);
-  }
 
   bool found_horizon = false;
   
@@ -581,6 +583,7 @@ bool CosmoSim::hasNaNs(
 
   
   const hier::Box& box = patch->getBox();
+
   
   const int * lower = &box.lower()[0];
   const int * upper = &box.upper()[0];
