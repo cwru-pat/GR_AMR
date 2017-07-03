@@ -23,7 +23,8 @@ Horizon::Horizon(
   is_sphere(cosmo_horizon_db->getBoolWithDefault("is_sphere", false)),
   radius_limit(cosmo_horizon_db->getDoubleWithDefault("radius_limit", INF)),
   w_idx(w_idx_in),
-  invalid_id( hier::LocalId::getInvalidId(), tbox::SAMRAI_MPI::getInvalidRank())
+  invalid_id( hier::LocalId::getInvalidId(), tbox::SAMRAI_MPI::getInvalidRank()),
+  non_zero_angular_momentum(cosmo_horizon_db->getBoolWithDefault("non_zero_angular_momentum", true))
 {
   hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
 
@@ -3551,26 +3552,30 @@ void Horizon::findKilling(
 
   initG(hierarchy, bssn);
 
-  double x[3] = {0};
-  // Finding transport matrix and initializing eigen vector
-  findM(hierarchy, x, bssn);
-  
-  transportKillingPhi(hierarchy, n_theta/2, n_phi - 1, x[0], x[1], x[2], bssn);
+  double angular_m = 0;
 
-  for(int i = 0; i < n_phi; i++)
+  if(non_zero_angular_momentum)
   {
-    transportKillingTheta(
-      hierarchy, i, k_theta[n_theta/2][i], k_phi[n_theta/2][i], k_L[n_theta/2][i], bssn);
-  }
+    double x[3] = {0};
+    // Finding transport matrix and initializing eigen vector
+    findM(hierarchy, x, bssn);
+  
+    transportKillingPhi(hierarchy, n_theta/2, n_phi - 1, x[0], x[1], x[2], bssn);
+
+    for(int i = 0; i < n_phi; i++)
+    {
+      transportKillingTheta(
+        hierarchy, i, k_theta[n_theta/2][i], k_phi[n_theta/2][i], k_L[n_theta/2][i], bssn);
+    }
 
   
-  convertToVector(hierarchy, bssn);
+    convertToVector(hierarchy, bssn);
 
-  normKilling();
+    normKilling();
 
-  double angular_m = angularMomentum(hierarchy, bssn);
-  tbox::pout<<"Angular momentum is "<<angular_m<<"\n";
-
+    angular_m = angularMomentum(hierarchy, bssn);
+    tbox::pout<<"Angular momentum is "<<angular_m<<"\n";
+  }
   
   double a = area(hierarchy, bssn);
 

@@ -434,6 +434,7 @@ public:
   hier::GlobalId invalid_id;
   std::vector<std::vector<double>> G111, G112, G122, G211, G212, G222, ah_radius;
 
+  bool non_zero_angular_momentum;
 };
 
 } // namespace cosmo
