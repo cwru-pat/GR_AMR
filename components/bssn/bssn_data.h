@@ -269,6 +269,8 @@ typedef struct {
   real_t K_FRW; ///< Reference FRW variable, \f$K_{FRW}\f$
   real_t rho_FRW, ///< Reference FRW variable, \f$\rho_{FRW}\f$
          S_FRW; ///< Reference FRW variable, \f$S_{FRW}\f$
+
+  real_t K0;
   
   real_t D1Z1, D2Z2, D3Z3, D1Z2, D1Z3, D2Z3, D2Z1, D3Z1, D3Z2;
   real_t D1Z1TF, D2Z2TF, D3Z3TF, D1Z2TF,

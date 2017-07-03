@@ -285,6 +285,8 @@ public:
 
   std::vector<double> origin;
   void deBug(  const boost::shared_ptr<hier::Patch> & patch);
+
+  double K0;
 };
 
 }

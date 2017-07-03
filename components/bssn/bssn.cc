@@ -1108,6 +1108,8 @@ void BSSN::set_bd_values(idx_t i, idx_t j, idx_t k, BSSNData *bd, const real_t d
   bd->K_FRW = 0;
   bd->rho_FRW = 0;
   bd->S_FRW = 0;
+
+  bd->K0 = K0;
   
   // draw data from cache
   set_local_vals(bd);

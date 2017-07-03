@@ -439,6 +439,7 @@ bool scalar_ic_set_scalar_collapse(
     }   
   }
 
+  bssn->K0 = K_src;
   
   return flag;
 }
