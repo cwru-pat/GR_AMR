@@ -28,7 +28,8 @@ BSSN::BSSN(
   Z4c_K1_DAMPING_AMPLITUDE(cosmo_bssn_db->getDoubleWithDefault("z4c_k1", 0.0)),
   Z4c_K2_DAMPING_AMPLITUDE(cosmo_bssn_db->getDoubleWithDefault("z4c_k2", 0.0)),
   chi_lower_bd(cosmo_bssn_db->getDoubleWithDefault("chi_lower_bd", 0)),
-  alpha_lower_bd_for_L2(cosmo_bssn_db->getDoubleWithDefault("alpha_lower_bd_for_L2", 0.3))
+  alpha_lower_bd_for_L2(cosmo_bssn_db->getDoubleWithDefault("alpha_lower_bd_for_L2", 0.3)),
+  K0(0)
 {
   if(!USE_Z4C)
     Z4c_K1_DAMPING_AMPLITUDE = Z4c_K2_DAMPING_AMPLITUDE = 0;

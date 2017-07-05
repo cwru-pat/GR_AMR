@@ -2026,6 +2026,7 @@ void Horizon::set_kd_values(
           COSMO_APPLY_TO_IJK_PERMS(HORIZON_DEFINE_TEMP_GJ);
           COSMO_APPLY_TO_IJ_PERMS(HORIZON_DEFINE_TEMP_MJ);
           HORIZON_DEFINE_TEMP_RJ;
+          HORIZON_DEFINE_TEMP_CHIJ;
           for(int j = j0; j <= j0 + 1; j++)
           {
             real_t y0 = domain_lower[1] + (double)j * dx[1] + dx[1]/2.0 - origin[1];
@@ -2033,6 +2034,7 @@ void Horizon::set_kd_values(
             COSMO_APPLY_TO_IJK_PERMS(HORIZON_DEFINE_TEMP_GI);
             COSMO_APPLY_TO_IJ_PERMS(HORIZON_DEFINE_TEMP_MI);
             HORIZON_DEFINE_TEMP_RI;
+            HORIZON_DEFINE_TEMP_CHII;
             for(int i = i0; i <= i0 + 1; i++)
             {
               real_t x0 = domain_lower[0] + (double)i * dx[0] + dx[0]/2.0 - origin[0];
@@ -2041,16 +2043,19 @@ void Horizon::set_kd_values(
               COSMO_APPLY_TO_IJK_PERMS(HORIZON_INTERPOLATE_G_1);
               COSMO_APPLY_TO_IJ_PERMS(HORIZON_INTERPOLATE_M_1);
               HORIZON_INTERPOLATE_R_1;
+              HORIZON_INTERPOLATE_CHI_1;
             }
       
             COSMO_APPLY_TO_IJK_PERMS(HORIZON_INTERPOLATE_G_2);
             COSMO_APPLY_TO_IJ_PERMS(HORIZON_INTERPOLATE_M_2);
             HORIZON_INTERPOLATE_R_2;
+            HORIZON_INTERPOLATE_CHI_2;
           }
     
           COSMO_APPLY_TO_IJK_PERMS(HORIZON_INTERPOLATE_G_3);
           COSMO_APPLY_TO_IJ_PERMS(HORIZON_INTERPOLATE_M_3);
           HORIZON_INTERPOLATE_R_3;
+          HORIZON_INTERPOLATE_CHI_3;
         }
 
   
@@ -3584,6 +3589,26 @@ void Horizon::findKilling(
   double mass = sqrt(pw2(pw2(R_Delta)) + 4.0 * pw2(angular_m)) / (2.0 * R_Delta);
 
   tbox::pout<<"Mass is "<<mass<<"\n";
+
+  KillingData kd = {0};
+
+  set_kd_values(hierarchy, PI / 2.0, 0, 0, 0,
+                ah_radius[0][0], &kd, bssn);
+
+  const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
+  mpi.Barrier();
+  if (mpi.getSize() > 1 ) {
+    mpi.Bcast(&kd.m22, 1, MPI_DOUBLE, cur_mpi_rank);
+    mpi.Bcast(&kd.m33, 1, MPI_DOUBLE, cur_mpi_rank);
+    mpi.Bcast(&kd.chi, 1, MPI_DOUBLE, cur_mpi_rank);
+  }
+  mpi.Barrier();
+
+  
+  tbox::pout<<kd.m22<<" "<<kd.m33<<" "<<ah_radius[0][0]<<" "<<kd.chi<<"\n";
+  
+  tbox::pout<<"By calculating mass in the other way get "<<pow(fabs(kd.m22*kd.m33), 0.25) * ah_radius[0][0] / (2.0 * kd.chi)<<"\n";
+  
 }
   
 }

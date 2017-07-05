@@ -25,6 +25,15 @@ real_t BSSNGaugeHandler::Static(BSSNData *bd)
 real_t BSSNGaugeHandler::HarmonicLapse(BSSNData *bd)
 {
   // TODO: Generalize K0
+  return -gd_c*pw2(bd->alpha)*( bd->K);
+}
+
+/**
+ * @brief Hamonic gauge lapse
+ */
+real_t BSSNGaugeHandler::RelativeHarmonicLapse(BSSNData *bd)
+{
+  // TODO: Generalize K0
   return -gd_c*pw2(bd->alpha)*( bd->K - bd->K0);
 }
 
@@ -49,6 +58,11 @@ real_t BSSNGaugeHandler::AnharmonicLapse(BSSNData *bd)
 real_t BSSNGaugeHandler::OnePlusLogLapse(BSSNData *bd)
 {
   return -2.0*bd->alpha*( bd->K  )*gd_c;
+}
+
+real_t BSSNGaugeHandler::RelativeOnePlusLogLapse(BSSNData *bd)
+{
+  return -2.0*bd->alpha*( bd->K - bd->K0  )*gd_c;
 }
 
 

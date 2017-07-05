@@ -58,7 +58,8 @@ typedef struct {
   real_t K11, K12, K13, K22, K23, K33;
 
   real_t d1F, d2F, d3F;
-  
+
+  real_t chi;
 }KillingData;
 
  

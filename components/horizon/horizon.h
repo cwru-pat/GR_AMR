@@ -117,6 +117,13 @@ using namespace SAMRAI;
 #define HORIZON_DEFINE_TEMP_RJ                  \
   double tempRj = 0;
 
+#define HORIZON_DEFINE_TEMP_CHII                  \
+  double tempChii = 0;
+
+#define HORIZON_DEFINE_TEMP_CHIJ                  \
+  double tempChij = 0;
+
+
 #define HORIZON_CALCULATE_D1G(I, J, K)          \
   ((G##I##J##K[(theta_i+1)%(2*n_theta)][phi_i] - G##I##J##K[(theta_i + (2*n_theta))% (2*n_theta)][phi_i]) / (PI / n_theta / 2.0)) 
 
@@ -188,6 +195,18 @@ using namespace SAMRAI;
 
 #define HORIZON_INTERPOLATE_R_3                         \
   kd->R += tempRj *                                     \
+    ((dx[2] - (z0 - z ) * (2.0 * (k - k0) -1.0)) / dx[2])
+
+#define HORIZON_INTERPOLATE_CHI_1                 \
+  tempChii += bd.chi *                  \
+    ( (dx[0] - (x0 - x ) * (2.0 * (i - i0) -1.0)) / dx[0])    
+
+#define HORIZON_INTERPOLATE_CHI_2                 \
+  tempChij += tempChii *                          \
+    ( (dx[1] - (y0 - y ) * (2.0 * (j - j0) -1.0))/ dx[1])
+
+#define HORIZON_INTERPOLATE_CHI_3                         \
+  kd->chi += tempChij *                                     \
     ((dx[2] - (z0 - z ) * (2.0 * (k - k0) -1.0)) / dx[2])
 
 

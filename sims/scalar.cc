@@ -939,6 +939,7 @@ void ScalarSim::putToRestart(
 {
   restart_db->putDouble("cur_t", cur_t);
   restart_db->putInteger("step", step);
+  restart_db->putDouble("BSSNK0", step);
   return;
 }
 
@@ -960,6 +961,8 @@ void ScalarSim::getFromRestart()
 
   step = db->getInteger("step");
 
+  bssnSim->K0 = db->getDouble("BSSNK0");
+  
   starting_step = step;
 
 }

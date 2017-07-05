@@ -36,11 +36,12 @@ private:
 
   // Harmonic gauge lapse
   real_t HarmonicLapse(BSSNData *bd);
+  real_t RelativeHarmonicLapse(BSSNData *bd);
 
   // 1+log gauge slicing
   real_t gd_c; ///< Tunable gauge parameter
   real_t OnePlusLogLapse(BSSNData *bd);
-
+  real_t RelativeOnePlusLogLapse(BSSNData *bd);
   // Untested/experimental lapses
   real_t AnharmonicLapse(BSSNData *bd);
   real_t ConformalSyncLapse(BSSNData *bd);
@@ -75,8 +76,10 @@ private:
     // Lapse functions
     lapse_gauge_map["Static"] = &BSSNGaugeHandler::Static;
     lapse_gauge_map["Harmonic"] = &BSSNGaugeHandler::HarmonicLapse;
+    lapse_gauge_map["RelativeHarmonic"] = &BSSNGaugeHandler::RelativeHarmonicLapse;
     lapse_gauge_map["Anharmonic"] = &BSSNGaugeHandler::AnharmonicLapse;
     lapse_gauge_map["OnePlusLog"] = &BSSNGaugeHandler::OnePlusLogLapse;
+    lapse_gauge_map["RelativeOnePlusLog"] = &BSSNGaugeHandler::RelativeOnePlusLogLapse;
     lapse_gauge_map["DampedWave"] = &BSSNGaugeHandler::DampedWaveLapse;
     lapse_gauge_map["ConformalSync"] = &BSSNGaugeHandler::ConformalSyncLapse;
     lapse_gauge_map["AwAGaugeWave"] = &BSSNGaugeHandler::AwAGaugeWaveLapse;
