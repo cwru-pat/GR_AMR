@@ -34,6 +34,9 @@ void bssn_ic_kerr_blackhole(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln);
 
+void bssn_ic_ds_blackhole(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  idx_t ln);
  
 }
 
