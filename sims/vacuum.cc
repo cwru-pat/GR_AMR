@@ -122,7 +122,9 @@ void VacuumSim::setICs(
   bool is_from_restart = tbox::RestartManager::getManager()->isFromRestart();
 
   if(is_from_restart)
+  {
     hierarchy->initializeHierarchy();
+  }
   
   // set initial condition by calling function initializeLevelData()
   gridding_algorithm->makeCoarsestLevel(cur_t);
@@ -204,7 +206,13 @@ bool VacuumSim::initLevel(
     bssn_ic_kerr_blackhole(hierarchy,ln);
     return true;
   }
-
+  else if(ic_type == "ds_blackhole")
+  {
+    if(!USE_BSSN_SHIFT)
+      TBOX_ERROR("Must enable shift for blackhole simulation!\n");
+    bssn_ic_ds_blackhole(hierarchy,ln);
+    return true;
+  }
   else if(ic_type == "awa_stability")
   {
     bssn_ic_awa_stability(hierarchy,ln,1e-10);
@@ -687,33 +695,8 @@ void VacuumSim::RKEvolveLevel(
     ((ln>0)?(hierarchy->getPatchLevel(ln-1)):NULL));
   
   
-  xfer::RefineAlgorithm refiner;
-  boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
-
-
-  
-  bssnSim->registerRKRefiner(refiner, space_refine_op);
 
   bssnSim->prepareForK1(coarser_level, to_t);
-
-
-  
-  //if not the coarsest level, should 
-  if(coarser_level!=NULL)
-  {
-    boost::shared_ptr<xfer::PatchLevelBorderFillPattern> border_fill_pattern (
-      new xfer::PatchLevelBorderFillPattern());
-    
-    refine_schedule = refiner.createSchedule(
-      //border_fill_pattern,
-      level,
-      //level,
-      coarser_level->getLevelNumber(),
-      hierarchy,
-      (cosmoPS->is_time_dependent)?NULL:cosmoPS);
-  }
-  else
-    refine_schedule = refiner.createSchedule(level, NULL);
   
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
@@ -731,7 +714,7 @@ void VacuumSim::RKEvolveLevel(
   
   // fill ghost cells 
   level->getBoxLevel()->getMPI().Barrier();
-  refine_schedule->fillData(to_t);
+  pre_refine_schedules[ln]->fillData(to_t);
 
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
@@ -759,7 +742,7 @@ void VacuumSim::RKEvolveLevel(
 
   // fill ghost cells 
   level->getBoxLevel()->getMPI().Barrier();
-  refine_schedule->fillData(to_t);
+  pre_refine_schedules[ln]->fillData(to_t);
 
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
@@ -782,8 +765,6 @@ void VacuumSim::RKEvolveLevel(
   {
     const boost::shared_ptr<hier::Patch> & patch = *pit;
 
-  
-
     bssnSim->RKEvolvePatch(patch, to_t - from_t);
     //Evolve physical boundary
     // would not do anything if boundary is time dependent
@@ -792,7 +773,7 @@ void VacuumSim::RKEvolveLevel(
 
   // fill ghost cells 
   level->getBoxLevel()->getMPI().Barrier();
-  refine_schedule->fillData(to_t);
+  pre_refine_schedules[ln]->fillData(to_t);
 
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
@@ -821,7 +802,7 @@ void VacuumSim::RKEvolveLevel(
 
   // fill ghost cells 
   level->getBoxLevel()->getMPI().Barrier();
-  refine_schedule->fillData(to_t);
+  pre_refine_schedules[ln]->fillData(to_t);
 
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
@@ -871,34 +852,16 @@ void VacuumSim::advanceLevel(
   level->getBoxLevel()->getMPI().Barrier();
   
   advanceLevel(hierarchy, ln+1, from_t + (to_t - from_t)/2.0, to_t);
-
    
   // do some coarsening and
   // then update ghost cells through doing refinement if it has finer level
   if(ln < hierarchy->getNumberOfLevels() -1 )
   {
-    xfer::CoarsenAlgorithm coarsener(dim);
-  
-
-    boost::shared_ptr<xfer::CoarsenSchedule> coarsen_schedule;
-
-    bssnSim->registerCoarsenActive(coarsener,space_coarsen_op);
-      
-    coarsen_schedule = coarsener.createSchedule(level, hierarchy->getPatchLevel(ln+1));
     level->getBoxLevel()->getMPI().Barrier();
-    coarsen_schedule->coarsenData();
-
-    xfer::RefineAlgorithm post_refiner;
-
-    boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
-    
-
-    bssnSim->registerRKRefinerActive(post_refiner, space_refine_op);
-    
-    refine_schedule = post_refiner.createSchedule(level, NULL);
+    coarsen_schedules[ln]->coarsenData();
 
     level->getBoxLevel()->getMPI().Barrier();
-    refine_schedule->fillData(to_t);
+    post_refine_schedules[ln]->fillData(to_t);
   }
 
   // copy _a to _p and set _p time to next timestamp
@@ -921,6 +884,47 @@ void VacuumSim::resetHierarchyConfiguration(
   /*! Coarsest level */ int coarsest_level,
   /*! Finest level */ int finest_level)
 {
+  pre_refine_schedules.resize(finest_level + 1);
+  post_refine_schedules.resize(finest_level + 1);
+  coarsen_schedules.resize(finest_level + 1);
+
+  xfer::RefineAlgorithm pre_refiner, post_refiner;
+  xfer::CoarsenAlgorithm coarsener(dim);  
+  
+  bssnSim->registerRKRefiner(pre_refiner, space_refine_op);
+  bssnSim->registerCoarsenActive(coarsener,space_coarsen_op);
+  bssnSim->registerRKRefinerActive(post_refiner, space_refine_op);
+
+  for(int ln = 0; ln <= finest_level; ln++)
+  {
+    const boost::shared_ptr<hier::PatchLevel> level(
+      new_hierarchy->getPatchLevel(ln));
+
+    // reset pre refine refine schedule
+    if(ln == 0)
+    {
+      pre_refine_schedules[ln] = pre_refiner.createSchedule(level, NULL);
+    }
+    else
+    {
+      pre_refine_schedules[ln] = pre_refiner.createSchedule(
+        //border_fill_pattern,
+        level,
+        //level,
+        ln - 1,
+        new_hierarchy,
+        (cosmoPS->is_time_dependent)?NULL:cosmoPS);
+    }
+
+    // reset coarse and post_refine schedule
+    if(ln < finest_level)
+    {
+      coarsen_schedules[ln] = coarsener.createSchedule(level, new_hierarchy->getPatchLevel(ln+1));
+      post_refine_schedules[ln] = post_refiner.createSchedule(level, NULL);
+      
+    }
+  }
+  
   return;
 }
   
