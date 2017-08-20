@@ -1,0 +1,87 @@
+# Cactus specification of things to be compiled in this directory
+# $Header$
+
+#
+# UMFPACK comes with a Makefile which compiles many of the source files
+# multiple times with different -D compiler options, both to generate the
+# 4 UMFPACK variants (real/complex, int/long), and for other purposes.
+# Alas, Cactus doesn't seem to provide any way to use a Makefile for
+# this subdirectory, and still use  make.code.defn  building for the
+# rest of this thorn. :( :(
+#
+# Instead, we [have to] fake things with this  make.code.defn  and the
+# accompanying  make.code.deps .  Fortunately, we only need one UMFPACK
+# variant:  We know it's real, but we actually want the integer datatype
+# to match Fortran's (since ../../elliptic/row_sparse_matrix.{cc,hh}
+# potentially use the same data structures for both UMFPACK and ILUCG
+# matrices, and ILUCG is Fortran).  This ought to be determined by a
+# configure script, but for now (FIXME) we just hard-wire it to  long
+# with -D compile flags set in  make.code.deps .
+#
+# For the other multiple-compilation and special-compilation-flags cases,
+# we use wrapper files which #define the appropriate symbols, then #include
+# the main UMFPACK source files.
+#
+
+# Source files in this directory
+SRCS =					\
+	umf_analyze.c			\
+	umf_apply_order.c		\
+	umf_assemble.c			\
+	umf_blas3_update.c		\
+	umf_build_tuples.c		\
+	umf_build_tuples_usage.c	\
+	umf_colamd.c			\
+	umf_create_element.c		\
+	umf_dump.c			\
+	umf_extend_front.c		\
+	umf_free.c			\
+	umf_garbage_collection.c	\
+	umf_get_memory.c		\
+	umf_init_front.c		\
+	umf_is_permutation.c		\
+	umf_kernel.c			\
+	umf_kernel_init.c		\
+	umf_kernel_init_usage.c		\
+	umf_kernel_wrapup.c		\
+	umf_local_search.c		\
+	umf_lsolve.c			\
+	umf_ltsolve.c			\
+	umf_malloc.c			\
+	umf_mem_alloc_element.c		\
+	umf_mem_alloc_head_block.c	\
+	umf_mem_alloc_tail_block.c	\
+	umf_mem_free_tail_block.c	\
+	umf_mem_init_memoryspace.c	\
+	umf_order_front_tree.c		\
+	umf_realloc.c			\
+	umf_row_search.c		\
+	umf_scale_column.c		\
+	umf_set_stats.c			\
+	umf_solve.c			\
+	umf_symbolic_usage.c		\
+	umf_transpose.c			\
+	umf_tuple_lengths.c		\
+	umf_usolve.c			\
+	umf_utsolve.c			\
+	umf_valid_numeric.c		\
+	umf_valid_symbolic.c		\
+	umfpack_defaults.c		\
+	umfpack_free_numeric.c		\
+	umfpack_free_symbolic.c		\
+	umfpack_get_lunz.c		\
+	umfpack_get_numeric.c		\
+	umfpack_get_symbolic.c		\
+	umfpack_numeric.c		\
+	umfpack_qsymbolic.c		\
+	umfpack_solve.c			\
+	umfpack_symbolic.c		\
+	umfpack_timer.c			\
+	umfpack_transpose.c		\
+					\
+	wrap_umf_ltsolve.c		\
+	wrap_umf_utsolve.c		\
+	wrap_umfpack_wsolve.c
+
+# Subdirectories containing source files
+SUBDIRS =

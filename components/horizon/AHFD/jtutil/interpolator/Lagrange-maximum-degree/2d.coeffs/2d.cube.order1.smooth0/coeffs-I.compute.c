@@ -1,0 +1,18 @@
+fp t7;
+fp t6;
+fp t5;
+fp t4;
+fp t3;
+fp t2;
+fp t1;
+      t7 = RATIONAL(-1.0,2.0);
+      t6 = RATIONAL(1.0,4.0);
+      t5 = RATIONAL(1.0,2.0);
+      t4 = t7*y;
+      t3 = t7*x;
+      t2 = t5*x;
+      t1 = t5*y;
+      coeffs_I->coeff_0_0 = RATIONAL(3.0,4.0)+t4+t3;
+      coeffs_I->coeff_p1_0 = t6+t4+t2;
+      coeffs_I->coeff_0_p1 = t3+t6+t1;
+      coeffs_I->coeff_p1_p1 = t1+RATIONAL(-1.0,4.0)+t2;

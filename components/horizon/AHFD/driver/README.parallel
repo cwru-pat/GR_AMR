@@ -1,0 +1,197 @@
+Design notes for the parallel/multiprocessor algorithms and data structures
+===========================================================================
+
+$Header$
+
+The Problem
+-----------
+Doing horizon finding on multiple processors is difficult, because when
+we interpolate the geometry to the trial horizon surface, we must use a
+global interpolator (CCTK_InterpGridArrays()), which is (necessarily) a
+a collective operation, i.e. the interpolator must be called synchronously
+on every processor, with identical arguments except for the number of
+interpolation points, the interpolation coordinates, and the output
+array pointers.  It's quite tricky to arrange this synchronicity when
+different processors are locating different horizons.
+
+
+Newton's Method
+---------------
+We find the apparent horizon by solving   Theta(h) = 0   by a global
+Newton's-method iteration.  ("global" meaning we update all the horizon
+surface points simultaneously at each iteration.)  That is, the basic
+uniprocessor solution algorithm is
+
+	while (true)
+	{
+	compute Theta(h)
+	if (||Theta(h)|| small or too many iterations)
+		exit
+	compute Jacobian[Theta(h)]
+	solve linear system J.dh = -Theta
+	update h += dh
+	}
+
+As mentioned above, the computation of Theta(h) must be done synchronously
+(across all processors).  It turns out that the evaluation of the Jacobian
+matrix must also be done synchronously -- it too involves a geometry
+interpolation.
+
+
+High-Level Outline of the Solution
+----------------------------------
+We use the following design to do this:
+
+Horizons are identified by an integer "horizon number".  This runs from
+1 to N_horizons for the "genuine" horizons we want to find, or 0 for a
+"dummy" horizon used if there are more processors than horizons to find.
+	[We actually implement the dummy horizon as
+	passing NULL horizon and/or Jacobian pointers
+	to expansion() and expansion_Jacobian(), but
+	this is an implementation detail which doesn't
+	matter here.]
+
+Each processor is assigned the dummy horizon, and zero or more genuine
+horizons; each genuine horizon is assigned to exactly one procesor.
+A processor with one or more genuine horizons is called an "active"
+processor; a processor with only the dummy horizon is called a "dummy"
+processor.  The assignment of horizons to processors is static for the
+whole Cactus run.
+	[A dynamic assignment might be more efficient,
+	but then we'd have to move our state for a horizon
+	from one processor to processor.]
+
+All the processors do their Newton iteration synchronously, working on
+genuine horizons if they have any, or dummy horizons if not.  If any
+error occurs when computing Theta or the Jacobian, or in solving the
+linear equations, we treat this as failing to find this horizon.
+
+For example, suppose we have 3 horizons, which are found (the Newton
+iteration converges) after respectively 3, 5, and 4 iterations.  Then
+with 2 processors the iterations would look like this (where h1/2/3
+means horizon 1/2/3, -- means the dummy horizon, and a * after Theta
+means convergence):
+
+	processor #0	processor #1
+	------------	------------
+1	h1 Theta	h2 Theta
+2	h1 Jacobian	h2 Jacobian
+3	h1 Theta	h2 Theta
+4	h1 Jacobian	h2 Jacobian
+5	h1 Theta*	h2 Theta
+6	-- Jacobian	h2 Jacobian
+7	h3 Theta	h2 Theta
+8	h3 Jacobian	h2 Jacobian
+9	h3 Theta	h2 Theta*
+10	h3 Jacobian	-- Jacobian
+11	h3 Theta	-- Theta
+12	h3 Jacobian	-- Jacobian
+13	h3 Theta*	-- Theta
+
+(Notice that at line 6, processor #0 does a dummy-horizon Jacobian
+computation before starting its next genuine horizon.  This is to keep
+the Theta and Jacobian computations synchronized across all processors.
+In a single-processor run we'd skip this and go directly to the next
+genuine horizon.)
+
+With 3 processors this same example would look like this:
+
+	processor #0	processor #1	processor #2
+	------------	------------	------------
+1	h1 Theta	h2 Theta	h3 Theta
+2	h1 Jacobian	h2 Jacobian	h3 Jacobian
+3	h1 Theta	h2 Theta	h3 Theta
+4	h1 Jacobian	h2 Jacobian	h3 Jacobian
+5	h1 Theta*	h2 Theta	h3 Theta
+6	-- Jacobian	h2 Jacobian	h3 Jacobian
+7	-- Theta	h2 Theta	h3 Theta*
+8	-- Jacobian	h2 Jacobian	-- Jacobian
+9	-- Theta	h2 Theta*	-- Theta
+
+With 4 processors it would look like this:
+
+	processor #0	processor #1	processor #2	processor #3
+	------------	------------	------------	------------
+1	h1 Theta	h2 Theta	h3 Theta	-- Theta
+2	h1 Jacobian	h2 Jacobian	h3 Jacobian	-- Jacobian
+3	h1 Theta	h2 Theta	h3 Theta	-- Theta
+4	h1 Jacobian	h2 Jacobian	h3 Jacobian	-- Jacobian
+5	h1 Theta*	h2 Theta	h3 Theta	-- Theta
+6	-- Jacobian	h2 Jacobian	h3 Jacobian	-- Jacobian
+7	-- Theta	h2 Theta	h3 Theta*	-- Theta
+8	-- Jacobian	h2 Jacobian	-- Jacobian	-- Jacobian
+9	-- Theta	h2 Theta*	-- Theta	-- Theta
+
+Any additional processors would similarly do all Theta and Jacobian
+computations on the dummy horizon.
+
+
+Interprocessor Synchronization
+------------------------------
+
+To implement this algorithm, after each Theta evaluation each active
+processor computes a "I need more iterations (either on this or another
+genuine horizon)" flag, and all the processors do an inclusive-or--reduction
+of these flags, with the result broadcast to all processors.  Each
+processor then uses the inclusive-or-reduction result to determine
+whether or not to continue iterating.
+
+
+Broadcasting the Iteration Status
+---------------------------------
+
+After each Theta evaluation each active processor also sends
+* which horizon it's working on
+* the iteration number
+* the expansion() status
+* its error norms
+to processor 0, which uses this information to print a status report
+of how the iterations are converging.
+
+If an (active) processor finds a horizon, it computes the BH diagnostics
+and broadcasts them, and optionally the horizon shape, to all processors.
+Processor 0 uses this to print the BH diagnostics, and (optionally) all
+processors use the diagnostics and the horizon shape to set the drift
+correction information and/or the BH excision mask.
+
+	[All the processors actually need the ghosted horizon
+	shape in order to be able to do angular interpolations
+	to test if a given point is inside/outside the horizon.
+	But since interprocessor communication is probably
+	expensive, we only broadcast the horizon shape on the
+	nominal grid, then recover the ghost-zone values on
+	each processor.]
+
+Since all processors must participate in a broadcast, all processors
+must somehow know that that horizon was just found.  Thus, after each
+Theta iteration, we broadcast a "which horizon I've just found, or none"
+integer from each active processor to all processors.
+
+
+Optimizing the Interprocessor Communication
+-------------------------------------------
+
+In practice interprocessor communication is expensive.  Moreover, in
+practice, given that we're doing synchronous operations across all
+processors (i.e. the inclusive-or--reduction with result broadcast to
+all processors), latency is probably more important than bandwidth.
+
+Thus for implementation, we group the different interprocessor
+communications described above, into two operations:
+
+After each Theta evaluation each active processor broadcasts
+* which horizon it's working on
+* the iteration number
+* the expansion() status
+* its error norms
+* a Boolean "I have just found a horizon" flag
+* a Boolean "I need more iterations" flag
+to all processors.  All processors do the inclusive-or--reduce of
+the "I need more iterations" flags locally, on the values received
+from the broadcast.
+
+All processors then go through the "I have just found a horizon" flags
+received from the broadcast, and for each flag which is true, all
+processors then know to participate in the broadcast of the BH diagnostics
+and (optionally) the horizon shape from the just-found-it processor
+to all processors.

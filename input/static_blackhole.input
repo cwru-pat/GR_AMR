@@ -3,15 +3,16 @@ Main
   simulation_type = "vacuum"  
   dim = 3
   base_name = "blackhole"
+  log_all = FALSE
   print_precision = 9
   restart = FALSE
   restart_basename = "vacuum"
   restart_step = 2
-  restart_nodes = 4
+  restart_nodes = 10
 }
 
 CartesianGridGeometry {
-  domain_boxes = [(0,0,0), (95,95,95)]
+  domain_boxes = [(0,0,0), (63,63,63)]
   x_lo         = 0, 0, 0
   x_up         = 100, 100, 100
   periodic_dimension = 0, 0, 0
@@ -73,21 +74,24 @@ GriddingAlgorithm {
 }
 
 CosmoSim{
-  steps = 1
-  save_interval = 2
+  steps = 10
+  save_interval = 2000
   do_plot = TRUE
   dt_frac = 0.05
   regridding_interval = 100000
   adaption_threshold = 0.004
   KO_damping_coefficient = 0.0
-  refine_op_type = "LINEAR_REFINE"
-  coarsen_op_typ = "CONSERVATIVE_COARSEN"
+  refine_op_type = "HERMITE_REFINE"
+  coarsen_op_type = "HERMITE_COARSEN"
   use_AHFinder = TRUE
   AHFinder_interval = 1
-  AHFinder_iter_limit = 0
+  AHFinder_iter_limit = 20000
   AHFinder_dt_frac = 0.01
   surface_move_shreshold = 0
   use_anguler_momentum_finder = TRUE
+  regridding_step_lower_bound = 20
+  regridding_step_upper_bound = 3000
+  stop_after_found_horizon = FALSE
   comments = ""
 }
 
@@ -109,14 +113,22 @@ BSSN{
   chi_lower_bd = 1e-9
 }
 
-Horizon{
-  origin = 50, 50, 50
-  radius = 0.5
-  doing_statistic = TRUE
+AHFD{
+  find_every = 2
+  N_horizons = 3
+  origin_x = 50, 50, 50
+  origin_y = 50, 50, 50
+  origin_z = 50, 50, 50
+  sphere_x_center = 50, 50.1, 50
+  sphere_y_center = 50, 49.86, 50
+  sphere_z_center = 50, 50, 50.1
+  sphere_radius = 0.8, 0.7, 0.9
+  find_after_individual = 0, 0, 0 // will only find horizon after this step (inclusive)
+  max_Newton_iterations_initial = 50
 }
 
 IO{
-  output_list = "DIFFchi","DIFFK", "F"
-  output_interval = 50, 50, 1
+  output_list = "DIFFchi","DIFFK"
+  output_interval = 50, 50
   gd_c = 1
 }

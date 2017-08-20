@@ -6,7 +6,7 @@ Main
   print_precision = 9
   restart = FALSE
   restart_basename = "scalar"
-  restart_step = 260
+  restart_step = 300
   restart_nodes = 1
   omp_num_threads = 12 //enable maximum threads if equals to 0
 }
@@ -42,7 +42,7 @@ TimerManager{
 
 
 PatchHierarchy {
-   max_levels = 6
+   max_levels = 2
    proper_nesting_buffer = 3, 3, 3, 3, 3, 3   
    largest_patch_size {
       level_0 = -1, -1, -1
@@ -90,9 +90,9 @@ CosmoSim{
   AHFinder_dt_frac = 0.2
   surface_move_shreshold = 0
   use_anguler_momentum_finder = TRUE
-  gradiant_indicator = "DIFFK"
+  gradient_indicator = "DIFFK"
   regridding_step_lower_bound = 20
-  regridding_step_upper_bound = 300
+  regridding_step_upper_bound = 3000
   stop_after_found_horizon = FALSE
   comments = ""
 }
@@ -109,14 +109,15 @@ Horizon{
   is_periodic = TRUE
   doing_statistic = TRUE
   is_sphere = TRUE
-  radius_limit = 0.0005
+  radius_limit = 0.00002
+  non_zero_angular_momentum = FALSE
 }
 
 BSSN{
   lapse = "Harmonic"
   Shift = "GammaDriver"
   gd_eta = 2
-  gd_c = 0.08
+  gd_c = 0.1
   normalize_Aij = TRUE
   normalize_gammaij = FALSE
   z4c_k1 = 0.1
@@ -128,7 +129,7 @@ BSSN{
 }
 
 IO{
-  output_list = "DIFFK", "F","DIFFalpha"
+  output_list = "DIFFK", "F","DIFFchi"
   output_interval =  10, 10, 10
   
 }
@@ -141,6 +142,6 @@ Scalar{
   n_max = 1
   phi_0 = 5
   relaxation_tolerance = 1e-8
-  vcycles =80
-  DIFFalpha = -0.5;
+  vcycles = 80
+  DIFFalpha = 0
 }

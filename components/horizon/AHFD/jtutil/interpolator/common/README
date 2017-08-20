@@ -1,0 +1,6 @@
+This directory contains Maple code to generate machine-generated coefficient
+files which are common to multiple interpolation operators.  In practice
+these files depend only on the dimensionality and the molecule size/shape
+(eg 3d, cube, size 4).
+
+The subdirectories contain the actual machine-generated files.

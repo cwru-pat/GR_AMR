@@ -1,0 +1,46 @@
+# Maple code to compute lists of point positions in hypercube-shaped molecules
+# $Header$
+
+################################################################################
+
+#
+# 1D interpolation points
+#
+posn_list_1d_size2 := hypercube_points([ 0], [+1]);
+posn_list_1d_size3 := hypercube_points([-1], [+1]);
+posn_list_1d_size4 := hypercube_points([-1], [+2]);
+posn_list_1d_size5 := hypercube_points([-2], [+2]);
+posn_list_1d_size6 := hypercube_points([-2], [+3]);
+posn_list_1d_size7 := hypercube_points([-3], [+3]);
+
+################################################################################
+
+#
+# 2D interpolation points (Fortran ordering)
+#
+posn_list_2d_size2 := map(ListTools[Reverse],
+			  hypercube_points([ 0, 0], [+1,+1]));
+posn_list_2d_size3 := map(ListTools[Reverse],
+			  hypercube_points([-1,-1], [+1,+1]));
+posn_list_2d_size4 := map(ListTools[Reverse],
+			  hypercube_points([-1,-1], [+2,+2]));
+posn_list_2d_size5 := map(ListTools[Reverse],
+			  hypercube_points([-2,-2], [+2,+2]));
+posn_list_2d_size6 := map(ListTools[Reverse],
+			  hypercube_points([-2,-2], [+3,+3]));
+
+################################################################################
+
+#
+# 3D interpolation points (Fortran ordering)
+#
+posn_list_3d_size2 := map(ListTools[Reverse],
+			  hypercube_points([ 0, 0, 0], [+1,+1,+1]));
+posn_list_3d_size3 := map(ListTools[Reverse],
+			  hypercube_points([-1,-1,-1], [+1,+1,+1]));
+posn_list_3d_size4 := map(ListTools[Reverse],
+			  hypercube_points([-1,-1,-1], [+2,+2,+2]));
+posn_list_3d_size5 := map(ListTools[Reverse],
+			  hypercube_points([-2,-2,-2], [+2,+2,+2]));
+posn_list_3d_size6 := map(ListTools[Reverse],
+			  hypercube_points([-2,-2,-2], [+3,+3,+3]));

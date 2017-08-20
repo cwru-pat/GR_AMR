@@ -1,0 +1,16 @@
+fp coeff_m1_m1;
+fp coeff_0_m1;
+fp coeff_p1_m1;
+fp coeff_p2_m1;
+fp coeff_m1_0;
+fp coeff_0_0;
+fp coeff_p1_0;
+fp coeff_p2_0;
+fp coeff_m1_p1;
+fp coeff_0_p1;
+fp coeff_p1_p1;
+fp coeff_p2_p1;
+fp coeff_m1_p2;
+fp coeff_0_p2;
+fp coeff_p1_p2;
+fp coeff_p2_p2;

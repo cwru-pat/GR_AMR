@@ -40,6 +40,58 @@ using namespace SAMRAI;
 
 #define R21 R12
 
+#define HORIZON_SPHERE_DISJ(I, J) \
+  (- hd->s##I * hd->s##J / r + (double)(I == J) / r)
+
+#define HORIZON_SPHERE_DITGKL(I, K, L) \
+  (- bd->G##K##1##I * bd->gammai##1##L - bd->G##K##2##I * bd->gammai##2##L - bd->G##K##3##I * bd->gammai##3##L \
+   - bd->G##L##I##1 * bd->gammai##K##1 - bd->G##L##I##2 * bd->gammai##K##2 - bd->G##L##I##3 * bd->gammai##K##3)
+
+#define HORIZON_SPHERE_DIGKL(I, K, L) \
+  (2.0 * bd->chi * bd->d##I##chi * bd->gammai##K##L + \
+   pw2(bd->chi) * HORIZON_SPHERE_DITGKL(I, K, L) )
+
+#define HORIZON_SPHERE_US(I) \
+  (pw2(bd->chi) * \
+   (bd->gammai##I##1 * hd->s1 + bd->gammai##I##2 * hd->s2 + bd->gammai##I##3 * hd->s3))
+  
+#define HORIZON_SPHERE_A1(I, J) \
+  (- pw2(pw2(bd->chi))                                                 \
+  * (bd->gammai##I##1 * hd->s1 + bd->gammai##I##2 * hd->s2 + bd->gammai##I##3 * hd->s3) \
+  * (bd->gammai##J##1 * hd->s1 + bd->gammai##J##2 * hd->s2 + bd->gammai##J##3 * hd->s3) \
+  * (HORIZON_SPHERE_DISJ(I,J)) )
+
+#define HORIZON_SPHERE_A2(I, J) \
+  (- 0.5 * pw2(bd->chi)                                                \
+   * (bd->gammai##I##J * hd->s##J)                                       \
+   * (hd->s1 * hd->s1 * HORIZON_SPHERE_DIGKL(I, 1, 1)                   \
+      + hd->s2 * hd->s2 * HORIZON_SPHERE_DIGKL(I, 2, 2)                 \
+      + hd->s3 * hd->s3 * HORIZON_SPHERE_DIGKL(I, 3, 3)                 \
+      + hd->s1 * hd->s2 * HORIZON_SPHERE_DIGKL(I, 1, 2)                   \
+      + hd->s1 * hd->s3 * HORIZON_SPHERE_DIGKL(I, 1, 3)                   \
+      + hd->s2 * hd->s3 * HORIZON_SPHERE_DIGKL(I, 2, 3)                   \
+      + hd->s2 * hd->s1 * HORIZON_SPHERE_DIGKL(I, 2, 1)                   \
+      + hd->s3 * hd->s1 * HORIZON_SPHERE_DIGKL(I, 3, 1)                   \
+      + hd->s3 * hd->s2 * HORIZON_SPHERE_DIGKL(I, 3, 2)))
+
+#define HORIZON_SPHERE_B1(I, J)                   \
+  ((2.0 * bd->chi * bd->d##I##chi * bd->gammai##I##J   \
+    + pw2(bd->chi) * (HORIZON_SPHERE_DITGKL(I, I, J) ) )* hd->s##J)
+
+#define HORIZON_SPHERE_B2(I, J)                   \
+  (pw2(bd->chi) * bd->gammai##I##J * HORIZON_SPHERE_DISJ(I,J))
+
+#define HORIZON_SPHERE_B3(I, J)                   \
+  (pw2(bd->chi) * bd->gammai##I##J * hd->s##J                           \
+   * (-3.0 * bd->d##I##chi / bd->chi + bd->G11##I + bd->G22##I + bd->G33##I))
+
+#define HORIZON_SPHERE_C1(I, J)                   \
+  (1.0 / pw2(bd->chi) * (                                            \
+    (bd->A##I##J + bd->K * bd->gamma##I##J / 3.0) * HORIZON_SPHERE_US(I) * HORIZON_SPHERE_US(J) ) )
+
+#define HORIZON_SPHERE_D1(I, J)                   \
+  (pw2(bd->chi) * bd->gammai##I##J * hd->s##I * hd->s##J)
+ 
 #define HORIZON_CALCULATE_DS_TERM1(J, L, I, K) \
   (bd->gammai##I##J * hd->d##J##F * bd->gammai##K##L * hd->d##L##F)
 
@@ -49,8 +101,8 @@ using namespace SAMRAI;
    - bd->G##3##I##K * hd->d3F                     \
    + (bd->d##I##chi * hd->d##K##F + bd->d##K##chi * hd->d##I##F \
       - bd->gamma##I##K * (                                     \
-        bd->gammai11 * bd->d1chi * hd->d1F + bd->gammai22 * bd->d2chi * hd->d2F + bd->gammai33 * bd->d3chi * hd->d3F \
-        + bd->gammai12 * bd->d1chi * hd->d2F + bd->gammai13 * bd->d1chi * hd->d3F + bd->gammai23 * bd->d2chi * hd->d3F\
+        bd->gammai11 * bd->d1chi * hd->d1F + bd->gammai22 * bd->d2chi * hd->d2F + bd->gammai33 * bd->d3chi * hd->d3F  \
+        + bd->gammai12 * bd->d1chi * hd->d2F + bd->gammai13 * bd->d1chi * hd->d3F + bd->gammai23 * bd->d2chi * hd->d3F \
         + bd->gammai21 * bd->d2chi * hd->d1F + bd->gammai31 * bd->d3chi * hd->d1F + bd->gammai32 * bd->d3chi * hd->d2F)) / bd->chi \
   )
 
@@ -334,6 +386,7 @@ public:
     hier::Box& g_box);
 
   bool onTheSurface(idx_t i, idx_t j, idx_t k);
+  double getBoundaryAdjRadius(idx_t i, idx_t j, idx_t k, const double dx[], double &ratio);
   bool belowTheSurface(idx_t i, idx_t j, idx_t k);
   
   real_t maxSurfaceMove(

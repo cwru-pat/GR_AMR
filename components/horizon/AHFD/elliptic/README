@@ -1,0 +1,30 @@
+This directory contains code for solving elliptic systems on our
+($S^2$ topology) multipatch system in ../patch/.
+
+The main files are as follows:
+
+Jacobian.{hh,cc}
+	These define a  Jacobian  class.  This is a generic interface
+	(a C++ abstract base class) to set up a Jacobian matrix and
+	solve linear systems with this matrix as the right hand side
+	matrix.
+
+dense_Jacobian.{hh,cc}
+	These define a  dense_Jacobian  class (to store a Jacobian matrix
+	in a Fortran dense-matrix format) and a  dense_Jacobian__LAPACK
+	class (to solve linear systems using LAPACK routines).  These
+	classes are derived from (and hence share the generic interface
+	of) the  Jacobian  class.
+
+row_sparse_Jacobian.{hh,cc}
+	These define a  row_sparse_Jacobian  class (to store a Jacobian
+	matrix in a row-oriented sparse-matrix format) and two different
+	linear solver classed derived from it:
+	row_sparse_Jacobian__ILUCG	// ILUCG linear solver
+	row_sparse_Jacobian__UMFPACK	// UMFPACK linear solver
+
+lapack.h
+	Header file defining C/C++ prototypes for a few LAPACK routines.
+lapack_wrapper.F77
+	Wrapper routines around a few LAPACK routines, to avoid problems
+	with C <--> Fortran passing of character-string arguments.

@@ -1,0 +1,13 @@
+fp t46;
+fp t48;
+fp t44;
+fp t47;
+      t46 = x*x;
+      t48 = RATIONAL(-2.0,1.0)*t46+RATIONAL(4.0,3.0);
+      t44 = RATIONAL(1.0,2.0);
+      t47 = t44*t46+RATIONAL(-1.0,12.0);
+      coeffs_dxx->coeff_m2 = RATIONAL(-1.0,2.0)*x+t47;
+      coeffs_dxx->coeff_m1 = x+t48;
+      coeffs_dxx->coeff_0 = RATIONAL(-5.0,2.0)+RATIONAL(3.0,1.0)*t46;
+      coeffs_dxx->coeff_p1 = -x+t48;
+      coeffs_dxx->coeff_p2 = t44*x+t47;

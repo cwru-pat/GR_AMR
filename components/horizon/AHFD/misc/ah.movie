@@ -1,0 +1,133 @@
+#!/usr/bin/perl -w
+# $Header: /usr/local/svn/cvs-repositories/numrelcvs/AEIThorns/AHFinderDirect/src/misc/ah.movie,v 1.1 2002-11-27 16:09:15 jthorn Exp $
+
+################################################################################
+
+# global constants
+my $true  = 1;
+my $false = 0;
+my $infinity = 9e99;
+
+# defaults
+my $help_flag  = $false;
+my $setup_flag = $false;
+my $prefix  = undef();
+my $pattern = 'h/h.t*.ah*.gp';
+my $t_start = -$infinity;
+my $t_stop  = +$infinity;
+my $using   = 'using 4:5:6';
+
+################################################################################
+
+my $help_msg = <<"EOF";
+Usage:
+   ah.movie   [ --setup ]
+              [ --prefix  prefix_file_name ]
+              [ --pattern shell_pattern ]
+              [ --t-start t_start ]   [ --t-stop t_stop ]
+              [ --using   using ]
+or
+   ah.movie   --help
+
+This prints a list of gnuplot commands to 'splot' all the apparent horizon
+data files matching the pattern, optionally restricted to the specified
+range (the closed interval [t_start, t_stop]) of times (integer iteration
+numbers).
+
+If --setup is specified, only the gnuplot command for the starting frame
+of the movie is printed.
+
+If specified, the --prefix-file option specifies the name of a file of
+gnuplot commands which should be loaded at the start of the movie.
+
+If specified, the --using option specifies the gnuplot 'using' string
+for plotting each file.
+
+The defaults are
+   --prefix  (none)
+   --pattern '${pattern}'
+   --using   '${using}'
+EOF
+
+################################################################################
+
+use strict;
+use English;
+use Getopt::Long;
+##use File::Glob;
+
+$Getopt::Long::autoabbrev = $false;     # forbid abbreviations
+$Getopt::Long::getopt_compat = $false;  # forbid starting options with "+"
+GetOptions(
+   'help'	=> \$help_flag,
+   'setup'	=> \$setup_flag,
+   'prefix=s'	=> \$prefix,
+   'pattern=s'	=> \$pattern,
+   't-start=i'	=> \$t_start,
+   't-stop=i'	=> \$t_stop,
+   'using=s'	=> \$using,
+	  )
+	|| die($help_msg);
+
+if ($help_flag)
+	{ print $help_msg; exit; }
+
+# compute sprintf() format for forming file names
+my $h_format = $pattern;
+$h_format =~ s/\*/%d/g;
+##print "using h_format \"${h_format}\"\n";
+
+# list of all file names matching pattern
+# they're sorted alphabetically, but that's useless here,
+# so as far as we're concerned, they're in "random" order :(
+my @h_list = glob($pattern);
+
+# parse the file names to get times and horizon numbers,
+# check that times are within [start,stop] range,
+# keep track of actual min/max times encountered, and
+# build hash table with key   = time,
+#			value = anonymous list of all horizon numbers
+my %hn_table = ();
+	foreach my $h (@h_list)
+	{
+	##print $h, "\n";
+	if ($h !~ /^.*\.t(\d+)\.ah(\d+).*$/)
+		{ die "\"${h}\" not matched\n"; }
+	my ($t,$hn) = ($1,$2);
+	##print "\"$h\" ==> t=$t hn=$hn\n";
+	if (($t < $t_start) || ($t > $t_stop))
+		{ next; }
+	push @{ $hn_table{$t} }, $hn;
+	}
+
+# generate a list of all the times in numerical order
+my @t_list = sort {$a <=> $b} keys(%hn_table);
+##print "got times ", join("\n", @t_list);
+
+# generate the gnuplot commands
+if (defined($prefix))
+	{ print "load '${prefix}'\n"; }
+	foreach my $t (@t_list)
+	{
+	my @hn_list = @{ $hn_table{$t} };
+	my $N_horizons = scalar(@hn_list);
+		for (my $hni = 0 ; $hni < $N_horizons ; ++$hni)
+		{
+		my $first_flag = ($hni == 0);
+		my  $last_flag = ($hni == $N_horizons-1);
+		my $hn = $hn_list[$hni];
+
+		if ($first_flag)
+			{ print 'splot '; }
+		   else { print '      '; }
+
+		print '\'', sprintf($h_format, $t, $hn), '\'';
+		print " ${using}";
+		print " with lines ${hn}";
+
+		if (! $last_flag)
+			{ print ', \\'; }
+		print "\n";
+		}
+	if ($setup_flag) { last; }
+	}

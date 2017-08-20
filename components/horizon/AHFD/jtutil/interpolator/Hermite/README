@@ -1,0 +1,34 @@
+$Header$
+
+This directory contains code for Hermite polynomial interpolation.
+
+makefile
+	This has targets to create the subdirectories for the
+	Maple-generated coefficient files, and to run Maple to
+	generated those files.
+
+make.code.defn
+	This tells the Cactus build system which files to compile.
+
+[123]d.maple
+	These files contain the Maple code to generate the interpolation
+	coefficients.
+
+fns.maple
+	These files define the interpolation functions, coefficients, etc,
+	for the Maple code in [123]d.maple
+
+[123]d.cube.order?.smooth?.c
+	These files are the individual cases for the interpolation.
+	Each file defines a separate function.  Each file just #defines
+	a bunch of macros, then #includes "../template.c" to get the
+	actual interpolation code.  Unfortunately, the ISO C standard
+	only guarantees 31 characters for function names (in fact, it
+	doesn't even guarantee that for external names -- they may be
+	limited by a system linker -- but I quietly ignore that and
+	assume I can use 31), so the functions are named in a cryptic
+	manner (described in ../Lagrange-tensor-product/README).
+
+all_prototypes.h
+	This file contains C prototypes for each of the functions
+	in [123]d.cube.order?.smooth0.c.

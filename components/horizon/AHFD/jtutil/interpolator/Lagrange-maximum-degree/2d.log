@@ -1,0 +1,4728 @@
+    |\^/|     Maple 7 (IBM INTEL LINUX)
+._|\|   |/|_. Copyright (c) 2001 by Waterloo Maple Inc.
+ \  MAPLE  /  All rights reserved. Maple is a registered trademark of
+ <____ ____>  Waterloo Maple Inc.
+      |       Type ? for help.
+# util.maple -- misc utility routines
+# $Header$
+> 
+#
+# fix_rationals - convert numbers to RATIONAL() calls
+# nonmatching_names - find names in a list which *don't* have a specified prefix
+# sprint_numeric_list - convert a numeric list to a valid C identifier suffix
+# print_name_list_dcl - print C declarations for a list of names
+#
+# hypercube_points - compute all (integer) points in an N-dimensional hypercube
+#
+# ftruncate - truncate a file to zero length
+#
+> 
+################################################################################
+################################################################################
+################################################################################
+> 
+#
+# This function converts all {integer, rational} subexpressions of its
+# input except integer exponents and -1 factors in products, into function
+# calls
+#	RATIONAL(num,den)
+# This is useful in conjunction with the  C() library function, since
+#
+#	C( (1/3) * foo * bar )
+#		t0 = foo*bar/3;
+#
+# generates a (slow) division (and runs the risk of mixed-mode-arithmetic
+# problems), while
+#
+#	C((1.0/3.0) * foo * bar);
+#	     t0 = 0.3333333333*foo*bar;
+#
+# suffers from roundoff error.  With this function,
+#
+#	fix_rationals((1/3) * foo * bar);
+#	     RATIONAL(1,3) foo bar
+#	C(%);
+#	     t0 = RATIONAL(1.0,3.0)*foo*bar;
+#
+# which a C preprocessor macro can easily convert to the desired
+#
+#	     t0 = (1.0/3.0)*foo*bar;
+#
+# Additionally, this function can be told to leave certain types of
+# subexpressions unconverged.  For example,
+#	fix_rationals(expr, type, specfunc(integer, DATA));
+# will leave all subexpressions of the form  DATA(integer arguments)
+# unconverted.
+#
+# Arguments:
+# expr = (in) The expression to be converted.
+# inert_fn = (optional in)
+#	     If specified, this argument should be a Boolean procedure
+#	     or the name of a Boolean procedure.  This procedure should
+#	     take one or more argument, and return true if and only if
+#	     the first argument should *not* be converted, i.e. if we
+#	     should leave this expression unchanged.  See the last
+#	     example above.
+# ... = (optional in)
+#	Any further arguments are passed as additional arguments to
+#	the inert_fn procedure.
+#
+> fix_rationals :=
+> proc(
+>     expr::{
+> 	        algebraic, name = algebraic,
+> 	  list({algebraic, name = algebraic}),
+> 	  set ({algebraic, name = algebraic})
+> 	  },
+>     inert_fn::{name, procedure}
+>     )
+> local nn, k,
+>       base, power, fbase, fpower,
+>       fn, fn_args_list,
+>       num, den, mult;
+> 
+# do we want to convert this expression?
+> if ((nargs >= 2) and inert_fn(expr, args[3..nargs]))
+>    then return expr;
+> end if;
+> 
+# recurse over lists and sets
+> if (type(expr, {list,set}))
+>    then return map(fix_rationals, expr, args[2..nargs]);
+> end if;
+> 
+# recurse over equation right hand sides
+> if (type(expr, name = algebraic))
+>    then return ( lhs(expr) = fix_rationals(rhs(expr), args[2..nargs]) );
+> end if;
+> 
+# recurse over functions other than  RATIONAL()
+> if (type(expr, function))
+>    then
+> 	fn := op(0, expr);
+> 	if (fn <> 'RATIONAL')
+> 	   then
+> 		fn_args_list := [op(expr)];
+> 		fn_args_list := map(fix_rationals, fn_args_list, args[2..nargs]);
+> 		fn; return '%'( op(fn_args_list) );
+> 	end if;
+> end if;
+> 
+> nn := nops(expr);
+> 
+# recurse over sums
+> if (type(expr, `+`))
+>    then return sum('fix_rationals(op(k,expr), args[2..nargs])', 'k'=1..nn);
+> end if;
+> 
+# recurse over products
+# ... leaving leading -1 factors intact, i.e. not converted to RATIONAL(-1,1)
+> if (type(expr, `*`))
+>    then
+> 	if (op(1, expr) = -1)
+> 	   then return -1*fix_rationals(remove(type, expr, 'identical(-1)'),
+> 				        args[2..nargs]);
+> 	   else return product('fix_rationals(op(k,expr), args[2..nargs])',
+> 			       'k'=1..nn);
+> 	end if;
+> end if;
+> 
+# recurse over powers
+# ... leaving integer exponents intact
+> if (type(expr, `^`))
+>    then
+> 	base := op(1, expr);
+> 	power := op(2, expr);
+> 
+> 	fbase := fix_rationals(base, args[2..nargs]);
+> 	if (type(power, integer))
+> 	   then fpower := power;
+> 	   else fpower := fix_rationals(power, args[2..nargs]);
+> 	end if;
+> 	return fbase ^ fpower;
+> end if;
+> 
+# fix integers and fractions
+> if (type(expr, integer))
+>    then return 'RATIONAL'(expr, 1);
+> end if;
+> if (type(expr, fraction))
+>    then
+> 	num := op(1, expr);
+> 	den := op(2, expr);
+> 
+> 	return 'RATIONAL'(num, den);
+> end if;
+> 
+# turn Maple floating-point into integer fraction, then recursively fix that
+> if (type(expr, float))
+>    then
+> 	mult := op(1, expr);
+> 	power := op(2, expr);
+> 	return fix_rationals(mult * 10^power, args[2..nargs]);
+> end if;
+> 
+# identity op on names
+> if (type(expr, name))
+>    then return expr;
+> end if;
+> 
+# unknown type
+> error "%0",
+>       "unknown type for expr!",
+>       "   whattype(expr) = ", whattype(expr),
+>       "   expr = ", expr;
+> end proc;
+fix_rationals := proc(expr::{algebraic, name = algebraic,
+list({algebraic, name = algebraic}), set({algebraic, name = algebraic})},
+inert_fn::{procedure, name})
+local nn, k, base, power, fbase, fpower, fn, fn_args_list, num, den, mult;
+    if 2 <= nargs and inert_fn(expr, args[3 .. nargs]) then return expr
+    end if;
+    if type(expr, {set, list}) then
+        return map(fix_rationals, expr, args[2 .. nargs])
+    end if;
+    if type(expr, name = algebraic) then
+        return lhs(expr) = fix_rationals(rhs(expr), args[2 .. nargs])
+    end if;
+    if type(expr, function) then
+        fn := op(0, expr);
+        if fn <> 'RATIONAL' then
+            fn_args_list := [op(expr)];
+            fn_args_list :=
+                map(fix_rationals, fn_args_list, args[2 .. nargs]);
+            fn;
+            return '%'(op(fn_args_list))
+        end if
+    end if;
+    nn := nops(expr);
+    if type(expr, `+`) then return
+        sum('fix_rationals(op(k, expr), args[2 .. nargs])', 'k' = 1 .. nn)
+    end if;
+    if type(expr, `*`) then
+        if op(1, expr) = -1 then return -fix_rationals(
+            remove(type, expr, 'identical(-1)'), args[2 .. nargs])
+        else return product('fix_rationals(op(k, expr), args[2 .. nargs])',
+            'k' = 1 .. nn)
+        end if
+    end if;
+    if type(expr, `^`) then
+        base := op(1, expr);
+        power := op(2, expr);
+        fbase := fix_rationals(base, args[2 .. nargs]);
+        if type(power, integer) then fpower := power
+        else fpower := fix_rationals(power, args[2 .. nargs])
+        end if;
+        return fbase^fpower
+    end if;
+    if type(expr, integer) then return 'RATIONAL'(expr, 1) end if;
+    if type(expr, fraction) then
+        num := op(1, expr); den := op(2, expr); return 'RATIONAL'(num, den)
+    end if;
+    if type(expr, float) then
+        mult := op(1, expr);
+        power := op(2, expr);
+        return fix_rationals(mult*10^power, args[2 .. nargs])
+    end if;
+    if type(expr, name) then return expr end if;
+    error "%0", "unknown type for expr!", "   whattype(expr) = ",
+        whattype(expr), "   expr = ", expr
+end proc
+
+> 
+################################################################################
+> 
+#
+# This function finds names in a list which *don't* have a specified prefix.
+#
+# Arguments:
+# name_list = A list of the names.
+# prefix = The prefix we want to filter out.
+#
+# Results:
+# This function returns the subset list of names which don't have the
+# specified prefix.
+# 
+> nonmatching_names :=
+> proc( name_list::list({name,string}), prefix::{name,string} )
+> 
+> select(   proc(n)
+> 	  evalb(not StringTools[IsPrefix](prefix,n));
+> 	  end proc
+> 	,
+> 	  name_list
+>       );
+> end proc;
+nonmatching_names := proc(
+name_list::list({name, string}), prefix::{name, string})
+    select(proc(n) evalb(not StringTools[IsPrefix](prefix, n)) end proc,
+    name_list)
+end proc
+
+> 
+################################################################################
+> 
+#
+# This function converts a numeric list to a string which is a valid
+# C identifier suffix: elements are separated by "_", decimal points are
+# replaced by "x", and all nonzero values have explicit +/- signs, which
+# are replaced by "p"/"m".
+#
+# For example, [0,-3.5,+4] --> "0_m3x5_p4".
+#
+> sprint_numeric_list :=
+> proc(nlist::list(numeric))
+> 
+# generate preliminary string, eg "+0_-3.5_+4"
+> map2(sprintf, "%+a", nlist);
+> ListTools[Join](%, "_");
+> cat(op(%));
+> 
+# fixup bad characters
+> StringTools[SubstituteAll](%, "+0", "0");
+> StringTools[CharacterMap](".+-", "xpm", %);
+> 
+> return %;
+> end proc;
+sprint_numeric_list := proc(nlist::list(numeric))
+    map2(sprintf, "%+a", nlist);
+    ListTools[Join](%, "_");
+    cat(op(%));
+    StringTools[SubstituteAll](%, "+0", "0");
+    StringTools[CharacterMap](".+-", "xpm", %);
+    return %
+end proc
+
+> 
+################################################################################
+> 
+#
+# This function prints a sequence of C declarations for a list of names.
+#
+# Argument:
+# name_list = A list of the names.
+# type_name = The C type of the names, eg. "double".
+# file_name = The file name to write the declaration to.  This is
+#	      truncated before writing.
+#
+> print_name_list_dcl :=
+> proc( name_list::list({name,string}),
+>       type_name::string,
+>       file_name::string )
+> local blanks, separator_string;
+> 
+> ftruncate(file_name);
+> 
+> map(
+>        proc(var::{name,string})
+>        fprintf(file_name,
+> 	       "%s %s;\n", 
+> 	       type_name, var);
+>        end proc
+>      ,
+>        name_list
+>    );
+> 
+> fclose(file_name);
+> NULL;
+> end proc;
+print_name_list_dcl := proc(
+name_list::list({name, string}), type_name::string, file_name::string)
+local blanks, separator_string;
+    ftruncate(file_name);
+    map(proc(var::{name, string})
+            fprintf(file_name, "%s %s;\n", type_name, var)
+        end proc, name_list);
+    fclose(file_name);
+    NULL
+end proc
+
+> 
+################################################################################
+################################################################################
+################################################################################
+> 
+#
+# This function computes a list of all the (integer) points in an
+# N-dimensional hypercube, in lexicographic order.  The present
+# implementation requires N <= 4.
+#
+# Arguments:
+# cmin,cmax = N-element lists of cube minimum/maximum coordinates.
+#
+# Results:
+# The function returns a set of d-element lists giving the coordinates.
+# For example,
+#	hypercube([0,0], [2,1]
+# returns
+#	{ [0,0], [0,1], [1,0], [1,1], [2,0], [2,1] }
+> hypercube_points :=
+> proc(cmin::list(integer), cmax::list(integer))
+> local N, i,j,k,l;
+> 
+> N := nops(cmin);
+> if (nops(cmax) <> N)
+>    then error 
+> 	"must have same number of dimensions for min and max coordinates!";
+> fi;
+> 
+> if   (N = 1)
+>    then return [seq([i], i=cmin[1]..cmax[1])];
+> elif (N = 2)
+>    then return [
+> 		 seq(
+> 		   seq([i,j], j=cmin[2]..cmax[2]),
+> 		   i=cmin[1]..cmax[1])
+> 	       ];
+> elif (N = 3)
+>    then return [
+> 		 seq(
+> 		   seq(
+> 		     seq([i,j,k], k=cmin[3]..cmax[3]),
+> 		     j=cmin[2]..cmax[2] ),
+> 		   i=cmin[1]..cmax[1])
+> 	       ];
+> elif (N = 4)
+>    then return [
+> 		 seq(
+> 		   seq(
+> 		     seq(
+> 		       seq([i,j,k,l], l=cmin[4]..cmax[4]),
+> 		       k=cmin[3]..cmax[3] ),
+> 		     j=cmin[2]..cmax[2]),
+> 		   i=cmin[1]..cmax[1])
+> 	       ];
+> else
+> 	error "implementation restriction: must have N <= 4, got %1!", N;
+> fi;
+> end proc;
+hypercube_points := proc(cmin::list(integer), cmax::list(integer))
+local N, i, j, k, l;
+    N := nops(cmin);
+    if nops(cmax) <> N then error
+        "must have same number of dimensions for min and max coordinates!"
+    end if;
+    if N = 1 then return [seq([i], i = cmin[1] .. cmax[1])]
+    elif N = 2 then return
+        [seq(seq([i, j], j = cmin[2] .. cmax[2]), i = cmin[1] .. cmax[1])]
+    elif N = 3 then return [seq(
+        seq(seq([i, j, k], k = cmin[3] .. cmax[3]), j = cmin[2] .. cmax[2])
+        , i = cmin[1] .. cmax[1])]
+    elif N = 4 then return [seq(seq(seq(
+        seq([i, j, k, l], l = cmin[4] .. cmax[4]), k = cmin[3] .. cmax[3]),
+        j = cmin[2] .. cmax[2]), i = cmin[1] .. cmax[1])]
+    else error "implementation restriction: must have N <= 4, got %1!", N
+    end if
+end proc
+
+> 
+################################################################################
+################################################################################
+################################################################################
+> 
+#
+# This function truncates a file to 0 length if it exists, or creates
+# it at that length if it doesn't exist.
+#
+# Arguments:
+# file_name = (in) The name of the file.
+#
+> ftruncate :=
+> proc(file_name::string)
+> fopen(file_name, 'WRITE');
+> fclose(%);
+> NULL;
+> end proc;
+ftruncate :=
+
+    proc(file_name::string) fopen(file_name, 'WRITE'); fclose(%); NULL end proc
+
+# interpolate.maple -- compute interpolation formulas/coefficients
+# $Header$
+> 
+#
+# <<<representation of numbers, data values, etc>>>
+# Lagrange_polynomial_interpolant - compute Lagrange polynomial interpolant
+# Hermite_polynomial_interpolant - compute Hermite polynomial interpolant
+# coeffs_as_lc_of_data - coefficients of ... (linear combination of data)
+#
+# print_coeffs__lc_of_data - print C code to compute coefficients
+# print_fetch_data - print C code to fetch input array chunk into struct data
+# print_store_coeffs - print C code to store struct coeffs "somewhere"
+# print_interp_cmpt__lc_of_data - print C code for computation of interpolant
+#
+# coeff_name - name of coefficient of data at a given [m] coordinate
+# data_var_name - name of variable storing data value at a given [m] coordinate
+#
+> 
+################################################################################
+> 
+#
+# ***** representation of numbers, data values, etc *****
+#
+# We use RATIONAL(p.0,q.0) to denote the rational number p/q.
+#
+# We use DATA(...) to represent the data values being interpolated at a
+# specified [m] coordinate, where the arguments are the [m] coordinates.
+#
+# We use COEFF(...) to represent the molecule coefficient at a specified
+# [m] coordinate, where the arguments are the [m] coordinates.
+#
+# For example, the usual 1-D centered 2nd order 1st derivative molecule
+# would be written
+#	RATIONAL(-1.0,2.0)*DATA(-1) + RATIONA(1.0,2.0)*DATA(1)
+# and its coefficients as
+#	COEFF(-1) = RATIONAL(-1.0,2.0)
+#	COEFF(1) = RATIONAL(1.0,2.0)
+#
+> 
+################################################################################
+################################################################################
+################################################################################
+> 
+#
+# This function computes a Lagrange polynomial interpolant in any
+# number of dimensions.
+#
+# Arguments:
+# fn = The interpolation function.  This should be a procedure in the
+#      coordinates, having the coefficients as global variables.  For
+#      example,
+#	  proc(x,y) c00 + c10*x + c01*y end proc
+# coeff_list = A set of the interpolation coefficients (coefficients in
+#	       the interpolation function), for example [c00, c10, c01].
+# coord_list = A list of the coordinates (independent variables in the
+#	       interpolation function), for example [x,y].
+# posn_list = A list of positions (each a list of numeric values) where the
+#	      interpolant is to use data, for example  hypercube([0,0], [1,1]).
+#	      Any positions may be used; if they're redundant (as in the
+#	      example) the least-squares interpolant is computed.
+#
+# Results:
+# This function returns the interpolating polynomial, in the form of
+# an algebraic expression in the coordinates and the data values.
+#
+> Lagrange_polynomial_interpolant :=
+> proc(
+>       fn::procedure, coeff_list::list(name),
+>       coord_list::list(name), posn_list::list(list(numeric))
+>     )
+> local posn, data_eqns, coeff_eqns;
+> 
+# coefficients of interpolating polynomial
+> data_eqns := {  seq( fn(op(posn))='DATA'(op(posn)) , posn=posn_list )  };
+> coeff_eqns := linalg[leastsqrs](data_eqns, {op(coeff_list)});
+> if (has(coeff_eqns, '_t'))
+>    then error "interpolation coefficients aren't uniquely determined!";
+> end if;
+> 
+# interpolant as a polynomial in the coordinates
+> return subs(coeff_eqns, eval(fn))(op(coord_list));
+> end proc;
+Lagrange_polynomial_interpolant := proc(fn::procedure, coeff_list::list(name),
+coord_list::list(name), posn_list::list(list(numeric)))
+local posn, data_eqns, coeff_eqns;
+    data_eqns := {seq(fn(op(posn)) = 'DATA'(op(posn)), posn = posn_list)};
+    coeff_eqns := linalg[leastsqrs](data_eqns, {op(coeff_list)});
+    if has(coeff_eqns, '_t') then
+        error "interpolation coefficients aren't uniquely determined!"
+    end if;
+    return subs(coeff_eqns, eval(fn))(op(coord_list))
+end proc
+
+> 
+################################################################################
+> 
+#
+# This function computes a Hermite polynomial interpolant in any
+# number of dimensions.  This is a polynomial which
+# * has values which match the given data DATA() at a specified set of
+#   points, and
+# * has derivatives which match the specified finite-difference derivatives
+#   of the given data DATA() at a specified set of points
+#
+# For the derivative matching, we actually match all possible products
+# of 1st derivatives, i.e. in 2-D we match dx, dy, and dxy, in 3-D we
+# match dx, dy, dz, dxy, dxz, dyz, and dxyz, etc etc.
+#
+# Arguments:
+# fn = The interpolation function.  This should be a procedure in the
+#      coordinates, having the coefficients as global variables.  For
+#      example,
+#		proc(x,y)
+#		+ c03*y^3 + c13*x*y^3 + c23*x^2*y^3 + c33*x^3*y^3
+#		+ c02*y^2 + c12*x*y^2 + c22*x^2*y^2 + c32*x^3*y^2
+#		+ c01*y   + c11*x*y   + c21*x^2*y   + c31*x^3*y
+#		+ c00     + c10*x     + c20*x^2     + c30*x^3
+#		end proc;
+# coeff_set = A set of the interpolation coefficients (coefficients in
+#	       the interpolation function), for example
+#			{
+#			c03, c13, c23, c33,
+#			c02, c12, c22, c32,
+#			c01, c11, c21, c31,
+#			c00, c10, c20, c30
+#			}
+# coord_list = A list of the coordinates (independent variables in the
+#	       interpolation function), for example [x,y].
+# deriv_set = A set of equations of the form
+#		{coords} = proc
+#	      giving the derivatives which are to be matched, and the
+#	      procedures to compute their finite-difference approximations.
+#	      Each procedure should take N_dims integer arguments specifying
+#	      an evaluation point, and return a suitable linear combination
+#	      of the DATA() for the derivative at that point.  For example
+#			{
+#			  {x}   = proc(i::integer, j::integer)
+#				  - 1/2*DATA(i-1,j) + 1/2*DATA(i+1,j)
+#				  end proc
+#			,
+#			  {y}   = proc(i::integer, j::integer)
+#				  - 1/2*DATA(i,j-1) + 1/2*DATA(i,j+1)
+#				  end proc
+#			,
+#			  {x,y} = proc(i::integer, j::integer)
+#				  - 1/4*DATA(i-1,j+1) + 1/4*DATA(i+1,j+1)
+#				  + 1/4*DATA(i-1,j-1) - 1/4*DATA(i+1,j-1)
+#				  end proc
+#			}
+# fn_posn_set = A set of positions (each a list of numeric values)
+#		where the interpolant is to match the given data DATA(),
+#		for example
+#			{[0,0], [0,1], [1,0], [1,1]}
+# deriv_posn_set = A list of positions (each a list of numeric values)
+#		   where the interpolant is to match the derivatives
+#		   specified by  deriv_set , for example
+#			{[0,0], [0,1], [1,0], [1,1]}
+#
+# Results:
+# This function returns the interpolating polynomial, in the form of
+# an algebraic expression in the coordinates and the data values.
+#
+> Hermite_polynomial_interpolant :=
+> proc(
+>       fn::procedure,
+>       coeff_set::set(name),
+>       coord_list::list(name),
+>       deriv_set::set(set(name) = procedure),
+>       fn_posn_set::set(list(numeric)),
+>       deriv_posn_set::set(list(numeric))
+>     )
+> local fn_eqnset, deriv_eqnset, coeff_eqns, subs_eqnset;
+> 
+> 
+#
+# compute a set of equations
+#	{fn(posn) = DATA(posn)}
+# giving the function values to be matched
+#
+> fn_eqnset := map(
+> 		    # return equation that fn(posn) = DATA(posn)
+> 		    proc(posn::list(integer))
+> 		    fn(op(posn)) = 'DATA'(op(posn));
+> 		    end proc
+> 		  ,
+> 		    fn_posn_set
+> 		);
+> 
+> 
+#
+# compute a set of equations
+#	{ diff(fn,coords)(posn) = DERIV(coords)(posn) }
+# giving the derivative values to be matched, where DERIV(coords)
+# is a placeholder for the appropriate derivative
+#
+> map(
+>        # return set of equations for this particular derivative
+>        proc(deriv_coords::set(name))
+>        local deriv_fn;
+>        fn(op(coord_list));
+>        diff(%, op(deriv_coords));
+>        deriv_fn := unapply(%, op(coord_list));
+>        map(
+> 	      proc(posn::list(integer))
+> 	      deriv_fn(op(posn)) = 'DERIV'(op(deriv_coords))(op(posn));
+> 	      end proc
+> 	    ,
+> 	      deriv_posn_set
+> 	  );
+>        end proc
+>      ,
+>        map(lhs, deriv_set)
+>    );
+> deriv_eqnset := `union`(op(%));
+> 
+> 
+#
+# solve overall set of equations for coefficients
+# in terms of DATA() and DERIV() values
+#
+> coeff_eqns := solve[linear](fn_eqnset union deriv_eqnset, coeff_set);
+> if (indets(map(rhs,%)) <> {})
+>    then error "no unique solution for coefficients -- %1 eqns for %2 coeffs",
+> 	      nops(fn_eqnset union deriv_eqnset),
+> 	      nops(coeff_set);
+> fi;
+> 
+> 
+#
+# compute a set of substitution equations
+#	{'DERIV'(coords) = procedure}
+#
+> subs_eqnset := map(
+> 		      proc(eqn::set(name) = procedure)
+> 		      'DERIV'(op(lhs(eqn))) = rhs(eqn);
+> 		      end proc
+> 		    ,
+> 		      deriv_set
+> 		  );
+> 
+> 
+#
+# compute the coefficients in terms of the DATA() values
+#
+> subs(subs_eqnset, coeff_eqns);
+> eval(%);
+> 
+#
+# compute the interpolant as a polynomial in the coordinates
+#
+> subs(%, fn(op(coord_list)));
+> end proc;
+Hermite_polynomial_interpolant := proc(fn::procedure, coeff_set::set(name),
+coord_list::list(name), deriv_set::set(set(name) = procedure),
+fn_posn_set::set(list(numeric)), deriv_posn_set::set(list(numeric)))
+local fn_eqnset, deriv_eqnset, coeff_eqns, subs_eqnset;
+    fn_eqnset := map(
+        proc(posn::list(integer)) fn(op(posn)) = 'DATA'(op(posn)) end proc,
+        fn_posn_set);
+    map(proc(deriv_coords::set(name))
+        local deriv_fn;
+            fn(op(coord_list));
+            diff(%, op(deriv_coords));
+            deriv_fn := unapply(%, op(coord_list));
+            map(proc(posn::list(integer))
+                    deriv_fn(op(posn)) =
+                    'DERIV'(op(deriv_coords))(op(posn))
+                end proc, deriv_posn_set)
+        end proc, map(lhs, deriv_set));
+    deriv_eqnset := `union`(op(%));
+    coeff_eqns := solve[linear](fn_eqnset union deriv_eqnset, coeff_set);
+    if indets(map(rhs, %)) <> {} then error
+        "no unique solution for coefficients -- %1 eqns for %2 coeffs",
+        nops(fn_eqnset union deriv_eqnset), nops(coeff_set)
+    end if;
+    subs_eqnset := map(proc(eqn::(set(name) = procedure))
+            'DERIV'(op(lhs(eqn))) = rhs(eqn)
+        end proc, deriv_set);
+    subs(subs_eqnset, coeff_eqns);
+    eval(%);
+    subs(%, fn(op(coord_list)))
+end proc
+
+> 
+################################################################################
+> 
+#
+# This function takes as input an interpolating polynomial, expresses
+# it as a linear combination of the data values, and returns the coefficeints
+# of that form.
+# 
+# Arguments:
+# interpolant = The interpolating polynomial (an algebraic expression
+#		in the coordinates and the data values).
+# posn_list = The same list of data positions used in the interpolant.
+#
+# Results:
+# This function returns the coefficients, as a list of equations of the
+# form   COEFF(...) = value , where each  value  is a polynomial in the
+# coordinates.  The order of the list matches that of  posn_list.
+#
+> coeffs_as_lc_of_data :=
+> proc(
+>       interpolant::algebraic,
+>       posn_list::list(list(numeric))
+>     )
+> local data_list, interpolant_as_lc_of_data;
+> 
+# interpolant as a linear combination of the data values
+> data_list := [ seq( 'DATA'(op(posn)) , posn=posn_list ) ];
+> interpolant_as_lc_of_data := collect(interpolant, data_list);
+> 
+# coefficients of the data values in the linear combination
+> return map(
+> 	      proc(posn::list(numeric))
+> 	      coeff(interpolant_as_lc_of_data, DATA(op(posn)));
+> 	      'COEFF'(op(posn)) = %;
+> 	      end proc
+> 	    ,
+> 	      posn_list
+> 	  );
+> end proc;
+coeffs_as_lc_of_data := proc(
+interpolant::algebraic, posn_list::list(list(numeric)))
+local data_list, interpolant_as_lc_of_data;
+    data_list := [seq('DATA'(op(posn)), posn = posn_list)];
+    interpolant_as_lc_of_data := collect(interpolant, data_list);
+    return map(proc(posn::list(numeric))
+            coeff(interpolant_as_lc_of_data, DATA(op(posn)));
+            'COEFF'(op(posn)) = %
+        end proc, posn_list)
+end proc
+
+> 
+################################################################################
+################################################################################
+################################################################################
+> 
+#
+# This function prints C expressions for the coefficients of an
+# interpolating polynomial.  (The polynomial is expressed as linear
+# combinations of the data values with coefficients which are
+# RATIONAL(p,q) calls.)
+#
+# Arguments:
+# coeff_list = A list of the coefficients, as returned from
+#	       coeffs_as_lc_of_data() .
+# coeff_name_prefix = A prefix string for the coefficient names.
+# temp_name_type = The C type to be used for Maple-introduced temporary
+#		   names, eg. "double".
+# file_name = The file name to write the coefficients to.  This is
+#	      truncated before writing.
+#
+> print_coeffs__lc_of_data :=
+> proc( coeff_list::list(specfunc(numeric,COEFF) = algebraic),
+>       coeff_name_prefix::string,
+>       temp_name_type::string,
+>       file_name::string )
+> global `codegen/C/function/informed`;
+> local coeff_list2, cmpt_list, temp_name_list;
+> 
+# convert LHS of each equation from a COEFF() call (eg COEFF(-1,+1))
+# to a Maple/C variable name (eg coeff_I_m1_p1)
+> coeff_list2 := map(
+> 		      proc(coeff_eqn::specfunc(numeric,COEFF) = algebraic)
+> 		      local posn;
+> 		      posn := [op(lhs(coeff_eqn))];
+> 		      coeff_name(posn,coeff_name_prefix);
+> 		      convert(%, name);	# codegen[C] wants LHS
+> 					# to be an actual Maple *name*
+> 		      % = fix_rationals(rhs(coeff_eqn));
+> 		      end proc
+> 		    ,
+> 		      coeff_list
+> 		  );
+> 
+#
+# generate the C code
+#
+> 
+# tell codegen[C] not to warn about unknown RATIONAL() and DATA() "fn calls"
+# via undocumented :( global table
+> `codegen/C/function/informed`['RATIONAL'] := true;
+> `codegen/C/function/informed`['DATA'] := true;
+> 
+> ftruncate(file_name);
+> 
+# optimized computation sequence for all the coefficients
+# (may use local variables t0,t1,t2,...)
+> cmpt_list := [codegen[optimize](coeff_list2, tryhard)];
+> 
+# list of the t0,t1,t2,... local variables
+> temp_name_list := nonmatching_names(map(lhs,cmpt_list), coeff_name_prefix);
+> 
+# declare the t0,t1,t2,... local variables (if there are any)
+> if (nops(temp_name_list) > 0)
+>    then print_name_list_dcl(%, temp_name_type, file_name);
+> fi;
+> 
+# now print the optimized computation sequence
+> codegen[C](cmpt_list, filename=file_name);
+> 
+> fclose(file_name);
+> 
+> NULL;
+> end proc;
+print_coeffs__lc_of_data := proc(
+coeff_list::list(specfunc(numeric, COEFF) = algebraic),
+coeff_name_prefix::string, temp_name_type::string, file_name::string)
+local coeff_list2, cmpt_list, temp_name_list;
+global `codegen/C/function/informed`;
+    coeff_list2 := map(proc(
+        coeff_eqn::(specfunc(numeric, COEFF) = algebraic))
+        local posn;
+            posn := [op(lhs(coeff_eqn))];
+            coeff_name(posn, coeff_name_prefix);
+            convert(%, name);
+            % = fix_rationals(rhs(coeff_eqn))
+        end proc, coeff_list);
+    `codegen/C/function/informed`['RATIONAL'] := true;
+    `codegen/C/function/informed`['DATA'] := true;
+    ftruncate(file_name);
+    cmpt_list := [codegen[optimize](coeff_list2, tryhard)];
+    temp_name_list :=
+        nonmatching_names(map(lhs, cmpt_list), coeff_name_prefix);
+    if 0 < nops(temp_name_list) then
+        print_name_list_dcl(%, temp_name_type, file_name)
+    end if;
+    codegen[C](cmpt_list, filename = file_name);
+    fclose(file_name);
+    NULL
+end proc
+
+> 
+################################################################################
+> 
+#
+# This function prints a sequence of C expression to assign the data-value
+# variables, eg
+#	data->data_m1_p1 = DATA(-1,1);
+#
+# Arguments:
+# posn_list = The same list of positions as was used to compute the
+#	      interpolating polynomial.
+# data_var_name_prefix = A prefix string for the data variable names.
+# file_name = The file name to write the coefficients to.  This is
+#	      truncated before writing.
+#
+> print_fetch_data :=
+> proc(
+>       posn_list::list(list(numeric)),
+>       data_var_name_prefix::string,
+>       file_name::string
+>     )
+> 
+> ftruncate(file_name);
+> map(
+>        proc(posn::list(numeric))
+>        fprintf(file_name,
+> 	       "%s = %a;\n",
+> 	       data_var_name(posn,data_var_name_prefix),
+> 	       DATA(op(posn)));
+>        end proc
+>      ,
+>        posn_list
+>    );
+> fclose(file_name);
+> 
+> NULL;
+> end proc;
+print_fetch_data := proc(posn_list::list(list(numeric)),
+data_var_name_prefix::string, file_name::string)
+    ftruncate(file_name);
+    map(proc(posn::list(numeric))
+            fprintf(file_name, "%s = %a;\n",
+            data_var_name(posn, data_var_name_prefix), DATA(op(posn)))
+        end proc, posn_list);
+    fclose(file_name);
+    NULL
+end proc
+
+> 
+################################################################################
+> 
+#
+# This function prints a sequence of C expression to store the interpolation
+# coefficients in  COEFF(...)  expressions, eg
+#	COEFF(1,-1) = factor * coeffs->coeff_p1_m1;
+#
+# Arguments:
+# posn_list = The list of positions in the molecule.
+# coeff_name_prefix = A prefix string for the coefficient names,
+#		      eg "factor * coeffs->coeff_"
+# file_name = The file name to write the coefficients to.  This is
+#	      truncated before writing.
+#
+> print_store_coeffs :=
+> proc(
+>       posn_list::list(list(numeric)),
+>       coeff_name_prefix::string,
+>       file_name::string
+>     )
+> 
+> ftruncate(file_name);
+> map(
+>        proc(posn::list(numeric))
+>        fprintf(file_name,
+> 	       "%a = %s;\n",
+> 	       'COEFF'(op(posn)),
+> 	       coeff_name(posn,coeff_name_prefix));
+>        end proc
+>      ,
+>        posn_list
+>    );
+> fclose(file_name);
+> 
+> NULL;
+> end proc;
+print_store_coeffs := proc(posn_list::list(list(numeric)),
+coeff_name_prefix::string, file_name::string)
+    ftruncate(file_name);
+    map(proc(posn::list(numeric))
+            fprintf(file_name, "%a = %s;\n", 'COEFF'(op(posn)),
+            coeff_name(posn, coeff_name_prefix))
+        end proc, posn_list);
+    fclose(file_name);
+    NULL
+end proc
+
+> 
+################################################################################
+> 
+#
+# This function prints a C expression to evaluate a molecule, i.e.
+# to compute the molecule as a linear combination of the data values.
+#
+# Arguments:
+# posn_list = The list of positions in the molecule.
+# coeff_name_prefix = A prefix string for the coefficient names.
+# data_var_name_prefix = A prefix string for the data variable names.
+# file_name = The file name to write the coefficients to.  This is
+#	      truncated before writing.
+#
+> print_evaluate_molecule :=
+> proc(
+>       posn_list::list(list(numeric)),
+>       coeff_name_prefix::string,
+>       data_var_name_prefix::string,
+>       file_name::string
+>     )
+> 
+> ftruncate(file_name);
+> 
+# list of "coeff*data_var" terms
+> map(
+>        proc(posn::list(numeric))
+>        sprintf("%s*%s",
+> 	       coeff_name(posn,coeff_name_prefix),
+> 	       data_var_name(posn,data_var_name_prefix));
+>        end proc
+>      ,
+>        posn_list
+>    );
+> 
+> ListTools[Join](%, "\n  + ");
+> cat(op(%));
+> fprintf(file_name, "    %s;\n", %);
+> 
+> fclose(file_name);
+> 
+> NULL;
+> end proc;
+print_evaluate_molecule := proc(posn_list::list(list(numeric)),
+coeff_name_prefix::string, data_var_name_prefix::string, file_name::string)
+    ftruncate(file_name);
+    map(proc(posn::list(numeric))
+            sprintf("%s*%s", coeff_name(posn, coeff_name_prefix),
+            data_var_name(posn, data_var_name_prefix))
+        end proc, posn_list);
+    ListTools[Join](%, "\n  + ");
+    cat(op(%));
+    fprintf(file_name, "    %s;\n", %);
+    fclose(file_name);
+    NULL
+end proc
+
+> 
+################################################################################
+################################################################################
+################################################################################
+> 
+#
+# This function computes the name of the coefficient of the data at a
+# given [m] position, i.e. it encapsulates our naming convention for this.
+#
+# Arguments:
+# posn = (in) The [m] coordinates.
+# name_prefix = A prefix string for the coefficient name.
+#
+# Results:
+# The function returns the coefficient, as a Maple string.
+#
+> coeff_name :=
+> proc(posn::list(numeric), name_prefix::string)
+> cat(name_prefix, sprint_numeric_list(posn));
+> end proc;
+coeff_name := proc(posn::list(numeric), name_prefix::string)
+    cat(name_prefix, sprint_numeric_list(posn))
+end proc
+
+> 
+################################################################################
+> 
+#
+# This function computes the name of the variable in which the C code
+# will store the input data at a given [m] position, i.e. it encapsulates
+# our naming convention for this.
+#
+# Arguments:
+# posn = (in) The [m] coordinates.
+# name_prefix = A prefix string for the variable name.
+#
+# Results:
+# The function returns the variable name, as a Maple string.
+#
+> data_var_name :=
+> proc(posn::list(numeric), name_prefix::string)
+> cat(name_prefix, sprint_numeric_list(posn));
+> end proc;
+data_var_name := proc(posn::list(numeric), name_prefix::string)
+    cat(name_prefix, sprint_numeric_list(posn))
+end proc
+
+# Maple code to compute lists of point positions in hypercube-shaped molecules
+# $Header$
+> 
+################################################################################
+> 
+#
+# 1D interpolation points
+#
+> posn_list_1d_size2 := hypercube_points([ 0], [+1]);
+                        posn_list_1d_size2 := [[0], [1]]
+
+> posn_list_1d_size3 := hypercube_points([-1], [+1]);
+                     posn_list_1d_size3 := [[-1], [0], [1]]
+
+> posn_list_1d_size4 := hypercube_points([-1], [+2]);
+                  posn_list_1d_size4 := [[-1], [0], [1], [2]]
+
+> posn_list_1d_size5 := hypercube_points([-2], [+2]);
+               posn_list_1d_size5 := [[-2], [-1], [0], [1], [2]]
+
+> posn_list_1d_size6 := hypercube_points([-2], [+3]);
+             posn_list_1d_size6 := [[-2], [-1], [0], [1], [2], [3]]
+
+> posn_list_1d_size7 := hypercube_points([-3], [+3]);
+          posn_list_1d_size7 := [[-3], [-2], [-1], [0], [1], [2], [3]]
+
+> 
+################################################################################
+> 
+#
+# 2D interpolation points (Fortran ordering)
+#
+> posn_list_2d_size2 := map(ListTools[Reverse],
+> 			  hypercube_points([ 0, 0], [+1,+1]));
+             posn_list_2d_size2 := [[0, 0], [1, 0], [0, 1], [1, 1]]
+
+> posn_list_2d_size3 := map(ListTools[Reverse],
+> 			  hypercube_points([-1,-1], [+1,+1]));
+posn_list_2d_size3 := [[-1, -1], [0, -1], [1, -1], [-1, 0], [0, 0], [1, 0],
+
+    [-1, 1], [0, 1], [1, 1]]
+
+> posn_list_2d_size4 := map(ListTools[Reverse],
+> 			  hypercube_points([-1,-1], [+2,+2]));
+posn_list_2d_size4 := [[-1, -1], [0, -1], [1, -1], [2, -1], [-1, 0], [0, 0],
+
+    [1, 0], [2, 0], [-1, 1], [0, 1], [1, 1], [2, 1], [-1, 2], [0, 2], [1, 2],
+
+    [2, 2]]
+
+> posn_list_2d_size5 := map(ListTools[Reverse],
+> 			  hypercube_points([-2,-2], [+2,+2]));
+posn_list_2d_size5 := [[-2, -2], [-1, -2], [0, -2], [1, -2], [2, -2], [-2, -1],
+
+    [-1, -1], [0, -1], [1, -1], [2, -1], [-2, 0], [-1, 0], [0, 0], [1, 0],
+
+    [2, 0], [-2, 1], [-1, 1], [0, 1], [1, 1], [2, 1], [-2, 2], [-1, 2], [0, 2],
+
+    [1, 2], [2, 2]]
+
+> posn_list_2d_size6 := map(ListTools[Reverse],
+> 			  hypercube_points([-2,-2], [+3,+3]));
+posn_list_2d_size6 := [[-2, -2], [-1, -2], [0, -2], [1, -2], [2, -2], [3, -2],
+
+    [-2, -1], [-1, -1], [0, -1], [1, -1], [2, -1], [3, -1], [-2, 0], [-1, 0],
+
+    [0, 0], [1, 0], [2, 0], [3, 0], [-2, 1], [-1, 1], [0, 1], [1, 1], [2, 1],
+
+    [3, 1], [-2, 2], [-1, 2], [0, 2], [1, 2], [2, 2], [3, 2], [-2, 3], [-1, 3],
+
+    [0, 3], [1, 3], [2, 3], [3, 3]]
+
+> 
+################################################################################
+> 
+#
+# 3D interpolation points (Fortran ordering)
+#
+> posn_list_3d_size2 := map(ListTools[Reverse],
+> 			  hypercube_points([ 0, 0, 0], [+1,+1,+1]));
+posn_list_3d_size2 := [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0], [0, 0, 1],
+
+    [1, 0, 1], [0, 1, 1], [1, 1, 1]]
+
+> posn_list_3d_size3 := map(ListTools[Reverse],
+> 			  hypercube_points([-1,-1,-1], [+1,+1,+1]));
+posn_list_3d_size3 := [[-1, -1, -1], [0, -1, -1], [1, -1, -1], [-1, 0, -1],
+
+    [0, 0, -1], [1, 0, -1], [-1, 1, -1], [0, 1, -1], [1, 1, -1], [-1, -1, 0],
+
+    [0, -1, 0], [1, -1, 0], [-1, 0, 0], [0, 0, 0], [1, 0, 0], [-1, 1, 0],
+
+    [0, 1, 0], [1, 1, 0], [-1, -1, 1], [0, -1, 1], [1, -1, 1], [-1, 0, 1],
+
+    [0, 0, 1], [1, 0, 1], [-1, 1, 1], [0, 1, 1], [1, 1, 1]]
+
+> posn_list_3d_size4 := map(ListTools[Reverse],
+> 			  hypercube_points([-1,-1,-1], [+2,+2,+2]));
+posn_list_3d_size4 := [[-1, -1, -1], [0, -1, -1], [1, -1, -1], [2, -1, -1],
+
+    [-1, 0, -1], [0, 0, -1], [1, 0, -1], [2, 0, -1], [-1, 1, -1], [0, 1, -1],
+
+    [1, 1, -1], [2, 1, -1], [-1, 2, -1], [0, 2, -1], [1, 2, -1], [2, 2, -1],
+
+    [-1, -1, 0], [0, -1, 0], [1, -1, 0], [2, -1, 0], [-1, 0, 0], [0, 0, 0],
+
+    [1, 0, 0], [2, 0, 0], [-1, 1, 0], [0, 1, 0], [1, 1, 0], [2, 1, 0],
+
+    [-1, 2, 0], [0, 2, 0], [1, 2, 0], [2, 2, 0], [-1, -1, 1], [0, -1, 1],
+
+    [1, -1, 1], [2, -1, 1], [-1, 0, 1], [0, 0, 1], [1, 0, 1], [2, 0, 1],
+
+    [-1, 1, 1], [0, 1, 1], [1, 1, 1], [2, 1, 1], [-1, 2, 1], [0, 2, 1],
+
+    [1, 2, 1], [2, 2, 1], [-1, -1, 2], [0, -1, 2], [1, -1, 2], [2, -1, 2],
+
+    [-1, 0, 2], [0, 0, 2], [1, 0, 2], [2, 0, 2], [-1, 1, 2], [0, 1, 2],
+
+    [1, 1, 2], [2, 1, 2], [-1, 2, 2], [0, 2, 2], [1, 2, 2], [2, 2, 2]]
+
+> posn_list_3d_size5 := map(ListTools[Reverse],
+> 			  hypercube_points([-2,-2,-2], [+2,+2,+2]));
+posn_list_3d_size5 := [[-2, -2, -2], [-1, -2, -2], [0, -2, -2], [1, -2, -2],
+
+    [2, -2, -2], [-2, -1, -2], [-1, -1, -2], [0, -1, -2], [1, -1, -2],
+
+    [2, -1, -2], [-2, 0, -2], [-1, 0, -2], [0, 0, -2], [1, 0, -2], [2, 0, -2],
+
+    [-2, 1, -2], [-1, 1, -2], [0, 1, -2], [1, 1, -2], [2, 1, -2], [-2, 2, -2],
+
+    [-1, 2, -2], [0, 2, -2], [1, 2, -2], [2, 2, -2], [-2, -2, -1], [-1, -2, -1],
+
+    [0, -2, -1], [1, -2, -1], [2, -2, -1], [-2, -1, -1], [-1, -1, -1],
+
+    [0, -1, -1], [1, -1, -1], [2, -1, -1], [-2, 0, -1], [-1, 0, -1], [0, 0, -1],
+
+    [1, 0, -1], [2, 0, -1], [-2, 1, -1], [-1, 1, -1], [0, 1, -1], [1, 1, -1],
+
+    [2, 1, -1], [-2, 2, -1], [-1, 2, -1], [0, 2, -1], [1, 2, -1], [2, 2, -1],
+
+    [-2, -2, 0], [-1, -2, 0], [0, -2, 0], [1, -2, 0], [2, -2, 0], [-2, -1, 0],
+
+    [-1, -1, 0], [0, -1, 0], [1, -1, 0], [2, -1, 0], [-2, 0, 0], [-1, 0, 0],
+
+    [0, 0, 0], [1, 0, 0], [2, 0, 0], [-2, 1, 0], [-1, 1, 0], [0, 1, 0],
+
+    [1, 1, 0], [2, 1, 0], [-2, 2, 0], [-1, 2, 0], [0, 2, 0], [1, 2, 0],
+
+    [2, 2, 0], [-2, -2, 1], [-1, -2, 1], [0, -2, 1], [1, -2, 1], [2, -2, 1],
+
+    [-2, -1, 1], [-1, -1, 1], [0, -1, 1], [1, -1, 1], [2, -1, 1], [-2, 0, 1],
+
+    [-1, 0, 1], [0, 0, 1], [1, 0, 1], [2, 0, 1], [-2, 1, 1], [-1, 1, 1],
+
+    [0, 1, 1], [1, 1, 1], [2, 1, 1], [-2, 2, 1], [-1, 2, 1], [0, 2, 1],
+
+    [1, 2, 1], [2, 2, 1], [-2, -2, 2], [-1, -2, 2], [0, -2, 2], [1, -2, 2],
+
+    [2, -2, 2], [-2, -1, 2], [-1, -1, 2], [0, -1, 2], [1, -1, 2], [2, -1, 2],
+
+    [-2, 0, 2], [-1, 0, 2], [0, 0, 2], [1, 0, 2], [2, 0, 2], [-2, 1, 2],
+
+    [-1, 1, 2], [0, 1, 2], [1, 1, 2], [2, 1, 2], [-2, 2, 2], [-1, 2, 2],
+
+    [0, 2, 2], [1, 2, 2], [2, 2, 2]]
+
+> posn_list_3d_size6 := map(ListTools[Reverse],
+> 			  hypercube_points([-2,-2,-2], [+3,+3,+3]));
+posn_list_3d_size6 := [[-2, -2, -2], [-1, -2, -2], [0, -2, -2], [1, -2, -2],
+
+    [2, -2, -2], [3, -2, -2], [-2, -1, -2], [-1, -1, -2], [0, -1, -2],
+
+    [1, -1, -2], [2, -1, -2], [3, -1, -2], [-2, 0, -2], [-1, 0, -2], [0, 0, -2],
+
+    [1, 0, -2], [2, 0, -2], [3, 0, -2], [-2, 1, -2], [-1, 1, -2], [0, 1, -2],
+
+    [1, 1, -2], [2, 1, -2], [3, 1, -2], [-2, 2, -2], [-1, 2, -2], [0, 2, -2],
+
+    [1, 2, -2], [2, 2, -2], [3, 2, -2], [-2, 3, -2], [-1, 3, -2], [0, 3, -2],
+
+    [1, 3, -2], [2, 3, -2], [3, 3, -2], [-2, -2, -1], [-1, -2, -1], [0, -2, -1],
+
+    [1, -2, -1], [2, -2, -1], [3, -2, -1], [-2, -1, -1], [-1, -1, -1],
+
+    [0, -1, -1], [1, -1, -1], [2, -1, -1], [3, -1, -1], [-2, 0, -1],
+
+    [-1, 0, -1], [0, 0, -1], [1, 0, -1], [2, 0, -1], [3, 0, -1], [-2, 1, -1],
+
+    [-1, 1, -1], [0, 1, -1], [1, 1, -1], [2, 1, -1], [3, 1, -1], [-2, 2, -1],
+
+    [-1, 2, -1], [0, 2, -1], [1, 2, -1], [2, 2, -1], [3, 2, -1], [-2, 3, -1],
+
+    [-1, 3, -1], [0, 3, -1], [1, 3, -1], [2, 3, -1], [3, 3, -1], [-2, -2, 0],
+
+    [-1, -2, 0], [0, -2, 0], [1, -2, 0], [2, -2, 0], [3, -2, 0], [-2, -1, 0],
+
+    [-1, -1, 0], [0, -1, 0], [1, -1, 0], [2, -1, 0], [3, -1, 0], [-2, 0, 0],
+
+    [-1, 0, 0], [0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0], [-2, 1, 0],
+
+    [-1, 1, 0], [0, 1, 0], [1, 1, 0], [2, 1, 0], [3, 1, 0], [-2, 2, 0],
+
+    [-1, 2, 0], [0, 2, 0], [1, 2, 0], [2, 2, 0], [3, 2, 0], [-2, 3, 0],
+
+    [-1, 3, 0], [0, 3, 0], [1, 3, 0], [2, 3, 0], [3, 3, 0], [-2, -2, 1],
+
+    [-1, -2, 1], [0, -2, 1], [1, -2, 1], [2, -2, 1], [3, -2, 1], [-2, -1, 1],
+
+    [-1, -1, 1], [0, -1, 1], [1, -1, 1], [2, -1, 1], [3, -1, 1], [-2, 0, 1],
+
+    [-1, 0, 1], [0, 0, 1], [1, 0, 1], [2, 0, 1], [3, 0, 1], [-2, 1, 1],
+
+    [-1, 1, 1], [0, 1, 1], [1, 1, 1], [2, 1, 1], [3, 1, 1], [-2, 2, 1],
+
+    [-1, 2, 1], [0, 2, 1], [1, 2, 1], [2, 2, 1], [3, 2, 1], [-2, 3, 1],
+
+    [-1, 3, 1], [0, 3, 1], [1, 3, 1], [2, 3, 1], [3, 3, 1], [-2, -2, 2],
+
+    [-1, -2, 2], [0, -2, 2], [1, -2, 2], [2, -2, 2], [3, -2, 2], [-2, -1, 2],
+
+    [-1, -1, 2], [0, -1, 2], [1, -1, 2], [2, -1, 2], [3, -1, 2], [-2, 0, 2],
+
+    [-1, 0, 2], [0, 0, 2], [1, 0, 2], [2, 0, 2], [3, 0, 2], [-2, 1, 2],
+
+    [-1, 1, 2], [0, 1, 2], [1, 1, 2], [2, 1, 2], [3, 1, 2], [-2, 2, 2],
+
+    [-1, 2, 2], [0, 2, 2], [1, 2, 2], [2, 2, 2], [3, 2, 2], [-2, 3, 2],
+
+    [-1, 3, 2], [0, 3, 2], [1, 3, 2], [2, 3, 2], [3, 3, 2], [-2, -2, 3],
+
+    [-1, -2, 3], [0, -2, 3], [1, -2, 3], [2, -2, 3], [3, -2, 3], [-2, -1, 3],
+
+    [-1, -1, 3], [0, -1, 3], [1, -1, 3], [2, -1, 3], [3, -1, 3], [-2, 0, 3],
+
+    [-1, 0, 3], [0, 0, 3], [1, 0, 3], [2, 0, 3], [3, 0, 3], [-2, 1, 3],
+
+    [-1, 1, 3], [0, 1, 3], [1, 1, 3], [2, 1, 3], [3, 1, 3], [-2, 2, 3],
+
+    [-1, 2, 3], [0, 2, 3], [1, 2, 3], [2, 2, 3], [3, 2, 3], [-2, 3, 3],
+
+    [-1, 3, 3], [0, 3, 3], [1, 3, 3], [2, 3, 3], [3, 3, 3]]
+
+# Maple code to define Lagrange interpolating functions/coords/coeffs
+# $Header$
+> 
+################################################################################
+> 
+#
+# 1-D interpolating functions
+#
+> 
+> fn_1d_order1 :=
+> proc(x)
+> + c0 + c1*x
+> end proc;
+                   fn_1d_order1 := proc(x) c0 + c1*x end proc
+
+> 
+> fn_1d_order2 :=
+> proc(x)
+> + c0 + c1*x + c2*x^2
+> end proc;
+              fn_1d_order2 := proc(x) c0 + c1*x + c2*x^2 end proc
+
+> 
+> fn_1d_order3 :=
+> proc(x)
+> + c0 + c1*x + c2*x^2 + c3*x^3
+> end proc;
+          fn_1d_order3 := proc(x) c0 + c1*x + c2*x^2 + c3*x^3 end proc
+
+> 
+> fn_1d_order4 :=
+> proc(x)
+> + c0 + c1*x + c2*x^2 + c3*x^3 + c4*x^4
+> end;
+     fn_1d_order4 := proc(x) c0 + c1*x + c2*x^2 + c3*x^3 + c4*x^4 end proc
+
+> 
+> fn_1d_order5 :=
+> proc(x)
+> + c0 + c1*x + c2*x^2 + c3*x^3 + c4*x^4 + c5*x^5
+> end;
+ fn_1d_order5 := proc(x) c0 + c1*x + c2*x^2 + c3*x^3 + c4*x^4 + c5*x^5 end proc
+
+> 
+> fn_1d_order6 :=
+> proc(x)
+> + c0 + c1*x + c2*x^2 + c3*x^3 + c4*x^4 + c5*x^5 + c6*x^6
+> end;
+fn_1d_order6 :=
+
+    proc(x) c0 + c1*x + c2*x^2 + c3*x^3 + c4*x^4 + c5*x^5 + c6*x^6 end proc
+
+> 
+########################################
+> 
+# coordinates for 1-D interpolating functions
+> coords_list_1d := [x];
+                             coords_list_1d := [x]
+
+> 
+########################################
+> 
+#
+# coefficients in 1-D interpolating functions
+#
+> 
+> coeffs_list_1d_order1 := [c0, c1];
+                       coeffs_list_1d_order1 := [c0, c1]
+
+> coeffs_list_1d_order2 := [c0, c1, c2];
+                     coeffs_list_1d_order2 := [c0, c1, c2]
+
+> coeffs_list_1d_order3 := [c0, c1, c2, c3];
+                   coeffs_list_1d_order3 := [c0, c1, c2, c3]
+
+> coeffs_list_1d_order4 := [c0, c1, c2, c3, c4];
+                 coeffs_list_1d_order4 := [c0, c1, c2, c3, c4]
+
+> coeffs_list_1d_order5 := [c0, c1, c2, c3, c4, c5];
+               coeffs_list_1d_order5 := [c0, c1, c2, c3, c4, c5]
+
+> coeffs_list_1d_order6 := [c0, c1, c2, c3, c4, c5, c6];
+             coeffs_list_1d_order6 := [c0, c1, c2, c3, c4, c5, c6]
+
+> 
+################################################################################
+> 
+#
+# 2-D interpolating functions
+#
+> 
+> fn_2d_order1 :=
+> proc(x,y)
+> + c01*y
+> + c00   + c10*x
+> end proc;
+            fn_2d_order1 := proc(x, y) c01*y + c00 + c10*x end proc
+
+> 
+> fn_2d_order2 :=
+> proc(x,y)
+> + c02*y^2
+> + c01*y   + c11*x*y
+> + c00     + c10*x   + c20*x^2
+> end proc;
+fn_2d_order2 :=
+
+    proc(x, y) c02*y^2 + c01*y + c11*x*y + c00 + c10*x + c20*x^2 end proc
+
+> 
+> fn_2d_order3 :=
+> proc(x,y)
+> + c03*y^3
+> + c02*y^2 + c12*x*y^2
+> + c01*y   + c11*x*y   + c21*x^2*y
+> + c00     + c10*x     + c20*x^2   + c30*x^3
+> end proc;
+fn_2d_order3 := proc(x, y)
+    c03*y^3 + c02*y^2 + c12*x*y^2 + c01*y + c11*x*y + c21*x^2*y + c00
+     + c10*x + c20*x^2 + c30*x^3
+end proc
+
+> 
+> fn_2d_order4 :=
+> proc(x,y)
+> + c04*y^4
+> + c03*y^3 + c13*x*y^3
+> + c02*y^2 + c12*x*y^2 + c22*x^2*y^2
+> + c01*y   + c11*x*y   + c21*x^2*y   + c31*x^3*y
+> + c00     + c10*x     + c20*x^2     + c30*x^3   + c40*x^4
+> end;
+fn_2d_order4 := proc(x, y)
+    c04*y^4 + c03*y^3 + c13*x*y^3 + c02*y^2 + c12*x*y^2 + c22*x^2*y^2
+     + c01*y + c11*x*y + c21*x^2*y + c31*x^3*y + c00 + c10*x + c20*x^2
+     + c30*x^3 + c40*x^4
+end proc
+
+> 
+########################################
+> 
+# coordinates for 2-D interpolating functions
+> coords_list_2d := [x,y];
+                            coords_list_2d := [x, y]
+
+> 
+########################################
+> 
+#
+# coefficients in 2-D interpolating functions
+#
+> 
+> coeffs_list_2d_order1 := [
+> 			 c01,
+> 			 c00, c10
+> 			 ];
+                    coeffs_list_2d_order1 := [c01, c00, c10]
+
+> coeffs_list_2d_order2 := [
+> 			 c02,
+> 			 c01, c11,
+> 			 c00, c10, c20
+> 			 ];
+            coeffs_list_2d_order2 := [c02, c01, c11, c00, c10, c20]
+
+> coeffs_list_2d_order3 := [
+> 			 c03,
+> 			 c02, c12,
+> 			 c01, c11, c21,
+> 			 c00, c10, c20, c30
+> 			 ];
+  coeffs_list_2d_order3 := [c03, c02, c12, c01, c11, c21, c00, c10, c20, c30]
+
+> coeffs_list_2d_order4 := [
+> 			 c04,
+> 			 c03, c13,
+> 			 c02, c12, c22,
+> 			 c01, c11, c21, c31,
+> 			 c00, c10, c20, c30, c40
+> 			 ];
+coeffs_list_2d_order4 :=
+
+    [c04, c03, c13, c02, c12, c22, c01, c11, c21, c31, c00, c10, c20, c30, c40]
+
+> 
+################################################################################
+> 
+#
+# 3-D interpolating functions
+#
+> 
+> fn_3d_order1 :=
+> proc(x,y,z)
+# z^0 -----------
+> + c010*y
+> + c000   + c100*x
+# z^1 -----------
+> + c001*z
+> end proc;
+     fn_3d_order1 := proc(x, y, z) c010*y + c000 + c100*x + c001*z end proc
+
+> 
+> fn_3d_order2 :=
+> proc(x,y,z)
+# z^0 --------------------------
+> + c020*y^2
+> + c010*y   + c110*x*y
+> + c000     + c100*x   + c200*x^2
+# z^1 --------------------------
+> + c011*y*z
+> + c001*z   + c101*x*z
+# z^2 --------------------------
+> + c002*z^2
+> end proc;
+fn_3d_order2 := proc(x, y, z)
+    c020*y^2 + c010*y + c110*x*y + c000 + c100*x + c200*x^2 + c011*y*z
+     + c001*z + c101*x*z + c002*z^2
+end proc
+
+> 
+> fn_3d_order3 :=
+> proc(x,y,z)
+# z^0 -------------------------------------------
+> + c030*y^3
+> + c020*y^2   + c120*x*y^2
+> + c010*y     + c110*x*y   + c210*x^2*y
+> + c000       + c100*x     + c200*x^2   + c300*x^3
+# z^1 -------------------------------------------
+> + c021*y^2*z
+> + c011*y  *z + c111*x*y*z
+> + c001    *z + c101*x  *z + c201*x^2*z
+# z^2 -------------------------------------------
+> + c012*y*z^2
+> + c002  *z^2 + c102*x*z^2
+# z^3 -------------------------------------------
+> + c003  *z^3
+> end proc;
+fn_3d_order3 := proc(x, y, z)
+    c030*y^3 + c020*y^2 + c120*x*y^2 + c010*y + c110*x*y + c210*x^2*y
+     + c000 + c100*x + c200*x^2 + c300*x^3 + c021*y^2*z + c011*y*z
+     + c111*x*y*z + c001*z + c101*x*z + c201*x^2*z + c012*y*z^2 + c002*z^2
+     + c102*x*z^2 + c003*z^3
+end proc
+
+> 
+> fn_3d_order4 :=
+> proc(x,y,z)
+# z^0 --------------------------------------------------------
+> + c040*y^4
+> + c030*y^3     + c130*x*y^3
+> + c020*y^2     + c120*x*y^2   + c220*x^2*y^2
+> + c010*y       + c110*x*y     + c210*x^2*y   + c310*x^3*y
+> + c000         + c100*x       + c200*x^2     + c300*x^3   + c400*x^4
+# z^1 -------------------------------------------
+> + c031*y^3*z
+> + c021*y^2*z   + c121*x*y^2*z
+> + c011*y  *z   + c111*x*y  *z + c211*x^2*y*z
+> + c001    *z   + c101*x    *z + c201*x^2  *z + c301*x^3*z
+# z^2 -------------------------------------------
+> + c022*y^2*z^2
+> + c012*y  *z^2 + c112*x*y*z^2
+> + c002    *z^2 + c102*x  *z^2 + c202*x^2*z^2
+# z^3 -------------------------------------------
+> + c013*y  *z^3
+> + c003    *z^3 + c103*x  *z^3
+# z^4 -------------------------------------------
+> + c004    *z^4
+> end;
+fn_3d_order4 := proc(x, y, z)
+    c102*x*z^2 + c012*y*z^2 + c111*x*y*z + c121*x*y^2*z + c211*x^2*y*z
+     + c112*x*y*z^2 + c010*y + c110*x*y + c011*y*z + c101*x*z + c120*x*y^2
+     + c210*x^2*y + c021*y^2*z + c201*x^2*z + c130*x*y^3 + c220*x^2*y^2
+     + c310*x^3*y + c031*y^3*z + c301*x^3*z + c022*y^2*z^2 + c202*x^2*z^2
+     + c013*y*z^3 + c103*x*z^3 + c000 + c100*x + c001*z + c020*y^2
+     + c200*x^2 + c002*z^2 + c030*y^3 + c300*x^3 + c003*z^3 + c040*y^4
+     + c400*x^4 + c004*z^4
+end proc
+
+> 
+########################################
+> 
+# coordinates for 3-D interpolating functions
+> coords_list_3d := [x,y,z];
+                          coords_list_3d := [x, y, z]
+
+> 
+########################################
+> 
+#
+# coefficients in 3-D interpolating functions
+#
+> 
+> coeffs_list_3d_order1 := [
+> 			 # z^0 -----
+> 			 c010,
+> 			 c000, c100,
+> 			 # z^1 -----
+> 			 c001
+> 			 ];
+               coeffs_list_3d_order1 := [c010, c000, c100, c001]
+
+> coeffs_list_3d_order2 := [
+> 			 # z^0 -----------
+> 			 c020,
+> 			 c010, c110,
+> 			 c000, c100, c200,
+> 			 # z^1 -----------
+> 			 c011,
+> 			 c001, c101,
+> 			 # z^2 -----------
+> 			 c002
+> 			 ];
+coeffs_list_3d_order2 :=
+
+    [c020, c010, c110, c000, c100, c200, c011, c001, c101, c002]
+
+> coeffs_list_3d_order3 := [
+> 			 # z^0 ----------------
+> 			 c030,
+> 			 c020, c120,
+> 			 c010, c110, c210,
+> 			 c000, c100, c200, c300,
+> 			 # z^1 ----------------
+> 			 c021,
+> 			 c011, c111,
+> 			 c001, c101, c201,
+> 			 # z^2 ----------------
+> 			 c012,
+> 			 c002, c102,
+> 			 # z^3 ----------------
+> 			 c003
+> 			 ];
+coeffs_list_3d_order3 := [c030, c020, c120, c010, c110, c210, c000, c100, c200,
+
+    c300, c021, c011, c111, c001, c101, c201, c012, c002, c102, c003]
+
+> coeffs_list_3d_order4 := [
+> 			 # z^0 -----------------------
+> 			 c040,
+> 			 c030, c130,
+> 			 c020, c120, c220,
+> 			 c010, c110, c210, c310,
+> 			 c000, c100, c200, c300, c400,
+> 			 # z^1 -----------------------
+> 			 c031,
+> 			 c021, c121,
+> 			 c011, c111, c211,
+> 			 c001, c101, c201, c301,
+> 			 # z^2 -----------------------
+> 			 c022,
+> 			 c012, c112,
+> 			 c002, c102, c202,
+> 			 # z^3 -----------------------
+> 			 c013,
+> 			 c003, c103,
+> 			 # z^4 -----------------------
+> 			 c004
+> 			 ];
+coeffs_list_3d_order4 := [c040, c030, c130, c020, c120, c220, c010, c110, c210,
+
+    c310, c000, c100, c200, c300, c400, c031, c021, c121, c011, c111, c211,
+
+    c001, c101, c201, c301, c022, c012, c112, c002, c102, c202, c013, c003,
+
+    c103, c004]
+
+> 
+################################################################################
+# 2d.maple -- compute Lagrange interpolation coefficients in 2-D
+# $Header$
+> 
+################################################################################
+> 
+#
+# 2d, cube, order=1, smoothing=0 (size=2)
+#
+> 
+# interpolating polynomial
+> interp_2d_cube_order1_smooth0
+> 	:= Lagrange_polynomial_interpolant(fn_2d_order1, coeffs_list_2d_order1,
+> 					   coords_list_2d, posn_list_2d_size2);
+interp_2d_cube_order1_smooth0 :=
+
+    (1/2 DATA(1, 1) - 1/2 DATA(0, 0) - 1/2 DATA(1, 0) + 1/2 DATA(0, 1)) y
+
+     - 1/4 DATA(1, 1) + 3/4 DATA(0, 0) + 1/4 DATA(1, 0) + 1/4 DATA(0, 1)
+
+     + (1/2 DATA(1, 1) - 1/2 DATA(0, 0) + 1/2 DATA(1, 0) - 1/2 DATA(0, 1)) x
+
+> 
+# I
+> coeffs_as_lc_of_data(%, posn_list_2d_size2);
+[COEFF(0, 0) = 3/4 - 1/2 y - 1/2 x, COEFF(1, 0) = 1/4 - 1/2 y + 1/2 x,
+
+    COEFF(0, 1) = - 1/2 x + 1/4 + 1/2 y, COEFF(1, 1) = 1/2 y - 1/4 + 1/2 x]
+
+> print_coeffs__lc_of_data(%, "coeffs_I->coeff_", "fp",
+> 			 "2d.coeffs/2d.cube.order1.smooth0/coeffs-I.compute.c");
+bytes used=1000980, alloc=917336, time=0.08
+> 
+# d/dx
+> simplify( diff(interp_2d_cube_order1_smooth0,x) );
+       1/2 DATA(1, 1) - 1/2 DATA(0, 0) + 1/2 DATA(1, 0) - 1/2 DATA(0, 1)
+
+> coeffs_as_lc_of_data(%, posn_list_2d_size2);
+ [COEFF(0, 0) = -1/2, COEFF(1, 0) = 1/2, COEFF(0, 1) = -1/2, COEFF(1, 1) = 1/2]
+
+> print_coeffs__lc_of_data(%, "coeffs_dx->coeff_", "fp",
+> 			 "2d.coeffs/2d.cube.order1.smooth0/coeffs-dx.compute.c");
+> 
+# d/dy
+> simplify( diff(interp_2d_cube_order1_smooth0,y) );
+       1/2 DATA(1, 1) - 1/2 DATA(0, 0) - 1/2 DATA(1, 0) + 1/2 DATA(0, 1)
+
+> coeffs_as_lc_of_data(%, posn_list_2d_size2);
+bytes used=2001372, alloc=1376004, time=0.15
+ [COEFF(0, 0) = -1/2, COEFF(1, 0) = -1/2, COEFF(0, 1) = 1/2, COEFF(1, 1) = 1/2]
+
+> print_coeffs__lc_of_data(%, "coeffs_dy->coeff_", "fp",
+> 			 "2d.coeffs/2d.cube.order1.smooth0/coeffs-dy.compute.c");
+> 
+################################################################################
+> 
+#
+# 2d, cube, order=2, smoothing=0 (size=3)
+#
+> 
+# interpolating polynomial
+> interp_2d_cube_order2_smooth0
+> 	:= Lagrange_polynomial_interpolant(fn_2d_order2, coeffs_list_2d_order2,
+> 					   coords_list_2d, posn_list_2d_size3);
+interp_2d_cube_order2_smooth0 := (1/6 DATA(0, 1) + 1/6 DATA(1, -1)
+
+     + 1/6 DATA(0, -1) - 1/3 DATA(0, 0) + 1/6 DATA(-1, -1) + 1/6 DATA(1, 1)
+
+                                                            2
+     - 1/3 DATA(-1, 0) - 1/3 DATA(1, 0) + 1/6 DATA(-1, 1)) y  + (
+
+    1/6 DATA(-1, 1) - 1/6 DATA(-1, -1) - 1/6 DATA(0, -1) - 1/6 DATA(1, -1)
+
+     + 1/6 DATA(1, 1) + 1/6 DATA(0, 1)) y +
+
+    (1/4 DATA(1, 1) + 1/4 DATA(-1, -1) - 1/4 DATA(1, -1) - 1/4 DATA(-1, 1)) x y
+
+     + 2/9 DATA(0, 1) - 1/9 DATA(1, -1) + 2/9 DATA(0, -1) + 5/9 DATA(0, 0)
+
+     - 1/9 DATA(-1, -1) - 1/9 DATA(1, 1) + 2/9 DATA(-1, 0) + 2/9 DATA(1, 0)
+
+     - 1/9 DATA(-1, 1) + (1/6 DATA(1, 0) - 1/6 DATA(-1, -1) + 1/6 DATA(1, -1)
+
+     - 1/6 DATA(-1, 0) - 1/6 DATA(-1, 1) + 1/6 DATA(1, 1)) x + (
+
+    - 1/3 DATA(0, 1) + 1/6 DATA(1, -1) - 1/3 DATA(0, -1) - 1/3 DATA(0, 0)
+
+     + 1/6 DATA(-1, -1) + 1/6 DATA(1, 1) + 1/6 DATA(-1, 0) + 1/6 DATA(1, 0)
+
+                         2
+     + 1/6 DATA(-1, 1)) x
+
+> 
+# I
+> coeffs_as_lc_of_data(%, posn_list_2d_size3);
+                              2                                  2
+[COEFF(-1, -1) = - 1/9 + 1/6 y  - 1/6 y - 1/6 x + 1/4 x y + 1/6 x ,
+
+                                      2        2
+    COEFF(0, -1) = 2/9 - 1/6 y + 1/6 y  - 1/3 x ,
+
+                                                          2        2
+    COEFF(1, -1) = - 1/6 y - 1/4 x y - 1/9 + 1/6 x + 1/6 y  + 1/6 x ,
+
+                          2                2
+    COEFF(-1, 0) = - 1/3 y  - 1/6 x + 1/6 x  + 2/9,
+
+                         2        2
+    COEFF(0, 0) = - 1/3 y  - 1/3 x  + 5/9,
+
+                         2                      2
+    COEFF(1, 0) = - 1/3 y  + 1/6 x + 2/9 + 1/6 x ,
+
+                        2                2
+    COEFF(-1, 1) = 1/6 y  + 1/6 y + 1/6 x  - 1/6 x - 1/4 x y - 1/9,
+
+                       2                2
+    COEFF(0, 1) = 1/6 y  + 1/6 y - 1/3 x  + 2/9,
+
+                       2                              2
+    COEFF(1, 1) = 1/6 y  + 1/6 x - 1/9 + 1/6 y + 1/6 x  + 1/4 x y]
+
+> print_coeffs__lc_of_data(%, "coeffs_I->coeff_", "fp",
+> 			 "2d.coeffs/2d.cube.order2.smooth0/coeffs-I.compute.c");
+bytes used=3001624, alloc=1769148, time=0.22
+bytes used=4001856, alloc=1834672, time=0.29
+> 
+# d/dx
+> simplify( diff(interp_2d_cube_order2_smooth0,x) );
+1/4 y DATA(1, 1) + 1/4 y DATA(-1, -1) - 1/4 y DATA(1, -1) - 1/4 y DATA(-1, 1)
+
+     + 1/6 DATA(1, 0) - 1/6 DATA(-1, -1) + 1/6 DATA(1, -1) - 1/6 DATA(-1, 0)
+
+     - 1/6 DATA(-1, 1) + 1/6 DATA(1, 1) - 2/3 x DATA(0, 1) + 1/3 x DATA(1, -1)
+
+     - 2/3 x DATA(0, -1) - 2/3 x DATA(0, 0) + 1/3 x DATA(-1, -1)
+
+     + 1/3 x DATA(1, 1) + 1/3 x DATA(-1, 0) + 1/3 x DATA(1, 0)
+
+     + 1/3 x DATA(-1, 1)
+
+> coeffs_as_lc_of_data(%, posn_list_2d_size3);
+[COEFF(-1, -1) = 1/3 x + 1/4 y - 1/6, COEFF(0, -1) = - 2/3 x,
+
+    COEFF(1, -1) = - 1/4 y + 1/3 x + 1/6, COEFF(-1, 0) = 1/3 x - 1/6,
+
+    COEFF(0, 0) = - 2/3 x, COEFF(1, 0) = 1/3 x + 1/6,
+
+    COEFF(-1, 1) = - 1/4 y - 1/6 + 1/3 x, COEFF(0, 1) = - 2/3 x,
+
+    COEFF(1, 1) = 1/4 y + 1/6 + 1/3 x]
+
+> print_coeffs__lc_of_data(%, "coeffs_dx->coeff_", "fp",
+> 			 "2d.coeffs/2d.cube.order2.smooth0/coeffs-dx.compute.c");
+bytes used=5002008, alloc=1834672, time=0.37
+> 
+# d/dy
+> simplify( diff(interp_2d_cube_order2_smooth0,y) );
+1/3 y DATA(0, 1) + 1/3 y DATA(1, -1) + 1/3 y DATA(0, -1) - 2/3 y DATA(0, 0)
+
+     + 1/3 y DATA(-1, -1) + 1/3 y DATA(1, 1) - 2/3 y DATA(-1, 0)
+
+     - 2/3 y DATA(1, 0) + 1/3 y DATA(-1, 1) + 1/6 DATA(-1, 1)
+
+     - 1/6 DATA(-1, -1) - 1/6 DATA(0, -1) - 1/6 DATA(1, -1) + 1/6 DATA(1, 1)
+
+     + 1/6 DATA(0, 1) + 1/4 x DATA(1, 1) + 1/4 x DATA(-1, -1)
+
+     - 1/4 x DATA(1, -1) - 1/4 x DATA(-1, 1)
+
+> coeffs_as_lc_of_data(%, posn_list_2d_size3);
+[COEFF(-1, -1) = 1/4 x + 1/3 y - 1/6, COEFF(0, -1) = - 1/6 + 1/3 y,
+
+    COEFF(1, -1) = - 1/6 - 1/4 x + 1/3 y, COEFF(-1, 0) = - 2/3 y,
+
+    COEFF(0, 0) = - 2/3 y, COEFF(1, 0) = - 2/3 y,
+
+    COEFF(-1, 1) = 1/3 y + 1/6 - 1/4 x, COEFF(0, 1) = 1/3 y + 1/6,
+
+    COEFF(1, 1) = 1/3 y + 1/4 x + 1/6]
+
+> print_coeffs__lc_of_data(%, "coeffs_dy->coeff_", "fp",
+> 			 "2d.coeffs/2d.cube.order2.smooth0/coeffs-dy.compute.c");
+> 
+# d^2/dx^2
+> simplify( diff(interp_2d_cube_order2_smooth0,x,x) );
+bytes used=6002212, alloc=1834672, time=0.42
+- 2/3 DATA(0, 1) + 1/3 DATA(1, -1) - 2/3 DATA(0, -1) - 2/3 DATA(0, 0)
+
+     + 1/3 DATA(-1, -1) + 1/3 DATA(1, 1) + 1/3 DATA(-1, 0) + 1/3 DATA(1, 0)
+
+     + 1/3 DATA(-1, 1)
+
+> coeffs_as_lc_of_data(%, posn_list_2d_size3);
+[COEFF(-1, -1) = 1/3, COEFF(0, -1) = -2/3, COEFF(1, -1) = 1/3,
+
+    COEFF(-1, 0) = 1/3, COEFF(0, 0) = -2/3, COEFF(1, 0) = 1/3,
+
+    COEFF(-1, 1) = 1/3, COEFF(0, 1) = -2/3, COEFF(1, 1) = 1/3]
+
+> print_coeffs__lc_of_data(%, "coeffs_dxx->coeff_", "fp",
+> 			 "2d.coeffs/2d.cube.order2.smooth0/coeffs-dxx.compute.c");
+> 
+# d^2/dxdy
+> simplify( diff(interp_2d_cube_order2_smooth0,x,y) );
+     1/4 DATA(1, 1) + 1/4 DATA(-1, -1) - 1/4 DATA(1, -1) - 1/4 DATA(-1, 1)
+
+> coeffs_as_lc_of_data(%, posn_list_2d_size3);
+[COEFF(-1, -1) = 1/4, COEFF(0, -1) = 0, COEFF(1, -1) = -1/4, COEFF(-1, 0) = 0,
+
+    COEFF(0, 0) = 0, COEFF(1, 0) = 0, COEFF(-1, 1) = -1/4, COEFF(0, 1) = 0,
+
+    COEFF(1, 1) = 1/4]
+
+> print_coeffs__lc_of_data(%, "coeffs_dxy->coeff_", "fp",
+> 			 "2d.coeffs/2d.cube.order2.smooth0/coeffs-dxy.compute.c");
+> 
+# d^2/dy^2
+> simplify( diff(interp_2d_cube_order2_smooth0,y,y) );
+1/3 DATA(0, 1) + 1/3 DATA(1, -1) + 1/3 DATA(0, -1) - 2/3 DATA(0, 0)
+
+     + 1/3 DATA(-1, -1) + 1/3 DATA(1, 1) - 2/3 DATA(-1, 0) - 2/3 DATA(1, 0)
+
+     + 1/3 DATA(-1, 1)
+
+> coeffs_as_lc_of_data(%, posn_list_2d_size3);
+[COEFF(-1, -1) = 1/3, COEFF(0, -1) = 1/3, COEFF(1, -1) = 1/3,
+
+    COEFF(-1, 0) = -2/3, COEFF(0, 0) = -2/3, COEFF(1, 0) = -2/3,
+
+    COEFF(-1, 1) = 1/3, COEFF(0, 1) = 1/3, COEFF(1, 1) = 1/3]
+
+> print_coeffs__lc_of_data(%, "coeffs_dyy->coeff_", "fp",
+> 			 "2d.coeffs/2d.cube.order2.smooth0/coeffs-dyy.compute.c");
+bytes used=7002528, alloc=1834672, time=0.52
+> 
+################################################################################
+> 
+#
+# 2d, cube, order=3, smoothing=0 (size=4)
+#
+> 
+# interpolating polynomial
+> interp_2d_cube_order3_smooth0
+> 	:= Lagrange_polynomial_interpolant(fn_2d_order3, coeffs_list_2d_order3,
+> 					   coords_list_2d, posn_list_2d_size4);
+bytes used=8002908, alloc=1900196, time=0.59
+bytes used=9003224, alloc=1900196, time=0.65
+bytes used=10004308, alloc=1965720, time=0.71
+bytes used=11004468, alloc=1965720, time=0.77
+interp_2d_cube_order3_smooth0 := (- 3/40 DATA(2, 0) + 1/40 DATA(0, 0)
+
+     - 1/40 DATA(1, 0) + 1/40 DATA(0, 1) - 1/40 DATA(1, 1) - 1/40 DATA(0, -1)
+
+     - 3/40 DATA(-1, -1) + 1/40 DATA(1, -1) + 3/40 DATA(-1, 0)
+
+     + 3/40 DATA(-1, 1) + 3/40 DATA(2, -1) - 1/40 DATA(0, 2) - 3/40 DATA(-1, 2)
+
+                                                               2   /
+     - 3/40 DATA(2, 1) + 1/40 DATA(1, 2) + 3/40 DATA(2, 2)) x y  + |
+                                                                   \
+
+    7/100 DATA(2, 0) - 1/25 DATA(0, 0) - 1/100 DATA(1, 0) - 1/100 DATA(0, 1)
+
+                                                                13
+     + 3/50 DATA(1, 1) - 1/50 DATA(0, -1) + 6/25 DATA(-1, -1) - --- DATA(1, -1)
+                                                                100
+
+                          13
+     - 1/50 DATA(-1, 0) - --- DATA(-1, 1) - 9/100 DATA(2, -1)
+                          100
+
+     + 7/100 DATA(0, 2) - 9/100 DATA(-1, 2) + 2/25 DATA(2, 1) + 2/25 DATA(1, 2)
+
+                      \
+     - 3/50 DATA(2, 2)| x y + (- 1/40 DATA(2, 0) + 1/40 DATA(0, 0)
+                      /
+
+     + 1/40 DATA(1, 0) - 1/40 DATA(0, 1) - 1/40 DATA(1, 1) + 3/40 DATA(0, -1)
+
+     - 3/40 DATA(-1, -1) + 3/40 DATA(1, -1) - 1/40 DATA(-1, 0)
+
+     + 1/40 DATA(-1, 1) - 3/40 DATA(2, -1) - 3/40 DATA(0, 2) + 3/40 DATA(-1, 2)
+
+                                                             2
+     + 1/40 DATA(2, 1) - 3/40 DATA(1, 2) + 3/40 DATA(2, 2)) x  y
+
+       13               93               37               37
+     + --- DATA(2, 0) + --- DATA(0, 0) + --- DATA(1, 0) + --- DATA(0, 1)
+       100              200              200              200
+
+       17               11               23
+     - --- DATA(1, 1) + -- DATA(0, -1) - --- DATA(-1, -1) - 1/50 DATA(1, -1)
+       200              50               200
+
+       11                                  17                13
+     + -- DATA(-1, 0) - 1/50 DATA(-1, 1) - --- DATA(2, -1) + --- DATA(0, 2)
+       50                                  200               100
+
+       17
+     - --- DATA(-1, 2) - 2/25 DATA(2, 1) - 2/25 DATA(1, 2) + 7/200 DATA(2, 2)
+       200
+
+     + (1/8 DATA(2, 0) + 1/8 DATA(0, 0) + 1/8 DATA(1, 0) - 1/8 DATA(0, 1)
+
+     - 1/8 DATA(1, 1) - 1/24 DATA(0, -1) - 1/24 DATA(-1, -1) - 1/24 DATA(1, -1)
+
+     + 1/8 DATA(-1, 0) - 1/8 DATA(-1, 1) - 1/24 DATA(2, -1) + 1/24 DATA(0, 2)
+
+     + 1/24 DATA(-1, 2) - 1/8 DATA(2, 1) + 1/24 DATA(1, 2) + 1/24 DATA(2, 2))
+
+     3   /  49               57               63               117
+    y  + |- --- DATA(2, 0) - --- DATA(0, 0) - --- DATA(1, 0) + --- DATA(0, 1)
+         \  400              400              400              400
+
+       103              223                109                 157
+     + --- DATA(1, 1) - ---- DATA(0, -1) - ---- DATA(-1, -1) - ---- DATA(1, -1)
+       400              1200               1200                1200
+
+       31                111                89                 43
+     - --- DATA(-1, 0) + --- DATA(-1, 1) + ---- DATA(2, -1) + ---- DATA(0, 2)
+       400               400               1200               1200
+
+       131                69                37               149            \
+     - ---- DATA(-1, 2) + --- DATA(2, 1) + ---- DATA(1, 2) - ---- DATA(2, 2)| y
+       1200               400              1200              1200           /
+
+       / 43               57               117              63
+     + |---- DATA(2, 0) - --- DATA(0, 0) + --- DATA(1, 0) - --- DATA(0, 1)
+       \1200              400              400              400
+
+       103              31                109                 111
+     + --- DATA(1, 1) - --- DATA(0, -1) - ---- DATA(-1, -1) + --- DATA(1, -1)
+       400              400               1200                400
+
+       223                157                131                49
+     - ---- DATA(-1, 0) - ---- DATA(-1, 1) - ---- DATA(2, -1) - --- DATA(0, 2)
+       1200               1200               1200               400
+
+        89                 37               69               149            \
+     + ---- DATA(-1, 2) + ---- DATA(2, 1) + --- DATA(1, 2) - ---- DATA(2, 2)| x
+       1200               1200              400              1200           /
+
+       /                  21                                19
+     + |1/80 DATA(2, 0) - -- DATA(0, 0) + 9/80 DATA(1, 0) - -- DATA(0, 1)
+       \                  80                                80
+
+       11              23               13
+     + -- DATA(1, 1) - -- DATA(0, -1) + -- DATA(-1, -1) + 7/80 DATA(1, -1)
+       80              80               80
+
+       11                                                     17
+     + -- DATA(-1, 0) + 9/80 DATA(-1, 1) + 3/80 DATA(2, -1) - -- DATA(0, 2)
+       80                                                     80
+
+                                            13                             \  2
+     + 7/80 DATA(-1, 2) - 1/80 DATA(2, 1) + -- DATA(1, 2) - 3/80 DATA(2, 2)| x
+                                            80                             /
+
+     + (1/24 DATA(2, 0) + 1/8 DATA(0, 0) - 1/8 DATA(1, 0) + 1/8 DATA(0, 1)
+
+     - 1/8 DATA(1, 1) + 1/8 DATA(0, -1) - 1/24 DATA(-1, -1) - 1/8 DATA(1, -1)
+
+     - 1/24 DATA(-1, 0) - 1/24 DATA(-1, 1) + 1/24 DATA(2, -1) + 1/8 DATA(0, 2)
+
+     - 1/24 DATA(-1, 2) + 1/24 DATA(2, 1) - 1/8 DATA(1, 2) + 1/24 DATA(2, 2))
+
+     3   /  17              21              19
+    x  + |- -- DATA(2, 0) - -- DATA(0, 0) - -- DATA(1, 0) + 9/80 DATA(0, 1)
+         \  80              80              80
+
+       11              11               13
+     + -- DATA(1, 1) + -- DATA(0, -1) + -- DATA(-1, -1) + 9/80 DATA(1, -1)
+       80              80               80
+
+       23
+     - -- DATA(-1, 0) + 7/80 DATA(-1, 1) + 7/80 DATA(2, -1) + 1/80 DATA(0, 2)
+       80
+
+                          13                                               \  2
+     + 3/80 DATA(-1, 2) + -- DATA(2, 1) - 1/80 DATA(1, 2) - 3/80 DATA(2, 2)| y
+                          80                                               /
+
+> 
+# I
+> coeffs_as_lc_of_data(%, posn_list_2d_size4);
+bytes used=12010172, alloc=1965720, time=0.82
+                           2   13  2   13  2         2     109
+[COEFF(-1, -1) = - 3/40 x y  + -- y  + -- x  - 3/40 x  y - ---- x + 6/25 x y
+                               80      80                  1200
+
+       109      23          3         3                       2             2
+     - ---- y - --- - 1/24 y  - 1/24 x , COEFF(0, -1) = 3/40 x  y - 1/40 x y
+       1200     200
+
+       223      11   11  2        3   31                       3   23  2
+     - ---- y + -- + -- y  + 1/8 x  - --- x - 1/50 x y - 1/24 y  - -- x ,
+       1200     50   80               400                          80
+
+                         2                3         2           2         2
+    COEFF(1, -1) = 9/80 y  - 1/50 - 1/24 y  + 7/80 x  + 1/40 x y  + 3/40 x  y
+
+       111     157      13             3                  89      131
+     + --- x - ---- y - --- x y - 1/8 x , COEFF(2, -1) = ---- y - ---- x
+       400     1200     100                              1200     1200
+
+                   17          2         3         2             2         2
+     - 9/100 x y - --- + 7/80 y  - 1/24 y  - 3/40 x  y + 3/40 x y  + 3/80 x
+                   200
+
+             3                         2     23  2   11  2   11           2
+     + 1/24 x , COEFF(-1, 0) = - 1/40 x  y - -- y  + -- x  + -- + 3/40 x y
+                                             80      80      50
+
+                        3        3   223      31                        3   93
+     - 1/50 x y - 1/24 x  + 1/8 y  - ---- x - --- y, COEFF(0, 0) = 1/8 y  + ---
+                                     1200     400                           200
+
+               2         2                57      21  2   57      21  2
+     + 1/40 x y  + 1/40 x  y - 1/25 x y - --- y - -- x  - --- x - -- y
+                                          400     80      400     80
+
+            3                37    19  2        3        3   63              2
+     + 1/8 x , COEFF(1, 0) = --- - -- y  - 1/8 x  + 1/8 y  - --- y - 1/40 x y
+                             200   80                        400
+
+             2               117           2                          2     13
+     + 9/80 x  - 1/100 x y + --- x + 1/40 x  y, COEFF(2, 0) = - 1/40 x  y + ---
+                             400                                            100
+
+       17  2         3                     2        3   49              2
+     - -- y  + 1/24 x  + 7/100 x y + 1/80 x  + 1/8 y  - --- y - 3/40 x y
+       80                                               400
+
+        43                                   2           3   13        111
+     + ---- x, COEFF(-1, 1) = - 1/50 + 1/40 x  y - 1/24 x  - --- x y + --- y
+       1200                                                  100       400
+
+       157           3         2         2           2                       3
+     - ---- x - 1/8 y  + 7/80 y  + 9/80 x  + 3/40 x y , COEFF(0, 1) = - 1/8 y
+       1200
+
+                   63            2             2        3   37          2
+     - 1/100 x y - --- x - 1/40 x  y + 1/40 x y  + 1/8 x  + --- + 9/80 y
+                   400                                      200
+
+       117     19  2                                3        3   11  2
+     + --- y - -- x , COEFF(1, 1) = 3/50 x y - 1/8 x  - 1/8 y  + -- y
+       400     80                                                80
+
+             2     103     103     11  2   17            2
+     - 1/40 x  y + --- y + --- x + -- x  - --- - 1/40 x y , COEFF(2, 1) =
+                   400     400     80      200
+
+          2                  2   69                      3         3   13  2
+    1/40 x  y - 2/25 - 1/80 x  + --- y + 2/25 x y - 1/8 y  + 1/24 x  + -- y
+                                 400                                   80
+
+               2    37                          2     17                      2
+     - 3/40 x y  + ---- x, COEFF(-1, 2) = 3/40 x  y - --- - 9/100 x y + 7/80 x
+                   1200                               200
+
+        89      131            3           2         2         3
+     + ---- x - ---- y - 1/24 x  - 3/40 x y  + 3/80 y  + 1/24 y , COEFF(0, 2)
+       1200     1200
+
+        43           3         2                 13          2   17  2
+     = ---- y + 1/8 x  - 3/40 x  y + 7/100 x y + --- + 1/80 y  - -- x
+       1200                                      100             80
+
+             3   49              2                           13  2   69
+     + 1/24 y  - --- x - 1/40 x y , COEFF(1, 2) = 2/25 x y + -- x  + --- x
+                 400                                         80      400
+
+             2          3           37            3           2         2
+     - 3/40 x  y - 1/8 x  - 2/25 + ---- y + 1/24 y  + 1/40 x y  - 1/80 y ,
+                                   1200
+
+                        2           2   149            3           2
+    COEFF(2, 2) = 3/40 x  y - 3/80 y  - ---- y + 1/24 y  + 3/40 x y  - 3/50 x y
+                                        1200
+
+             2   149                    3
+     - 3/80 x  - ---- x + 7/200 + 1/24 x ]
+                 1200
+
+> print_coeffs__lc_of_data(%, "coeffs_I->coeff_", "fp",
+> 			 "2d.coeffs/2d.cube.order3.smooth0/coeffs-I.compute.c");
+bytes used=13010356, alloc=2031244, time=0.89
+bytes used=14014296, alloc=2031244, time=0.96
+bytes used=15017972, alloc=2031244, time=1.06
+bytes used=16018212, alloc=2031244, time=1.13
+bytes used=17018832, alloc=2031244, time=1.22
+bytes used=18019192, alloc=2031244, time=1.30
+bytes used=19019652, alloc=2031244, time=1.40
+bytes used=20019840, alloc=2031244, time=1.46
+> 
+# d/dx
+> simplify( diff(interp_2d_cube_order3_smooth0,x) );
+bytes used=21020004, alloc=2031244, time=1.52
+3/20 x y DATA(1, -1) - 1/20 x y DATA(-1, 0) + 1/20 x y DATA(-1, 1)
+
+     - 3/20 x y DATA(2, -1) - 3/20 x y DATA(0, 2) + 3/20 x y DATA(-1, 2)
+
+     + 1/20 x y DATA(2, 1) - 3/20 x y DATA(1, 2) + 3/20 x y DATA(2, 2)
+
+     - 1/20 x y DATA(1, 1) - 1/20 x y DATA(2, 0) + 1/20 x y DATA(0, 0)
+
+                                                    43
+     + 1/20 x y DATA(1, 0) - 1/20 x y DATA(0, 1) + ---- DATA(2, 0)
+                                                   1200
+
+       21                11                11
+     - -- x DATA(0, 0) + -- x DATA(1, 1) + -- x DATA(-1, 0)
+       40                40                40
+
+                            13                  23
+     + 7/40 x DATA(1, -1) + -- x DATA(-1, -1) - -- x DATA(0, -1)
+                            40                  40
+
+                           19
+     + 9/40 x DATA(1, 0) - -- x DATA(0, 1) - 3/50 y DATA(2, 2)
+                           40
+
+     + 1/40 x DATA(2, 0) - 1/25 y DATA(0, 0) + 7/100 y DATA(2, 0)
+
+     + 7/100 y DATA(0, 2) - 9/100 y DATA(2, -1) - 9/100 y DATA(-1, 2)
+
+     + 2/25 y DATA(1, 2) + 2/25 y DATA(2, 1) - 1/50 y DATA(0, -1)
+
+       13                                        13
+     - --- y DATA(1, -1) + 6/25 y DATA(-1, -1) - --- y DATA(-1, 1)
+       100                                       100
+
+     - 1/50 y DATA(-1, 0) - 1/100 y DATA(0, 1) - 1/100 y DATA(1, 0)
+
+             2
+     + 3/40 y  DATA(2, 2) + 3/50 y DATA(1, 1) + 3/40 x DATA(2, -1)
+
+             2                    2                    2
+     + 1/40 y  DATA(1, 2) - 3/40 y  DATA(2, 1) - 3/40 y  DATA(-1, 2)
+
+                            17                     2
+     + 9/40 x DATA(-1, 1) - -- x DATA(0, 2) - 3/8 x  DATA(1, 0)
+                            40
+
+            2
+     + 3/8 x  DATA(0, 1) - 3/40 x DATA(2, 2) + 7/40 x DATA(-1, 2)
+
+       13                                         2
+     + -- x DATA(1, 2) - 1/40 x DATA(2, 1) + 1/8 x  DATA(2, 0)
+       40
+
+            2                   2                    2
+     + 3/8 x  DATA(0, 0) + 1/8 x  DATA(2, -1) - 3/8 x  DATA(1, -1)
+
+            2                    2                   2
+     - 1/8 x  DATA(-1, 0) - 3/8 x  DATA(1, 1) - 1/8 x  DATA(-1, 2)
+
+            2                    2                   2
+     - 1/8 x  DATA(-1, 1) - 3/8 x  DATA(1, 2) + 3/8 x  DATA(0, 2)
+
+            2                   2                   2
+     + 1/8 x  DATA(2, 2) + 1/8 x  DATA(2, 1) + 3/8 x  DATA(0, -1)
+
+            2                      2                      2
+     - 1/8 x  DATA(-1, -1) - 3/40 y  DATA(-1, -1) + 1/40 y  DATA(1, -1)
+
+             2                     2                    2
+     - 1/40 y  DATA(0, -1) + 1/40 y  DATA(0, 1) - 1/40 y  DATA(1, 1)
+
+             2                     2                     2
+     + 3/40 y  DATA(-1, 0) + 3/40 y  DATA(-1, 1) + 3/40 y  DATA(2, -1)
+
+             2                    2                    2
+     - 1/40 y  DATA(0, 2) - 3/40 y  DATA(2, 0) - 1/40 y  DATA(1, 0)
+
+             2
+     + 1/40 y  DATA(0, 0) + 3/20 x y DATA(0, -1) - 3/20 x y DATA(-1, -1)
+
+       57               117              63               103
+     - --- DATA(0, 0) + --- DATA(1, 0) - --- DATA(0, 1) + --- DATA(1, 1)
+       400              400              400              400
+
+       31                109                 111               223
+     - --- DATA(0, -1) - ---- DATA(-1, -1) + --- DATA(1, -1) - ---- DATA(-1, 0)
+       400               1200                400               1200
+
+       157                131                49                89
+     - ---- DATA(-1, 1) - ---- DATA(2, -1) - --- DATA(0, 2) + ---- DATA(-1, 2)
+       1200               1200               400              1200
+
+        37               69               149
+     + ---- DATA(2, 1) + --- DATA(1, 2) - ---- DATA(2, 2)
+       1200              400              1200
+
+> coeffs_as_lc_of_data(%, posn_list_2d_size4);
+bytes used=22023600, alloc=2096768, time=1.59
+                                    2   13              109         2
+[COEFF(-1, -1) = - 3/20 x y - 3/40 y  + -- x + 6/25 y - ---- - 1/8 x ,
+                                        40              1200
+
+                        2                       31    23           2
+    COEFF(0, -1) = 3/8 x  + 3/20 x y - 1/50 y - --- - -- x - 1/40 y ,
+                                                400   40
+
+                   111         2   13                      2
+    COEFF(1, -1) = --- + 1/40 y  - --- y + 3/20 x y - 3/8 x  + 7/40 x,
+                   400             100
+
+                        2            131                    2
+    COEFF(2, -1) = 1/8 x  + 3/40 x - ---- - 9/100 y + 3/40 y  - 3/20 x y,
+                                     1200
+
+                         2              223         2            11
+    COEFF(-1, 0) = 3/40 y  - 1/20 x y - ---- - 1/8 x  - 1/50 y + -- x,
+                                        1200                     40
+
+                                              2   21     57         2
+    COEFF(0, 0) = - 1/25 y + 1/20 x y + 1/40 y  - -- x - --- + 3/8 x ,
+                                                  40     400
+
+                          2                             2            117
+    COEFF(1, 0) = - 1/40 y  + 1/20 x y - 1/100 y - 3/8 x  + 9/40 x + ---,
+                                                                     400
+
+                                    2         2             43
+    COEFF(2, 0) = - 1/20 x y + 1/8 x  - 3/40 y  + 1/40 x + ---- + 7/100 y,
+                                                           1200
+
+                     157          2   13                    2
+    COEFF(-1, 1) = - ---- + 3/40 y  - --- y + 9/40 x - 1/8 x  + 1/20 x y,
+                     1200             100
+
+                        2   63         2                        19
+    COEFF(0, 1) = 1/40 y  - --- + 3/8 x  - 1/100 y - 1/20 x y - -- x,
+                            400                                 40
+
+                               103        2                  2   11
+    COEFF(1, 1) = - 1/20 x y + --- - 3/8 x  + 3/50 y - 1/40 y  + -- x,
+                               400                               40
+
+                                   2        2             37
+    COEFF(2, 1) = 1/20 x y - 3/40 y  + 1/8 x  + 2/25 y + ---- - 1/40 x,
+                                                         1200
+
+                          2    89                   2
+    COEFF(-1, 2) = - 1/8 x  + ---- + 7/40 x - 3/40 y  + 3/20 x y - 9/100 y,
+                              1200
+
+                          2                             2   17     49
+    COEFF(0, 2) = - 1/40 y  - 3/20 x y + 7/100 y + 3/8 x  - -- x - ---,
+                                                            40     400
+
+                  69    13           2        2
+    COEFF(1, 2) = --- + -- x + 1/40 y  - 3/8 x  + 2/25 y - 3/20 x y,
+                  400   40
+
+                        2   149                             2
+    COEFF(2, 2) = 3/40 y  - ---- + 3/20 x y - 3/50 y + 1/8 x  - 3/40 x]
+                            1200
+
+> print_coeffs__lc_of_data(%, "coeffs_dx->coeff_", "fp",
+> 			 "2d.coeffs/2d.cube.order3.smooth0/coeffs-dx.compute.c");
+bytes used=23023764, alloc=2096768, time=1.67
+bytes used=24024212, alloc=2096768, time=1.75
+bytes used=25024544, alloc=2096768, time=1.84
+> 
+# d/dy
+> simplify( diff(interp_2d_cube_order3_smooth0,y) );
+bytes used=26024784, alloc=2096768, time=1.94
+bytes used=27025040, alloc=2096768, time=2.00
+1/20 x y DATA(1, -1) + 3/20 x y DATA(-1, 0) + 3/20 x y DATA(-1, 1)
+
+     + 3/20 x y DATA(2, -1) - 1/20 x y DATA(0, 2) - 3/20 x y DATA(-1, 2)
+
+     - 3/20 x y DATA(2, 1) + 1/20 x y DATA(1, 2) + 3/20 x y DATA(2, 2)
+
+     - 1/20 x y DATA(1, 1) - 3/20 x y DATA(2, 0) + 1/20 x y DATA(0, 0)
+
+                                                   49
+     - 1/20 x y DATA(1, 0) + 1/20 x y DATA(0, 1) - --- DATA(2, 0)
+                                                   400
+
+     - 1/25 x DATA(0, 0) + 3/50 x DATA(1, 1) - 1/50 x DATA(-1, 0)
+
+       13
+     - --- x DATA(1, -1) + 6/25 x DATA(-1, -1) - 1/50 x DATA(0, -1)
+       100
+
+     - 1/100 x DATA(1, 0) - 1/100 x DATA(0, 1) - 3/40 y DATA(2, 2)
+
+                            21                17
+     + 7/100 x DATA(2, 0) - -- y DATA(0, 0) - -- y DATA(2, 0)
+                            40                40
+
+     + 1/40 y DATA(0, 2) + 7/40 y DATA(2, -1) + 3/40 y DATA(-1, 2)
+
+                           13                11
+     - 1/40 y DATA(1, 2) + -- y DATA(2, 1) + -- y DATA(0, -1)
+                           40                40
+
+                            13
+     + 9/40 y DATA(1, -1) + -- y DATA(-1, -1) + 7/40 y DATA(-1, 1)
+                            40
+
+       23                                     19
+     - -- y DATA(-1, 0) + 9/40 y DATA(0, 1) - -- y DATA(1, 0)
+       40                                     40
+
+            2              11
+     + 1/8 y  DATA(2, 2) + -- y DATA(1, 1) - 9/100 x DATA(2, -1)
+                           40
+
+            2                   2                   2
+     + 1/8 y  DATA(1, 2) - 3/8 y  DATA(2, 1) + 1/8 y  DATA(-1, 2)
+
+       13                                             2
+     - --- x DATA(-1, 1) + 7/100 x DATA(0, 2) + 1/40 x  DATA(1, 0)
+       100
+
+             2
+     - 1/40 x  DATA(0, 1) - 3/50 x DATA(2, 2) - 9/100 x DATA(-1, 2)
+
+                                                     2
+     + 2/25 x DATA(1, 2) + 2/25 x DATA(2, 1) - 1/40 x  DATA(2, 0)
+
+             2                    2                     2
+     + 1/40 x  DATA(0, 0) - 3/40 x  DATA(2, -1) + 3/40 x  DATA(1, -1)
+
+             2                     2                    2
+     - 1/40 x  DATA(-1, 0) - 1/40 x  DATA(1, 1) + 3/40 x  DATA(-1, 2)
+
+             2                     2                    2
+     + 1/40 x  DATA(-1, 1) - 3/40 x  DATA(1, 2) - 3/40 x  DATA(0, 2)
+
+             2                    2                    2
+     + 3/40 x  DATA(2, 2) + 1/40 x  DATA(2, 1) + 3/40 x  DATA(0, -1)
+
+             2                     2                     2
+     - 3/40 x  DATA(-1, -1) - 1/8 y  DATA(-1, -1) - 1/8 y  DATA(1, -1)
+
+            2                    2                   2
+     - 1/8 y  DATA(0, -1) - 3/8 y  DATA(0, 1) - 3/8 y  DATA(1, 1)
+
+            2                    2                    2
+     + 3/8 y  DATA(-1, 0) - 3/8 y  DATA(-1, 1) - 1/8 y  DATA(2, -1)
+
+            2                   2                   2
+     + 1/8 y  DATA(0, 2) + 3/8 y  DATA(2, 0) + 3/8 y  DATA(1, 0)
+
+            2
+     + 3/8 y  DATA(0, 0) - 1/20 x y DATA(0, -1) - 3/20 x y DATA(-1, -1)
+
+       57               63               117              103
+     - --- DATA(0, 0) - --- DATA(1, 0) + --- DATA(0, 1) + --- DATA(1, 1)
+       400              400              400              400
+
+       223                109                 157
+     - ---- DATA(0, -1) - ---- DATA(-1, -1) - ---- DATA(1, -1)
+       1200               1200                1200
+
+       31                111                89                 43
+     - --- DATA(-1, 0) + --- DATA(-1, 1) + ---- DATA(2, -1) + ---- DATA(0, 2)
+       400               400               1200               1200
+
+       131                69                37               149
+     - ---- DATA(-1, 2) + --- DATA(2, 1) + ---- DATA(1, 2) - ---- DATA(2, 2)
+       1200               400              1200              1200
+
+> coeffs_as_lc_of_data(%, posn_list_2d_size4);
+                        2         2                       109    13
+[COEFF(-1, -1) = - 1/8 y  - 3/40 x  + 6/25 x - 3/20 x y - ---- + -- y,
+                                                          1200   40
+
+                                               2        2   223    11
+    COEFF(0, -1) = - 1/20 x y - 1/50 x + 3/40 x  - 1/8 y  - ---- + -- y,
+                                                            1200   40
+
+                                   2   157                   2   13
+    COEFF(1, -1) = 1/20 x y - 1/8 y  - ---- + 9/40 y + 3/40 x  - --- x,
+                                       1200                      100
+
+                                     2                        89         2
+    COEFF(2, -1) = - 9/100 x - 3/40 x  + 7/40 y + 3/20 x y + ---- - 1/8 y ,
+                                                             1200
+
+                     23           2   31                    2
+    COEFF(-1, 0) = - -- y - 1/40 x  - --- + 3/20 x y + 3/8 y  - 1/50 x,
+                     40               400
+
+                    21     57                             2         2
+    COEFF(0, 0) = - -- y - --- - 1/25 x + 1/20 x y + 3/8 y  + 1/40 x ,
+                    40     400
+
+                        2              19     63                   2
+    COEFF(1, 0) = 1/40 x  - 1/20 x y - -- y - --- - 1/100 x + 3/8 y ,
+                                       40     400
+
+                               49         2         2   17
+    COEFF(2, 0) = - 3/20 x y - --- + 3/8 y  - 1/40 x  - -- y + 7/100 x,
+                               400                      40
+
+                     13               111         2        2
+    COEFF(-1, 1) = - --- x + 7/40 y + --- + 1/40 x  - 3/8 y  + 3/20 x y,
+                     100              400
+
+                          2                            2             117
+    COEFF(0, 1) = - 1/40 x  + 1/20 x y + 9/40 y - 3/8 y  - 1/100 x + ---,
+                                                                     400
+
+                  11                    2        2              103
+    COEFF(1, 1) = -- y + 3/50 x - 1/40 x  - 3/8 y  - 1/20 x y + ---,
+                  40                                            400
+
+                                 2   13                     2   69
+    COEFF(2, 1) = 2/25 x + 1/40 x  + -- y - 3/20 x y - 3/8 y  + ---,
+                                     40                         400
+
+                        2         2                        131
+    COEFF(-1, 2) = 1/8 y  + 3/40 x  - 9/100 x - 3/20 x y - ---- + 3/40 y,
+                                                           1200
+
+                                             2        2             43
+    COEFF(0, 2) = 7/100 x - 1/20 x y - 3/40 x  + 1/8 y  + 1/40 y + ----,
+                                                                   1200
+
+                                   2    37         2
+    COEFF(1, 2) = 1/20 x y - 3/40 x  + ---- + 1/8 y  - 1/40 y + 2/25 x,
+                                       1200
+
+                       2                                149          2
+    COEFF(2, 2) = 1/8 y  - 3/40 y + 3/20 x y - 3/50 x - ---- + 3/40 x ]
+                                                        1200
+
+> print_coeffs__lc_of_data(%, "coeffs_dy->coeff_", "fp",
+> 			 "2d.coeffs/2d.cube.order3.smooth0/coeffs-dy.compute.c");
+bytes used=28025200, alloc=2162292, time=2.08
+bytes used=29025372, alloc=2162292, time=2.17
+bytes used=30025660, alloc=2162292, time=2.26
+bytes used=31025832, alloc=2162292, time=2.37
+> 
+# d^2/dx^2
+> simplify( diff(interp_2d_cube_order3_smooth0,x,x) );
+1/40 DATA(2, 0) + 3/4 x DATA(0, 0) - 3/4 x DATA(1, 1) - 1/4 x DATA(-1, 0)
+
+     - 3/4 x DATA(1, -1) - 1/4 x DATA(-1, -1) + 3/4 x DATA(0, -1)
+
+     - 3/4 x DATA(1, 0) + 3/4 x DATA(0, 1) + 3/20 y DATA(2, 2)
+
+     + 1/4 x DATA(2, 0) + 1/20 y DATA(0, 0) - 1/20 y DATA(2, 0)
+
+     - 3/20 y DATA(0, 2) - 3/20 y DATA(2, -1) + 3/20 y DATA(-1, 2)
+
+     - 3/20 y DATA(1, 2) + 1/20 y DATA(2, 1) + 3/20 y DATA(0, -1)
+
+     + 3/20 y DATA(1, -1) - 3/20 y DATA(-1, -1) + 1/20 y DATA(-1, 1)
+
+     - 1/20 y DATA(-1, 0) - 1/20 y DATA(0, 1) + 1/20 y DATA(1, 0)
+
+     - 1/20 y DATA(1, 1) + 1/4 x DATA(2, -1) - 1/4 x DATA(-1, 1)
+
+     + 3/4 x DATA(0, 2) + 1/4 x DATA(2, 2) - 1/4 x DATA(-1, 2)
+
+                                             21
+     - 3/4 x DATA(1, 2) + 1/4 x DATA(2, 1) - -- DATA(0, 0) + 9/40 DATA(1, 0)
+                                             40
+
+       19              11              23               13
+     - -- DATA(0, 1) + -- DATA(1, 1) - -- DATA(0, -1) + -- DATA(-1, -1)
+       40              40              40               40
+
+                          11
+     + 7/40 DATA(1, -1) + -- DATA(-1, 0) + 9/40 DATA(-1, 1) + 3/40 DATA(2, -1)
+                          40
+
+       17                                                   13
+     - -- DATA(0, 2) + 7/40 DATA(-1, 2) - 1/40 DATA(2, 1) + -- DATA(1, 2)
+       40                                                   40
+
+     - 3/40 DATA(2, 2)
+
+> coeffs_as_lc_of_data(%, posn_list_2d_size4);
+                                    13                                  23
+[COEFF(-1, -1) = - 1/4 x - 3/20 y + --, COEFF(0, -1) = 3/4 x + 3/20 y - --,
+                                    40                                  40
+
+    COEFF(1, -1) = 7/40 + 3/20 y - 3/4 x,
+
+                                                           11
+    COEFF(2, -1) = - 3/20 y + 3/40 + 1/4 x, COEFF(-1, 0) = -- - 1/20 y - 1/4 x,
+                                                           40
+
+                    21
+    COEFF(0, 0) = - -- + 1/20 y + 3/4 x, COEFF(1, 0) = - 3/4 x + 1/20 y + 9/40,
+                    40
+
+    COEFF(2, 0) = 1/4 x - 1/20 y + 1/40, COEFF(-1, 1) = 9/40 - 1/4 x + 1/20 y,
+
+                    19                                            11
+    COEFF(0, 1) = - -- - 1/20 y + 3/4 x, COEFF(1, 1) = - 1/20 y + -- - 3/4 x,
+                    40                                            40
+
+    COEFF(2, 1) = - 1/40 + 1/20 y + 1/4 x,
+
+                                                                             17
+    COEFF(-1, 2) = - 1/4 x + 7/40 + 3/20 y, COEFF(0, 2) = - 3/20 y + 3/4 x - --,
+                                                                             40
+
+                                     13
+    COEFF(1, 2) = - 3/20 y - 3/4 x + --, COEFF(2, 2) = - 3/40 + 1/4 x + 3/20 y]
+                                     40
+
+> print_coeffs__lc_of_data(%, "coeffs_dxx->coeff_", "fp",
+> 			 "2d.coeffs/2d.cube.order3.smooth0/coeffs-dxx.compute.c");
+bytes used=32026056, alloc=2162292, time=2.48
+bytes used=33027468, alloc=2162292, time=2.58
+> 
+# d^2/dxdy
+> simplify( diff(interp_2d_cube_order3_smooth0,x,y) );
+7/100 DATA(2, 0) + 1/20 x DATA(0, 0) - 1/20 x DATA(1, 1) - 1/20 x DATA(-1, 0)
+
+     + 3/20 x DATA(1, -1) - 3/20 x DATA(-1, -1) + 3/20 x DATA(0, -1)
+
+     + 1/20 x DATA(1, 0) - 1/20 x DATA(0, 1) + 3/20 y DATA(2, 2)
+
+     - 1/20 x DATA(2, 0) + 1/20 y DATA(0, 0) - 3/20 y DATA(2, 0)
+
+     - 1/20 y DATA(0, 2) + 3/20 y DATA(2, -1) - 3/20 y DATA(-1, 2)
+
+     + 1/20 y DATA(1, 2) - 3/20 y DATA(2, 1) - 1/20 y DATA(0, -1)
+
+     + 1/20 y DATA(1, -1) - 3/20 y DATA(-1, -1) + 3/20 y DATA(-1, 1)
+
+     + 3/20 y DATA(-1, 0) + 1/20 y DATA(0, 1) - 1/20 y DATA(1, 0)
+
+     - 1/20 y DATA(1, 1) - 3/20 x DATA(2, -1) + 1/20 x DATA(-1, 1)
+
+     - 3/20 x DATA(0, 2) + 3/20 x DATA(2, 2) + 3/20 x DATA(-1, 2)
+
+     - 3/20 x DATA(1, 2) + 1/20 x DATA(2, 1) - 1/25 DATA(0, 0)
+
+     - 1/100 DATA(1, 0) - 1/100 DATA(0, 1) + 3/50 DATA(1, 1) - 1/50 DATA(0, -1)
+
+                           13                                   13
+     + 6/25 DATA(-1, -1) - --- DATA(1, -1) - 1/50 DATA(-1, 0) - --- DATA(-1, 1)
+                           100                                  100
+
+     - 9/100 DATA(2, -1) + 7/100 DATA(0, 2) - 9/100 DATA(-1, 2)
+
+     + 2/25 DATA(2, 1) + 2/25 DATA(1, 2) - 3/50 DATA(2, 2)
+
+> coeffs_as_lc_of_data(%, posn_list_2d_size4);
+bytes used=34028660, alloc=2162292, time=2.68
+[COEFF(-1, -1) = - 3/20 x + 6/25 - 3/20 y,
+
+                                                                   13
+    COEFF(0, -1) = 3/20 x - 1/50 - 1/20 y, COEFF(1, -1) = 1/20 y - --- + 3/20 x,
+                                                                   100
+
+    COEFF(2, -1) = 3/20 y - 3/20 x - 9/100,
+
+    COEFF(-1, 0) = 3/20 y - 1/20 x - 1/50, COEFF(0, 0) = 1/20 x - 1/25 + 1/20 y,
+
+    COEFF(1, 0) = - 1/20 y - 1/100 + 1/20 x,
+
+    COEFF(2, 0) = - 3/20 y - 1/20 x + 7/100,
+
+                            13
+    COEFF(-1, 1) = 3/20 y - --- + 1/20 x,
+                            100
+
+    COEFF(0, 1) = - 1/20 x + 1/20 y - 1/100,
+
+    COEFF(1, 1) = - 1/20 x + 3/50 - 1/20 y,
+
+    COEFF(2, 1) = - 3/20 y + 1/20 x + 2/25,
+
+    COEFF(-1, 2) = - 9/100 - 3/20 y + 3/20 x,
+
+    COEFF(0, 2) = 7/100 - 1/20 y - 3/20 x,
+
+    COEFF(1, 2) = - 3/20 x + 1/20 y + 2/25,
+
+    COEFF(2, 2) = 3/20 x + 3/20 y - 3/50]
+
+> print_coeffs__lc_of_data(%, "coeffs_dxy->coeff_", "fp",
+> 			 "2d.coeffs/2d.cube.order3.smooth0/coeffs-dxy.compute.c");
+bytes used=35028816, alloc=2162292, time=2.75
+> 
+# d^2/dy^2
+> simplify( diff(interp_2d_cube_order3_smooth0,y,y) );
+  17
+- -- DATA(2, 0) + 1/20 x DATA(0, 0) - 1/20 x DATA(1, 1) + 3/20 x DATA(-1, 0)
+  40
+
+     + 1/20 x DATA(1, -1) - 3/20 x DATA(-1, -1) - 1/20 x DATA(0, -1)
+
+     - 1/20 x DATA(1, 0) + 1/20 x DATA(0, 1) + 1/4 y DATA(2, 2)
+
+     - 3/20 x DATA(2, 0) + 3/4 y DATA(0, 0) + 3/4 y DATA(2, 0)
+
+     + 1/4 y DATA(0, 2) - 1/4 y DATA(2, -1) + 1/4 y DATA(-1, 2)
+
+     + 1/4 y DATA(1, 2) - 3/4 y DATA(2, 1) - 1/4 y DATA(0, -1)
+
+     - 1/4 y DATA(1, -1) - 1/4 y DATA(-1, -1) - 3/4 y DATA(-1, 1)
+
+     + 3/4 y DATA(-1, 0) - 3/4 y DATA(0, 1) + 3/4 y DATA(1, 0)
+
+     - 3/4 y DATA(1, 1) + 3/20 x DATA(2, -1) + 3/20 x DATA(-1, 1)
+
+     - 1/20 x DATA(0, 2) + 3/20 x DATA(2, 2) - 3/20 x DATA(-1, 2)
+
+                                               21              19
+     + 1/20 x DATA(1, 2) - 3/20 x DATA(2, 1) - -- DATA(0, 0) - -- DATA(1, 0)
+                                               40              40
+
+                         11              11               13
+     + 9/40 DATA(0, 1) + -- DATA(1, 1) + -- DATA(0, -1) + -- DATA(-1, -1)
+                         40              40               40
+
+                          23
+     + 9/40 DATA(1, -1) - -- DATA(-1, 0) + 7/40 DATA(-1, 1) + 7/40 DATA(2, -1)
+                          40
+
+                                            13
+     + 1/40 DATA(0, 2) + 3/40 DATA(-1, 2) + -- DATA(2, 1) - 1/40 DATA(1, 2)
+                                            40
+
+     - 3/40 DATA(2, 2)
+
+> coeffs_as_lc_of_data(%, posn_list_2d_size4);
+                                    13                 11
+[COEFF(-1, -1) = - 1/4 y - 3/20 x + --, COEFF(0, -1) = -- - 1/4 y - 1/20 x,
+                                    40                 40
+
+    COEFF(1, -1) = - 1/4 y + 9/40 + 1/20 x,
+
+                                                                          23
+    COEFF(2, -1) = 7/40 + 3/20 x - 1/4 y, COEFF(-1, 0) = 3/20 x + 3/4 y - --,
+                                                                          40
+
+                                   21                        19
+    COEFF(0, 0) = 3/4 y + 1/20 x - --, COEFF(1, 0) = 3/4 y - -- - 1/20 x,
+                                   40                        40
+
+                    17
+    COEFF(2, 0) = - -- + 3/4 y - 3/20 x, COEFF(-1, 1) = - 3/4 y + 3/20 x + 7/40,
+                    40
+
+                                                                            11
+    COEFF(0, 1) = - 3/4 y + 1/20 x + 9/40, COEFF(1, 1) = - 3/4 y - 1/20 x + --,
+                                                                            40
+
+                             13
+    COEFF(2, 1) = - 3/20 x + -- - 3/4 y, COEFF(-1, 2) = - 3/20 x + 1/4 y + 3/40,
+                             40
+
+    COEFF(0, 2) = 1/4 y + 1/40 - 1/20 x, COEFF(1, 2) = 1/20 x + 1/4 y - 1/40,
+
+    COEFF(2, 2) = 3/20 x - 3/40 + 1/4 y]
+
+> print_coeffs__lc_of_data(%, "coeffs_dyy->coeff_", "fp",
+> 			 "2d.coeffs/2d.cube.order3.smooth0/coeffs-dyy.compute.c");
+bytes used=36029536, alloc=2162292, time=2.85
+bytes used=37029756, alloc=2162292, time=2.94
+> 
+################################################################################
+> 
+#
+# 2d, cube, order=4, smoothing=0 (size=5)
+#
+> 
+# interpolating polynomial
+> interp_2d_cube_order4_smooth0
+> 	:= Lagrange_polynomial_interpolant(fn_2d_order4, coeffs_list_2d_order4,
+> 					   coords_list_2d, posn_list_2d_size5);
+bytes used=38029976, alloc=2162292, time=3.04
+bytes used=39030204, alloc=2162292, time=3.10
+bytes used=40030440, alloc=2162292, time=3.16
+bytes used=41032164, alloc=2162292, time=3.22
+bytes used=42032408, alloc=2162292, time=3.28
+bytes used=43032708, alloc=2162292, time=3.34
+interp_2d_cube_order4_smooth0 := (- 1/60 DATA(1, 1) - 1/60 DATA(-1, -1)
+
+     + 1/60 DATA(1, -1) + 1/60 DATA(-1, 1) + 1/30 DATA(2, -1)
+
+     - 1/120 DATA(-1, 2) - 1/30 DATA(2, 1) + 1/120 DATA(-1, -2)
+
+     + 1/60 DATA(-2, -2) + 1/120 DATA(1, 2) + 1/60 DATA(2, 2)
+
+     - 1/60 DATA(-2, 2) + 1/30 DATA(-2, 1) - 1/120 DATA(1, -2)
+
+                                                3
+     - 1/60 DATA(2, -2) - 1/30 DATA(-2, -1)) x y  + (- 1/35 DATA(2, 0)
+
+     - 1/70 DATA(1, 0) - 1/140 DATA(1, 1) + 1/140 DATA(-1, -1)
+
+     - 1/140 DATA(1, -1) + 1/70 DATA(-1, 0) + 1/140 DATA(-1, 1)
+
+     - 1/70 DATA(2, -1) - 1/70 DATA(-1, 2) - 1/70 DATA(2, 1)
+
+     - 1/70 DATA(-1, -2) - 1/35 DATA(-2, -2) + 1/70 DATA(1, 2)
+
+     + 1/35 DATA(2, 2) - 1/35 DATA(-2, 2) + 1/70 DATA(-2, 1) + 1/35 DATA(-2, 0)
+
+                                                                   2
+     + 1/70 DATA(1, -2) + 1/35 DATA(2, -2) + 1/70 DATA(-2, -1)) x y  + (
+
+    - 1/49 DATA(2, 0) + 1/49 DATA(0, 0) + 1/98 DATA(1, 0) + 1/98 DATA(0, 1)
+
+     + 1/196 DATA(1, 1) + 1/98 DATA(0, -1) + 1/196 DATA(-1, -1)
+
+     + 1/196 DATA(1, -1) + 1/98 DATA(-1, 0) + 1/196 DATA(-1, 1)
+
+     - 1/98 DATA(2, -1) - 1/49 DATA(0, 2) - 1/98 DATA(-1, 2) - 1/98 DATA(2, 1)
+
+     - 1/98 DATA(-1, -2) - 1/49 DATA(0, -2) + 1/49 DATA(-2, -2)
+
+     - 1/98 DATA(1, 2) + 1/49 DATA(2, 2) + 1/49 DATA(-2, 2) - 1/98 DATA(-2, 1)
+
+     - 1/49 DATA(-2, 0) - 1/98 DATA(1, -2) + 1/49 DATA(2, -2)
+
+                           2  2   /37               37
+     - 1/98 DATA(-2, -1)) x  y  + |--- DATA(1, 1) + --- DATA(-1, -1)
+                                  \300              300
+
+       37                37                21                21
+     - --- DATA(1, -1) - --- DATA(-1, 1) - --- DATA(2, -1) - --- DATA(-1, 2)
+       300               300               200               200
+
+       21               21                 11                 21
+     + --- DATA(2, 1) + --- DATA(-1, -2) - --- DATA(-2, -2) + --- DATA(1, 2)
+       200              200                150                200
+
+       11               11                21                21
+     - --- DATA(2, 2) + --- DATA(-2, 2) - --- DATA(-2, 1) - --- DATA(1, -2)
+       150              150               200               200
+
+       11                21              \
+     + --- DATA(2, -2) + --- DATA(-2, -1)| x y + (- 1/70 DATA(0, 1)
+       150               200             /
+
+     - 1/140 DATA(1, 1) + 1/70 DATA(0, -1) + 1/140 DATA(-1, -1)
+
+     + 1/140 DATA(1, -1) - 1/140 DATA(-1, 1) - 1/70 DATA(2, -1)
+
+     - 1/35 DATA(0, 2) - 1/70 DATA(-1, 2) + 1/70 DATA(2, 1) + 1/70 DATA(-1, -2)
+
+     + 1/35 DATA(0, -2) - 1/35 DATA(-2, -2) - 1/70 DATA(1, 2) + 1/35 DATA(2, 2)
+
+     + 1/35 DATA(-2, 2) + 1/70 DATA(-2, 1) + 1/70 DATA(1, -2)
+
+                                              2
+     - 1/35 DATA(2, -2) - 1/70 DATA(-2, -1)) x  y + (- 1/60 DATA(1, 1)
+
+     - 1/60 DATA(-1, -1) + 1/60 DATA(1, -1) + 1/60 DATA(-1, 1)
+
+     - 1/120 DATA(2, -1) + 1/30 DATA(-1, 2) + 1/120 DATA(2, 1)
+
+     - 1/30 DATA(-1, -2) + 1/60 DATA(-2, -2) - 1/30 DATA(1, 2)
+
+     + 1/60 DATA(2, 2) - 1/60 DATA(-2, 2) - 1/120 DATA(-2, 1)
+
+                                                                  3
+     + 1/30 DATA(1, -2) - 1/60 DATA(2, -2) + 1/120 DATA(-2, -1)) x  y
+
+        96               541               246               246
+     + ---- DATA(2, 0) + ---- DATA(0, 0) + ---- DATA(1, 0) + ---- DATA(0, 1)
+       1225              1225              1225              1225
+
+        24
+     - ---- DATA(1, 1) + (1/60 DATA(2, 0) - 1/30 DATA(1, 0) - 1/30 DATA(1, 1)
+       1225
+
+     + 1/30 DATA(-1, -1) - 1/30 DATA(1, -1) + 1/30 DATA(-1, 0)
+
+     + 1/30 DATA(-1, 1) + 1/60 DATA(2, -1) + 1/30 DATA(-1, 2) + 1/60 DATA(2, 1)
+
+     + 1/30 DATA(-1, -2) - 1/60 DATA(-2, -2) - 1/30 DATA(1, 2)
+
+     + 1/60 DATA(2, 2) - 1/60 DATA(-2, 2) - 1/60 DATA(-2, 1) - 1/60 DATA(-2, 0)
+
+                                                                 3
+     - 1/30 DATA(1, -2) + 1/60 DATA(2, -2) - 1/60 DATA(-2, -1)) x  + (
+
+    1/120 DATA(2, 0) + 1/20 DATA(0, 0) - 1/30 DATA(1, 0) + 1/20 DATA(0, 1)
+
+     - 1/30 DATA(1, 1) + 1/20 DATA(0, -1) - 1/30 DATA(-1, -1)
+
+     - 1/30 DATA(1, -1) - 1/30 DATA(-1, 0) - 1/30 DATA(-1, 1)
+
+     + 1/120 DATA(2, -1) + 1/20 DATA(0, 2) - 1/30 DATA(-1, 2)
+
+     + 1/120 DATA(2, 1) - 1/30 DATA(-1, -2) + 1/20 DATA(0, -2)
+
+     + 1/120 DATA(-2, -2) - 1/30 DATA(1, 2) + 1/120 DATA(2, 2)
+
+     + 1/120 DATA(-2, 2) + 1/120 DATA(-2, 1) + 1/120 DATA(-2, 0)
+
+                                                                   4
+     - 1/30 DATA(1, -2) + 1/120 DATA(2, -2) + 1/120 DATA(-2, -1)) x  + (
+
+    1/20 DATA(2, 0) + 1/20 DATA(0, 0) + 1/20 DATA(1, 0) - 1/30 DATA(0, 1)
+
+     - 1/30 DATA(1, 1) - 1/30 DATA(0, -1) - 1/30 DATA(-1, -1)
+
+     - 1/30 DATA(1, -1) + 1/20 DATA(-1, 0) - 1/30 DATA(-1, 1)
+
+     - 1/30 DATA(2, -1) + 1/120 DATA(0, 2) + 1/120 DATA(-1, 2)
+
+     - 1/30 DATA(2, 1) + 1/120 DATA(-1, -2) + 1/120 DATA(0, -2)
+
+     + 1/120 DATA(-2, -2) + 1/120 DATA(1, 2) + 1/120 DATA(2, 2)
+
+     + 1/120 DATA(-2, 2) - 1/30 DATA(-2, 1) + 1/20 DATA(-2, 0)
+
+                                                                   4
+     + 1/120 DATA(1, -2) + 1/120 DATA(2, -2) - 1/30 DATA(-2, -1)) y  + (
+
+    - 1/30 DATA(0, 1) - 1/30 DATA(1, 1) + 1/30 DATA(0, -1) + 1/30 DATA(-1, -1)
+
+     + 1/30 DATA(1, -1) - 1/30 DATA(-1, 1) + 1/30 DATA(2, -1) + 1/60 DATA(0, 2)
+
+     + 1/60 DATA(-1, 2) - 1/30 DATA(2, 1) - 1/60 DATA(-1, -2)
+
+     - 1/60 DATA(0, -2) - 1/60 DATA(-2, -2) + 1/60 DATA(1, 2) + 1/60 DATA(2, 2)
+
+     + 1/60 DATA(-2, 2) - 1/30 DATA(-2, 1) - 1/60 DATA(1, -2)
+
+                                              3   /  41
+     - 1/60 DATA(2, -2) + 1/30 DATA(-2, -1)) y  + |- --- DATA(2, 0)
+                                                  \  196
+
+       57               53               83               181
+     - --- DATA(0, 0) - --- DATA(1, 0) + --- DATA(0, 1) + ---- DATA(1, 1)
+       196              196              735              1470
+
+       83                181                 181                53
+     + --- DATA(0, -1) + ---- DATA(-1, -1) + ---- DATA(1, -1) - --- DATA(-1, 0)
+       735               1470                1470               196
+
+       181                113               191                71
+     + ---- DATA(-1, 1) + --- DATA(2, -1) + ---- DATA(0, 2) + ---- DATA(-1, 2)
+       1470               735               5880              5880
+
+       113               71                 191
+     + --- DATA(2, 1) + ---- DATA(-1, -2) + ---- DATA(0, -2)
+       735              5880                5880
+
+       289                  71               289               289
+     - ---- DATA(-2, -2) + ---- DATA(1, 2) - ---- DATA(2, 2) - ---- DATA(-2, 2)
+       5880                5880              5880              5880
+
+       113               41                 71                289
+     + --- DATA(-2, 1) - --- DATA(-2, 0) + ---- DATA(1, -2) - ---- DATA(2, -2)
+       735               196               5880               5880
+
+       113             \  2   /17               31
+     + --- DATA(-2, -1)| y  + |--- DATA(0, 1) + --- DATA(1, 1)
+       735             /      \105              210
+
+       17                31                 31                31
+     - --- DATA(0, -1) - --- DATA(-1, -1) - --- DATA(1, -1) + --- DATA(-1, 1)
+       105               210                210               210
+
+       11                17                                  11
+     - --- DATA(2, -1) + --- DATA(0, 2) + 1/84 DATA(-1, 2) + --- DATA(2, 1)
+       105               420                                 105
+
+                           17                31
+     - 1/84 DATA(-1, -2) - --- DATA(0, -2) + --- DATA(-2, -2) + 1/84 DATA(1, 2)
+                           420               420
+
+       31               31                11
+     - --- DATA(2, 2) - --- DATA(-2, 2) + --- DATA(-2, 1) - 1/84 DATA(1, -2)
+       420              420               105
+
+       31                11              \     /17               17
+     + --- DATA(2, -2) - --- DATA(-2, -1)| y + |--- DATA(2, 0) + --- DATA(1, 0)
+       420               105             /     \420              105
+
+       31               31                 31                17
+     + --- DATA(1, 1) - --- DATA(-1, -1) + --- DATA(1, -1) - --- DATA(-1, 0)
+       210              210                210               105
+
+       31                                   11
+     - --- DATA(-1, 1) + 1/84 DATA(2, -1) - --- DATA(-1, 2) + 1/84 DATA(2, 1)
+       210                                  105
+
+       11                 31                 11               31
+     - --- DATA(-1, -2) + --- DATA(-2, -2) + --- DATA(1, 2) - --- DATA(2, 2)
+       105                420                105              420
+
+       31                                   17                11
+     + --- DATA(-2, 2) - 1/84 DATA(-2, 1) - --- DATA(-2, 0) + --- DATA(1, -2)
+       420                                  420               105
+
+       31                                 \     /191
+     - --- DATA(2, -2) - 1/84 DATA(-2, -1)| x + |---- DATA(2, 0)
+       420                                /     \5880
+
+       57               83               53               181
+     - --- DATA(0, 0) + --- DATA(1, 0) - --- DATA(0, 1) + ---- DATA(1, 1)
+       196              735              196              1470
+
+       53                181                 181                83
+     - --- DATA(0, -1) + ---- DATA(-1, -1) + ---- DATA(1, -1) + --- DATA(-1, 0)
+       196               1470                1470               735
+
+       181                 71                41               113
+     + ---- DATA(-1, 1) + ---- DATA(2, -1) - --- DATA(0, 2) + --- DATA(-1, 2)
+       1470               5880               196              735
+
+        71               113                41                289
+     + ---- DATA(2, 1) + --- DATA(-1, -2) - --- DATA(0, -2) - ---- DATA(-2, -2)
+       5880              735                196               5880
+
+       113              289               289                 71
+     + --- DATA(1, 2) - ---- DATA(2, 2) - ---- DATA(-2, 2) + ---- DATA(-2, 1)
+       735              5880              5880               5880
+
+       191                113               289
+     + ---- DATA(-2, 0) + --- DATA(1, -2) - ---- DATA(2, -2)
+       5880               735               5880
+
+        71              \  2   246                 24
+     + ---- DATA(-2, -1)| x  + ---- DATA(0, -1) - ---- DATA(-1, -1)
+       5880             /      1225               1225
+
+        24                246                 24
+     - ---- DATA(1, -1) + ---- DATA(-1, 0) - ---- DATA(-1, 1)
+       1225               1225               1225
+
+        99                 96                99                 99
+     - ---- DATA(2, -1) + ---- DATA(0, 2) - ---- DATA(-1, 2) - ---- DATA(2, 1)
+       1225               1225              1225               1225
+
+        99                  96                 51
+     - ---- DATA(-1, -2) + ---- DATA(0, -2) + ---- DATA(-2, -2)
+       1225                1225               1225
+
+        99                51                51                 99
+     - ---- DATA(1, 2) + ---- DATA(2, 2) + ---- DATA(-2, 2) - ---- DATA(-2, 1)
+       1225              1225              1225               1225
+
+        96                 99                 51
+     + ---- DATA(-2, 0) - ---- DATA(1, -2) + ---- DATA(2, -2)
+       1225               1225               1225
+
+        99
+     - ---- DATA(-2, -1)
+       1225
+
+> 
+# I
+> coeffs_as_lc_of_data(%, posn_list_2d_size5);
+bytes used=44034460, alloc=2162292, time=3.41
+                       2  2           3         3            4           2
+[COEFF(-2, -2) = 1/49 x  y  + 1/60 x y  + 1/60 x  y + 1/120 x  - 1/35 x y
+
+             2           3   11        289   2         3   289   2    51
+     - 1/35 x  y - 1/60 y  - --- x y - ---- y  - 1/60 x  - ---- x  + ----
+                             150       5880                5880      1225
+
+       31             4   31                             2  2         3
+     + --- x + 1/120 y  + --- y, COEFF(-1, -2) = - 1/98 x  y  - 1/30 x  y
+       420                420
+
+       21                2            3          4   113  2         3         3
+     + --- x y - 1/70 x y  + 1/120 x y  + 1/120 y  + --- x  - 1/60 y  + 1/30 x
+       200                                           735
+
+        71   2         4                  2     11       99
+     + ---- y  - 1/30 x  - 1/84 y + 1/70 x  y - --- x - ----, COEFF(0, -2) =
+       5880                                     105     1225
+
+          2     191   2   17            4          4         2  2         3
+    1/35 x  y + ---- y  - --- y + 1/20 x  + 1/120 y  - 1/49 x  y  - 1/60 y
+                5880      420
+
+        96    41   2                   21              2              3
+     + ---- - --- x , COEFF(1, -2) = - --- x y + 1/70 x  y - 1/120 x y
+       1225   196                      200
+
+             3         3   11             4         2  2                    2
+     - 1/30 x  - 1/60 y  + --- x + 1/120 y  - 1/98 x  y  - 1/84 y + 1/70 x y
+                           105
+
+        71   2    99    113  2         3           4                   31
+     + ---- y  - ---- + --- x  + 1/30 x  y - 1/30 x , COEFF(2, -2) = - --- x
+       5880      1225   735                                            420
+
+             3           2    51            3          4         2  2   289   2
+     + 1/60 x  + 1/35 x y  + ---- - 1/60 x y  + 1/120 x  + 1/49 x  y  - ---- x
+                             1225                                       5880
+
+       31      11               4         2     289   2         3           3
+     + --- y + --- x y + 1/120 y  - 1/35 x  y - ---- y  - 1/60 x  y - 1/60 y ,
+       420     150                              5880
+
+                            3         4    99    11              3         3
+    COEFF(-2, -1) = - 1/60 x  - 1/30 y  - ---- - --- y - 1/30 x y  + 1/30 y
+                                          1225   105
+
+              4   113  2           2    71   2         2  2   21
+     + 1/120 x  + --- y  + 1/70 x y  + ---- x  - 1/98 x  y  + --- x y
+                  735                  5880                   200
+
+              3                    2                           2           4
+     + 1/120 x  y - 1/84 x - 1/70 x  y, COEFF(-1, -1) = 1/140 x  y - 1/30 x
+
+              2  2         3   181   2           3         4   181   2
+     + 1/196 x  y  + 1/30 y  + ---- x  - 1/60 x y  - 1/30 y  + ---- y
+                               1470                            1470
+
+             3     31               2         3   37        31       24
+     - 1/60 x  y - --- x + 1/140 x y  + 1/30 x  + --- x y - --- y - ----,
+                   210                            300       210     1225
+
+                   83   2   17            3   246    53   2         2  2
+    COEFF(0, -1) = --- y  - --- y + 1/30 y  + ---- - --- x  + 1/98 x  y
+                   735      105               1225   196
+
+             4         2           4                    24             2
+     + 1/20 x  + 1/70 x  y - 1/30 y , COEFF(1, -1) = - ---- - 1/140 x y
+                                                       1225
+
+       181   2          2     31              3         3         3     181   2
+     + ---- y  + 1/140 x  y - --- y + 1/60 x y  + 1/30 y  + 1/60 x  y + ---- x
+       1470                   210                                       1470
+
+       37              4   31            4         3          2  2
+     - --- x y - 1/30 x  + --- x - 1/30 y  - 1/30 x  + 1/196 x  y ,
+       300                 210
+
+                           2            3           3   11              2
+    COEFF(2, -1) = - 1/70 x  y - 1/120 x  y + 1/30 y  - --- y - 1/70 x y
+                                                        105
+
+        99            3         3         4   113  2          4    71   2
+     - ---- + 1/30 x y  + 1/60 x  - 1/30 y  + --- y  + 1/120 x  + ---- x
+       1225                                   735                 5880
+
+             2  2            21                      191   2    96    41   2
+     - 1/98 x  y  + 1/84 x - --- x y, COEFF(-2, 0) = ---- x  + ---- - --- y
+                             200                     5880      1225   196
+
+             3           2         2  2          4   17            4
+     - 1/60 x  + 1/35 x y  - 1/49 x  y  + 1/120 x  - --- x + 1/20 y ,
+                                                     420
+
+                   246          3   17      83   2         4           2
+    COEFF(-1, 0) = ---- + 1/30 x  - --- x + --- x  + 1/20 y  + 1/70 x y
+                   1225             105     735
+
+             4         2  2   53   2
+     - 1/30 x  + 1/98 x  y  - --- y ,
+                              196
+
+                    57   2         4         2  2         4   541    57   2
+    COEFF(0, 0) = - --- x  + 1/20 y  + 1/49 x  y  + 1/20 x  + ---- - --- y ,
+                    196                                       1225   196
+
+                        4         2  2   53   2   83   2         4   246
+    COEFF(1, 0) = 1/20 y  + 1/98 x  y  - --- y  + --- x  - 1/30 x  + ----
+                                         196      735                1225
+
+               2         3   17                    96            2   191   2
+     - 1/70 x y  - 1/30 x  + --- x, COEFF(2, 0) = ---- - 1/35 x y  + ---- x
+                             105                  1225               5880
+
+       41   2         3   17            2  2          4         4
+     - --- y  + 1/60 x  + --- x - 1/49 x  y  + 1/120 x  + 1/20 y , COEFF(-2, 1)
+       196                420
+
+         21              3           2         3    71   2   11             3
+     = - --- x y - 1/60 x  + 1/70 x y  - 1/30 y  + ---- x  + --- y - 1/120 x  y
+         200                                       5880      105
+
+             2  2           3          4         2     113  2         4    99
+     - 1/98 x  y  + 1/30 x y  + 1/120 x  + 1/70 x  y + --- y  - 1/30 y  - ----
+                                                       735                1225
+
+                                      3   37              3            2
+     - 1/84 x, COEFF(-1, 1) = 1/60 x y  - --- x y + 1/60 x  y - 1/140 x  y
+                                          300
+
+             4         3   181   2            2    24    31      181   2
+     - 1/30 x  + 1/30 x  + ---- x  + 1/140 x y  - ---- - --- x + ---- y
+                           1470                   1225   210     1470
+
+             3         4          2  2   31                   83   2   53   2
+     - 1/30 y  - 1/30 y  + 1/196 x  y  + --- y, COEFF(0, 1) = --- y  - --- x
+                                         210                  735      196
+
+             2  2   17            3         4         4   246          2
+     + 1/98 x  y  + --- y - 1/30 y  + 1/20 x  - 1/30 y  + ---- - 1/70 x  y,
+                    105                                   1225
+
+                          3              2           3   181   2         3
+    COEFF(1, 1) = - 1/60 x  y - 1/140 x y  - 1/60 x y  + ---- x  - 1/30 x
+                                                         1470
+
+        24    181   2   37              3          2  2          2     31
+     - ---- + ---- y  + --- x y - 1/30 y  + 1/196 x  y  - 1/140 x  y + --- x
+       1225   1470      300                                            210
+
+             4   31            4                          3         3
+     - 1/30 y  + --- y - 1/30 x , COEFF(2, 1) = - 1/30 x y  - 1/30 y  + 1/84 x
+                 210
+
+             2     21         71   2         4   113  2         2  2
+     + 1/70 x  y + --- x y + ---- x  - 1/30 y  + --- y  - 1/98 x  y
+                   200       5880                735
+
+              3            4    99          3           2   11
+     + 1/120 x  y + 1/120 x  - ---- + 1/60 x  - 1/70 x y  + --- y, COEFF(-2, 2)
+                               1225                         105
+
+                 2   31              3    51          3     11        289   2
+     = - 1/35 x y  + --- x - 1/60 x y  + ---- - 1/60 x  y + --- x y - ---- y
+                     420                 1225               150       5880
+
+             3         2     31      289   2          4          4         2  2
+     + 1/60 y  + 1/35 x  y - --- y - ---- x  + 1/120 x  + 1/120 y  + 1/49 x  y
+                             420     5880
+
+             3                            3           2    71   2         3
+     - 1/60 x , COEFF(-1, 2) = - 1/120 x y  - 1/70 x y  + ---- y  + 1/60 y
+                                                          5880
+
+              4   21              3   11            2  2   113  2         3
+     + 1/120 y  - --- x y + 1/30 x  - --- x - 1/98 x  y  + --- x  + 1/30 x  y
+                  200                 105                  735
+
+        99          2                    4                  41   2   191   2
+     - ---- - 1/70 x  y + 1/84 y - 1/30 x , COEFF(0, 2) = - --- x  + ---- y
+       1225                                                 196      5880
+
+              4         4    96          2           3         2  2   17
+     + 1/120 y  + 1/20 x  + ---- - 1/35 x  y + 1/60 y  - 1/49 x  y  + --- y,
+                            1225                                      420
+
+                     99     71   2            3         3          4   21
+    COEFF(1, 2) = - ---- + ---- y  + 1/120 x y  - 1/30 x  + 1/120 y  + --- x y
+                    1225   5880                                        200
+
+       11            2  2   113  2         3         3             2
+     + --- x - 1/98 x  y  + --- x  + 1/60 y  - 1/30 x  y + 1/70 x y
+       105                  735
+
+             2                    4                        3   289   2
+     - 1/70 x  y + 1/84 y - 1/30 x , COEFF(2, 2) = 1/60 x y  - ---- x
+                                                               5880
+
+       289   2   11        31            3          4         3           2
+     - ---- y  - --- x y - --- x + 1/60 x  + 1/120 y  + 1/60 y  + 1/35 x y
+       5880      150       420
+
+             2  2         2     31            3      51           4
+     + 1/49 x  y  + 1/35 x  y - --- y + 1/60 x  y + ---- + 1/120 x ]
+                                420                 1225
+
+> print_coeffs__lc_of_data(%, "coeffs_I->coeff_", "fp",
+> 			 "2d.coeffs/2d.cube.order4.smooth0/coeffs-I.compute.c");
+bytes used=45034944, alloc=2162292, time=3.47
+bytes used=46035108, alloc=2162292, time=3.54
+bytes used=47035352, alloc=2162292, time=3.60
+bytes used=48052304, alloc=2162292, time=3.67
+bytes used=49052696, alloc=2227816, time=3.74
+bytes used=50052952, alloc=2227816, time=3.86
+bytes used=51053208, alloc=2227816, time=3.97
+bytes used=52055716, alloc=2227816, time=4.04
+bytes used=53062388, alloc=2227816, time=4.13
+bytes used=54063168, alloc=2227816, time=4.27
+bytes used=55063348, alloc=2227816, time=4.36
+bytes used=56070108, alloc=2227816, time=4.45
+bytes used=57070308, alloc=2227816, time=4.57
+bytes used=58070564, alloc=2227816, time=4.72
+bytes used=59070836, alloc=2227816, time=4.78
+bytes used=60071040, alloc=2227816, time=4.91
+bytes used=61071296, alloc=2227816, time=5.05
+bytes used=62071508, alloc=2227816, time=5.13
+bytes used=63071660, alloc=2227816, time=5.27
+bytes used=64071832, alloc=2227816, time=5.34
+bytes used=65072432, alloc=2227816, time=5.51
+bytes used=66072588, alloc=2227816, time=5.61
+> 
+# d/dx
+> simplify( diff(interp_2d_cube_order4_smooth0,x) );
+bytes used=67072804, alloc=2358864, time=5.68
+bytes used=68073096, alloc=2358864, time=5.74
+bytes used=69073300, alloc=2424388, time=5.81
+17               17               31               31
+--- DATA(2, 0) + --- DATA(1, 0) + --- DATA(1, 1) - --- DATA(-1, -1)
+420              105              210              210
+
+       31                17                31
+     + --- DATA(1, -1) - --- DATA(-1, 0) - --- DATA(-1, 1) + 1/84 DATA(2, -1)
+       210               105               210
+
+             2                    2                    2
+     - 1/10 x  DATA(1, 2) + 1/20 x  DATA(2, 2) - 1/20 x  DATA(-2, 2)
+
+             2                     2
+     - 1/20 x  DATA(-2, 1) + 1/40 x  y DATA(2, 1) + 1/35 x y DATA(2, 1)
+
+       11                                  11                 31
+     - --- DATA(-1, 2) + 1/84 DATA(2, 1) - --- DATA(-1, -2) + --- DATA(-2, -2)
+       105                                 105                420
+
+             2                       2                       2
+     + 1/20 x  y DATA(-1, 1) - 1/40 x  y DATA(-2, 1) + 1/10 x  y DATA(-1, 2)
+
+                                    2
+     + 1/35 x y DATA(0, -1) + 1/20 x  y DATA(-2, -2) - 1/70 x y DATA(-1, 1)
+
+                                    2                      2
+     - 1/35 x y DATA(2, -1) + 1/20 x  y DATA(2, 2) + 1/10 x  y DATA(1, -2)
+
+             2                                               3
+     + 1/40 x  y DATA(-2, -1) - 2/35 x y DATA(0, 2) + 1/120 y  DATA(1, 2)
+
+             3                    3                      3
+     - 1/60 y  DATA(1, 1) - 1/60 y  DATA(-1, -1) + 1/30 x  DATA(-2, -1)
+
+            3                    3                    3
+     + 1/5 x  DATA(0, -1) + 1/5 x  DATA(0, 1) + 1/60 y  DATA(-1, 1)
+
+             2                    2                     2
+     - 1/35 y  DATA(2, 0) - 1/70 y  DATA(1, 0) - 1/140 y  DATA(1, 1)
+
+             3                      3                      3
+     - 1/30 y  DATA(-2, -1) + 1/60 y  DATA(-2, -2) + 1/60 y  DATA(2, 2)
+
+             3                     3                      3
+     - 1/60 y  DATA(-2, 2) + 1/30 y  DATA(-2, 1) - 1/120 y  DATA(1, -2)
+
+             3                      2                       2
+     - 1/60 y  DATA(2, -2) + 1/140 y  DATA(-1, -1) - 1/140 y  DATA(1, -1)
+
+             2                      2                     2
+     + 1/70 y  DATA(-1, 0) + 1/140 y  DATA(-1, 1) - 1/70 y  DATA(2, -1)
+
+             2                     2                    3
+     - 1/70 y  DATA(-1, 2) - 1/70 y  DATA(2, 1) + 1/60 y  DATA(1, -1)
+
+             3                      3                     3
+     + 1/30 y  DATA(2, -1) - 1/120 y  DATA(-1, 2) - 1/30 y  DATA(2, 1)
+
+              3                      2                37
+     + 1/120 y  DATA(-1, -2) + 1/70 y  DATA(-2, -1) + --- y DATA(1, 1)
+                                                      300
+
+       37                         2                      2
+     + --- y DATA(-1, -1) - 1/70 y  DATA(-1, -2) + 1/70 y  DATA(1, 2)
+       300
+
+             2                    2                     2
+     + 1/35 y  DATA(2, 2) - 1/35 y  DATA(-2, 2) + 1/70 y  DATA(-2, 1)
+
+             2                      2                21
+     - 1/35 y  DATA(-2, -2) - 1/20 x  y DATA(1, 1) + --- y DATA(1, 2)
+                                                     200
+
+       11                 11                  21
+     - --- y DATA(2, 2) + --- y DATA(-2, 2) - --- y DATA(-2, 1)
+       150                150                 200
+
+       21                  11                  21
+     - --- y DATA(1, -2) + --- y DATA(2, -2) + --- y DATA(-2, -1)
+       200                 150                 200
+
+       37                        2                     2
+     - --- y DATA(-1, 1) + 1/35 y  DATA(-2, 0) + 1/70 y  DATA(1, -2)
+       300
+
+             2                     2
+     + 1/35 y  DATA(2, -2) - 1/10 x  y DATA(1, 2) - 1/35 x y DATA(0, 1)
+
+             2
+     - 1/10 x  y DATA(-1, -2) + 1/70 x y DATA(1, -1) - 1/35 x y DATA(-1, 2)
+
+       11                       2                       2
+     + --- DATA(1, 2) - 2/49 x y  DATA(0, -2) + 1/49 x y  DATA(1, 0)
+       105
+
+               2
+     + 1/49 x y  DATA(-1, 0) + 1/35 x y DATA(-2, 1) - 2/35 x y DATA(2, -2)
+
+     - 1/35 x y DATA(-2, -1) + 1/35 x y DATA(1, -2) + 1/35 x y DATA(-1, -2)
+
+     + 2/35 x y DATA(0, -2) - 2/35 x y DATA(-2, -2) - 1/35 x y DATA(1, 2)
+
+                                                            2
+     + 2/35 x y DATA(2, 2) + 2/35 x y DATA(-2, 2) - 1/49 x y  DATA(1, -2)
+
+               2                       2                        2
+     + 2/49 x y  DATA(2, -2) - 1/49 x y  DATA(-2, -1) + 1/49 x y  DATA(0, 1)
+
+               2                       2              31
+     + 1/49 x y  DATA(0, -1) - 2/49 x y  DATA(0, 2) - --- DATA(2, 2)
+                                                      420
+
+               2                      2                       2
+     + 2/49 x y  DATA(2, 2) + 2/49 x y  DATA(-2, 2) + 1/98 x y  DATA(-1, -1)
+
+               2                       2                      2
+     + 1/98 x y  DATA(1, -1) + 1/98 x y  DATA(1, 1) - 2/49 x y  DATA(2, 0)
+
+               2                    3                    3
+     + 2/49 x y  DATA(0, 0) - 2/15 x  DATA(1, 1) + 1/30 x  DATA(-2, 1)
+
+             3                      3                      3
+     - 2/15 x  DATA(-1, -2) + 1/30 x  DATA(-2, -2) - 2/15 x  DATA(1, 2)
+
+             3                    3                     3
+     + 1/30 x  DATA(2, 2) + 1/30 x  DATA(-2, 2) - 2/15 x  DATA(-1, -1)
+
+             3                     3                     3
+     - 2/15 x  DATA(1, -1) - 2/15 x  DATA(-1, 1) + 1/30 x  DATA(2, -1)
+
+             3                     3                   3
+     - 2/15 x  DATA(-1, 2) + 1/30 x  DATA(2, 0) + 1/5 x  DATA(0, 0)
+
+             3                     3               37
+     - 2/15 x  DATA(1, -2) + 1/30 x  DATA(2, -2) - --- y DATA(1, -1)
+                                                   300
+
+       21                  21                  21
+     - --- y DATA(2, -1) - --- y DATA(-1, 2) + --- y DATA(2, 1)
+       200                 200                 200
+
+       21                   11                           2
+     + --- y DATA(-1, -2) - --- y DATA(-2, -2) + 1/98 x y  DATA(-1, 1)
+       200                  150
+
+       53                      3              181
+     - -- x DATA(0, 1) + 1/30 x  DATA(2, 1) + --- x DATA(1, 1)
+       98                                     735
+
+       191                 57                226
+     + ---- x DATA(2, 0) - -- x DATA(0, 0) + --- x DATA(1, -2)
+       2940                98                735
+
+            3                   3                     3
+     + 1/5 x  DATA(0, 2) + 1/5 x  DATA(0, -2) - 2/15 x  DATA(1, 0)
+
+             3                     3                71
+     - 2/15 x  DATA(-1, 0) + 1/30 x  DATA(-2, 0) + ---- x DATA(-2, -1)
+                                                   2940
+
+       191                   71                  226
+     + ---- x DATA(-2, 0) + ---- x DATA(-2, 1) + --- x DATA(-1, -2)
+       2940                 2940                 735
+
+       289                   226                289
+     - ---- x DATA(-2, -2) + --- x DATA(1, 2) - ---- x DATA(2, 2)
+       2940                  735                2940
+
+       289                          2                     2
+     - ---- x DATA(2, -2) - 1/49 x y  DATA(2, -1) - 1/10 x  DATA(1, 1)
+       2940
+
+             2                      2                     2
+     + 1/10 x  DATA(-1, -1) - 1/10 x  DATA(1, -1) + 1/10 x  DATA(-1, 0)
+
+             2                     2                     2
+     + 1/10 x  DATA(-1, 1) + 1/20 x  DATA(2, -1) + 1/10 x  DATA(-1, 2)
+
+             2              289                  181
+     + 1/20 x  DATA(2, 1) - ---- x DATA(-2, 2) + --- x DATA(1, -1)
+                            2940                 735
+
+       181                  71                  226
+     + --- x DATA(-1, 1) + ---- x DATA(2, -1) + --- x DATA(-1, 2)
+       735                 2940                 735
+
+        71                 181                  53
+     + ---- x DATA(2, 1) + --- x DATA(-1, -1) - -- x DATA(0, -1)
+       2940                735                  98
+
+       41                41                 166
+     - -- x DATA(0, 2) - -- x DATA(0, -2) + --- x DATA(1, 0)
+       98                98                 735
+
+       166                       2                     2
+     + --- x DATA(-1, 0) - 1/20 x  DATA(-2, 0) - 1/10 x  DATA(1, -2)
+       735
+
+             2                     2                      2
+     + 1/20 x  DATA(2, -2) - 1/20 x  DATA(-2, -1) + 1/20 x  DATA(2, 0)
+
+             2                      2                     2
+     - 1/10 x  DATA(1, 0) - 1/49 x y  DATA(-1, 2) - 1/40 x  y DATA(2, -1)
+
+             2                        2                         2
+     - 1/20 x  y DATA(-1, -1) + 1/20 x  y DATA(1, -1) - 1/49 x y  DATA(2, 1)
+
+               2                       2                       2
+     - 2/49 x y  DATA(-2, 0) - 1/49 x y  DATA(-2, 1) - 1/49 x y  DATA(-1, -2)
+
+               2                        2
+     + 2/49 x y  DATA(-2, -2) - 1/49 x y  DATA(1, 2) + 1/70 x y DATA(-1, -1)
+
+             2                       2
+     - 1/20 x  y DATA(2, -2) - 1/20 x  y DATA(-2, 2) - 1/70 x y DATA(1, 1)
+
+             2                      2                31
+     + 1/10 x  DATA(-1, -2) - 1/20 x  DATA(-2, -2) + --- DATA(-2, 2)
+                                                     420
+
+                          17                11                31
+     - 1/84 DATA(-2, 1) - --- DATA(-2, 0) + --- DATA(1, -2) - --- DATA(2, -2)
+                          420               105               420
+
+     - 1/84 DATA(-2, -1)
+
+> coeffs_as_lc_of_data(%, posn_list_2d_size5);
+bytes used=70074076, alloc=2489912, time=5.88
+                   11      289                       3         2         2
+[COEFF(-2, -2) = - --- y - ---- x - 2/35 x y + 1/60 y  - 1/20 x  + 1/20 x  y
+                   150     2940
+
+             2   31          3           2                          3   11
+     - 1/35 y  + --- + 1/30 x  + 2/49 x y , COEFF(-1, -2) = - 2/15 x  - ---
+                 420                                                    105
+
+       21            2                      2         2         2     226
+     + --- y - 1/70 y  + 1/35 x y - 1/49 x y  + 1/10 x  - 1/10 x  y + --- x
+       200                                                            735
+
+              3                           2                   3   41
+     + 1/120 y , COEFF(0, -2) = - 2/49 x y  + 2/35 x y + 1/5 x  - -- x,
+                                                                  98
+
+                              11            2   226           2            3
+    COEFF(1, -2) = 1/35 x y + --- - 1/49 x y  + --- x + 1/10 x  y - 1/120 y
+                              105               735
+
+             2   21            3         2                         2
+     - 1/10 x  - --- y - 2/15 x  + 1/70 y , COEFF(2, -2) = - 1/20 x  y
+                 200
+
+                        2   31          3           2         2   11
+     - 2/35 x y + 1/35 y  - --- - 1/60 y  + 2/49 x y  + 1/20 x  + --- y
+                            420                                   150
+
+       289            3                  21            2
+     - ---- x + 1/30 x , COEFF(-2, -1) = --- y + 1/40 x  y - 1/84 - 1/35 x y
+       2940                              200
+
+               2    71            2         3         3         2
+     - 1/49 x y  + ---- x - 1/20 x  + 1/30 x  - 1/30 y  + 1/70 y ,
+                   2940
+
+                            3         2         2                      3
+    COEFF(-1, -1) = - 2/15 x  + 1/10 x  - 1/20 x  y + 1/70 x y - 1/60 y
+
+              2   37      181     31            2
+     + 1/140 y  + --- y + --- x - --- + 1/98 x y ,
+                  300     735     210
+
+                           2   53          3
+    COEFF(0, -1) = 1/49 x y  - -- x + 1/5 x  + 1/35 x y, COEFF(1, -1) =
+                               98
+
+            2           2         3   181                37      31           2
+    - 1/10 x  + 1/98 x y  + 1/60 y  + --- x + 1/70 x y - --- y + --- - 1/140 y
+                                      735                300     210
+
+             2           3                       3           71            2
+     + 1/20 x  y - 2/15 x , COEFF(2, -1) = 1/30 y  + 1/84 + ---- x - 1/40 x  y
+                                                            2940
+
+               2   21                       2         2         3
+     - 1/49 x y  - --- y - 1/35 x y + 1/20 x  - 1/70 y  + 1/30 x ,
+                   200
+
+                   191            2           2         2         3   17
+    COEFF(-2, 0) = ---- x + 1/35 y  - 2/49 x y  - 1/20 x  + 1/30 x  - ---,
+                   2940                                               420
+
+                           3         2   17            2   166           2
+    COEFF(-1, 0) = - 2/15 x  + 1/70 y  - --- + 1/49 x y  + --- x + 1/10 x ,
+                                         105               735
+
+                       3   57             2
+    COEFF(0, 0) = 1/5 x  - -- x + 2/49 x y ,
+                           98
+
+                          2         2   17          2         3   166
+    COEFF(1, 0) = 1/49 x y  - 1/70 y  + --- - 1/10 x  - 2/15 x  + --- x,
+                                        105                       735
+
+                            2   17          3   191            2         2
+    COEFF(2, 0) = - 2/49 x y  + --- + 1/30 x  + ---- x - 1/35 y  + 1/20 x ,
+                                420             2940
+
+                         3         2      71      21            2
+    COEFF(-2, 1) = 1/30 x  - 1/40 x  y + ---- x - --- y - 1/20 x  + 1/35 x y
+                                         2940     200
+
+             2                  2         3                       3           2
+     + 1/70 y  - 1/84 - 1/49 x y  + 1/30 y , COEFF(-1, 1) = 1/60 y  + 1/98 x y
+
+              2   31          2     181           3              37
+     + 1/140 y  - --- + 1/20 x  y + --- x - 2/15 x  - 1/70 x y - --- y
+                  210               735                          300
+
+             2                     3                      2   53
+     + 1/10 x , COEFF(0, 1) = 1/5 x  - 1/35 x y + 1/49 x y  - -- x, COEFF(1, 1)
+                                                              98
+
+               3              181             2         2            2
+     = - 1/60 y  - 1/70 x y + --- x + 1/98 x y  - 1/20 x  y - 1/140 y
+                              735
+
+             3   37      31          2                          2         2
+     - 2/15 x  + --- y + --- - 1/10 x , COEFF(2, 1) = - 1/49 x y  + 1/40 x  y
+                 300     210
+
+                  21              71            3         3         2         2
+     + 1/35 x y + --- y + 1/84 + ---- x + 1/30 x  - 1/30 y  + 1/20 x  - 1/70 y
+                  200            2940
+
+                     31          2           3              11              2
+    , COEFF(-2, 2) = --- - 1/20 x  y + 1/30 x  + 2/35 x y + --- y + 2/49 x y
+                     420                                    150
+
+             3         2   289            2
+     - 1/60 y  - 1/35 y  - ---- x - 1/20 x , COEFF(-1, 2) = - 1/35 x y
+                           2940
+
+             2         3   11           3           2         2     21
+     - 1/70 y  - 2/15 x  - --- - 1/120 y  - 1/49 x y  + 1/10 x  y - --- y
+                           105                                      200
+
+       226           2                          2        3              41
+     + --- x + 1/10 x , COEFF(0, 2) = - 2/49 x y  + 1/5 x  - 2/35 x y - -- x,
+       735                                                              98
+
+                                     2   21             3         3           2
+    COEFF(1, 2) = - 1/35 x y - 1/10 x  + --- y + 1/120 y  - 2/15 x  - 1/49 x y
+                                         200
+
+             2   11          2     226                        2   31          3
+     + 1/70 y  + --- - 1/10 x  y + --- x, COEFF(2, 2) = 1/20 x  - --- + 1/60 y
+                 105               735                            420
+
+             2             2   11                 289            2         3
+     + 1/20 x  y + 2/49 x y  - --- y + 2/35 x y - ---- x + 1/35 y  + 1/30 x ]
+                               150                2940
+
+> print_coeffs__lc_of_data(%, "coeffs_dx->coeff_", "fp",
+> 			 "2d.coeffs/2d.cube.order4.smooth0/coeffs-dx.compute.c");
+bytes used=71074548, alloc=2489912, time=5.96
+bytes used=72074804, alloc=2489912, time=6.03
+bytes used=73076960, alloc=2489912, time=6.10
+bytes used=74077744, alloc=2489912, time=6.24
+bytes used=75078056, alloc=2489912, time=6.32
+bytes used=76078252, alloc=2489912, time=6.46
+bytes used=77078548, alloc=2489912, time=6.53
+bytes used=78078716, alloc=2489912, time=6.69
+bytes used=79078944, alloc=2489912, time=6.78
+bytes used=80079564, alloc=2489912, time=6.91
+> 
+# d/dy
+> simplify( diff(interp_2d_cube_order4_smooth0,y) );
+bytes used=81080236, alloc=2489912, time=7.01
+bytes used=82080460, alloc=2489912, time=7.07
+bytes used=83081684, alloc=2489912, time=7.13
+17               31               17                31
+--- DATA(0, 1) + --- DATA(1, 1) - --- DATA(0, -1) - --- DATA(-1, -1)
+105              210              105               210
+
+       31                      2                     2
+     - --- DATA(1, -1) + 1/35 x  DATA(0, -2) - 1/35 x  DATA(0, 2)
+       210
+
+             2                     2                     2
+     + 1/70 x  DATA(0, -1) + 1/10 y  DATA(0, -1) - 1/20 y  DATA(0, -2)
+
+             2                    2              53
+     - 1/10 y  DATA(0, 1) + 1/20 y  DATA(0, 2) - -- y DATA(-1, 0)
+                                                 98
+
+       166                 41                       2
+     + --- y DATA(0, -1) - -- y DATA(-2, 0) - 2/49 x  y DATA(0, 2)
+       735                 98
+
+             2                       2                       2
+     + 1/49 x  y DATA(0, -1) - 2/49 x  y DATA(0, -2) - 2/49 x  y DATA(2, 0)
+
+             2                      2                      2
+     + 2/49 x  y DATA(0, 0) + 1/49 x  y DATA(1, 0) + 1/49 x  y DATA(-1, 0)
+
+             2
+     - 2/49 x  y DATA(-2, 0) - 2/35 x y DATA(2, 0) - 1/35 x y DATA(1, 0)
+
+             2
+     + 1/49 x  y DATA(0, 1) + 2/35 x y DATA(-2, 0) + 1/35 x y DATA(-1, 0)
+
+             2              53                41                57
+     - 1/70 x  DATA(0, 1) - -- y DATA(1, 0) - -- y DATA(2, 0) - -- y DATA(0, 0)
+                            98                98                98
+
+       191                  191                      3
+     + ---- y DATA(0, -2) + ---- y DATA(0, 2) + 1/5 y  DATA(1, 0)
+       2940                 2940
+
+            3                    3                     3
+     + 1/5 y  DATA(-1, 0) + 1/5 y  DATA(-2, 0) - 2/15 y  DATA(0, -1)
+
+             3              166                      3
+     + 1/30 y  DATA(0, 2) + --- y DATA(0, 1) + 1/30 y  DATA(0, -2)
+                            735
+
+            3                   3                    3
+     + 1/5 y  DATA(2, 0) + 1/5 y  DATA(0, 0) - 2/15 y  DATA(0, 1)
+
+       31                11                      2
+     + --- DATA(-1, 1) - --- DATA(2, -1) - 1/70 x  DATA(1, 2)
+       210               105
+
+             2                    2                     2
+     + 1/35 x  DATA(2, 2) + 1/35 x  DATA(-2, 2) + 1/70 x  DATA(-2, 1)
+
+             2                                      17
+     - 1/49 x  y DATA(2, 1) - 1/35 x y DATA(2, 1) + --- DATA(0, 2)
+                                                    420
+
+                          11                                   17
+     + 1/84 DATA(-1, 2) + --- DATA(2, 1) - 1/84 DATA(-1, -2) - --- DATA(0, -2)
+                          105                                  420
+
+       31                       2                       2
+     + --- DATA(-2, -2) + 1/98 x  y DATA(-1, 1) - 1/49 x  y DATA(-2, 1)
+       420
+
+             2                       2
+     - 1/49 x  y DATA(-1, 2) + 2/49 x  y DATA(-2, -2) + 1/70 x y DATA(-1, 1)
+
+                                    2                      2
+     - 1/35 x y DATA(2, -1) + 2/49 x  y DATA(2, 2) - 1/49 x  y DATA(1, -2)
+
+             2                        3                    3
+     - 1/49 x  y DATA(-2, -1) + 1/30 y  DATA(1, 2) - 2/15 y  DATA(1, 1)
+
+             3                       3                      3
+     - 2/15 y  DATA(-1, -1) + 1/120 x  DATA(-2, -1) - 2/15 y  DATA(-1, 1)
+
+             2                    3                      3
+     - 1/10 y  DATA(1, 1) - 2/15 y  DATA(-2, -1) + 1/30 y  DATA(-2, -2)
+
+             3                    3                     3
+     + 1/30 y  DATA(2, 2) + 1/30 y  DATA(-2, 2) - 2/15 y  DATA(-2, 1)
+
+             3                     3                     2
+     + 1/30 y  DATA(1, -2) + 1/30 y  DATA(2, -2) + 1/10 y  DATA(-1, -1)
+
+             2                     2                     2
+     + 1/10 y  DATA(1, -1) - 1/10 y  DATA(-1, 1) + 1/10 y  DATA(2, -1)
+
+             2                     2                    3
+     + 1/20 y  DATA(-1, 2) - 1/10 y  DATA(2, 1) - 2/15 y  DATA(1, -1)
+
+             3                     3                     3
+     - 2/15 y  DATA(2, -1) + 1/30 y  DATA(-1, 2) - 2/15 y  DATA(2, 1)
+
+             3                      2                181
+     + 1/30 y  DATA(-1, -2) + 1/10 y  DATA(-2, -1) + --- y DATA(1, 1)
+                                                     735
+
+       181                        2                      2
+     + --- y DATA(-1, -1) - 1/20 y  DATA(-1, -2) + 1/20 y  DATA(1, 2)
+       735
+
+             2                    2                     2
+     + 1/20 y  DATA(2, 2) + 1/20 y  DATA(-2, 2) - 1/10 y  DATA(-2, 1)
+
+             2                      2                 71
+     - 1/20 y  DATA(-2, -2) + 1/98 x  y DATA(1, 1) + ---- y DATA(1, 2)
+                                                     2940
+
+       289                 289                  226
+     - ---- y DATA(2, 2) - ---- y DATA(-2, 2) + --- y DATA(-2, 1)
+       2940                2940                 735
+
+        71                  289                  226
+     + ---- y DATA(1, -2) - ---- y DATA(2, -2) + --- y DATA(-2, -1)
+       2940                 2940                 735
+
+       181                       2                     2
+     + --- y DATA(-1, 1) - 1/20 y  DATA(1, -2) - 1/20 y  DATA(2, -2)
+       735
+
+             2                      2
+     - 1/49 x  y DATA(1, 2) - 1/49 x  y DATA(-1, -2) - 1/70 x y DATA(1, -1)
+
+     - 1/35 x y DATA(-1, 2) + 1/84 DATA(1, 2) + 1/35 x y DATA(-2, 1)
+
+     + 2/35 x y DATA(2, -2) + 1/35 x y DATA(-2, -1) + 1/35 x y DATA(1, -2)
+
+     - 1/35 x y DATA(-1, -2) - 2/35 x y DATA(-2, -2) + 1/35 x y DATA(1, 2)
+
+                                                            2
+     + 2/35 x y DATA(2, 2) - 2/35 x y DATA(-2, 2) - 1/40 x y  DATA(1, -2)
+
+               2                       2                31
+     - 1/20 x y  DATA(2, -2) - 1/10 x y  DATA(-2, -1) - --- DATA(2, 2)
+                                                        420
+
+               2                      2                       2
+     + 1/20 x y  DATA(2, 2) - 1/20 x y  DATA(-2, 2) - 1/20 x y  DATA(-1, -1)
+
+               2                       2                    3
+     + 1/20 x y  DATA(1, -1) - 1/20 x y  DATA(1, 1) - 1/60 x  DATA(1, 1)
+
+              3                     3                      3
+     - 1/120 x  DATA(-2, 1) - 1/30 x  DATA(-1, -2) + 1/60 x  DATA(-2, -2)
+
+             3                    3                    3
+     - 1/30 x  DATA(1, 2) + 1/60 x  DATA(2, 2) - 1/60 x  DATA(-2, 2)
+
+             3                      3                     3
+     - 1/60 x  DATA(-1, -1) + 1/60 x  DATA(1, -1) + 1/60 x  DATA(-1, 1)
+
+              3                     3                     3
+     - 1/120 x  DATA(2, -1) + 1/30 x  DATA(-1, 2) + 1/30 x  DATA(1, -2)
+
+             3               181                 226
+     - 1/60 x  DATA(2, -2) + --- y DATA(1, -1) + --- y DATA(2, -1)
+                             735                 735
+
+        71                  226                 71
+     + ---- y DATA(-1, 2) + --- y DATA(2, 1) + ---- y DATA(-1, -2)
+       2940                 735                2940
+
+       289                           2                      3
+     - ---- y DATA(-2, -2) + 1/20 x y  DATA(-1, 1) + 1/120 x  DATA(2, 1)
+       2940
+
+       37                 21                  21
+     + --- x DATA(1, 1) - --- x DATA(1, -2) + --- x DATA(-2, -1)
+       300                200                 200
+
+       21                  21                   11
+     - --- x DATA(-2, 1) + --- x DATA(-1, -2) - --- x DATA(-2, -2)
+       200                 200                  150
+
+       21                 11                 11
+     + --- x DATA(1, 2) - --- x DATA(2, 2) + --- x DATA(2, -2)
+       200                150                150
+
+               2                      2                     2
+     + 1/10 x y  DATA(2, -1) - 1/140 x  DATA(1, 1) + 1/140 x  DATA(-1, -1)
+
+              2                      2                     2
+     + 1/140 x  DATA(1, -1) - 1/140 x  DATA(-1, 1) - 1/70 x  DATA(2, -1)
+
+             2                     2              11
+     - 1/70 x  DATA(-1, 2) + 1/70 x  DATA(2, 1) + --- x DATA(-2, 2)
+                                                  150
+
+       37                  37                  21
+     - --- x DATA(1, -1) - --- x DATA(-1, 1) - --- x DATA(2, -1)
+       300                 300                 200
+
+       21                  21                 37
+     - --- x DATA(-1, 2) + --- x DATA(2, 1) + --- x DATA(-1, -1)
+       200                 200                300
+
+             2                     2                     2
+     + 1/70 x  DATA(1, -2) - 1/35 x  DATA(2, -2) - 1/70 x  DATA(-2, -1)
+
+               2                     2                       2
+     - 1/40 x y  DATA(-1, 2) - 1/49 x  y DATA(2, -1) + 1/98 x  y DATA(-1, -1)
+
+             2                         2                      2
+     + 1/98 x  y DATA(1, -1) - 1/10 x y  DATA(2, 1) + 1/10 x y  DATA(-2, 1)
+
+               2                        2                        2
+     + 1/40 x y  DATA(-1, -2) + 1/20 x y  DATA(-2, -2) + 1/40 x y  DATA(1, 2)
+
+                                     2                       2
+     + 1/70 x y DATA(-1, -1) + 2/49 x  y DATA(2, -2) + 2/49 x  y DATA(-2, 2)
+
+                                   2                      2
+     - 1/70 x y DATA(1, 1) + 1/70 x  DATA(-1, -2) - 1/35 x  DATA(-2, -2)
+
+       31                11                                   31
+     - --- DATA(-2, 2) + --- DATA(-2, 1) - 1/84 DATA(1, -2) + --- DATA(2, -2)
+       420               105                                  420
+
+       11
+     - --- DATA(-2, -1)
+       105
+
+> coeffs_as_lc_of_data(%, posn_list_2d_size5);
+bytes used=84082964, alloc=2555436, time=7.20
+                   289            2   31    11                         2
+[COEFF(-2, -2) = - ---- y - 1/35 x  + --- - --- x - 2/35 x y + 1/20 x y
+                   2940               420   150
+
+             2           2         3         3                          3
+     + 2/49 x  y - 1/20 y  + 1/30 y  + 1/60 x , COEFF(-1, -2) = - 1/30 x
+
+             2             2         2         3   21            2
+     - 1/49 x  y + 1/40 x y  - 1/20 y  + 1/30 y  + --- x + 1/70 x  - 1/84
+                                                   200
+
+        71
+     + ---- y - 1/35 x y,
+       2940
+
+                         3   191            2         2   17          2
+    COEFF(0, -2) = 1/30 y  + ---- y + 1/35 x  - 1/20 y  - --- - 2/49 x  y,
+                             2940                         420
+
+                           2           2   21       71            3
+    COEFF(1, -2) = - 1/20 y  - 1/40 x y  - --- x + ---- y + 1/30 y  + 1/35 x y
+                                           200     2940
+
+             2                  3         2                         2
+     - 1/49 x  y - 1/84 + 1/30 x  + 1/70 x , COEFF(2, -2) = - 1/20 y
+
+               2   11      289            3         2                    3
+     - 1/20 x y  + --- x - ---- y - 1/60 x  - 1/35 x  + 2/35 x y + 1/30 y
+                   150     2940
+
+       31          2                          2         2     11    21
+     + --- + 2/49 x  y, COEFF(-2, -1) = 1/10 y  - 1/49 x  y - --- + --- x
+       420                                                    105   200
+
+                        3   226            3           2         2
+     + 1/35 x y - 2/15 y  + --- y + 1/120 x  - 1/10 x y  - 1/70 x ,
+                            735
+
+                            3         3          2         2         2
+    COEFF(-1, -1) = - 1/60 x  - 2/15 y  + 1/140 x  + 1/10 y  + 1/98 x  y
+
+               2   37      31    181
+     - 1/20 x y  + --- x - --- + --- y + 1/70 x y,
+                   300     210   735
+
+                     17          2         2         3         2     166
+    COEFF(0, -1) = - --- + 1/10 y  + 1/70 x  - 2/15 y  + 1/49 x  y + --- y,
+                     105                                             735
+
+                   181           2           2          2   31    37
+    COEFF(1, -1) = --- y + 1/10 y  + 1/20 x y  + 1/140 x  - --- - --- x
+                   735                                      210   300
+
+             2                      3         3                         2
+     + 1/98 x  y - 1/70 x y - 2/15 y  + 1/60 x , COEFF(2, -1) = 1/10 x y
+
+              3         3         2         2     226                      2
+     - 1/120 x  - 2/15 y  - 1/70 x  - 1/49 x  y + --- y - 1/35 x y + 1/10 y
+                                                  735
+
+       11    21                         3   41                      2
+     - --- - --- x, COEFF(-2, 0) = 1/5 y  - -- y + 2/35 x y - 2/49 x  y,
+       105   200                            98
+
+                     53           2          3
+    COEFF(-1, 0) = - -- y + 1/49 x  y + 1/5 y  + 1/35 x y,
+                     98
+
+                    57          3         2
+    COEFF(0, 0) = - -- y + 1/5 y  + 2/49 x  y,
+                    98
+
+                                    3         2     53
+    COEFF(1, 0) = - 1/35 x y + 1/5 y  + 1/49 x  y - -- y,
+                                                    98
+
+                    41          3                    2                   226
+    COEFF(2, 0) = - -- y + 1/5 y  - 2/35 x y - 2/49 x  y, COEFF(-2, 1) = --- y
+                    98                                                   735
+
+             2         3         2           2         2            3   11
+     - 1/10 y  - 2/15 y  + 1/70 x  + 1/10 x y  - 1/49 x  y - 1/120 x  + ---
+                                                                        105
+
+       21                                       2         3         3
+     - --- x + 1/35 x y, COEFF(-1, 1) = - 1/10 y  + 1/60 x  - 2/15 y
+       200
+
+                  37            2     31            2          2   181
+     + 1/70 x y - --- x + 1/98 x  y + --- + 1/20 x y  - 1/140 x  + --- y,
+                  300                 210                          735
+
+                  17          2         3         2     166           2
+    COEFF(0, 1) = --- - 1/70 x  - 2/15 y  + 1/49 x  y + --- y - 1/10 y ,
+                  105                                   735
+
+                            2   37            3         3         2           2
+    COEFF(1, 1) = - 1/20 x y  + --- x - 1/60 x  - 2/15 y  + 1/98 x  y - 1/10 y
+                                300
+
+       31    181                       2                        2          3
+     + --- + --- y - 1/70 x y - 1/140 x , COEFF(2, 1) = - 1/10 y  + 1/120 x
+       210   735
+
+       11            2         2   226                      3   21
+     + --- - 1/10 x y  + 1/70 x  + --- y - 1/35 x y - 2/15 y  + --- x
+       105                         735                          200
+
+             2                         2           2         3         3
+     - 1/49 x  y, COEFF(-2, 2) = 2/49 x  y + 1/20 y  - 1/60 x  + 1/30 y
+
+             2   11      31    289                         2
+     + 1/35 x  + --- x - --- - ---- y - 2/35 x y - 1/20 x y , COEFF(-1, 2) =
+                 150     420   2940
+
+              2                    2         3           71            2
+    - 1/40 x y  - 1/35 x y + 1/20 y  + 1/30 x  + 1/84 + ---- y - 1/70 x
+                                                        2940
+
+             2           3   21
+     - 1/49 x  y + 1/30 y  - --- x,
+                             200
+
+                          2   17          3         2     191            2
+    COEFF(0, 2) = - 1/35 x  + --- + 1/30 y  - 2/49 x  y + ---- y + 1/20 y ,
+                              420                         2940
+
+                               3         2           2         3
+    COEFF(1, 2) = 1/84 + 1/30 y  - 1/49 x  y - 1/70 x  - 1/30 x  + 1/35 x y
+
+             2           2   21       71                                    3
+     + 1/20 y  + 1/40 x y  + --- x + ---- y, COEFF(2, 2) = 2/35 x y + 1/30 y
+                             200     2940
+
+       11      31    289            2         2           3           2
+     - --- x - --- - ---- y + 1/35 x  + 2/49 x  y + 1/60 x  + 1/20 x y
+       150     420   2940
+
+             2
+     + 1/20 y ]
+
+> print_coeffs__lc_of_data(%, "coeffs_dy->coeff_", "fp",
+> 			 "2d.coeffs/2d.cube.order4.smooth0/coeffs-dy.compute.c");
+bytes used=85083136, alloc=2555436, time=7.28
+bytes used=86083376, alloc=2555436, time=7.35
+bytes used=87083652, alloc=2555436, time=7.44
+bytes used=88083808, alloc=2555436, time=7.60
+bytes used=89087088, alloc=2555436, time=7.68
+bytes used=90087256, alloc=2555436, time=7.86
+bytes used=91087488, alloc=2555436, time=7.95
+bytes used=92087708, alloc=2555436, time=8.14
+bytes used=93087872, alloc=2555436, time=8.22
+bytes used=94088076, alloc=2555436, time=8.41
+> 
+# d^2/dx^2
+> simplify( diff(interp_2d_cube_order4_smooth0,x,x) );
+bytes used=95088296, alloc=2555436, time=8.51
+bytes used=96088500, alloc=2555436, time=8.57
+191               57              166              53
+---- DATA(2, 0) - -- DATA(0, 0) + --- DATA(1, 0) - -- DATA(0, 1)
+2940              98              735              98
+
+       181              53               181                181
+     + --- DATA(1, 1) - -- DATA(0, -1) + --- DATA(-1, -1) + --- DATA(1, -1)
+       735              98               735                735
+
+       166                    2                    2
+     + --- DATA(-1, 0) + 3/5 x  DATA(0, -2) + 3/5 x  DATA(0, 2)
+       735
+
+            2                     2                     2
+     + 3/5 x  DATA(0, -1) + 1/49 y  DATA(0, -1) - 2/49 y  DATA(0, -2)
+
+             2                    2
+     + 1/49 y  DATA(0, 1) - 2/49 y  DATA(0, 2) + 1/35 y DATA(0, -1)
+
+            2
+     + 3/5 x  DATA(0, 1) + 2/35 y DATA(0, -2) - 2/35 y DATA(0, 2)
+
+                           181                71
+     - 1/35 y DATA(0, 1) + --- DATA(-1, 1) + ---- DATA(2, -1)
+                           735               2940
+
+                                2                    2
+     + 1/5 x DATA(-1, 0) - 2/5 x  DATA(1, 2) + 1/10 x  DATA(2, 2)
+
+             2                     2
+     + 1/10 x  DATA(-2, 2) + 1/10 x  DATA(-2, 1) + 1/20 x y DATA(2, 1)
+
+       41              226                71
+     - -- DATA(0, 2) + --- DATA(-1, 2) + ---- DATA(2, 1) + 1/10 x DATA(2, 0)
+       98              735               2940
+
+                          226                41               289
+     - 1/5 x DATA(1, 0) + --- DATA(-1, -2) - -- DATA(0, -2) - ---- DATA(-2, -2)
+                          735                98               2940
+
+                                                           2
+     + 1/10 x y DATA(-1, 1) - 1/20 x y DATA(2, -1) + 1/98 y  DATA(1, 1)
+
+             2                      2                     2
+     + 1/98 y  DATA(-1, -1) + 1/98 y  DATA(1, -1) + 1/98 y  DATA(-1, 1)
+
+             2                     2                     2
+     - 1/49 y  DATA(2, -1) - 1/49 y  DATA(-1, 2) - 1/49 y  DATA(2, 1)
+
+             2
+     - 1/49 y  DATA(-2, -1) - 1/70 y DATA(1, 1) + 1/70 y DATA(-1, -1)
+
+             2                      2                    2
+     - 1/49 y  DATA(-1, -2) - 1/49 y  DATA(1, 2) + 2/49 y  DATA(2, 2)
+
+             2                     2                     2
+     + 2/49 y  DATA(-2, 2) - 1/49 y  DATA(-2, 1) + 2/49 y  DATA(-2, -2)
+
+     - 1/35 y DATA(1, 2) + 2/35 y DATA(2, 2) + 2/35 y DATA(-2, 2)
+
+     + 1/35 y DATA(-2, 1) + 1/35 y DATA(1, -2) - 2/35 y DATA(2, -2)
+
+                                                        2
+     - 1/35 y DATA(-2, -1) - 1/70 y DATA(-1, 1) - 1/49 y  DATA(1, -2)
+
+             2
+     + 2/49 y  DATA(2, -2) + 1/10 x y DATA(1, -1) + 1/5 x y DATA(-1, 2)
+
+       226
+     + --- DATA(1, 2) - 1/20 x y DATA(-2, 1) - 1/10 x y DATA(2, -2)
+       735
+
+     + 1/20 x y DATA(-2, -1) + 1/5 x y DATA(1, -2) - 1/5 x y DATA(-1, -2)
+
+     + 1/10 x y DATA(-2, -2) - 1/5 x y DATA(1, 2) + 1/10 x y DATA(2, 2)
+
+                              289
+     - 1/10 x y DATA(-2, 2) - ---- DATA(2, 2) + 1/70 y DATA(1, -1)
+                              2940
+
+     - 1/35 y DATA(2, -1) - 1/35 y DATA(-1, 2) + 1/35 y DATA(2, 1)
+
+     + 1/35 y DATA(-1, -2) - 2/35 y DATA(-2, -2) - 1/5 x DATA(1, 1)
+
+     - 1/5 x DATA(1, -2) - 1/10 x DATA(-2, -1) - 1/10 x DATA(-2, 1)
+
+     + 1/5 x DATA(-1, -2) - 1/10 x DATA(-2, -2) - 1/5 x DATA(1, 2)
+
+                                                     2
+     + 1/10 x DATA(2, 2) + 1/10 x DATA(2, -2) - 2/5 x  DATA(1, 1)
+
+            2                     2
+     - 2/5 x  DATA(-1, -1) - 2/5 x  DATA(1, -1) - 1/10 x DATA(-2, 0)
+
+            2                     2                    2
+     - 2/5 x  DATA(-1, 1) + 1/10 x  DATA(2, -1) - 2/5 x  DATA(-1, 2)
+
+             2
+     + 1/10 x  DATA(2, 1) - 1/10 x DATA(-2, 2) - 1/5 x DATA(1, -1)
+
+     + 1/5 x DATA(-1, 1) + 1/10 x DATA(2, -1) + 1/5 x DATA(-1, 2)
+
+                                                     2
+     + 1/10 x DATA(2, 1) + 1/5 x DATA(-1, -1) - 2/5 x  DATA(1, -2)
+
+             2                     2
+     + 1/10 x  DATA(2, -2) + 1/10 x  DATA(-2, -1) - 1/10 x y DATA(-1, -1)
+
+                                  2                      2
+     - 1/10 x y DATA(1, 1) - 2/5 x  DATA(-1, -2) + 1/10 x  DATA(-2, -2)
+
+             2              289                 71
+     + 2/49 y  DATA(0, 0) - ---- DATA(-2, 2) + ---- DATA(-2, 1)
+                            2940               2940
+
+       191                226               289
+     + ---- DATA(-2, 0) + --- DATA(1, -2) - ---- DATA(2, -2)
+       2940               735               2940
+
+        71                       2                    2
+     + ---- DATA(-2, -1) - 2/49 y  DATA(2, 0) + 1/49 y  DATA(-1, 0)
+       2940
+
+             2                     2                   2
+     - 2/49 y  DATA(-2, 0) + 1/49 y  DATA(1, 0) - 2/5 x  DATA(1, 0)
+
+            2                     2                    2
+     - 2/5 x  DATA(-1, 0) + 1/10 x  DATA(-2, 0) + 3/5 x  DATA(0, 0)
+
+             2
+     + 1/10 x  DATA(2, 0)
+
+> coeffs_as_lc_of_data(%, posn_list_2d_size5);
+bytes used=97091392, alloc=2555436, time=8.63
+                       2                       289                   2
+[COEFF(-2, -2) = 2/49 y  - 2/35 y + 1/10 x y - ---- - 1/10 x + 1/10 x ,
+                                               2940
+
+                                  2   226                           2
+    COEFF(-1, -2) = 1/35 y - 2/5 x  + --- - 1/5 x y + 1/5 x - 1/49 y ,
+                                      735
+
+                     41                 2         2
+    COEFF(0, -2) = - -- + 2/35 y + 3/5 x  - 2/49 y ,
+                     98
+
+                                 2   226         2
+    COEFF(1, -2) = 1/35 y - 2/5 x  + --- - 1/49 y  + 1/5 x y - 1/5 x,
+                                     735
+
+                                    2                       289          2
+    COEFF(2, -2) = - 2/35 y + 1/10 x  - 1/10 x y + 1/10 x - ---- + 2/49 y ,
+                                                            2940
+
+                            2         2                                 71
+    COEFF(-2, -1) = - 1/49 y  + 1/10 x  + 1/20 x y - 1/10 x - 1/35 y + ----,
+                                                                       2940
+
+                                                      2   181        2
+    COEFF(-1, -1) = 1/70 y + 1/5 x - 1/10 x y + 1/98 y  + --- - 2/5 x ,
+                                                          735
+
+                        2         2            53
+    COEFF(0, -1) = 3/5 x  + 1/49 y  + 1/35 y - --,
+                                               98
+
+                   181         2                2
+    COEFF(1, -1) = --- + 1/98 y  - 1/5 x - 2/5 x  + 1/10 x y + 1/70 y,
+                   735
+
+                                    2         2    71
+    COEFF(2, -1) = - 1/35 y + 1/10 x  - 1/49 y  + ---- + 1/10 x - 1/20 x y,
+                                                  2940
+
+                         2         2   191
+    COEFF(-2, 0) = 1/10 x  - 2/49 y  + ---- - 1/10 x,
+                                       2940
+
+                           166         2        2
+    COEFF(-1, 0) = 1/5 x + --- + 1/49 y  - 2/5 x ,
+                           735
+
+                       2   57         2
+    COEFF(0, 0) = 3/5 x  - -- + 2/49 y ,
+                           98
+
+                            166         2        2
+    COEFF(1, 0) = - 1/5 x + --- + 1/49 y  - 2/5 x ,
+                            735
+
+                                 2         2   191
+    COEFF(2, 0) = 1/10 x - 2/49 y  + 1/10 x  + ----,
+                                               2940
+
+                                    2         2                        71
+    COEFF(-2, 1) = - 1/10 x - 1/49 y  + 1/10 x  + 1/35 y - 1/20 x y + ----,
+                                                                      2940
+
+                   181                  2                   2
+    COEFF(-1, 1) = --- - 1/70 y + 1/98 y  + 1/10 x y - 2/5 x  + 1/5 x,
+                   735
+
+                             53        2         2
+    COEFF(0, 1) = - 1/35 y - -- + 3/5 x  + 1/49 y ,
+                             98
+
+                                  2                   2   181
+    COEFF(1, 1) = - 1/5 x + 1/98 y  - 1/10 x y - 2/5 x  + --- - 1/70 y,
+                                                          735
+
+                                 2    71                              2
+    COEFF(2, 1) = 1/35 y - 1/49 y  + ---- + 1/10 x + 1/20 x y + 1/10 x ,
+                                     2940
+
+                         2   289                            2
+    COEFF(-2, 2) = 1/10 x  - ---- + 2/35 y - 1/10 x + 2/49 y  - 1/10 x y,
+                             2940
+
+                          2         2                    226
+    COEFF(-1, 2) = - 2/5 x  - 1/49 y  + 1/5 x - 1/35 y + --- + 1/5 x y,
+                                                         735
+
+                          2                 2   41
+    COEFF(0, 2) = - 2/49 y  - 2/35 y + 3/5 x  - --,
+                                                98
+
+                                           2            226         2
+    COEFF(1, 2) = - 1/5 x y - 1/5 x - 2/5 x  - 1/35 y + --- - 1/49 y ,
+                                                        735
+
+                        2                  2            289
+    COEFF(2, 2) = 2/49 y  + 2/35 y + 1/10 x  + 1/10 x - ---- + 1/10 x y]
+                                                        2940
+
+> print_coeffs__lc_of_data(%, "coeffs_dxx->coeff_", "fp",
+> 			 "2d.coeffs/2d.cube.order4.smooth0/coeffs-dxx.compute.c");
+bytes used=98091548, alloc=2555436, time=8.70
+bytes used=99091708, alloc=2555436, time=8.83
+bytes used=100092244, alloc=2555436, time=8.91
+bytes used=101092436, alloc=2555436, time=9.07
+bytes used=102092596, alloc=2555436, time=9.25
+bytes used=103092832, alloc=2555436, time=9.38
+> 
+# d^2/dxdy
+> simplify( diff(interp_2d_cube_order4_smooth0,x,y) );
+bytes used=104093572, alloc=2555436, time=9.47
+                     37               37                 37
+1/35 x DATA(0, -1) + --- DATA(1, 1) + --- DATA(-1, -1) - --- DATA(1, -1)
+                     300              300                300
+
+       37                21                      2
+     - --- DATA(-1, 1) - --- DATA(2, -1) - 1/10 x  DATA(1, 2)
+       300               200
+
+             2                    2                     2
+     + 1/20 x  DATA(2, 2) - 1/20 x  DATA(-2, 2) - 1/40 x  DATA(-2, 1)
+
+                             21                21
+     - 2/49 x y DATA(2, 1) - --- DATA(-1, 2) + --- DATA(2, 1)
+                             200               200
+
+       21                 11
+     + --- DATA(-1, -2) - --- DATA(-2, -2) + 1/49 x y DATA(-1, 1)
+       200                150
+
+                                    2                    2
+     - 2/49 x y DATA(2, -1) - 1/20 y  DATA(1, 1) - 1/20 y  DATA(-1, -1)
+
+             2                     2                     2
+     + 1/20 y  DATA(1, -1) + 1/20 y  DATA(-1, 1) + 1/10 y  DATA(2, -1)
+
+             2                     2                    2
+     - 1/40 y  DATA(-1, 2) - 1/10 y  DATA(2, 1) - 1/10 y  DATA(-2, -1)
+
+                                                       2
+     - 1/70 y DATA(1, 1) + 1/70 y DATA(-1, -1) + 1/40 y  DATA(-1, -2)
+
+             2                    2                    2
+     + 1/40 y  DATA(1, 2) + 1/20 y  DATA(2, 2) - 1/20 y  DATA(-2, 2)
+
+             2                     2
+     + 1/10 y  DATA(-2, 1) + 1/20 y  DATA(-2, -2) + 1/35 y DATA(1, 2)
+
+     + 2/35 y DATA(2, 2) - 2/35 y DATA(-2, 2) + 1/35 y DATA(-2, 1)
+
+     + 1/35 y DATA(1, -2) + 2/35 y DATA(2, -2) + 1/35 y DATA(-2, -1)
+
+                                  2                     2
+     + 1/70 y DATA(-1, 1) - 1/40 y  DATA(1, -2) - 1/20 y  DATA(2, -2)
+
+                                                     21
+     + 1/49 x y DATA(1, -1) - 2/49 x y DATA(-1, 2) + --- DATA(1, 2)
+                                                     200
+
+     - 2/49 x y DATA(-2, 1) + 4/49 x y DATA(2, -2) - 2/49 x y DATA(-2, -1)
+
+     - 2/49 x y DATA(1, -2) - 2/49 x y DATA(-1, -2) + 4/49 x y DATA(-2, -2)
+
+     - 2/49 x y DATA(1, 2) + 4/49 x y DATA(2, 2) + 4/49 x y DATA(-2, 2)
+
+       11
+     - --- DATA(2, 2) - 1/70 y DATA(1, -1) - 1/35 y DATA(2, -1)
+       150
+
+     - 1/35 y DATA(-1, 2) - 1/35 y DATA(2, 1) - 1/35 y DATA(-1, -2)
+
+     - 2/35 y DATA(-2, -2) - 1/70 x DATA(1, 1) + 1/35 x DATA(1, -2)
+
+     - 1/35 x DATA(-2, -1) + 1/35 x DATA(-2, 1) + 1/35 x DATA(-1, -2)
+
+     - 2/35 x DATA(-2, -2) - 1/35 x DATA(1, 2) + 2/35 x DATA(2, 2)
+
+                                  2                    2
+     - 2/35 x DATA(2, -2) - 1/20 x  DATA(1, 1) - 1/20 x  DATA(-1, -1)
+
+             2                     2                     2
+     + 1/20 x  DATA(1, -1) + 1/20 x  DATA(-1, 1) - 1/40 x  DATA(2, -1)
+
+             2                     2
+     + 1/10 x  DATA(-1, 2) + 1/40 x  DATA(2, 1) + 2/35 x DATA(-2, 2)
+
+     + 1/70 x DATA(1, -1) - 1/70 x DATA(-1, 1) - 1/35 x DATA(2, -1)
+
+     - 1/35 x DATA(-1, 2) + 1/35 x DATA(2, 1) + 1/70 x DATA(-1, -1)
+
+             2                     2                     2
+     + 1/10 x  DATA(1, -2) - 1/20 x  DATA(2, -2) + 1/40 x  DATA(-2, -1)
+
+                                                           2
+     + 1/49 x y DATA(-1, -1) + 1/49 x y DATA(1, 1) - 1/10 x  DATA(-1, -2)
+
+             2                11                21
+     + 1/20 x  DATA(-2, -2) + --- DATA(-2, 2) - --- DATA(-2, 1)
+                              150               200
+
+       21                11                21
+     - --- DATA(1, -2) + --- DATA(2, -2) + --- DATA(-2, -1)
+       200               150               200
+
+     + 2/49 x y DATA(-1, 0) - 2/35 y DATA(2, 0) - 1/35 y DATA(1, 0)
+
+     + 1/35 y DATA(-1, 0) + 2/49 x y DATA(0, -1) + 2/35 y DATA(-2, 0)
+
+     - 4/49 x y DATA(2, 0) - 1/35 x DATA(0, 1) - 2/35 x DATA(0, 2)
+
+     + 2/35 x DATA(0, -2) - 4/49 x y DATA(0, -2) + 2/49 x y DATA(1, 0)
+
+     + 2/49 x y DATA(0, 1) + 4/49 x y DATA(0, 0) - 4/49 x y DATA(-2, 0)
+
+     - 4/49 x y DATA(0, 2)
+
+> coeffs_as_lc_of_data(%, posn_list_2d_size5);
+bytes used=105096984, alloc=2555436, time=9.52
+                                  2                     11          2
+[COEFF(-2, -2) = 4/49 x y + 1/20 y  - 2/35 y - 2/35 x - --- + 1/20 x ,
+                                                        150
+
+                                   2                             2   21
+    COEFF(-1, -2) = 1/35 x - 1/10 x  - 2/49 x y - 1/35 y + 1/40 y  + ---,
+                                                                     200
+
+    COEFF(0, -2) = - 4/49 x y + 2/35 x,
+
+                                         21          2                  2
+    COEFF(1, -2) = - 2/49 x y + 1/35 x - --- + 1/10 x  + 1/35 y - 1/40 y ,
+                                         200
+
+                           2   11                                       2
+    COEFF(2, -2) = - 1/20 y  + --- + 2/35 y - 2/35 x + 4/49 x y - 1/20 x ,
+                               150
+
+                          2   21                   2
+    COEFF(-2, -1) = 1/40 x  + --- - 1/35 x - 1/10 y  + 1/35 y - 2/49 x y,
+                              200
+
+                            2              37                            2
+    COEFF(-1, -1) = - 1/20 y  + 1/49 x y + --- + 1/70 y + 1/70 x - 1/20 x ,
+                                           300
+
+    COEFF(0, -1) = 2/49 x y + 1/35 x,
+
+                                    2         2                       37
+    COEFF(1, -1) = - 1/70 y + 1/20 x  + 1/20 y  + 1/49 x y + 1/70 x - ---,
+                                                                      300
+
+                                             2              21          2
+    COEFF(2, -1) = - 1/35 x - 1/35 y + 1/10 y  - 2/49 x y - --- - 1/40 x ,
+                                                            200
+
+    COEFF(-2, 0) = 2/35 y - 4/49 x y, COEFF(-1, 0) = 2/49 x y + 1/35 y,
+
+    COEFF(0, 0) = 4/49 x y, COEFF(1, 0) = - 1/35 y + 2/49 x y,
+
+    COEFF(2, 0) = - 2/35 y - 4/49 x y,
+
+                           2            21          2
+    COEFF(-2, 1) = - 1/40 x  + 1/35 x - --- + 1/10 y  + 1/35 y - 2/49 x y,
+                                        200
+
+                     37                   2                  2
+    COEFF(-1, 1) = - --- - 1/70 x + 1/20 x  + 1/70 y + 1/20 y  + 1/49 x y,
+                     300
+
+    COEFF(0, 1) = 2/49 x y - 1/35 x,
+
+                             37          2                    2
+    COEFF(1, 1) = - 1/70 x + --- - 1/20 x  + 1/49 x y - 1/20 y  - 1/70 y,
+                             300
+
+                                   2                       21          2
+    COEFF(2, 1) = - 1/35 y - 1/10 y  + 1/35 x - 2/49 x y + --- + 1/40 x ,
+                                                           200
+
+                                  2         2              11
+    COEFF(-2, 2) = 2/35 x - 1/20 x  - 1/20 y  + 4/49 x y + --- - 2/35 y,
+                                                           150
+
+                                    2         2   21
+    COEFF(-1, 2) = - 1/35 x - 1/40 y  + 1/10 x  - --- - 1/35 y - 2/49 x y,
+                                                  200
+
+    COEFF(0, 2) = - 4/49 x y - 2/35 x,
+
+                        2                    2                     21
+    COEFF(1, 2) = 1/40 y  - 2/49 x y - 1/10 x  + 1/35 y - 1/35 x + ---,
+                                                                   200
+
+                        2         2   11
+    COEFF(2, 2) = 1/20 y  + 1/20 x  - --- + 2/35 x + 2/35 y + 4/49 x y]
+                                      150
+
+> print_coeffs__lc_of_data(%, "coeffs_dxy->coeff_", "fp",
+> 			 "2d.coeffs/2d.cube.order4.smooth0/coeffs-dxy.compute.c");
+bytes used=106097284, alloc=2555436, time=9.59
+bytes used=107097536, alloc=2555436, time=9.71
+bytes used=108099596, alloc=2555436, time=9.81
+bytes used=109099792, alloc=2555436, time=9.98
+bytes used=110100132, alloc=2555436, time=10.14
+bytes used=111100580, alloc=2555436, time=10.31
+bytes used=112100732, alloc=2555436, time=10.47
+> 
+# d^2/dy^2
+> simplify( diff(interp_2d_cube_order4_smooth0,y,y) );
+bytes used=113100928, alloc=2555436, time=10.54
+  41              57              53              166
+- -- DATA(2, 0) - -- DATA(0, 0) - -- DATA(1, 0) + --- DATA(0, 1)
+  98              98              98              735
+
+       181
+     + --- DATA(1, 1) + 1/5 y DATA(0, -1) + 2/35 x DATA(-2, 0)
+       735
+
+                                              166
+     - 2/35 x DATA(2, 0) - 1/5 y DATA(0, 1) + --- DATA(0, -1)
+                                              735
+
+       181                181               53               181
+     + --- DATA(-1, -1) + --- DATA(1, -1) - -- DATA(-1, 0) + --- DATA(-1, 1)
+       735                735               98               735
+
+       226                     2                    2
+     + --- DATA(2, -1) - 1/49 x  DATA(1, 2) + 2/49 x  DATA(2, 2)
+       735
+
+             2                     2
+     + 2/49 x  DATA(-2, 2) - 1/49 x  DATA(-2, 1) - 1/5 x y DATA(2, 1)
+
+       191                71                226               71
+     + ---- DATA(0, 2) + ---- DATA(-1, 2) + --- DATA(2, 1) + ---- DATA(-1, -2)
+       2940              2940               735              2940
+
+       191                289
+     + ---- DATA(0, -2) - ---- DATA(-2, -2) + 1/10 x y DATA(-1, 1)
+       2940               2940
+
+                                  2                   2
+     + 1/5 x y DATA(2, -1) - 2/5 y  DATA(1, 1) - 2/5 y  DATA(-1, -1)
+
+            2                    2                    2
+     - 2/5 y  DATA(1, -1) - 2/5 y  DATA(-1, 1) - 2/5 y  DATA(2, -1)
+
+             2                    2                   2
+     + 1/10 y  DATA(-1, 2) - 2/5 y  DATA(2, 1) - 2/5 y  DATA(-2, -1)
+
+                                                     2
+     - 1/5 y DATA(1, 1) + 1/5 y DATA(-1, -1) + 1/10 y  DATA(-1, -2)
+
+             2                    2                    2
+     + 1/10 y  DATA(1, 2) + 1/10 y  DATA(2, 2) + 1/10 y  DATA(-2, 2)
+
+            2                     2
+     - 2/5 y  DATA(-2, 1) + 1/10 y  DATA(-2, -2) + 1/10 y DATA(1, 2)
+
+     + 1/10 y DATA(2, 2) + 1/10 y DATA(-2, 2) - 1/5 y DATA(-2, 1)
+
+     - 1/10 y DATA(1, -2) - 1/10 y DATA(2, -2) + 1/5 y DATA(-2, -1)
+
+                                 2                     2
+     - 1/5 y DATA(-1, 1) + 1/10 y  DATA(1, -2) + 1/10 y  DATA(2, -2)
+
+                                                      71
+     + 1/10 x y DATA(1, -1) - 1/20 x y DATA(-1, 2) + ---- DATA(1, 2)
+                                                     2940
+
+     + 1/5 x y DATA(-2, 1) - 1/10 x y DATA(2, -2) - 1/5 x y DATA(-2, -1)
+
+     - 1/20 x y DATA(1, -2) + 1/20 x y DATA(-1, -2) + 1/10 x y DATA(-2, -2)
+
+     + 1/20 x y DATA(1, 2) + 1/10 x y DATA(2, 2) - 1/10 x y DATA(-2, 2)
+
+       289
+     - ---- DATA(2, 2) + 1/5 y DATA(1, -1) + 1/5 y DATA(2, -1)
+       2940
+
+     + 1/10 y DATA(-1, 2) - 1/5 y DATA(2, 1) - 1/10 y DATA(-1, -2)
+
+     - 1/10 y DATA(-2, -2) - 1/70 x DATA(1, 1) + 1/35 x DATA(1, -2)
+
+     + 1/35 x DATA(-2, -1) + 1/35 x DATA(-2, 1) - 1/35 x DATA(-1, -2)
+
+     - 2/35 x DATA(-2, -2) + 1/35 x DATA(1, 2) + 2/35 x DATA(2, 2)
+
+                                  2                    2
+     + 2/35 x DATA(2, -2) + 1/98 x  DATA(1, 1) + 1/98 x  DATA(-1, -1)
+
+             2                     2                     2
+     + 1/98 x  DATA(1, -1) + 1/98 x  DATA(-1, 1) - 1/49 x  DATA(2, -1)
+
+             2                     2
+     - 1/49 x  DATA(-1, 2) - 1/49 x  DATA(2, 1) - 2/35 x DATA(-2, 2)
+
+     - 1/70 x DATA(1, -1) + 1/70 x DATA(-1, 1) - 1/35 x DATA(2, -1)
+
+     - 1/35 x DATA(-1, 2) - 1/35 x DATA(2, 1) + 1/70 x DATA(-1, -1)
+
+             2                     2                     2
+     - 1/49 x  DATA(1, -2) + 2/49 x  DATA(2, -2) - 1/49 x  DATA(-2, -1)
+
+                                                           2
+     - 1/10 x y DATA(-1, -1) - 1/10 x y DATA(1, 1) - 1/49 x  DATA(-1, -2)
+
+             2                289                226
+     + 2/49 x  DATA(-2, -2) - ---- DATA(-2, 2) + --- DATA(-2, 1)
+                              2940               735
+
+       41                                     71
+     - -- DATA(-2, 0) - 1/10 y DATA(0, -2) + ---- DATA(1, -2)
+       98                                    2940
+
+       289                226
+     - ---- DATA(2, -2) + --- DATA(-2, -1) + 1/10 y DATA(0, 2)
+       2940               735
+
+            2                   2                    2
+     + 3/5 y  DATA(0, 0) - 2/5 y  DATA(0, -1) + 3/5 y  DATA(-1, 0)
+
+            2                    2                    2
+     + 3/5 y  DATA(1, 0) + 1/10 y  DATA(0, 2) + 1/10 y  DATA(0, -2)
+
+            2                    2                    2
+     - 2/5 y  DATA(0, 1) + 1/49 x  DATA(1, 0) - 2/49 x  DATA(0, 2)
+
+             2                     2                   2
+     - 2/49 x  DATA(0, -2) + 1/49 x  DATA(0, 1) + 3/5 y  DATA(-2, 0)
+
+            2                    2                     2
+     + 3/5 y  DATA(2, 0) - 2/49 x  DATA(-2, 0) + 2/49 x  DATA(0, 0)
+
+             2                     2
+     + 1/49 x  DATA(0, -1) + 1/49 x  DATA(-1, 0) + 1/35 x DATA(-1, 0)
+
+                                 2
+     - 1/35 x DATA(1, 0) - 2/49 x  DATA(2, 0)
+
+> coeffs_as_lc_of_data(%, posn_list_2d_size5);
+bytes used=114101228, alloc=2555436, time=10.61
+                                  2   289                              2
+[COEFF(-2, -2) = - 2/35 x + 1/10 y  - ---- - 1/10 y + 1/10 x y + 2/49 x ,
+                                      2940
+
+                          2    71                              2
+    COEFF(-1, -2) = 1/10 y  + ---- - 1/35 x + 1/20 x y - 1/49 x  - 1/10 y,
+                              2940
+
+                         2   191          2
+    COEFF(0, -2) = 1/10 y  + ---- - 2/49 x  - 1/10 y,
+                             2940
+
+                           2    71          2
+    COEFF(1, -2) = - 1/49 x  + ---- + 1/10 y  - 1/10 y + 1/35 x - 1/20 x y,
+                               2940
+
+                                                  289          2         2
+    COEFF(2, -2) = - 1/10 y - 1/10 x y + 2/35 x - ---- + 2/49 x  + 1/10 y ,
+                                                  2940
+
+                                226                          2        2
+    COEFF(-2, -1) = - 1/5 x y + --- + 1/5 y + 1/35 x - 1/49 x  - 2/5 y ,
+                                735
+
+                    181                    2                2
+    COEFF(-1, -1) = --- - 1/10 x y + 1/98 x  + 1/5 y - 2/5 y  + 1/70 x,
+                    735
+
+                                2         2   166
+    COEFF(0, -1) = 1/5 y - 2/5 y  + 1/49 x  + ---,
+                                              735
+
+                                         181                 2        2
+    COEFF(1, -1) = - 1/70 x + 1/10 x y + --- + 1/5 y + 1/98 x  - 2/5 y ,
+                                         735
+
+                                   2             226         2
+    COEFF(2, -1) = - 1/35 x - 2/5 y  + 1/5 x y + --- - 1/49 x  + 1/5 y,
+                                                 735
+
+                     41                  2        2
+    COEFF(-2, 0) = - -- + 2/35 x - 2/49 x  + 3/5 y ,
+                     98
+
+                     53        2                  2
+    COEFF(-1, 0) = - -- + 3/5 y  + 1/35 x + 1/49 x ,
+                     98
+
+                        2        2   57
+    COEFF(0, 0) = 2/49 x  + 3/5 y  - --,
+                                     98
+
+                       2         2   53
+    COEFF(1, 0) = 3/5 y  + 1/49 x  - -- - 1/35 x,
+                                     98
+
+                    41        2                  2
+    COEFF(2, 0) = - -- + 3/5 y  - 2/35 x - 2/49 x ,
+                    98
+
+                                                    2        2   226
+    COEFF(-2, 1) = 1/35 x - 1/5 y + 1/5 x y - 1/49 x  - 2/5 y  + ---,
+                                                                 735
+
+                                            2                 2   181
+    COEFF(-1, 1) = 1/10 x y + 1/70 x - 2/5 y  - 1/5 y + 1/98 x  + ---,
+                                                                  735
+
+                                 2   166         2
+    COEFF(0, 1) = - 1/5 y - 2/5 y  + --- + 1/49 x ,
+                                     735
+
+                            181                  2        2
+    COEFF(1, 1) = - 1/5 y + --- - 1/70 x + 1/98 x  - 2/5 y  - 1/10 x y,
+                            735
+
+                         2         2   226
+    COEFF(2, 1) = - 2/5 y  - 1/49 x  + --- - 1/5 x y - 1/5 y - 1/35 x,
+                                       735
+
+                         2                             2            289
+    COEFF(-2, 2) = 2/49 x  + 1/10 y - 1/10 x y + 1/10 y  - 2/35 x - ----,
+                                                                    2940
+
+                         2    71                                       2
+    COEFF(-1, 2) = 1/10 y  + ---- - 1/20 x y + 1/10 y - 1/35 x - 1/49 x ,
+                             2940
+
+                                 2         2   191
+    COEFF(0, 2) = 1/10 y - 2/49 x  + 1/10 y  + ----,
+                                               2940
+
+                                     71                     2         2
+    COEFF(1, 2) = 1/35 x + 1/10 y + ---- + 1/20 x y + 1/10 y  - 1/49 x ,
+                                    2940
+
+                        2         2                       289
+    COEFF(2, 2) = 2/49 x  + 1/10 y  + 1/10 y + 1/10 x y - ---- + 2/35 x]
+                                                          2940
+
+> print_coeffs__lc_of_data(%, "coeffs_dyy->coeff_", "fp",
+> 			 "2d.coeffs/2d.cube.order4.smooth0/coeffs-dyy.compute.c");
+bytes used=115101596, alloc=2555436, time=10.70
+bytes used=116101756, alloc=2555436, time=10.85
+bytes used=117101948, alloc=2555436, time=10.94
+bytes used=118102268, alloc=2555436, time=11.10
+bytes used=119102436, alloc=2555436, time=11.27
+bytes used=120102772, alloc=2555436, time=11.41
+> 
+################################################################################
+> quit
+bytes used=120843640, alloc=2555436, time=11.51

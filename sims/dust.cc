@@ -36,7 +36,8 @@ DustSim::DustSim(
   t_init->start();
 
   std::string bd_type = cosmo_dust_db->getString("boundary_type");
-
+  hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
+  
   if(bd_type == "periodic")
   {
     cosmoPS = new periodicBD(dim, bd_type);
@@ -46,10 +47,15 @@ DustSim::DustSim(
 
 
   cosmo_dust_db = input_db->getDatabase("DustSim");
-    
+
 
   tbox::pout<<"Running 'dust' type simulation.\n";
 
+    gradient_indicator_idx =
+    variable_db->mapVariableAndContextToIndex(
+      variable_db->getVariable(gradient_indicator), variable_db->getContext("ACTIVE"));
+
+  
   // adding all fields to a list
   bssnSim->addFieldsToList(variable_id_list);
 
@@ -436,99 +442,92 @@ void DustSim::applyGradientDetector(
    const bool initial_time,
    const bool uses_richardson_extrapolation)
 {
-   NULL_USE(uses_richardson_extrapolation);
-   NULL_USE(error_data_time);
-   NULL_USE(initial_time);
+  NULL_USE(uses_richardson_extrapolation);
+  NULL_USE(error_data_time);
+  NULL_USE(initial_time);
 
-   if (lstream) {
-      *lstream
+  if (lstream) {
+    *lstream
       << "VaccumSim("  << ")::applyGradientDetector"
       << std::endl;
-   }
-   hier::PatchHierarchy& hierarchy = *hierarchy_;
-   boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-     BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
-       hierarchy.getGridGeometry()));
-   double max_der_norm = 0;
-   hier::PatchLevel& level =
-      (hier::PatchLevel &) * hierarchy.getPatchLevel(ln);
-   size_t ntag = 0, ntotal = 0;
-   //double maxestimate = 0;
-   for (hier::PatchLevel::iterator pi(level.begin());
-        pi != level.end(); ++pi)
-   {
-      hier::Patch& patch = **pi;
+  }
+  hier::PatchHierarchy& hierarchy = *hierarchy_;
+  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+      hierarchy.getGridGeometry()));
+  double max_der_norm = 0;
+  hier::PatchLevel& level =
+    (hier::PatchLevel &) * hierarchy.getPatchLevel(ln);
+  int ntag = 0, ntotal = 0;
+  //double maxestimate = 0;
+  for (hier::PatchLevel::iterator pi(level.begin());
+       pi != level.end(); ++pi)
+  {
+    const boost::shared_ptr<hier::Patch> & patch = *pi;
 
-      const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
-        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
-          patch.getPatchGeometry()));
+    const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+      BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+        patch->getPatchGeometry()));
 
-      boost::shared_ptr<hier::PatchData> tag_data(
-         patch.getPatchData(tag_index));
-      ntotal += patch.getBox().numberCells().getProduct();
-      if (!tag_data)
+
+    boost::shared_ptr<pdat::CellData<real_t> > f_pdata(
+      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+        patch->getPatchData(gradient_indicator_idx)));
+
+    arr_t f =
+      pdat::ArrayDataAccess::access<DIM, real_t>(
+        f_pdata->getArrayData());
+    boost::shared_ptr<pdat::CellData<int> > tag_pdata(
+      BOOST_CAST<pdat::CellData<int>, hier::PatchData>(
+        patch->getPatchData(tag_index)));
+      
+    MDA_Access<int, DIM, MDA_OrderColMajor<DIM>>  tag =
+      pdat::ArrayDataAccess::access<DIM, int>(
+        tag_pdata->getArrayData());
+
+    ntotal += patch->getBox().numberCells().getProduct();
+
+    const hier::Box& box = patch->getBox();
+    const int * lower = &box.lower()[0];
+    const int * upper = &box.upper()[0];
+
+#pragma omp parallel for collapse(2) reduction(+:ntag) reduction( max: max_der_norm)
+    for(int k = lower[2]; k <= upper[2]; k++)
+    {
+      for(int j = lower[1]; j <= upper[1]; j++)
       {
-         TBOX_ERROR(
-            "Data index " << tag_index << " does not exist for patch.\n");
+        for(int i = lower[0]; i <= upper[0]; i++)
+        {
+          tag(i, j, k) = 0;
+          max_der_norm = tbox::MathUtilities<double>::Max(
+            max_der_norm,
+            derivative_norm(i, j, k, f));
+
+          if(derivative_norm(i, j, k, f) > adaption_threshold )
+          {
+            tag(i, j, k) = 1;
+            ++ntag;
+          }
+            
+        }
       }
-      boost::shared_ptr<pdat::CellData<int> > tag_cell_data_(
-         BOOST_CAST<pdat::CellData<int>, hier::PatchData>(tag_data));
-      TBOX_ASSERT(tag_cell_data_);
-      
-      boost::shared_ptr<pdat::CellData<double>> K_data(
-        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
-          patch.getPatchData(bssnSim->DIFFchi_a_idx)));
+    }
 
+  }
+  const tbox::SAMRAI_MPI& mpi(hierarchy.getMPI());
+  if (mpi.getSize() > 1)
+  {
+    mpi.AllReduce(&max_der_norm, 1, MPI_MAX);
+    mpi.AllReduce(&ntag, 1, MPI_SUM);
+    mpi.AllReduce(&ntotal, 1, MPI_SUM);
+  }
 
-      arr_t K = pdat::ArrayDataAccess::access<DIM, real_t>(
-        K_data->getArrayData());
-      
-      if (!K_data) {
-         TBOX_ERROR("Data index " << bssnSim->DIFFchi_p_idx
-                                  << " does not exist for patch.\n");
-      }
-      pdat::CellData<idx_t>& tag_cell_data = *tag_cell_data_;
-          
-      tag_cell_data.fill(0);
-      
-      hier::Box::iterator iend(patch.getBox().end());
+  tbox::plog << "Adaption threshold is " << adaption_threshold << "\n";
+  tbox::plog << "Number of cells tagged on level " << ln << " is "
+             << ntag << "/" << ntotal << "\n";
+  tbox::plog << "Max norm is " << max_der_norm << "\n";
 
-      for (hier::Box::iterator i(patch.getBox().begin()); i != iend; ++i)
-      {
-         const pdat::CellIndex cell_index(*i);
-         max_der_norm = tbox::MathUtilities<double>::Max(
-           max_der_norm,
-           derivative_norm(
-             cell_index(0),
-             cell_index(1),
-             cell_index(2),
-             K));
-         if(derivative_norm(
-              cell_index(0),
-              cell_index(1),
-              cell_index(2),
-              K) > adaption_threshold)
-         {
-          
-           tag_cell_data(cell_index) = 1;
-           ++ntag;
-         }
-       
-      }
-
-   }
-   const tbox::SAMRAI_MPI& mpi(hierarchy.getMPI());
-   if (mpi.getSize() > 1)
-   {
-     mpi.AllReduce(&max_der_norm, 1, MPI_MAX);
-   }
-
-   tbox::plog << "Adaption threshold is " << adaption_threshold << "\n";
-   tbox::plog << "Number of cells tagged on level " << ln << " is "
-              << ntag << "/" << ntotal << "\n";
-   tbox::plog << "Max norm is " << max_der_norm << "\n";
 }
-  
 void DustSim::outputDustStep(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
@@ -637,34 +636,7 @@ void DustSim::RKEvolveLevel(
   const boost::shared_ptr<hier::PatchLevel> coarser_level(
     ((ln>0)?(hierarchy->getPatchLevel(ln-1)):NULL));
   
-  
-  xfer::RefineAlgorithm refiner;
-  boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
-
-
-  
-  bssnSim->registerRKRefiner(refiner, space_refine_op);
-
   bssnSim->prepareForK1(coarser_level, to_t);
-
-
-  
-  //if not the coarsest level, should 
-  if(coarser_level!=NULL)
-  {
-    boost::shared_ptr<xfer::PatchLevelBorderFillPattern> border_fill_pattern (
-      new xfer::PatchLevelBorderFillPattern());
-    
-    refine_schedule = refiner.createSchedule(
-      //border_fill_pattern,
-      level,
-      //level,
-      coarser_level->getLevelNumber(),
-      hierarchy,
-      (cosmoPS->is_time_dependent)?NULL:cosmoPS);
-  }
-  else
-    refine_schedule = refiner.createSchedule(level, NULL);
   
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
@@ -682,7 +654,7 @@ void DustSim::RKEvolveLevel(
   
   // fill ghost cells 
   level->getBoxLevel()->getMPI().Barrier();
-  refine_schedule->fillData(to_t);
+  pre_refine_schedules[ln]->fillData(to_t);
 
   bssnSim->clearSrc(hierarchy, ln);
   
@@ -712,8 +684,7 @@ void DustSim::RKEvolveLevel(
 
   // fill ghost cells 
   level->getBoxLevel()->getMPI().Barrier();
-  refine_schedule->fillData(to_t);
-
+  pre_refine_schedules[ln]->fillData(to_t);
   bssnSim->clearSrc(hierarchy, ln);
   
   for( hier::PatchLevel::iterator pit(level->begin());
@@ -747,8 +718,7 @@ void DustSim::RKEvolveLevel(
 
   // fill ghost cells 
   level->getBoxLevel()->getMPI().Barrier();
-  refine_schedule->fillData(to_t);
-
+  pre_refine_schedules[ln]->fillData(to_t);
   bssnSim->clearSrc(hierarchy, ln);
   
   for( hier::PatchLevel::iterator pit(level->begin());
@@ -778,8 +748,7 @@ void DustSim::RKEvolveLevel(
 
   // fill ghost cells 
   level->getBoxLevel()->getMPI().Barrier();
-  refine_schedule->fillData(to_t);
-
+  pre_refine_schedules[ln]->fillData(to_t);
   bssnSim->clearSrc(hierarchy, ln);
   
   for( hier::PatchLevel::iterator pit(level->begin());
@@ -834,29 +803,11 @@ void DustSim::advanceLevel(
   // then update ghost cells through doing refinement if it has finer level
   if(ln < hierarchy->getNumberOfLevels() -1 )
   {
-    xfer::CoarsenAlgorithm coarsener(dim);
-  
-
-    boost::shared_ptr<xfer::CoarsenSchedule> coarsen_schedule;
-
-    bssnSim->registerCoarsenActive(coarsener,space_coarsen_op);
-      
-    coarsen_schedule = coarsener.createSchedule(level, hierarchy->getPatchLevel(ln+1));
     level->getBoxLevel()->getMPI().Barrier();
-    coarsen_schedule->coarsenData();
-
-    xfer::RefineAlgorithm post_refiner;
-
-    boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
-
-    
-
-    bssnSim->registerRKRefinerActive(post_refiner, space_refine_op);
-    
-    refine_schedule = post_refiner.createSchedule(level, NULL);
+    coarsen_schedules[ln]->coarsenData();
 
     level->getBoxLevel()->getMPI().Barrier();
-    refine_schedule->fillData(to_t);
+    post_refine_schedules[ln]->fillData(to_t);
   }
 
   // copy _a to _p and set _p time to next timestamp
@@ -879,6 +830,47 @@ void DustSim::resetHierarchyConfiguration(
   /*! Coarsest level */ int coarsest_level,
   /*! Finest level */ int finest_level)
 {
+  pre_refine_schedules.resize(finest_level + 1);
+  post_refine_schedules.resize(finest_level + 1);
+  coarsen_schedules.resize(finest_level + 1);
+
+  xfer::RefineAlgorithm pre_refiner, post_refiner;
+  xfer::CoarsenAlgorithm coarsener(dim);  
+  
+  bssnSim->registerRKRefiner(pre_refiner, space_refine_op);
+  bssnSim->registerCoarsenActive(coarsener,space_coarsen_op);
+  bssnSim->registerRKRefinerActive(post_refiner, space_refine_op);
+
+  for(int ln = 0; ln <= finest_level; ln++)
+  {
+    const boost::shared_ptr<hier::PatchLevel> level(
+      new_hierarchy->getPatchLevel(ln));
+
+    // reset pre refine refine schedule
+    if(ln == 0)
+    {
+      pre_refine_schedules[ln] = pre_refiner.createSchedule(level, NULL);
+    }
+    else
+    {
+      pre_refine_schedules[ln] = pre_refiner.createSchedule(
+        //border_fill_pattern,
+        level,
+        //level,
+        ln - 1,
+        new_hierarchy,
+        (cosmoPS->is_time_dependent)?NULL:cosmoPS);
+    }
+
+    // reset coarse and post_refine schedule
+    if(ln < finest_level)
+    {
+      coarsen_schedules[ln] = coarsener.createSchedule(level, new_hierarchy->getPatchLevel(ln+1));
+      post_refine_schedules[ln] = post_refiner.createSchedule(level, NULL);
+      
+    }
+  }
+  
   return;
 }
 void DustSim::putToRestart(

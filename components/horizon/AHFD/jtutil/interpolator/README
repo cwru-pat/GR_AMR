@@ -1,0 +1,81 @@
+$Header$
+
+This directory contains the interpolator registered for
+   CCTK_InterpLocalUniform()
+under the names
+   "Lagrange polynomial interpolation"	# a synonym for the next one...
+   "Lagrange polynomial interpolation (tensor product)"
+   "Lagrange polynomial interpolation (maximum degree)"
+   "Hermite polynomial interpolation"
+
+
+The source code files are as follows:
+* startup.c registers the interpolation operators
+* InterpLocalUniform.h is an overall header file for the whole interpolator
+* InterpLocalUniform.c is the top-level driver: it gets the various
+  options from the parameter table, then decodes
+	(N_dims, molecule_family, order, smoothing)
+  and calls the appropriate subfunction to do the actual interpolation,
+  then finally stores some results back in the parameter table.
+* [123]d.cube.order*.smooth*.c define the individual interpolation
+  subfunctions.  Each of them just #defines a whole bunch of macros,
+  then #includes template.c (which has the actual code).
+* template.h defines a prototype for the function defined by template.c
+* template.c is the actual interpolation code.  It is written in
+  terms of a large number of macros, which should be #defined
+  before #including template.c.  There's a long block comment
+  "Implementation notes:" at the start of the function, which
+  gives an outline of how the function works.  (This is probably
+  the best place to start reading if you want to understand this
+  interpolator!)  All the actual interpolation is done by
+  Maple-generated code fragments in the [123]d.coeffs/directories;
+  template.c uses various macros to tell it which fragments to
+  #include.
+* molecule_posn.c contains the  AEILocalInterp_molecule_posn()  function
+  to compute where in the grid each (an) interpolation molecule should
+  be centered for each (a given) interpolation point.
+* util.c contains some low-level utility routines
+* [123]d.maple are the top-level Maple code files; they call
+  various functions in interpolate.maple and util.maple to do
+  the actual work.
+* interpolate.maple contains the high-level Maple code for
+  computing an interpolant and manipulating/printing it in various
+  ways
+* util.maple contains low-level utility routines
+* Makefile.standalone is a makefile for...
+* test_molecule_posn.c is a standalone test driver for the code
+  in  molecule_posn.c .  You build it via
+	gmake -f Makefile.standalone
+  By default it runs a large set of (around 100) test cases stored
+  in a table in the code.
+
+The subdirectories are as follows:
+* Lagrange-tensor-product/ contains the code for the Lagrange polynomial
+  interpolator using tensor-product bases for multiple dimensions.
+* Lagrange-maximum-degree/ contains the code for the Lagrange polynomial
+  interpolator using maximum-degree bases for multiple dimensions.
+* Hermite/ contains the code for the Hermite polynomial interpolator.
+* common/ contains low-level code common to both the Lagrange and
+  the Hermite interpolators.
+
+
+To add a new combination of (N_dims, molecule_family, order, smoothing),
+to this interpolator, you need to
+* edit the appropriate Maple script (1d.maple, 2d.maple, 3d.maple, etc)
+  to generate the coefficients and write the appropriate files
+* edit the makefile to create the appropriate directory or directories,
+  and if necessary add any new targets
+* 'make' as appropriate to create the new coefficients etc
+  [note this take a *lot* of CPU time; see the comments in the Makefiles
+  for just how long some sample cases take]
+* edit InterpLocalUniform.c to add the new case to the decoding
+  switch statements
+* create an appropriate "script" file which defines the right macros,
+  then does a
+	#include "template.c"
+  to define the actual interpolation function; the best way to create
+  the script file is just to copy an existing one
+  (eg. 2d.cube.order3.smooth0.c)
+* add the appropriate entry to all_prototypes.h to define a prototype
+  for the actual interpolation function
+* add the new "script" file to the list in make.code.defn

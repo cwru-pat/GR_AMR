@@ -1,0 +1,50 @@
+#!/usr/bin/perl -w
+use strict;
+my $true  = 1;
+my $false = 0;
+
+########################################
+
+my $usage_msg = <<'EOF';
+Usage:
+	select.plane	[ xy | xz | yz ]
+
+This script reads an AHFinderDirect horizon-shape data file from
+standard input, with file format
+	dpx	dpy	radius		x	y	z
+selects the subset of the data which lies in the specified plane,
+and writes that to standard output.
+EOF
+
+########################################
+
+if (scalar(@ARGV) != 1)
+	{ die $usage_msg; }
+
+my $xy_plane_flag = $false;
+my $xz_plane_flag = $false;
+my $yz_plane_flag = $false;
+if    ($ARGV[0] eq 'xy') { $xy_plane_flag = $true; }
+elsif ($ARGV[0] eq 'xz') { $xz_plane_flag = $true; }
+elsif ($ARGV[0] eq 'yz') { $yz_plane_flag = $true; }
+else	{ die $usage_msg; }
+
+
+	while (my $line = <STDIN>)
+	{
+	chomp($line);
+
+	# echo blank or comment lines
+	if (($line =~ /^$/) || ($line =~ /^#/))
+		{
+		print $line, "\n";
+		next;					# *** LOOP CONTROL ***
+		}
+
+	my ($dpx,$dpy,$radius,$x,$y,$z) = split(/\s+/, $line);
+
+	if (    ($xy_plane_flag && (abs($z) <= 1.0e-10))
+	     || ($xz_plane_flag && (abs($y) <= 1.0e-10))
+	     || ($yz_plane_flag && (abs($x) <= 1.0e-10))    )
+		{ print $line, "\n"; }
+	}

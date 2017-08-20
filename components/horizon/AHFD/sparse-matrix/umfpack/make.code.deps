@@ -1,0 +1,7 @@
+# extra Make rules for Cactus compilation of things in this directory
+# $Header$
+
+#
+# See the header comments in  make.code.defn  for general comments.
+#
+CPPFLAGS += -DNBLAS -DNDEBUG -DINT

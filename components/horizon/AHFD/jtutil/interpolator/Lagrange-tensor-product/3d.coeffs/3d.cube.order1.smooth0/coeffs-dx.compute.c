@@ -1,0 +1,16 @@
+fp t11;
+fp t9;
+fp t12;
+fp t10;
+      t11 = y*z;
+      t9 = -t11+z;
+      t12 = y+t9;
+      t10 = -t11+y;
+      coeffs_dx->coeff_0_0_0 = RATIONAL(-1.0,1.0)+t12;
+      coeffs_dx->coeff_p1_0_0 = RATIONAL(1.0,1.0)-t12;
+      coeffs_dx->coeff_0_p1_0 = -t10;
+      coeffs_dx->coeff_p1_p1_0 = t10;
+      coeffs_dx->coeff_0_0_p1 = -t9;
+      coeffs_dx->coeff_p1_0_p1 = t9;
+      coeffs_dx->coeff_0_p1_p1 = -t11;
+      coeffs_dx->coeff_p1_p1_p1 = t11;

@@ -1,0 +1,13 @@
+This directory contains a subset of the files from the
+UMFPACK Version 4.0 (Apr 11, 2002) sparse matrix package.
+UMFPACK is copyright (c) 2002 by Timothy A. Davis.
+
+See  License  for the UMFPACK license.
+
+See  README.UMFPACK  for the original UMFPACK README file, including
+the url where the full package (including documentation) may be optained.
+
+make.code.defn  controls the Cactus compilation of this directory.
+
+umfpack_wsolve.c  is a copy of  umfpack_solve.c  to work around
+limitations in the Cactus  make.code.defn  system.

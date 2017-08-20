@@ -1,0 +1,25 @@
+    coeffs->coeff_m2_m2*data->data_m2_m2
+  + coeffs->coeff_m1_m2*data->data_m1_m2
+  + coeffs->coeff_0_m2*data->data_0_m2
+  + coeffs->coeff_p1_m2*data->data_p1_m2
+  + coeffs->coeff_p2_m2*data->data_p2_m2
+  + coeffs->coeff_m2_m1*data->data_m2_m1
+  + coeffs->coeff_m1_m1*data->data_m1_m1
+  + coeffs->coeff_0_m1*data->data_0_m1
+  + coeffs->coeff_p1_m1*data->data_p1_m1
+  + coeffs->coeff_p2_m1*data->data_p2_m1
+  + coeffs->coeff_m2_0*data->data_m2_0
+  + coeffs->coeff_m1_0*data->data_m1_0
+  + coeffs->coeff_0_0*data->data_0_0
+  + coeffs->coeff_p1_0*data->data_p1_0
+  + coeffs->coeff_p2_0*data->data_p2_0
+  + coeffs->coeff_m2_p1*data->data_m2_p1
+  + coeffs->coeff_m1_p1*data->data_m1_p1
+  + coeffs->coeff_0_p1*data->data_0_p1
+  + coeffs->coeff_p1_p1*data->data_p1_p1
+  + coeffs->coeff_p2_p1*data->data_p2_p1
+  + coeffs->coeff_m2_p2*data->data_m2_p2
+  + coeffs->coeff_m1_p2*data->data_m1_p2
+  + coeffs->coeff_0_p2*data->data_0_p2
+  + coeffs->coeff_p1_p2*data->data_p1_p2
+  + coeffs->coeff_p2_p2*data->data_p2_p2;

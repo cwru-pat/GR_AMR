@@ -16,7 +16,7 @@ else()
   set(OPT_LEVEL     "-O3")
   # try to use some GNU compiler special options
   if(CMAKE_COMPILER_IS_GNUCXX)
-    set(OPT_LEVEL     "${OPT_LEVEL} -ffast-math -flto -march=native -fext-numeric-literals")
+    set(OPT_LEVEL     "${OPT_LEVEL} -ffast-math -flto -march=native -fext-numeric-literals -Wno-reorder")
   endif()
   # try to use some Intel compiler special options
   if(${CMAKE_CXX_COMPILER} MATCHES "icpc.*$") 

@@ -1,0 +1,2385 @@
+    |\^/|     Maple 7 (IBM INTEL LINUX)
+._|\|   |/|_. Copyright (c) 2001 by Waterloo Maple Inc.
+ \  MAPLE  /  All rights reserved. Maple is a registered trademark of
+ <____ ____>  Waterloo Maple Inc.
+      |       Type ? for help.
+# util.maple -- misc utility routines
+# $Header$
+> 
+#
+# fix_rationals - convert numbers to RATIONAL() calls
+# nonmatching_names - find names in a list which *don't* have a specified prefix
+# sprint_numeric_list - convert a numeric list to a valid C identifier suffix
+# print_name_list_dcl - print C declarations for a list of names
+#
+# hypercube_points - compute all (integer) points in an N-dimensional hypercube
+#
+# ftruncate - truncate a file to zero length
+#
+> 
+################################################################################
+################################################################################
+################################################################################
+> 
+#
+# This function converts all {integer, rational} subexpressions of its
+# input except integer exponents and -1 factors in products, into function
+# calls
+#	RATIONAL(num,den)
+# This is useful in conjunction with the  C() library function, since
+#
+#	C( (1/3) * foo * bar )
+#		t0 = foo*bar/3;
+#
+# generates a (slow) division (and runs the risk of mixed-mode-arithmetic
+# problems), while
+#
+#	C((1.0/3.0) * foo * bar);
+#	     t0 = 0.3333333333*foo*bar;
+#
+# suffers from roundoff error.  With this function,
+#
+#	fix_rationals((1/3) * foo * bar);
+#	     RATIONAL(1,3) foo bar
+#	C(%);
+#	     t0 = RATIONAL(1.0,3.0)*foo*bar;
+#
+# which a C preprocessor macro can easily convert to the desired
+#
+#	     t0 = (1.0/3.0)*foo*bar;
+#
+# Additionally, this function can be told to leave certain types of
+# subexpressions unconverged.  For example,
+#	fix_rationals(expr, type, specfunc(integer, DATA));
+# will leave all subexpressions of the form  DATA(integer arguments)
+# unconverted.
+#
+# Arguments:
+# expr = (in) The expression to be converted.
+# inert_fn = (optional in)
+#	     If specified, this argument should be a Boolean procedure
+#	     or the name of a Boolean procedure.  This procedure should
+#	     take one or more argument, and return true if and only if
+#	     the first argument should *not* be converted, i.e. if we
+#	     should leave this expression unchanged.  See the last
+#	     example above.
+# ... = (optional in)
+#	Any further arguments are passed as additional arguments to
+#	the inert_fn procedure.
+#
+> fix_rationals :=
+> proc(
+>     expr::{
+> 	        algebraic, name = algebraic,
+> 	  list({algebraic, name = algebraic}),
+> 	  set ({algebraic, name = algebraic})
+> 	  },
+>     inert_fn::{name, procedure}
+>     )
+> local nn, k,
+>       base, power, fbase, fpower,
+>       fn, fn_args_list,
+>       num, den, mult;
+> 
+# do we want to convert this expression?
+> if ((nargs >= 2) and inert_fn(expr, args[3..nargs]))
+>    then return expr;
+> end if;
+> 
+# recurse over lists and sets
+> if (type(expr, {list,set}))
+>    then return map(fix_rationals, expr, args[2..nargs]);
+> end if;
+> 
+# recurse over equation right hand sides
+> if (type(expr, name = algebraic))
+>    then return ( lhs(expr) = fix_rationals(rhs(expr), args[2..nargs]) );
+> end if;
+> 
+# recurse over functions other than  RATIONAL()
+> if (type(expr, function))
+>    then
+> 	fn := op(0, expr);
+> 	if (fn <> 'RATIONAL')
+> 	   then
+> 		fn_args_list := [op(expr)];
+> 		fn_args_list := map(fix_rationals, fn_args_list, args[2..nargs]);
+> 		fn; return '%'( op(fn_args_list) );
+> 	end if;
+> end if;
+> 
+> nn := nops(expr);
+> 
+# recurse over sums
+> if (type(expr, `+`))
+>    then return sum('fix_rationals(op(k,expr), args[2..nargs])', 'k'=1..nn);
+> end if;
+> 
+# recurse over products
+# ... leaving leading -1 factors intact, i.e. not converted to RATIONAL(-1,1)
+> if (type(expr, `*`))
+>    then
+> 	if (op(1, expr) = -1)
+> 	   then return -1*fix_rationals(remove(type, expr, 'identical(-1)'),
+> 				        args[2..nargs]);
+> 	   else return product('fix_rationals(op(k,expr), args[2..nargs])',
+> 			       'k'=1..nn);
+> 	end if;
+> end if;
+> 
+# recurse over powers
+# ... leaving integer exponents intact
+> if (type(expr, `^`))
+>    then
+> 	base := op(1, expr);
+> 	power := op(2, expr);
+> 
+> 	fbase := fix_rationals(base, args[2..nargs]);
+> 	if (type(power, integer))
+> 	   then fpower := power;
+> 	   else fpower := fix_rationals(power, args[2..nargs]);
+> 	end if;
+> 	return fbase ^ fpower;
+> end if;
+> 
+# fix integers and fractions
+> if (type(expr, integer))
+>    then return 'RATIONAL'(expr, 1);
+> end if;
+> if (type(expr, fraction))
+>    then
+> 	num := op(1, expr);
+> 	den := op(2, expr);
+> 
+> 	return 'RATIONAL'(num, den);
+> end if;
+> 
+# turn Maple floating-point into integer fraction, then recursively fix that
+> if (type(expr, float))
+>    then
+> 	mult := op(1, expr);
+> 	power := op(2, expr);
+> 	return fix_rationals(mult * 10^power, args[2..nargs]);
+> end if;
+> 
+# identity op on names
+> if (type(expr, name))
+>    then return expr;
+> end if;
+> 
+# unknown type
+> error "%0",
+>       "unknown type for expr!",
+>       "   whattype(expr) = ", whattype(expr),
+>       "   expr = ", expr;
+> end proc;
+fix_rationals := proc(expr::{algebraic, name = algebraic,
+list({algebraic, name = algebraic}), set({algebraic, name = algebraic})},
+inert_fn::{procedure, name})
+local nn, k, base, power, fbase, fpower, fn, fn_args_list, num, den, mult;
+    if 2 <= nargs and inert_fn(expr, args[3 .. nargs]) then return expr
+    end if;
+    if type(expr, {set, list}) then
+        return map(fix_rationals, expr, args[2 .. nargs])
+    end if;
+    if type(expr, name = algebraic) then
+        return lhs(expr) = fix_rationals(rhs(expr), args[2 .. nargs])
+    end if;
+    if type(expr, function) then
+        fn := op(0, expr);
+        if fn <> 'RATIONAL' then
+            fn_args_list := [op(expr)];
+            fn_args_list :=
+                map(fix_rationals, fn_args_list, args[2 .. nargs]);
+            fn;
+            return '%'(op(fn_args_list))
+        end if
+    end if;
+    nn := nops(expr);
+    if type(expr, `+`) then return
+        sum('fix_rationals(op(k, expr), args[2 .. nargs])', 'k' = 1 .. nn)
+    end if;
+    if type(expr, `*`) then
+        if op(1, expr) = -1 then return -fix_rationals(
+            remove(type, expr, 'identical(-1)'), args[2 .. nargs])
+        else return product('fix_rationals(op(k, expr), args[2 .. nargs])',
+            'k' = 1 .. nn)
+        end if
+    end if;
+    if type(expr, `^`) then
+        base := op(1, expr);
+        power := op(2, expr);
+        fbase := fix_rationals(base, args[2 .. nargs]);
+        if type(power, integer) then fpower := power
+        else fpower := fix_rationals(power, args[2 .. nargs])
+        end if;
+        return fbase^fpower
+    end if;
+    if type(expr, integer) then return 'RATIONAL'(expr, 1) end if;
+    if type(expr, fraction) then
+        num := op(1, expr); den := op(2, expr); return 'RATIONAL'(num, den)
+    end if;
+    if type(expr, float) then
+        mult := op(1, expr);
+        power := op(2, expr);
+        return fix_rationals(mult*10^power, args[2 .. nargs])
+    end if;
+    if type(expr, name) then return expr end if;
+    error "%0", "unknown type for expr!", "   whattype(expr) = ",
+        whattype(expr), "   expr = ", expr
+end proc
+
+> 
+################################################################################
+> 
+#
+# This function finds names in a list which *don't* have a specified prefix.
+#
+# Arguments:
+# name_list = A list of the names.
+# prefix = The prefix we want to filter out.
+#
+# Results:
+# This function returns the subset list of names which don't have the
+# specified prefix.
+# 
+> nonmatching_names :=
+> proc( name_list::list({name,string}), prefix::{name,string} )
+> 
+> select(   proc(n)
+> 	  evalb(not StringTools[IsPrefix](prefix,n));
+> 	  end proc
+> 	,
+> 	  name_list
+>       );
+> end proc;
+nonmatching_names := proc(
+name_list::list({name, string}), prefix::{name, string})
+    select(proc(n) evalb(not StringTools[IsPrefix](prefix, n)) end proc,
+    name_list)
+end proc
+
+> 
+################################################################################
+> 
+#
+# This function converts a numeric list to a string which is a valid
+# C identifier suffix: elements are separated by "_", decimal points are
+# replaced by "x", and all nonzero values have explicit +/- signs, which
+# are replaced by "p"/"m".
+#
+# For example, [0,-3.5,+4] --> "0_m3x5_p4".
+#
+> sprint_numeric_list :=
+> proc(nlist::list(numeric))
+> 
+# generate preliminary string, eg "+0_-3.5_+4"
+> map2(sprintf, "%+a", nlist);
+> ListTools[Join](%, "_");
+> cat(op(%));
+> 
+# fixup bad characters
+> StringTools[SubstituteAll](%, "+0", "0");
+> StringTools[CharacterMap](".+-", "xpm", %);
+> 
+> return %;
+> end proc;
+sprint_numeric_list := proc(nlist::list(numeric))
+    map2(sprintf, "%+a", nlist);
+    ListTools[Join](%, "_");
+    cat(op(%));
+    StringTools[SubstituteAll](%, "+0", "0");
+    StringTools[CharacterMap](".+-", "xpm", %);
+    return %
+end proc
+
+> 
+################################################################################
+> 
+#
+# This function prints a sequence of C declarations for a list of names.
+#
+# Argument:
+# name_list = A list of the names.
+# type_name = The C type of the names, eg. "double".
+# file_name = The file name to write the declaration to.  This is
+#	      truncated before writing.
+#
+> print_name_list_dcl :=
+> proc( name_list::list({name,string}),
+>       type_name::string,
+>       file_name::string )
+> local blanks, separator_string;
+> 
+> ftruncate(file_name);
+> 
+> map(
+>        proc(var::{name,string})
+>        fprintf(file_name,
+> 	       "%s %s;\n", 
+> 	       type_name, var);
+>        end proc
+>      ,
+>        name_list
+>    );
+> 
+> fclose(file_name);
+> NULL;
+> end proc;
+print_name_list_dcl := proc(
+name_list::list({name, string}), type_name::string, file_name::string)
+local blanks, separator_string;
+    ftruncate(file_name);
+    map(proc(var::{name, string})
+            fprintf(file_name, "%s %s;\n", type_name, var)
+        end proc, name_list);
+    fclose(file_name);
+    NULL
+end proc
+
+> 
+################################################################################
+################################################################################
+################################################################################
+> 
+#
+# This function computes a list of all the (integer) points in an
+# N-dimensional hypercube, in lexicographic order.  The present
+# implementation requires N <= 4.
+#
+# Arguments:
+# cmin,cmax = N-element lists of cube minimum/maximum coordinates.
+#
+# Results:
+# The function returns a set of d-element lists giving the coordinates.
+# For example,
+#	hypercube([0,0], [2,1]
+# returns
+#	{ [0,0], [0,1], [1,0], [1,1], [2,0], [2,1] }
+> hypercube_points :=
+> proc(cmin::list(integer), cmax::list(integer))
+> local N, i,j,k,l;
+> 
+> N := nops(cmin);
+> if (nops(cmax) <> N)
+>    then error 
+> 	"must have same number of dimensions for min and max coordinates!";
+> fi;
+> 
+> if   (N = 1)
+>    then return [seq([i], i=cmin[1]..cmax[1])];
+> elif (N = 2)
+>    then return [
+> 		 seq(
+> 		   seq([i,j], j=cmin[2]..cmax[2]),
+> 		   i=cmin[1]..cmax[1])
+> 	       ];
+> elif (N = 3)
+>    then return [
+> 		 seq(
+> 		   seq(
+> 		     seq([i,j,k], k=cmin[3]..cmax[3]),
+> 		     j=cmin[2]..cmax[2] ),
+> 		   i=cmin[1]..cmax[1])
+> 	       ];
+> elif (N = 4)
+>    then return [
+> 		 seq(
+> 		   seq(
+> 		     seq(
+> 		       seq([i,j,k,l], l=cmin[4]..cmax[4]),
+> 		       k=cmin[3]..cmax[3] ),
+> 		     j=cmin[2]..cmax[2]),
+> 		   i=cmin[1]..cmax[1])
+> 	       ];
+> else
+> 	error "implementation restriction: must have N <= 4, got %1!", N;
+> fi;
+> end proc;
+hypercube_points := proc(cmin::list(integer), cmax::list(integer))
+local N, i, j, k, l;
+    N := nops(cmin);
+    if nops(cmax) <> N then error
+        "must have same number of dimensions for min and max coordinates!"
+    end if;
+    if N = 1 then return [seq([i], i = cmin[1] .. cmax[1])]
+    elif N = 2 then return
+        [seq(seq([i, j], j = cmin[2] .. cmax[2]), i = cmin[1] .. cmax[1])]
+    elif N = 3 then return [seq(
+        seq(seq([i, j, k], k = cmin[3] .. cmax[3]), j = cmin[2] .. cmax[2])
+        , i = cmin[1] .. cmax[1])]
+    elif N = 4 then return [seq(seq(seq(
+        seq([i, j, k, l], l = cmin[4] .. cmax[4]), k = cmin[3] .. cmax[3]),
+        j = cmin[2] .. cmax[2]), i = cmin[1] .. cmax[1])]
+    else error "implementation restriction: must have N <= 4, got %1!", N
+    end if
+end proc
+
+> 
+################################################################################
+################################################################################
+################################################################################
+> 
+#
+# This function truncates a file to 0 length if it exists, or creates
+# it at that length if it doesn't exist.
+#
+# Arguments:
+# file_name = (in) The name of the file.
+#
+> ftruncate :=
+> proc(file_name::string)
+> fopen(file_name, 'WRITE');
+> fclose(%);
+> NULL;
+> end proc;
+ftruncate :=
+
+    proc(file_name::string) fopen(file_name, 'WRITE'); fclose(%); NULL end proc
+
+# interpolate.maple -- compute interpolation formulas/coefficients
+# $Header$
+> 
+#
+# <<<representation of numbers, data values, etc>>>
+# Lagrange_polynomial_interpolant - compute Lagrange polynomial interpolant
+# Hermite_polynomial_interpolant - compute Hermite polynomial interpolant
+# coeffs_as_lc_of_data - coefficients of ... (linear combination of data)
+#
+# print_coeffs__lc_of_data - print C code to compute coefficients
+# print_fetch_data - print C code to fetch input array chunk into struct data
+# print_store_coeffs - print C code to store struct coeffs "somewhere"
+# print_interp_cmpt__lc_of_data - print C code for computation of interpolant
+#
+# coeff_name - name of coefficient of data at a given [m] coordinate
+# data_var_name - name of variable storing data value at a given [m] coordinate
+#
+> 
+################################################################################
+> 
+#
+# ***** representation of numbers, data values, etc *****
+#
+# We use RATIONAL(p.0,q.0) to denote the rational number p/q.
+#
+# We use DATA(...) to represent the data values being interpolated at a
+# specified [m] coordinate, where the arguments are the [m] coordinates.
+#
+# We use COEFF(...) to represent the molecule coefficient at a specified
+# [m] coordinate, where the arguments are the [m] coordinates.
+#
+# For example, the usual 1-D centered 2nd order 1st derivative molecule
+# would be written
+#	RATIONAL(-1.0,2.0)*DATA(-1) + RATIONA(1.0,2.0)*DATA(1)
+# and its coefficients as
+#	COEFF(-1) = RATIONAL(-1.0,2.0)
+#	COEFF(1) = RATIONAL(1.0,2.0)
+#
+> 
+################################################################################
+################################################################################
+################################################################################
+> 
+#
+# This function computes a Lagrange polynomial interpolant in any
+# number of dimensions.
+#
+# Arguments:
+# fn = The interpolation function.  This should be a procedure in the
+#      coordinates, having the coefficients as global variables.  For
+#      example,
+#	  proc(x,y) c00 + c10*x + c01*y end proc
+# coeff_list = A set of the interpolation coefficients (coefficients in
+#	       the interpolation function), for example [c00, c10, c01].
+# coord_list = A list of the coordinates (independent variables in the
+#	       interpolation function), for example [x,y].
+# posn_list = A list of positions (each a list of numeric values) where the
+#	      interpolant is to use data, for example  hypercube([0,0], [1,1]).
+#	      Any positions may be used; if they're redundant (as in the
+#	      example) the least-squares interpolant is computed.
+#
+# Results:
+# This function returns the interpolating polynomial, in the form of
+# an algebraic expression in the coordinates and the data values.
+#
+> Lagrange_polynomial_interpolant :=
+> proc(
+>       fn::procedure, coeff_list::list(name),
+>       coord_list::list(name), posn_list::list(list(numeric))
+>     )
+> local posn, data_eqns, coeff_eqns;
+> 
+# coefficients of interpolating polynomial
+> data_eqns := {  seq( fn(op(posn))='DATA'(op(posn)) , posn=posn_list )  };
+> coeff_eqns := linalg[leastsqrs](data_eqns, {op(coeff_list)});
+> if (has(coeff_eqns, '_t'))
+>    then error "interpolation coefficients aren't uniquely determined!";
+> end if;
+> 
+# interpolant as a polynomial in the coordinates
+> return subs(coeff_eqns, eval(fn))(op(coord_list));
+> end proc;
+Lagrange_polynomial_interpolant := proc(fn::procedure, coeff_list::list(name),
+coord_list::list(name), posn_list::list(list(numeric)))
+local posn, data_eqns, coeff_eqns;
+    data_eqns := {seq(fn(op(posn)) = 'DATA'(op(posn)), posn = posn_list)};
+    coeff_eqns := linalg[leastsqrs](data_eqns, {op(coeff_list)});
+    if has(coeff_eqns, '_t') then
+        error "interpolation coefficients aren't uniquely determined!"
+    end if;
+    return subs(coeff_eqns, eval(fn))(op(coord_list))
+end proc
+
+> 
+################################################################################
+> 
+#
+# This function computes a Hermite polynomial interpolant in any
+# number of dimensions.  This is a polynomial which
+# * has values which match the given data DATA() at a specified set of
+#   points, and
+# * has derivatives which match the specified finite-difference derivatives
+#   of the given data DATA() at a specified set of points
+#
+# For the derivative matching, we actually match all possible products
+# of 1st derivatives, i.e. in 2-D we match dx, dy, and dxy, in 3-D we
+# match dx, dy, dz, dxy, dxz, dyz, and dxyz, etc etc.
+#
+# Arguments:
+# fn = The interpolation function.  This should be a procedure in the
+#      coordinates, having the coefficients as global variables.  For
+#      example,
+#		proc(x,y)
+#		+ c03*y^3 + c13*x*y^3 + c23*x^2*y^3 + c33*x^3*y^3
+#		+ c02*y^2 + c12*x*y^2 + c22*x^2*y^2 + c32*x^3*y^2
+#		+ c01*y   + c11*x*y   + c21*x^2*y   + c31*x^3*y
+#		+ c00     + c10*x     + c20*x^2     + c30*x^3
+#		end proc;
+# coeff_set = A set of the interpolation coefficients (coefficients in
+#	       the interpolation function), for example
+#			{
+#			c03, c13, c23, c33,
+#			c02, c12, c22, c32,
+#			c01, c11, c21, c31,
+#			c00, c10, c20, c30
+#			}
+# coord_list = A list of the coordinates (independent variables in the
+#	       interpolation function), for example [x,y].
+# deriv_set = A set of equations of the form
+#		{coords} = proc
+#	      giving the derivatives which are to be matched, and the
+#	      procedures to compute their finite-difference approximations.
+#	      Each procedure should take N_dims integer arguments specifying
+#	      an evaluation point, and return a suitable linear combination
+#	      of the DATA() for the derivative at that point.  For example
+#			{
+#			  {x}   = proc(i::integer, j::integer)
+#				  - 1/2*DATA(i-1,j) + 1/2*DATA(i+1,j)
+#				  end proc
+#			,
+#			  {y}   = proc(i::integer, j::integer)
+#				  - 1/2*DATA(i,j-1) + 1/2*DATA(i,j+1)
+#				  end proc
+#			,
+#			  {x,y} = proc(i::integer, j::integer)
+#				  - 1/4*DATA(i-1,j+1) + 1/4*DATA(i+1,j+1)
+#				  + 1/4*DATA(i-1,j-1) - 1/4*DATA(i+1,j-1)
+#				  end proc
+#			}
+# fn_posn_set = A set of positions (each a list of numeric values)
+#		where the interpolant is to match the given data DATA(),
+#		for example
+#			{[0,0], [0,1], [1,0], [1,1]}
+# deriv_posn_set = A list of positions (each a list of numeric values)
+#		   where the interpolant is to match the derivatives
+#		   specified by  deriv_set , for example
+#			{[0,0], [0,1], [1,0], [1,1]}
+#
+# Results:
+# This function returns the interpolating polynomial, in the form of
+# an algebraic expression in the coordinates and the data values.
+#
+> Hermite_polynomial_interpolant :=
+> proc(
+>       fn::procedure,
+>       coeff_set::set(name),
+>       coord_list::list(name),
+>       deriv_set::set(set(name) = procedure),
+>       fn_posn_set::set(list(numeric)),
+>       deriv_posn_set::set(list(numeric))
+>     )
+> local fn_eqnset, deriv_eqnset, coeff_eqns, subs_eqnset;
+> 
+> 
+#
+# compute a set of equations
+#	{fn(posn) = DATA(posn)}
+# giving the function values to be matched
+#
+> fn_eqnset := map(
+> 		    # return equation that fn(posn) = DATA(posn)
+> 		    proc(posn::list(integer))
+> 		    fn(op(posn)) = 'DATA'(op(posn));
+> 		    end proc
+> 		  ,
+> 		    fn_posn_set
+> 		);
+> 
+> 
+#
+# compute a set of equations
+#	{ diff(fn,coords)(posn) = DERIV(coords)(posn) }
+# giving the derivative values to be matched, where DERIV(coords)
+# is a placeholder for the appropriate derivative
+#
+> map(
+>        # return set of equations for this particular derivative
+>        proc(deriv_coords::set(name))
+>        local deriv_fn;
+>        fn(op(coord_list));
+>        diff(%, op(deriv_coords));
+>        deriv_fn := unapply(%, op(coord_list));
+>        map(
+> 	      proc(posn::list(integer))
+> 	      deriv_fn(op(posn)) = 'DERIV'(op(deriv_coords))(op(posn));
+> 	      end proc
+> 	    ,
+> 	      deriv_posn_set
+> 	  );
+>        end proc
+>      ,
+>        map(lhs, deriv_set)
+>    );
+> deriv_eqnset := `union`(op(%));
+> 
+> 
+#
+# solve overall set of equations for coefficients
+# in terms of DATA() and DERIV() values
+#
+> coeff_eqns := solve[linear](fn_eqnset union deriv_eqnset, coeff_set);
+> if (indets(map(rhs,%)) <> {})
+>    then error "no unique solution for coefficients -- %1 eqns for %2 coeffs",
+> 	      nops(fn_eqnset union deriv_eqnset),
+> 	      nops(coeff_set);
+> fi;
+> 
+> 
+#
+# compute a set of substitution equations
+#	{'DERIV'(coords) = procedure}
+#
+> subs_eqnset := map(
+> 		      proc(eqn::set(name) = procedure)
+> 		      'DERIV'(op(lhs(eqn))) = rhs(eqn);
+> 		      end proc
+> 		    ,
+> 		      deriv_set
+> 		  );
+> 
+> 
+#
+# compute the coefficients in terms of the DATA() values
+#
+> subs(subs_eqnset, coeff_eqns);
+> eval(%);
+> 
+#
+# compute the interpolant as a polynomial in the coordinates
+#
+> subs(%, fn(op(coord_list)));
+> end proc;
+Hermite_polynomial_interpolant := proc(fn::procedure, coeff_set::set(name),
+coord_list::list(name), deriv_set::set(set(name) = procedure),
+fn_posn_set::set(list(numeric)), deriv_posn_set::set(list(numeric)))
+local fn_eqnset, deriv_eqnset, coeff_eqns, subs_eqnset;
+    fn_eqnset := map(
+        proc(posn::list(integer)) fn(op(posn)) = 'DATA'(op(posn)) end proc,
+        fn_posn_set);
+    map(proc(deriv_coords::set(name))
+        local deriv_fn;
+            fn(op(coord_list));
+            diff(%, op(deriv_coords));
+            deriv_fn := unapply(%, op(coord_list));
+            map(proc(posn::list(integer))
+                    deriv_fn(op(posn)) =
+                    'DERIV'(op(deriv_coords))(op(posn))
+                end proc, deriv_posn_set)
+        end proc, map(lhs, deriv_set));
+    deriv_eqnset := `union`(op(%));
+    coeff_eqns := solve[linear](fn_eqnset union deriv_eqnset, coeff_set);
+    if indets(map(rhs, %)) <> {} then error
+        "no unique solution for coefficients -- %1 eqns for %2 coeffs",
+        nops(fn_eqnset union deriv_eqnset), nops(coeff_set)
+    end if;
+    subs_eqnset := map(proc(eqn::(set(name) = procedure))
+            'DERIV'(op(lhs(eqn))) = rhs(eqn)
+        end proc, deriv_set);
+    subs(subs_eqnset, coeff_eqns);
+    eval(%);
+    subs(%, fn(op(coord_list)))
+end proc
+
+> 
+################################################################################
+> 
+#
+# This function takes as input an interpolating polynomial, expresses
+# it as a linear combination of the data values, and returns the coefficeints
+# of that form.
+# 
+# Arguments:
+# interpolant = The interpolating polynomial (an algebraic expression
+#		in the coordinates and the data values).
+# posn_list = The same list of data positions used in the interpolant.
+#
+# Results:
+# This function returns the coefficients, as a list of equations of the
+# form   COEFF(...) = value , where each  value  is a polynomial in the
+# coordinates.  The order of the list matches that of  posn_list.
+#
+> coeffs_as_lc_of_data :=
+> proc(
+>       interpolant::algebraic,
+>       posn_list::list(list(numeric))
+>     )
+> local data_list, interpolant_as_lc_of_data;
+> 
+# interpolant as a linear combination of the data values
+> data_list := [ seq( 'DATA'(op(posn)) , posn=posn_list ) ];
+> interpolant_as_lc_of_data := collect(interpolant, data_list);
+> 
+# coefficients of the data values in the linear combination
+> return map(
+> 	      proc(posn::list(numeric))
+> 	      coeff(interpolant_as_lc_of_data, DATA(op(posn)));
+> 	      'COEFF'(op(posn)) = %;
+> 	      end proc
+> 	    ,
+> 	      posn_list
+> 	  );
+> end proc;
+coeffs_as_lc_of_data := proc(
+interpolant::algebraic, posn_list::list(list(numeric)))
+local data_list, interpolant_as_lc_of_data;
+    data_list := [seq('DATA'(op(posn)), posn = posn_list)];
+    interpolant_as_lc_of_data := collect(interpolant, data_list);
+    return map(proc(posn::list(numeric))
+            coeff(interpolant_as_lc_of_data, DATA(op(posn)));
+            'COEFF'(op(posn)) = %
+        end proc, posn_list)
+end proc
+
+> 
+################################################################################
+################################################################################
+################################################################################
+> 
+#
+# This function prints C expressions for the coefficients of an
+# interpolating polynomial.  (The polynomial is expressed as linear
+# combinations of the data values with coefficients which are
+# RATIONAL(p,q) calls.)
+#
+# Arguments:
+# coeff_list = A list of the coefficients, as returned from
+#	       coeffs_as_lc_of_data() .
+# coeff_name_prefix = A prefix string for the coefficient names.
+# temp_name_type = The C type to be used for Maple-introduced temporary
+#		   names, eg. "double".
+# file_name = The file name to write the coefficients to.  This is
+#	      truncated before writing.
+#
+> print_coeffs__lc_of_data :=
+> proc( coeff_list::list(specfunc(numeric,COEFF) = algebraic),
+>       coeff_name_prefix::string,
+>       temp_name_type::string,
+>       file_name::string )
+> global `codegen/C/function/informed`;
+> local coeff_list2, cmpt_list, temp_name_list;
+> 
+# convert LHS of each equation from a COEFF() call (eg COEFF(-1,+1))
+# to a Maple/C variable name (eg coeff_I_m1_p1)
+> coeff_list2 := map(
+> 		      proc(coeff_eqn::specfunc(numeric,COEFF) = algebraic)
+> 		      local posn;
+> 		      posn := [op(lhs(coeff_eqn))];
+> 		      coeff_name(posn,coeff_name_prefix);
+> 		      convert(%, name);	# codegen[C] wants LHS
+> 					# to be an actual Maple *name*
+> 		      % = fix_rationals(rhs(coeff_eqn));
+> 		      end proc
+> 		    ,
+> 		      coeff_list
+> 		  );
+> 
+#
+# generate the C code
+#
+> 
+# tell codegen[C] not to warn about unknown RATIONAL() and DATA() "fn calls"
+# via undocumented :( global table
+> `codegen/C/function/informed`['RATIONAL'] := true;
+> `codegen/C/function/informed`['DATA'] := true;
+> 
+> ftruncate(file_name);
+> 
+# optimized computation sequence for all the coefficients
+# (may use local variables t0,t1,t2,...)
+> cmpt_list := [codegen[optimize](coeff_list2, tryhard)];
+> 
+# list of the t0,t1,t2,... local variables
+> temp_name_list := nonmatching_names(map(lhs,cmpt_list), coeff_name_prefix);
+> 
+# declare the t0,t1,t2,... local variables (if there are any)
+> if (nops(temp_name_list) > 0)
+>    then print_name_list_dcl(%, temp_name_type, file_name);
+> fi;
+> 
+# now print the optimized computation sequence
+> codegen[C](cmpt_list, filename=file_name);
+> 
+> fclose(file_name);
+> 
+> NULL;
+> end proc;
+print_coeffs__lc_of_data := proc(
+coeff_list::list(specfunc(numeric, COEFF) = algebraic),
+coeff_name_prefix::string, temp_name_type::string, file_name::string)
+local coeff_list2, cmpt_list, temp_name_list;
+global `codegen/C/function/informed`;
+    coeff_list2 := map(proc(
+        coeff_eqn::(specfunc(numeric, COEFF) = algebraic))
+        local posn;
+            posn := [op(lhs(coeff_eqn))];
+            coeff_name(posn, coeff_name_prefix);
+            convert(%, name);
+            % = fix_rationals(rhs(coeff_eqn))
+        end proc, coeff_list);
+    `codegen/C/function/informed`['RATIONAL'] := true;
+    `codegen/C/function/informed`['DATA'] := true;
+    ftruncate(file_name);
+    cmpt_list := [codegen[optimize](coeff_list2, tryhard)];
+    temp_name_list :=
+        nonmatching_names(map(lhs, cmpt_list), coeff_name_prefix);
+    if 0 < nops(temp_name_list) then
+        print_name_list_dcl(%, temp_name_type, file_name)
+    end if;
+    codegen[C](cmpt_list, filename = file_name);
+    fclose(file_name);
+    NULL
+end proc
+
+> 
+################################################################################
+> 
+#
+# This function prints a sequence of C expression to assign the data-value
+# variables, eg
+#	data->data_m1_p1 = DATA(-1,1);
+#
+# Arguments:
+# posn_list = The same list of positions as was used to compute the
+#	      interpolating polynomial.
+# data_var_name_prefix = A prefix string for the data variable names.
+# file_name = The file name to write the coefficients to.  This is
+#	      truncated before writing.
+#
+> print_fetch_data :=
+> proc(
+>       posn_list::list(list(numeric)),
+>       data_var_name_prefix::string,
+>       file_name::string
+>     )
+> 
+> ftruncate(file_name);
+> map(
+>        proc(posn::list(numeric))
+>        fprintf(file_name,
+> 	       "%s = %a;\n",
+> 	       data_var_name(posn,data_var_name_prefix),
+> 	       DATA(op(posn)));
+>        end proc
+>      ,
+>        posn_list
+>    );
+> fclose(file_name);
+> 
+> NULL;
+> end proc;
+print_fetch_data := proc(posn_list::list(list(numeric)),
+data_var_name_prefix::string, file_name::string)
+    ftruncate(file_name);
+    map(proc(posn::list(numeric))
+            fprintf(file_name, "%s = %a;\n",
+            data_var_name(posn, data_var_name_prefix), DATA(op(posn)))
+        end proc, posn_list);
+    fclose(file_name);
+    NULL
+end proc
+
+> 
+################################################################################
+> 
+#
+# This function prints a sequence of C expression to store the interpolation
+# coefficients in  COEFF(...)  expressions, eg
+#	COEFF(1,-1) = factor * coeffs->coeff_p1_m1;
+#
+# Arguments:
+# posn_list = The list of positions in the molecule.
+# coeff_name_prefix = A prefix string for the coefficient names,
+#		      eg "factor * coeffs->coeff_"
+# file_name = The file name to write the coefficients to.  This is
+#	      truncated before writing.
+#
+> print_store_coeffs :=
+> proc(
+>       posn_list::list(list(numeric)),
+>       coeff_name_prefix::string,
+>       file_name::string
+>     )
+> 
+> ftruncate(file_name);
+> map(
+>        proc(posn::list(numeric))
+>        fprintf(file_name,
+> 	       "%a = %s;\n",
+> 	       'COEFF'(op(posn)),
+> 	       coeff_name(posn,coeff_name_prefix));
+>        end proc
+>      ,
+>        posn_list
+>    );
+> fclose(file_name);
+> 
+> NULL;
+> end proc;
+print_store_coeffs := proc(posn_list::list(list(numeric)),
+coeff_name_prefix::string, file_name::string)
+    ftruncate(file_name);
+    map(proc(posn::list(numeric))
+            fprintf(file_name, "%a = %s;\n", 'COEFF'(op(posn)),
+            coeff_name(posn, coeff_name_prefix))
+        end proc, posn_list);
+    fclose(file_name);
+    NULL
+end proc
+
+> 
+################################################################################
+> 
+#
+# This function prints a C expression to evaluate a molecule, i.e.
+# to compute the molecule as a linear combination of the data values.
+#
+# Arguments:
+# posn_list = The list of positions in the molecule.
+# coeff_name_prefix = A prefix string for the coefficient names.
+# data_var_name_prefix = A prefix string for the data variable names.
+# file_name = The file name to write the coefficients to.  This is
+#	      truncated before writing.
+#
+> print_evaluate_molecule :=
+> proc(
+>       posn_list::list(list(numeric)),
+>       coeff_name_prefix::string,
+>       data_var_name_prefix::string,
+>       file_name::string
+>     )
+> 
+> ftruncate(file_name);
+> 
+# list of "coeff*data_var" terms
+> map(
+>        proc(posn::list(numeric))
+>        sprintf("%s*%s",
+> 	       coeff_name(posn,coeff_name_prefix),
+> 	       data_var_name(posn,data_var_name_prefix));
+>        end proc
+>      ,
+>        posn_list
+>    );
+> 
+> ListTools[Join](%, "\n  + ");
+> cat(op(%));
+> fprintf(file_name, "    %s;\n", %);
+> 
+> fclose(file_name);
+> 
+> NULL;
+> end proc;
+print_evaluate_molecule := proc(posn_list::list(list(numeric)),
+coeff_name_prefix::string, data_var_name_prefix::string, file_name::string)
+    ftruncate(file_name);
+    map(proc(posn::list(numeric))
+            sprintf("%s*%s", coeff_name(posn, coeff_name_prefix),
+            data_var_name(posn, data_var_name_prefix))
+        end proc, posn_list);
+    ListTools[Join](%, "\n  + ");
+    cat(op(%));
+    fprintf(file_name, "    %s;\n", %);
+    fclose(file_name);
+    NULL
+end proc
+
+> 
+################################################################################
+################################################################################
+################################################################################
+> 
+#
+# This function computes the name of the coefficient of the data at a
+# given [m] position, i.e. it encapsulates our naming convention for this.
+#
+# Arguments:
+# posn = (in) The [m] coordinates.
+# name_prefix = A prefix string for the coefficient name.
+#
+# Results:
+# The function returns the coefficient, as a Maple string.
+#
+> coeff_name :=
+> proc(posn::list(numeric), name_prefix::string)
+> cat(name_prefix, sprint_numeric_list(posn));
+> end proc;
+coeff_name := proc(posn::list(numeric), name_prefix::string)
+    cat(name_prefix, sprint_numeric_list(posn))
+end proc
+
+> 
+################################################################################
+> 
+#
+# This function computes the name of the variable in which the C code
+# will store the input data at a given [m] position, i.e. it encapsulates
+# our naming convention for this.
+#
+# Arguments:
+# posn = (in) The [m] coordinates.
+# name_prefix = A prefix string for the variable name.
+#
+# Results:
+# The function returns the variable name, as a Maple string.
+#
+> data_var_name :=
+> proc(posn::list(numeric), name_prefix::string)
+> cat(name_prefix, sprint_numeric_list(posn));
+> end proc;
+data_var_name := proc(posn::list(numeric), name_prefix::string)
+    cat(name_prefix, sprint_numeric_list(posn))
+end proc
+
+# Maple code to compute lists of point positions in hypercube-shaped molecules
+# $Header$
+> 
+################################################################################
+> 
+#
+# 1D interpolation points
+#
+> posn_list_1d_size2 := hypercube_points([ 0], [+1]);
+                        posn_list_1d_size2 := [[0], [1]]
+
+> posn_list_1d_size3 := hypercube_points([-1], [+1]);
+                     posn_list_1d_size3 := [[-1], [0], [1]]
+
+> posn_list_1d_size4 := hypercube_points([-1], [+2]);
+                  posn_list_1d_size4 := [[-1], [0], [1], [2]]
+
+> posn_list_1d_size5 := hypercube_points([-2], [+2]);
+               posn_list_1d_size5 := [[-2], [-1], [0], [1], [2]]
+
+> posn_list_1d_size6 := hypercube_points([-2], [+3]);
+             posn_list_1d_size6 := [[-2], [-1], [0], [1], [2], [3]]
+
+> posn_list_1d_size7 := hypercube_points([-3], [+3]);
+          posn_list_1d_size7 := [[-3], [-2], [-1], [0], [1], [2], [3]]
+
+> 
+################################################################################
+> 
+#
+# 2D interpolation points (Fortran ordering)
+#
+> posn_list_2d_size2 := map(ListTools[Reverse],
+> 			  hypercube_points([ 0, 0], [+1,+1]));
+             posn_list_2d_size2 := [[0, 0], [1, 0], [0, 1], [1, 1]]
+
+> posn_list_2d_size3 := map(ListTools[Reverse],
+> 			  hypercube_points([-1,-1], [+1,+1]));
+posn_list_2d_size3 := [[-1, -1], [0, -1], [1, -1], [-1, 0], [0, 0], [1, 0],
+
+    [-1, 1], [0, 1], [1, 1]]
+
+> posn_list_2d_size4 := map(ListTools[Reverse],
+> 			  hypercube_points([-1,-1], [+2,+2]));
+posn_list_2d_size4 := [[-1, -1], [0, -1], [1, -1], [2, -1], [-1, 0], [0, 0],
+
+    [1, 0], [2, 0], [-1, 1], [0, 1], [1, 1], [2, 1], [-1, 2], [0, 2], [1, 2],
+
+    [2, 2]]
+
+> posn_list_2d_size5 := map(ListTools[Reverse],
+> 			  hypercube_points([-2,-2], [+2,+2]));
+posn_list_2d_size5 := [[-2, -2], [-1, -2], [0, -2], [1, -2], [2, -2], [-2, -1],
+
+    [-1, -1], [0, -1], [1, -1], [2, -1], [-2, 0], [-1, 0], [0, 0], [1, 0],
+
+    [2, 0], [-2, 1], [-1, 1], [0, 1], [1, 1], [2, 1], [-2, 2], [-1, 2], [0, 2],
+
+    [1, 2], [2, 2]]
+
+> posn_list_2d_size6 := map(ListTools[Reverse],
+> 			  hypercube_points([-2,-2], [+3,+3]));
+posn_list_2d_size6 := [[-2, -2], [-1, -2], [0, -2], [1, -2], [2, -2], [3, -2],
+
+    [-2, -1], [-1, -1], [0, -1], [1, -1], [2, -1], [3, -1], [-2, 0], [-1, 0],
+
+    [0, 0], [1, 0], [2, 0], [3, 0], [-2, 1], [-1, 1], [0, 1], [1, 1], [2, 1],
+
+    [3, 1], [-2, 2], [-1, 2], [0, 2], [1, 2], [2, 2], [3, 2], [-2, 3], [-1, 3],
+
+    [0, 3], [1, 3], [2, 3], [3, 3]]
+
+> 
+################################################################################
+> 
+#
+# 3D interpolation points (Fortran ordering)
+#
+> posn_list_3d_size2 := map(ListTools[Reverse],
+> 			  hypercube_points([ 0, 0, 0], [+1,+1,+1]));
+posn_list_3d_size2 := [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0], [0, 0, 1],
+
+    [1, 0, 1], [0, 1, 1], [1, 1, 1]]
+
+> posn_list_3d_size3 := map(ListTools[Reverse],
+> 			  hypercube_points([-1,-1,-1], [+1,+1,+1]));
+posn_list_3d_size3 := [[-1, -1, -1], [0, -1, -1], [1, -1, -1], [-1, 0, -1],
+
+    [0, 0, -1], [1, 0, -1], [-1, 1, -1], [0, 1, -1], [1, 1, -1], [-1, -1, 0],
+
+    [0, -1, 0], [1, -1, 0], [-1, 0, 0], [0, 0, 0], [1, 0, 0], [-1, 1, 0],
+
+    [0, 1, 0], [1, 1, 0], [-1, -1, 1], [0, -1, 1], [1, -1, 1], [-1, 0, 1],
+
+    [0, 0, 1], [1, 0, 1], [-1, 1, 1], [0, 1, 1], [1, 1, 1]]
+
+> posn_list_3d_size4 := map(ListTools[Reverse],
+> 			  hypercube_points([-1,-1,-1], [+2,+2,+2]));
+posn_list_3d_size4 := [[-1, -1, -1], [0, -1, -1], [1, -1, -1], [2, -1, -1],
+
+    [-1, 0, -1], [0, 0, -1], [1, 0, -1], [2, 0, -1], [-1, 1, -1], [0, 1, -1],
+
+    [1, 1, -1], [2, 1, -1], [-1, 2, -1], [0, 2, -1], [1, 2, -1], [2, 2, -1],
+
+    [-1, -1, 0], [0, -1, 0], [1, -1, 0], [2, -1, 0], [-1, 0, 0], [0, 0, 0],
+
+    [1, 0, 0], [2, 0, 0], [-1, 1, 0], [0, 1, 0], [1, 1, 0], [2, 1, 0],
+
+    [-1, 2, 0], [0, 2, 0], [1, 2, 0], [2, 2, 0], [-1, -1, 1], [0, -1, 1],
+
+    [1, -1, 1], [2, -1, 1], [-1, 0, 1], [0, 0, 1], [1, 0, 1], [2, 0, 1],
+
+    [-1, 1, 1], [0, 1, 1], [1, 1, 1], [2, 1, 1], [-1, 2, 1], [0, 2, 1],
+
+    [1, 2, 1], [2, 2, 1], [-1, -1, 2], [0, -1, 2], [1, -1, 2], [2, -1, 2],
+
+    [-1, 0, 2], [0, 0, 2], [1, 0, 2], [2, 0, 2], [-1, 1, 2], [0, 1, 2],
+
+    [1, 1, 2], [2, 1, 2], [-1, 2, 2], [0, 2, 2], [1, 2, 2], [2, 2, 2]]
+
+> posn_list_3d_size5 := map(ListTools[Reverse],
+> 			  hypercube_points([-2,-2,-2], [+2,+2,+2]));
+posn_list_3d_size5 := [[-2, -2, -2], [-1, -2, -2], [0, -2, -2], [1, -2, -2],
+
+    [2, -2, -2], [-2, -1, -2], [-1, -1, -2], [0, -1, -2], [1, -1, -2],
+
+    [2, -1, -2], [-2, 0, -2], [-1, 0, -2], [0, 0, -2], [1, 0, -2], [2, 0, -2],
+
+    [-2, 1, -2], [-1, 1, -2], [0, 1, -2], [1, 1, -2], [2, 1, -2], [-2, 2, -2],
+
+    [-1, 2, -2], [0, 2, -2], [1, 2, -2], [2, 2, -2], [-2, -2, -1], [-1, -2, -1],
+
+    [0, -2, -1], [1, -2, -1], [2, -2, -1], [-2, -1, -1], [-1, -1, -1],
+
+    [0, -1, -1], [1, -1, -1], [2, -1, -1], [-2, 0, -1], [-1, 0, -1], [0, 0, -1],
+
+    [1, 0, -1], [2, 0, -1], [-2, 1, -1], [-1, 1, -1], [0, 1, -1], [1, 1, -1],
+
+    [2, 1, -1], [-2, 2, -1], [-1, 2, -1], [0, 2, -1], [1, 2, -1], [2, 2, -1],
+
+    [-2, -2, 0], [-1, -2, 0], [0, -2, 0], [1, -2, 0], [2, -2, 0], [-2, -1, 0],
+
+    [-1, -1, 0], [0, -1, 0], [1, -1, 0], [2, -1, 0], [-2, 0, 0], [-1, 0, 0],
+
+    [0, 0, 0], [1, 0, 0], [2, 0, 0], [-2, 1, 0], [-1, 1, 0], [0, 1, 0],
+
+    [1, 1, 0], [2, 1, 0], [-2, 2, 0], [-1, 2, 0], [0, 2, 0], [1, 2, 0],
+
+    [2, 2, 0], [-2, -2, 1], [-1, -2, 1], [0, -2, 1], [1, -2, 1], [2, -2, 1],
+
+    [-2, -1, 1], [-1, -1, 1], [0, -1, 1], [1, -1, 1], [2, -1, 1], [-2, 0, 1],
+
+    [-1, 0, 1], [0, 0, 1], [1, 0, 1], [2, 0, 1], [-2, 1, 1], [-1, 1, 1],
+
+    [0, 1, 1], [1, 1, 1], [2, 1, 1], [-2, 2, 1], [-1, 2, 1], [0, 2, 1],
+
+    [1, 2, 1], [2, 2, 1], [-2, -2, 2], [-1, -2, 2], [0, -2, 2], [1, -2, 2],
+
+    [2, -2, 2], [-2, -1, 2], [-1, -1, 2], [0, -1, 2], [1, -1, 2], [2, -1, 2],
+
+    [-2, 0, 2], [-1, 0, 2], [0, 0, 2], [1, 0, 2], [2, 0, 2], [-2, 1, 2],
+
+    [-1, 1, 2], [0, 1, 2], [1, 1, 2], [2, 1, 2], [-2, 2, 2], [-1, 2, 2],
+
+    [0, 2, 2], [1, 2, 2], [2, 2, 2]]
+
+> posn_list_3d_size6 := map(ListTools[Reverse],
+> 			  hypercube_points([-2,-2,-2], [+3,+3,+3]));
+posn_list_3d_size6 := [[-2, -2, -2], [-1, -2, -2], [0, -2, -2], [1, -2, -2],
+
+    [2, -2, -2], [3, -2, -2], [-2, -1, -2], [-1, -1, -2], [0, -1, -2],
+
+    [1, -1, -2], [2, -1, -2], [3, -1, -2], [-2, 0, -2], [-1, 0, -2], [0, 0, -2],
+
+    [1, 0, -2], [2, 0, -2], [3, 0, -2], [-2, 1, -2], [-1, 1, -2], [0, 1, -2],
+
+    [1, 1, -2], [2, 1, -2], [3, 1, -2], [-2, 2, -2], [-1, 2, -2], [0, 2, -2],
+
+    [1, 2, -2], [2, 2, -2], [3, 2, -2], [-2, 3, -2], [-1, 3, -2], [0, 3, -2],
+
+    [1, 3, -2], [2, 3, -2], [3, 3, -2], [-2, -2, -1], [-1, -2, -1], [0, -2, -1],
+
+    [1, -2, -1], [2, -2, -1], [3, -2, -1], [-2, -1, -1], [-1, -1, -1],
+
+    [0, -1, -1], [1, -1, -1], [2, -1, -1], [3, -1, -1], [-2, 0, -1],
+
+    [-1, 0, -1], [0, 0, -1], [1, 0, -1], [2, 0, -1], [3, 0, -1], [-2, 1, -1],
+
+    [-1, 1, -1], [0, 1, -1], [1, 1, -1], [2, 1, -1], [3, 1, -1], [-2, 2, -1],
+
+    [-1, 2, -1], [0, 2, -1], [1, 2, -1], [2, 2, -1], [3, 2, -1], [-2, 3, -1],
+
+    [-1, 3, -1], [0, 3, -1], [1, 3, -1], [2, 3, -1], [3, 3, -1], [-2, -2, 0],
+
+    [-1, -2, 0], [0, -2, 0], [1, -2, 0], [2, -2, 0], [3, -2, 0], [-2, -1, 0],
+
+    [-1, -1, 0], [0, -1, 0], [1, -1, 0], [2, -1, 0], [3, -1, 0], [-2, 0, 0],
+
+    [-1, 0, 0], [0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0], [-2, 1, 0],
+
+    [-1, 1, 0], [0, 1, 0], [1, 1, 0], [2, 1, 0], [3, 1, 0], [-2, 2, 0],
+
+    [-1, 2, 0], [0, 2, 0], [1, 2, 0], [2, 2, 0], [3, 2, 0], [-2, 3, 0],
+
+    [-1, 3, 0], [0, 3, 0], [1, 3, 0], [2, 3, 0], [3, 3, 0], [-2, -2, 1],
+
+    [-1, -2, 1], [0, -2, 1], [1, -2, 1], [2, -2, 1], [3, -2, 1], [-2, -1, 1],
+
+    [-1, -1, 1], [0, -1, 1], [1, -1, 1], [2, -1, 1], [3, -1, 1], [-2, 0, 1],
+
+    [-1, 0, 1], [0, 0, 1], [1, 0, 1], [2, 0, 1], [3, 0, 1], [-2, 1, 1],
+
+    [-1, 1, 1], [0, 1, 1], [1, 1, 1], [2, 1, 1], [3, 1, 1], [-2, 2, 1],
+
+    [-1, 2, 1], [0, 2, 1], [1, 2, 1], [2, 2, 1], [3, 2, 1], [-2, 3, 1],
+
+    [-1, 3, 1], [0, 3, 1], [1, 3, 1], [2, 3, 1], [3, 3, 1], [-2, -2, 2],
+
+    [-1, -2, 2], [0, -2, 2], [1, -2, 2], [2, -2, 2], [3, -2, 2], [-2, -1, 2],
+
+    [-1, -1, 2], [0, -1, 2], [1, -1, 2], [2, -1, 2], [3, -1, 2], [-2, 0, 2],
+
+    [-1, 0, 2], [0, 0, 2], [1, 0, 2], [2, 0, 2], [3, 0, 2], [-2, 1, 2],
+
+    [-1, 1, 2], [0, 1, 2], [1, 1, 2], [2, 1, 2], [3, 1, 2], [-2, 2, 2],
+
+    [-1, 2, 2], [0, 2, 2], [1, 2, 2], [2, 2, 2], [3, 2, 2], [-2, 3, 2],
+
+    [-1, 3, 2], [0, 3, 2], [1, 3, 2], [2, 3, 2], [3, 3, 2], [-2, -2, 3],
+
+    [-1, -2, 3], [0, -2, 3], [1, -2, 3], [2, -2, 3], [3, -2, 3], [-2, -1, 3],
+
+    [-1, -1, 3], [0, -1, 3], [1, -1, 3], [2, -1, 3], [3, -1, 3], [-2, 0, 3],
+
+    [-1, 0, 3], [0, 0, 3], [1, 0, 3], [2, 0, 3], [3, 0, 3], [-2, 1, 3],
+
+    [-1, 1, 3], [0, 1, 3], [1, 1, 3], [2, 1, 3], [3, 1, 3], [-2, 2, 3],
+
+    [-1, 2, 3], [0, 2, 3], [1, 2, 3], [2, 2, 3], [3, 2, 3], [-2, 3, 3],
+
+    [-1, 3, 3], [0, 3, 3], [1, 3, 3], [2, 3, 3], [3, 3, 3]]
+
+# Maple code to define Hermite interpolating functions/coords/coeffs/mols
+# $Header$
+> 
+#
+# Note:
+# interpolation order 2 <==> fn order 3, 3-point (2nd order) derivative mols
+# interpolation order 3 <==> fn order 3, 5-point (4th order) derivative mols
+# interpolation order 4 <==> fn order 5, 5-point (4th order) derivative mols
+#
+> 
+################################################################################
+################################################################################
+################################################################################
+> 
+#
+# derivative primitives
+# (argument is a procedure which should map m into the DATA() reference)
+#
+> 
+> dx_3point :=
+> proc(f::procedure(integer))
+> (1/2) * (-f(-1) + f(+1))
+> end proc;
+    dx_3point := proc(f::procedure(integer)) -1/2*f(-1) + 1/2*f(1) end proc
+
+> 
+> dx_5point :=
+> proc(f::procedure(integer))
+> (1/12) * (f(-2) - 8*f(-1) + 8*f(+1) - f(+2))
+> end proc;
+dx_5point := proc(f::procedure(integer))
+    1/12*f(-2) - 2/3*f(-1) + 2/3*f(1) - 1/12*f(2)
+end proc
+
+> 
+################################################################################
+################################################################################
+################################################################################
+> 
+#
+# 1-D interpolating functions
+#
+> 
+> fn_1d_order3 :=
+> proc(x)
+> + c0 + c1*x + c2*x^2 + c3*x^3
+> end proc;
+          fn_1d_order3 := proc(x) c0 + c1*x + c2*x^2 + c3*x^3 end proc
+
+> 
+> fn_1d_order5 :=
+> proc(x)
+> + c0 + c1*x + c2*x^2 + c3*x^3 + c4*x^4 + c5*x^5
+> end proc;
+ fn_1d_order5 := proc(x) c0 + c1*x + c2*x^2 + c3*x^3 + c4*x^4 + c5*x^5 end proc
+
+> 
+################################################################################
+> 
+# coordinates for 1-D interpolating functions
+> coord_list_1d := [x];
+                              coord_list_1d := [x]
+
+> 
+################################################################################
+> 
+#
+# coefficients in 1-D interpolating functions
+#
+> 
+> coeffs_set_1d_order3 := {c0, c1, c2, c3};
+                    coeffs_set_1d_order3 := {c0, c1, c2, c3}
+
+> coeffs_set_1d_order5 := {c0, c1, c2, c3, c4, c5};
+                coeffs_set_1d_order5 := {c0, c1, c2, c3, c4, c5}
+
+> 
+################################################################################
+> 
+#
+# 1-D derivative molecules (argument = molecule center)
+#
+> 
+> deriv_1d_dx_3point := proc(i::integer)
+> 		      dx_3point(proc(mi::integer) DATA(i+mi) end proc)
+> 		      end proc;
+deriv_1d_dx_3point := proc(i::integer)
+    dx_3point(proc(mi::integer) DATA(i + mi) end proc)
+end proc
+
+> deriv_1d_dx_5point := proc(i::integer)
+> 		      dx_5point(proc(mi::integer) DATA(i+mi) end proc)
+> 		      end proc;
+deriv_1d_dx_5point := proc(i::integer)
+    dx_5point(proc(mi::integer) DATA(i + mi) end proc)
+end proc
+
+> 
+################################################################################
+################################################################################
+################################################################################
+> 
+#
+# 2-D interpolating functions
+#
+> 
+> fn_2d_order3 :=
+> proc(x,y)
+> + c03*y^3 + c13*x*y^3 + c23*x^2*y^3 + c33*x^3*y^3
+> + c02*y^2 + c12*x*y^2 + c22*x^2*y^2 + c32*x^3*y^2
+> + c01*y   + c11*x*y   + c21*x^2*y   + c31*x^3*y
+> + c00     + c10*x     + c20*x^2     + c30*x^3
+> end proc;
+fn_2d_order3 := proc(x, y)
+    c03*y^3 + c13*x*y^3 + c23*x^2*y^3 + c33*x^3*y^3 + c02*y^2 + c12*x*y^2
+     + c22*x^2*y^2 + c32*x^3*y^2 + c01*y + c11*x*y + c21*x^2*y + c31*x^3*y
+     + c00 + c10*x + c20*x^2 + c30*x^3
+end proc
+
+> 
+> fn_2d_order5 :=
+> proc(x,y)
+> + c05*y^5 + c15*x*y^5 + c25*x^2*y^5 + c35*x^3*y^5 + c45*x^4*y^5 + c55*x^5*y^5
+> + c04*y^4 + c14*x*y^4 + c24*x^2*y^4 + c34*x^3*y^4 + c44*x^4*y^4 + c54*x^5*y^4
+> + c03*y^3 + c13*x*y^3 + c23*x^2*y^3 + c33*x^3*y^3 + c43*x^4*y^3 + c53*x^5*y^3
+> + c02*y^2 + c12*x*y^2 + c22*x^2*y^2 + c32*x^3*y^2 + c42*x^4*y^2 + c52*x^5*y^2
+> + c01*y   + c11*x*y   + c21*x^2*y   + c31*x^3*y   + c41*x^4*y   + c51*x^5*y
+> + c00     + c10*x     + c20*x^2     + c30*x^3     + c40*x^4     + c50*x^5
+> end proc;
+fn_2d_order5 := proc(x, y)
+    c34*x^3*y^4 + c14*x*y^4 + c03*y^3 + c02*y^2 + c01*y + c10*x + c20*x^2
+     + c30*x^3 + c05*y^5 + c04*y^4 + c40*x^4 + c50*x^5 + c13*x*y^3
+     + c23*x^2*y^3 + c33*x^3*y^3 + c12*x*y^2 + c22*x^2*y^2 + c32*x^3*y^2
+     + c11*x*y + c21*x^2*y + c31*x^3*y + c15*x*y^5 + c25*x^2*y^5
+     + c35*x^3*y^5 + c45*x^4*y^5 + c55*x^5*y^5 + c24*x^2*y^4 + c44*x^4*y^4
+     + c54*x^5*y^4 + c43*x^4*y^3 + c53*x^5*y^3 + c42*x^4*y^2 + c52*x^5*y^2
+     + c00 + c41*x^4*y + c51*x^5*y
+end proc
+
+> 
+################################################################################
+> 
+# coordinates for 2-D interpolating functions
+> coord_list_2d := [x,y];
+                            coord_list_2d := [x, y]
+
+> 
+################################################################################
+> 
+#
+# coefficients in 2-D interpolating functions
+#
+> 
+> coeffs_set_2d_order3 := {
+> 			c03, c13, c23, c33,
+> 			c02, c12, c22, c32,
+> 			c01, c11, c21, c31,
+> 			c00, c10, c20, c30
+> 			};
+coeffs_set_2d_order3 := {c03, c13, c23, c33, c02, c12, c22, c32, c01, c11, c21,
+
+    c31, c00, c10, c20, c30}
+
+> 
+> coeffs_set_2d_order5 := {
+> 			c05, c15, c25, c35, c45, c55,
+> 			c04, c14, c24, c34, c44, c54,
+> 			c03, c13, c23, c33, c43, c53,
+> 			c02, c12, c22, c32, c42, c52,
+> 			c01, c11, c21, c31, c41, c51,
+> 			c00, c10, c20, c30, c40, c50
+> 			};
+coeffs_set_2d_order5 := {c03, c13, c23, c33, c02, c12, c22, c32, c01, c11, c21,
+
+    c31, c00, c10, c20, c30, c05, c15, c25, c35, c45, c55, c04, c14, c24, c34,
+
+    c44, c54, c43, c53, c42, c52, c41, c51, c40, c50}
+
+> 
+################################################################################
+> 
+#
+# 2-D derivative molecules (arguments = molecule center)
+#
+> 
+> deriv_2d_dx_3point := proc(i::integer, j::integer)
+> 		      dx_3point(
+> 			 proc(mi::integer) DATA(i+mi,j) end proc
+> 			       )
+> 		      end proc;
+deriv_2d_dx_3point := proc(i::integer, j::integer)
+    dx_3point(proc(mi::integer) DATA(i + mi, j) end proc)
+end proc
+
+> deriv_2d_dy_3point := proc(i::integer, j::integer)
+> 		      dx_3point(
+> 			 proc(mj::integer) DATA(i,j+mj) end proc
+> 			       )
+> 		      end proc;
+deriv_2d_dy_3point := proc(i::integer, j::integer)
+    dx_3point(proc(mj::integer) DATA(i, j + mj) end proc)
+end proc
+
+> deriv_2d_dxy_3point := proc(i::integer, j::integer)
+> 		       dx_3point(
+> 			  proc(mi::integer)
+> 			  dx_3point(proc(mj::integer) DATA(i+mi,j+mj) end proc)
+> 			  end proc
+> 				)
+> 		       end proc;
+deriv_2d_dxy_3point := proc(i::integer, j::integer)
+    dx_3point(proc(mi::integer)
+        dx_3point(proc(mj::integer) DATA(i + mi, j + mj) end proc)
+    end proc)
+end proc
+
+> 
+> deriv_2d_dx_5point := proc(i::integer, j::integer)
+> 		      dx_5point(
+> 			 proc(mi::integer) DATA(i+mi,j) end proc
+> 			       )
+> 		      end proc;
+deriv_2d_dx_5point := proc(i::integer, j::integer)
+    dx_5point(proc(mi::integer) DATA(i + mi, j) end proc)
+end proc
+
+> deriv_2d_dy_5point := proc(i::integer, j::integer)
+> 		      dx_5point(
+> 			 proc(mj::integer) DATA(i,j+mj) end proc
+> 			       )
+> 		      end proc;
+deriv_2d_dy_5point := proc(i::integer, j::integer)
+    dx_5point(proc(mj::integer) DATA(i, j + mj) end proc)
+end proc
+
+> deriv_2d_dxy_5point := proc(i::integer, j::integer)
+> 		       dx_5point(
+> 			  proc(mi::integer)
+> 			  dx_5point(proc(mj::integer) DATA(i+mi,j+mj) end proc)
+> 			  end proc
+> 				)
+> 		       end proc;
+deriv_2d_dxy_5point := proc(i::integer, j::integer)
+    dx_5point(proc(mi::integer)
+        dx_5point(proc(mj::integer) DATA(i + mi, j + mj) end proc)
+    end proc)
+end proc
+
+> 
+################################################################################
+################################################################################
+################################################################################
+> 
+#
+# 3-D interpolating functions
+#
+> 
+> fn_3d_order3 :=
+> proc(x,y,z)
+# z^3 ---------------------------------------------------------------
+> + c033*y^3*z^3 + c133*x*y^3*z^3 + c233*x^2*y^3*z^3 + c333*x^3*y^3*z^3
+> + c023*y^2*z^3 + c123*x*y^2*z^3 + c223*x^2*y^2*z^3 + c323*x^3*y^2*z^3
+> + c013*y  *z^3 + c113*x*y  *z^3 + c213*x^2*y  *z^3 + c313*x^3*y  *z^3
+> + c003    *z^3 + c103*x    *z^3 + c203*x^2    *z^3 + c303*x^3    *z^3
+# z^2 ---------------------------------------------------------------
+> + c032*y^3*z^2 + c132*x*y^3*z^2 + c232*x^2*y^3*z^2 + c332*x^3*y^3*z^2
+> + c022*y^2*z^2 + c122*x*y^2*z^2 + c222*x^2*y^2*z^2 + c322*x^3*y^2*z^2
+> + c012*y  *z^2 + c112*x*y  *z^2 + c212*x^2*y  *z^2 + c312*x^3*y  *z^2
+> + c002    *z^2 + c102*x    *z^2 + c202*x^2    *z^2 + c302*x^3    *z^2
+# z^1 ---------------------------------------------------------------
+> + c031*y^3*z   + c131*x*y^3*z   + c231*x^2*y^3*z   + c331*x^3*y^3*z
+> + c021*y^2*z   + c121*x*y^2*z   + c221*x^2*y^2*z   + c321*x^3*y^2*z
+> + c011*y  *z   + c111*x*y  *z   + c211*x^2*y  *z   + c311*x^3*y  *z
+> + c001    *z   + c101*x    *z   + c201*x^2    *z   + c301*x^3    *z
+# z^0 ---------------------------------------------------------------
+> + c030*y^3     + c130*x*y^3     + c230*x^2*y^3     + c330*x^3*y^3
+> + c020*y^2     + c120*x*y^2     + c220*x^2*y^2     + c320*x^3*y^2
+> + c010*y       + c110*x*y       + c210*x^2*y       + c310*x^3*y
+> + c000         + c100*x         + c200*x^2         + c300*x^3
+> end proc;
+fn_3d_order3 := proc(x, y, z)
+    c330*x^3*y^3 + c031*y^3*z + c103*x*z^3 + c022*y^2*z^2 + c301*x^3*z
+     + c133*x*y^3*z^3 + c233*x^2*y^3*z^3 + c333*x^3*y^3*z^3
+     + c123*x*y^2*z^3 + c223*x^2*y^2*z^3 + c323*x^3*y^2*z^3 + c113*x*y*z^3
+     + c213*x^2*y*z^3 + c313*x^3*y*z^3 + c132*x*y^3*z^2 + c232*x^2*y^3*z^2
+     + c332*x^3*y^3*z^2 + c122*x*y^2*z^2 + c222*x^2*y^2*z^2
+     + c322*x^3*y^2*z^2 + c112*x*y*z^2 + c212*x^2*y*z^2 + c312*x^3*y*z^2
+     + c131*x*y^3*z + c231*x^2*y^3*z + c331*x^3*y^3*z + c121*x*y^2*z
+     + c221*x^2*y^2*z + c321*x^3*y^2*z + c111*x*y*z + c211*x^2*y*z
+     + c311*x^3*y*z + c033*y^3*z^3 + c023*y^2*z^3 + c013*y*z^3
+     + c203*x^2*z^3 + c303*x^3*z^3 + c032*y^3*z^2 + c012*y*z^2 + c102*x*z^2
+     + c202*x^2*z^2 + c302*x^3*z^2 + c021*y^2*z + c011*y*z + c101*x*z
+     + c201*x^2*z + c130*x*y^3 + c230*x^2*y^3 + c120*x*y^2 + c220*x^2*y^2
+     + c320*x^3*y^2 + c110*x*y + c210*x^2*y + c310*x^3*y + c003*z^3
+     + c002*z^2 + c001*z + c030*y^3 + c020*y^2 + c010*y + c000 + c100*x
+     + c200*x^2 + c300*x^3
+end proc
+
+> 
+> fn_3d_order5 :=
+> proc(x,y,z)
+# z^5
+> + c055*y^5*z^5 + c155*x*y^5*z^5 + c255*x^2*y^5*z^5 + c355*x^3*y^5*z^5 + c455*x^4*y^5*z^5 + c555*x^5*y^5*z^5
+> + c045*y^4*z^5 + c145*x*y^4*z^5 + c245*x^2*y^4*z^5 + c345*x^3*y^4*z^5 + c445*x^4*y^4*z^5 + c545*x^5*y^4*z^5
+> + c035*y^3*z^5 + c135*x*y^3*z^5 + c235*x^2*y^3*z^5 + c335*x^3*y^3*z^5 + c435*x^4*y^3*z^5 + c535*x^5*y^3*z^5
+> + c025*y^2*z^5 + c125*x*y^2*z^5 + c225*x^2*y^2*z^5 + c325*x^3*y^2*z^5 + c425*x^4*y^2*z^5 + c525*x^5*y^2*z^5
+> + c015*y  *z^5 + c115*x*y  *z^5 + c215*x^2*y  *z^5 + c315*x^3*y  *z^5 + c415*x^4*y  *z^5 + c515*x^5*y  *z^5
+> + c005    *z^5 + c105*x    *z^5 + c205*x^2    *z^5 + c305*x^3    *z^5 + c405*x^4    *z^5 + c505*x^5    *z^5
+# z^4
+> + c054*y^5*z^4 + c154*x*y^5*z^4 + c254*x^2*y^5*z^4 + c354*x^3*y^5*z^4 + c454*x^4*y^5*z^4 + c554*x^5*y^5*z^4
+> + c044*y^4*z^4 + c144*x*y^4*z^4 + c244*x^2*y^4*z^4 + c344*x^3*y^4*z^4 + c444*x^4*y^4*z^4 + c544*x^5*y^4*z^4
+> + c034*y^3*z^4 + c134*x*y^3*z^4 + c234*x^2*y^3*z^4 + c334*x^3*y^3*z^4 + c434*x^4*y^3*z^4 + c534*x^5*y^3*z^4
+> + c024*y^2*z^4 + c124*x*y^2*z^4 + c224*x^2*y^2*z^4 + c324*x^3*y^2*z^4 + c424*x^4*y^2*z^4 + c524*x^5*y^2*z^4
+> + c014*y  *z^4 + c114*x*y  *z^4 + c214*x^2*y  *z^4 + c314*x^3*y  *z^4 + c414*x^4*y  *z^4 + c514*x^5*y  *z^4
+> + c004    *z^4 + c104*x    *z^4 + c204*x^2    *z^4 + c304*x^3    *z^4 + c404*x^4    *z^4 + c504*x^5    *z^4
+# z^3
+> + c053*y^5*z^3 + c153*x*y^5*z^3 + c253*x^2*y^5*z^3 + c353*x^3*y^5*z^3 + c453*x^4*y^5*z^3 + c553*x^5*y^5*z^3
+> + c043*y^4*z^3 + c143*x*y^4*z^3 + c243*x^2*y^4*z^3 + c343*x^3*y^4*z^3 + c443*x^4*y^4*z^3 + c543*x^5*y^4*z^3
+> + c033*y^3*z^3 + c133*x*y^3*z^3 + c233*x^2*y^3*z^3 + c333*x^3*y^3*z^3 + c433*x^4*y^3*z^3 + c533*x^5*y^3*z^3
+> + c023*y^2*z^3 + c123*x*y^2*z^3 + c223*x^2*y^2*z^3 + c323*x^3*y^2*z^3 + c423*x^4*y^2*z^3 + c523*x^5*y^2*z^3
+> + c013*y  *z^3 + c113*x*y  *z^3 + c213*x^2*y  *z^3 + c313*x^3*y  *z^3 + c413*x^4*y  *z^3 + c513*x^5*y  *z^3
+> + c003    *z^3 + c103*x    *z^3 + c203*x^2    *z^3 + c303*x^3    *z^3 + c403*x^4    *z^3 + c503*x^5    *z^3
+# z^2
+> + c052*y^5*z^2 + c152*x*y^5*z^2 + c252*x^2*y^5*z^2 + c352*x^3*y^5*z^2 + c452*x^4*y^5*z^2 + c552*x^5*y^5*z^2
+> + c042*y^4*z^2 + c142*x*y^4*z^2 + c242*x^2*y^4*z^2 + c342*x^3*y^4*z^2 + c442*x^4*y^4*z^2 + c542*x^5*y^4*z^2
+> + c032*y^3*z^2 + c132*x*y^3*z^2 + c232*x^2*y^3*z^2 + c332*x^3*y^3*z^2 + c432*x^4*y^3*z^2 + c532*x^5*y^3*z^2
+> + c022*y^2*z^2 + c122*x*y^2*z^2 + c222*x^2*y^2*z^2 + c322*x^3*y^2*z^2 + c422*x^4*y^2*z^2 + c522*x^5*y^2*z^2
+> + c012*y  *z^2 + c112*x*y  *z^2 + c212*x^2*y  *z^2 + c312*x^3*y  *z^2 + c412*x^4*y  *z^2 + c512*x^5*y  *z^2
+> + c002    *z^2 + c102*x    *z^2 + c202*x^2    *z^2 + c302*x^3    *z^2 + c402*x^4    *z^2 + c502*x^5    *z^2
+# z^1
+> + c051*y^5*z   + c151*x*y^5*z   + c251*x^2*y^5*z   + c351*x^3*y^5*z   + c451*x^4*y^5*z   + c551*x^5*y^5*z
+> + c041*y^4*z   + c141*x*y^4*z   + c241*x^2*y^4*z   + c341*x^3*y^4*z   + c441*x^4*y^4*z   + c541*x^5*y^4*z
+> + c031*y^3*z   + c131*x*y^3*z   + c231*x^2*y^3*z   + c331*x^3*y^3*z   + c431*x^4*y^3*z   + c531*x^5*y^3*z
+> + c021*y^2*z   + c121*x*y^2*z   + c221*x^2*y^2*z   + c321*x^3*y^2*z   + c421*x^4*y^2*z   + c521*x^5*y^2*z
+> + c011*y  *z   + c111*x*y  *z   + c211*x^2*y  *z   + c311*x^3*y  *z   + c411*x^4*y  *z   + c511*x^5*y  *z
+> + c001    *z   + c101*x    *z   + c201*x^2    *z   + c301*x^3    *z   + c401*x^4    *z   + c501*x^5    *z
+# z^0
+> + c050*y^5     + c150*x*y^5     + c250*x^2*y^5     + c350*x^3*y^5     + c450*x^4*y^5     + c550*x^5*y^5
+> + c040*y^4     + c140*x*y^4     + c240*x^2*y^4     + c340*x^3*y^4     + c440*x^4*y^4     + c540*x^5*y^4
+> + c030*y^3     + c130*x*y^3     + c230*x^2*y^3     + c330*x^3*y^3     + c430*x^4*y^3     + c530*x^5*y^3
+> + c020*y^2     + c120*x*y^2     + c220*x^2*y^2     + c320*x^3*y^2     + c420*x^4*y^2     + c520*x^5*y^2
+> + c010*y       + c110*x*y       + c210*x^2*y       + c310*x^3*y       + c410*x^4*y       + c510*x^5*y
+> + c000         + c100*x         + c200*x^2         + c300*x^3         + c400*x^4         + c500*x^5
+> end proc;
+fn_3d_order5 := proc(x, y, z)
+    c043*y^4*z^3 + c104*x*z^4 + c330*x^3*y^3 + c503*x^5*z^3 + c250*x^2*y^5
+     + c031*y^3*z + c103*x*z^3 + c540*x^5*y^4 + c052*y^5*z^2 + c051*y^5*z
+     + c550*x^5*y^5 + c204*x^2*z^4 + c340*x^3*y^4 + c304*x^3*z^4
+     + c042*y^4*z^2 + c140*x*y^4 + c022*y^2*z^2 + c205*x^2*z^5 + c150*x*y^5
+     + c301*x^3*z + c133*x*y^3*z^3 + c233*x^2*y^3*z^3 + c333*x^3*y^3*z^3
+     + c123*x*y^2*z^3 + c223*x^2*y^2*z^3 + c323*x^3*y^2*z^3 + c113*x*y*z^3
+     + c213*x^2*y*z^3 + c313*x^3*y*z^3 + c132*x*y^3*z^2 + c232*x^2*y^3*z^2
+     + c332*x^3*y^3*z^2 + c122*x*y^2*z^2 + c222*x^2*y^2*z^2
+     + c322*x^3*y^2*z^2 + c112*x*y*z^2 + c212*x^2*y*z^2 + c312*x^3*y*z^2
+     + c131*x*y^3*z + c231*x^2*y^3*z + c331*x^3*y^3*z + c121*x*y^2*z
+     + c221*x^2*y^2*z + c321*x^3*y^2*z + c111*x*y*z + c211*x^2*y*z
+     + c311*x^3*y*z + c155*x*y^5*z^5 + c255*x^2*y^5*z^5 + c355*x^3*y^5*z^5
+     + c455*x^4*y^5*z^5 + c555*x^5*y^5*z^5 + c145*x*y^4*z^5
+     + c245*x^2*y^4*z^5 + c345*x^3*y^4*z^5 + c445*x^4*y^4*z^5
+     + c545*x^5*y^4*z^5 + c135*x*y^3*z^5 + c235*x^2*y^3*z^5
+     + c335*x^3*y^3*z^5 + c435*x^4*y^3*z^5 + c535*x^5*y^3*z^5
+     + c125*x*y^2*z^5 + c225*x^2*y^2*z^5 + c325*x^3*y^2*z^5
+     + c425*x^4*y^2*z^5 + c525*x^5*y^2*z^5 + c115*x*y*z^5 + c215*x^2*y*z^5
+     + c315*x^3*y*z^5 + c415*x^4*y*z^5 + c515*x^5*y*z^5 + c154*x*y^5*z^4
+     + c254*x^2*y^5*z^4 + c354*x^3*y^5*z^4 + c454*x^4*y^5*z^4
+     + c554*x^5*y^5*z^4 + c144*x*y^4*z^4 + c244*x^2*y^4*z^4
+     + c344*x^3*y^4*z^4 + c444*x^4*y^4*z^4 + c544*x^5*y^4*z^4
+     + c134*x*y^3*z^4 + c035*y^3*z^5 + c033*y^3*z^3 + c023*y^2*z^3
+     + c013*y*z^3 + c203*x^2*z^3 + c303*x^3*z^3 + c032*y^3*z^2 + c012*y*z^2
+     + c102*x*z^2 + c202*x^2*z^2 + c302*x^3*z^2 + c021*y^2*z + c011*y*z
+     + c101*x*z + c201*x^2*z + c130*x*y^3 + c230*x^2*y^3 + c120*x*y^2
+     + c220*x^2*y^2 + c320*x^3*y^2 + c110*x*y + c210*x^2*y + c310*x^3*y
+     + c003*z^3 + c002*z^2 + c001*z + c030*y^3 + c020*y^2 + c010*y + c000
+     + c100*x + c200*x^2 + c300*x^3 + c005*z^5 + c055*y^5*z^5
+     + c045*y^4*z^5 + c025*y^2*z^5 + c015*y*z^5 + c105*x*z^5 + c305*x^3*z^5
+     + c405*x^4*z^5 + c505*x^5*z^5 + c054*y^5*z^4 + c044*y^4*z^4
+     + c034*y^3*z^4 + c024*y^2*z^4 + c014*y*z^4 + c404*x^4*z^4
+     + c504*x^5*z^4 + c053*y^5*z^3 + c403*x^4*z^3 + c402*x^4*z^2
+     + c502*x^5*z^2 + c041*y^4*z + c401*x^4*z + c501*x^5*z + c350*x^3*y^5
+     + c450*x^4*y^5 + c240*x^2*y^4 + c440*x^4*y^4 + c430*x^4*y^3
+     + c530*x^5*y^3 + c420*x^4*y^2 + c520*x^5*y^2 + c234*x^2*y^3*z^4
+     + c334*x^3*y^3*z^4 + c434*x^4*y^3*z^4 + c534*x^5*y^3*z^4
+     + c124*x*y^2*z^4 + c224*x^2*y^2*z^4 + c324*x^3*y^2*z^4
+     + c424*x^4*y^2*z^4 + c524*x^5*y^2*z^4 + c114*x*y*z^4 + c214*x^2*y*z^4
+     + c314*x^3*y*z^4 + c414*x^4*y*z^4 + c514*x^5*y*z^4 + c153*x*y^5*z^3
+     + c253*x^2*y^5*z^3 + c353*x^3*y^5*z^3 + c453*x^4*y^5*z^3
+     + c553*x^5*y^5*z^3 + c143*x*y^4*z^3 + c243*x^2*y^4*z^3
+     + c343*x^3*y^4*z^3 + c443*x^4*y^4*z^3 + c543*x^5*y^4*z^3
+     + c433*x^4*y^3*z^3 + c533*x^5*y^3*z^3 + c004*z^4 + c050*y^5 + c040*y^4
+     + c400*x^4 + c500*x^5 + c423*x^4*y^2*z^3 + c523*x^5*y^2*z^3
+     + c413*x^4*y*z^3 + c513*x^5*y*z^3 + c152*x*y^5*z^2 + c252*x^2*y^5*z^2
+     + c352*x^3*y^5*z^2 + c452*x^4*y^5*z^2 + c552*x^5*y^5*z^2
+     + c142*x*y^4*z^2 + c242*x^2*y^4*z^2 + c342*x^3*y^4*z^2
+     + c442*x^4*y^4*z^2 + c542*x^5*y^4*z^2 + c432*x^4*y^3*z^2
+     + c532*x^5*y^3*z^2 + c422*x^4*y^2*z^2 + c522*x^5*y^2*z^2
+     + c412*x^4*y*z^2 + c512*x^5*y*z^2 + c151*x*y^5*z + c251*x^2*y^5*z
+     + c351*x^3*y^5*z + c451*x^4*y^5*z + c551*x^5*y^5*z + c141*x*y^4*z
+     + c241*x^2*y^4*z + c341*x^3*y^4*z + c441*x^4*y^4*z + c541*x^5*y^4*z
+     + c431*x^4*y^3*z + c531*x^5*y^3*z + c421*x^4*y^2*z + c521*x^5*y^2*z
+     + c411*x^4*y*z + c511*x^5*y*z + c410*x^4*y + c510*x^5*y
+end proc
+
+> 
+################################################################################
+> 
+# coordinates for 3-D interpolating functions
+> coord_list_3d := [x,y,z];
+                           coord_list_3d := [x, y, z]
+
+> 
+################################################################################
+> 
+#
+# coefficients in 3-D interpolating functions
+#
+> 
+> coeffs_set_3d_order3 := {
+> 			# z^3
+> 			c033, c133, c233, c333,
+> 			c023, c123, c223, c323,
+> 			c013, c113, c213, c313,
+> 			c003, c103, c203, c303,
+> 			# z^2
+> 			c032, c132, c232, c332,
+> 			c022, c122, c222, c322,
+> 			c012, c112, c212, c312,
+> 			c002, c102, c202, c302,
+> 			# z^1
+> 			c031, c131, c231, c331,
+> 			c021, c121, c221, c321,
+> 			c011, c111, c211, c311,
+> 			c001, c101, c201, c301,
+> 			# z^0
+> 			c030, c130, c230, c330,
+> 			c020, c120, c220, c320,
+> 			c010, c110, c210, c310,
+> 			c000, c100, c200, c300
+> 			};
+coeffs_set_3d_order3 := {c033, c133, c233, c333, c023, c123, c223, c323, c013,
+
+    c113, c213, c313, c003, c103, c203, c303, c032, c132, c232, c332, c022,
+
+    c122, c222, c322, c012, c112, c212, c312, c002, c102, c202, c302, c031,
+
+    c131, c231, c331, c021, c121, c221, c321, c011, c111, c211, c311, c001,
+
+    c101, c201, c301, c030, c130, c230, c330, c020, c120, c220, c320, c010,
+
+    c110, c210, c310, c000, c100, c200, c300}
+
+> 
+> coeffs_set_3d_order5 := {
+> 			# z^5
+> 			c055, c155, c255, c355, c455, c555,
+> 			c045, c145, c245, c345, c445, c545,
+> 			c035, c135, c235, c335, c435, c535,
+> 			c025, c125, c225, c325, c425, c525,
+> 			c015, c115, c215, c315, c415, c515,
+> 			c005, c105, c205, c305, c405, c505,
+> 			# z^4
+> 			c054, c154, c254, c354, c454, c554,
+> 			c044, c144, c244, c344, c444, c544,
+> 			c034, c134, c234, c334, c434, c534,
+> 			c024, c124, c224, c324, c424, c524,
+> 			c014, c114, c214, c314, c414, c514,
+> 			c004, c104, c204, c304, c404, c504,
+> 			# z^3
+> 			c053, c153, c253, c353, c453, c553,
+> 			c043, c143, c243, c343, c443, c543,
+> 			c033, c133, c233, c333, c433, c533,
+> 			c023, c123, c223, c323, c423, c523,
+> 			c013, c113, c213, c313, c413, c513,
+> 			c003, c103, c203, c303, c403, c503,
+> 			# z^2
+> 			c052, c152, c252, c352, c452, c552,
+> 			c042, c142, c242, c342, c442, c542,
+> 			c032, c132, c232, c332, c432, c532,
+> 			c022, c122, c222, c322, c422, c522,
+> 			c012, c112, c212, c312, c412, c512,
+> 			c002, c102, c202, c302, c402, c502,
+> 			# z^1
+> 			c051, c151, c251, c351, c451, c551,
+> 			c041, c141, c241, c341, c441, c541,
+> 			c031, c131, c231, c331, c431, c531,
+> 			c021, c121, c221, c321, c421, c521,
+> 			c011, c111, c211, c311, c411, c511,
+> 			c001, c101, c201, c301, c401, c501,
+> 			# z^0
+> 			c050, c150, c250, c350, c450, c550,
+> 			c040, c140, c240, c340, c440, c540,
+> 			c030, c130, c230, c330, c430, c530,
+> 			c020, c120, c220, c320, c420, c520,
+> 			c010, c110, c210, c310, c410, c510,
+> 			c000, c100, c200, c300, c400, c500
+> 			};
+coeffs_set_3d_order5 := {c033, c133, c233, c333, c023, c123, c223, c323, c013,
+
+    c113, c213, c313, c003, c103, c203, c303, c032, c132, c232, c332, c022,
+
+    c122, c222, c322, c012, c112, c212, c312, c002, c102, c202, c302, c031,
+
+    c131, c231, c331, c021, c121, c221, c321, c011, c111, c211, c311, c001,
+
+    c101, c201, c301, c030, c130, c230, c330, c020, c120, c220, c320, c010,
+
+    c110, c210, c310, c000, c100, c200, c300, c055, c155, c255, c355, c455,
+
+    c555, c045, c145, c245, c345, c445, c545, c035, c135, c235, c335, c435,
+
+    c535, c025, c125, c225, c325, c425, c525, c015, c115, c215, c315, c415,
+
+    c515, c005, c105, c205, c305, c405, c505, c054, c154, c254, c354, c454,
+
+    c554, c044, c144, c244, c344, c444, c544, c034, c134, c234, c334, c434,
+
+    c534, c024, c124, c224, c324, c424, c524, c014, c114, c214, c314, c414,
+
+    c514, c004, c104, c204, c304, c404, c504, c053, c153, c253, c353, c453,
+
+    c553, c043, c143, c243, c343, c443, c543, c433, c533, c423, c523, c413,
+
+    c513, c403, c503, c052, c152, c252, c352, c452, c552, c042, c142, c242,
+
+    c342, c442, c542, c432, c532, c422, c522, c412, c512, c402, c502, c051,
+
+    c151, c251, c351, c451, c551, c041, c141, c241, c341, c441, c541, c431,
+
+    c531, c421, c521, c411, c511, c401, c501, c050, c150, c250, c350, c450,
+
+    c550, c040, c140, c240, c340, c440, c540, c430, c530, c420, c520, c410,
+
+    c510, c400, c500}
+
+> 
+################################################################################
+> 
+#
+# 3-D derivative molecules (arguments = molecule center)
+#
+> 
+> deriv_3d_dx_3point := proc(i::integer, j::integer, k::integer)
+> 		      dx_3point(
+> 			 proc(mi::integer) DATA(i+mi,j,k) end proc
+> 			       )
+> 		      end proc;
+deriv_3d_dx_3point := proc(i::integer, j::integer, k::integer)
+    dx_3point(proc(mi::integer) DATA(i + mi, j, k) end proc)
+end proc
+
+> deriv_3d_dy_3point := proc(i::integer, j::integer, k::integer)
+> 		      dx_3point(
+> 			 proc(mj::integer) DATA(i,j+mj,k) end proc
+> 			       )
+> 		      end proc;
+deriv_3d_dy_3point := proc(i::integer, j::integer, k::integer)
+    dx_3point(proc(mj::integer) DATA(i, j + mj, k) end proc)
+end proc
+
+> deriv_3d_dz_3point := proc(i::integer, j::integer, k::integer)
+> 		      dx_3point(
+> 			 proc(mk::integer) DATA(i,j,k+mk) end proc
+> 			       )
+> 		      end proc;
+deriv_3d_dz_3point := proc(i::integer, j::integer, k::integer)
+    dx_3point(proc(mk::integer) DATA(i, j, k + mk) end proc)
+end proc
+
+> deriv_3d_dxy_3point := proc(i::integer, j::integer, k::integer)
+> 		       dx_3point(
+> 			  proc(mi::integer)
+> 			  dx_3point(
+> 			     proc(mj::integer) DATA(i+mi,j+mj,k) end proc
+> 				   )
+> 			  end proc
+> 				)
+> 		       end proc;
+deriv_3d_dxy_3point := proc(i::integer, j::integer, k::integer)
+    dx_3point(proc(mi::integer)
+        dx_3point(proc(mj::integer) DATA(i + mi, j + mj, k) end proc)
+    end proc)
+end proc
+
+> deriv_3d_dxz_3point := proc(i::integer, j::integer, k::integer)
+> 		       dx_3point(
+> 			  proc(mi::integer)
+> 			  dx_3point(
+> 			     proc(mk::integer) DATA(i+mi,j,k+mk) end proc
+> 				   )
+> 			  end proc
+> 				)
+> 		       end proc;
+deriv_3d_dxz_3point := proc(i::integer, j::integer, k::integer)
+    dx_3point(proc(mi::integer)
+        dx_3point(proc(mk::integer) DATA(i + mi, j, k + mk) end proc)
+    end proc)
+end proc
+
+> deriv_3d_dyz_3point := proc(i::integer, j::integer, k::integer)
+> 		       dx_3point(
+> 			  proc(mj::integer)
+> 			  dx_3point(
+> 			     proc(mk::integer) DATA(i,j+mj,k+mk) end proc
+> 				   )
+> 			  end proc
+> 				)
+> 		       end proc;
+deriv_3d_dyz_3point := proc(i::integer, j::integer, k::integer)
+    dx_3point(proc(mj::integer)
+        dx_3point(proc(mk::integer) DATA(i, j + mj, k + mk) end proc)
+    end proc)
+end proc
+
+> deriv_3d_dxyz_3point := proc(i::integer, j::integer, k::integer)
+> 			dx_3point(
+> 			   proc(mi::integer)
+> 			   dx_3point(
+> 			      proc(mj::integer)
+> 				 dx_3point(
+> 				    proc(mk::integer)
+> 				    DATA(i+mi,j+mj,k+mk)
+> 				    end proc
+> 					  )
+> 			      end proc
+> 				    )
+> 			   end proc
+> 				 )
+> 			end proc;
+deriv_3d_dxyz_3point := proc(i::integer, j::integer, k::integer)
+    dx_3point(proc(mi::integer)
+        dx_3point(proc(mj::integer)
+            dx_3point(
+            proc(mk::integer) DATA(i + mi, j + mj, k + mk) end proc)
+        end proc)
+    end proc)
+end proc
+
+> 
+> deriv_3d_dx_5point := proc(i::integer, j::integer, k::integer)
+> 		      dx_5point(
+> 			 proc(mi::integer) DATA(i+mi,j,k) end proc
+> 			       )
+> 		      end proc;
+deriv_3d_dx_5point := proc(i::integer, j::integer, k::integer)
+    dx_5point(proc(mi::integer) DATA(i + mi, j, k) end proc)
+end proc
+
+> deriv_3d_dy_5point := proc(i::integer, j::integer, k::integer)
+> 		      dx_5point(
+> 			 proc(mj::integer) DATA(i,j+mj,k) end proc
+> 			       )
+> 		      end proc;
+deriv_3d_dy_5point := proc(i::integer, j::integer, k::integer)
+    dx_5point(proc(mj::integer) DATA(i, j + mj, k) end proc)
+end proc
+
+> deriv_3d_dz_5point := proc(i::integer, j::integer, k::integer)
+> 		      dx_5point(
+> 			 proc(mk::integer) DATA(i,j,k+mk) end proc
+> 			       )
+> 		      end proc;
+deriv_3d_dz_5point := proc(i::integer, j::integer, k::integer)
+    dx_5point(proc(mk::integer) DATA(i, j, k + mk) end proc)
+end proc
+
+> deriv_3d_dxy_5point := proc(i::integer, j::integer, k::integer)
+> 		       dx_5point(
+> 			  proc(mi::integer)
+> 			  dx_5point(
+> 			     proc(mj::integer) DATA(i+mi,j+mj,k) end proc
+> 				   )
+> 			  end proc
+> 				)
+> 		       end proc;
+deriv_3d_dxy_5point := proc(i::integer, j::integer, k::integer)
+    dx_5point(proc(mi::integer)
+        dx_5point(proc(mj::integer) DATA(i + mi, j + mj, k) end proc)
+    end proc)
+end proc
+
+> deriv_3d_dxz_5point := proc(i::integer, j::integer, k::integer)
+> 		       dx_5point(
+> 			  proc(mi::integer)
+> 			  dx_5point(
+> 			     proc(mk::integer) DATA(i+mi,j,k+mk) end proc
+> 				   )
+> 			  end proc
+> 				)
+> 		       end proc;
+deriv_3d_dxz_5point := proc(i::integer, j::integer, k::integer)
+    dx_5point(proc(mi::integer)
+        dx_5point(proc(mk::integer) DATA(i + mi, j, k + mk) end proc)
+    end proc)
+end proc
+
+> deriv_3d_dyz_5point := proc(i::integer, j::integer, k::integer)
+> 		       dx_5point(
+> 			  proc(mj::integer)
+> 			  dx_5point(
+> 			     proc(mk::integer) DATA(i,j+mj,k+mk) end proc
+> 				   )
+> 			  end proc
+> 				)
+> 		       end proc;
+deriv_3d_dyz_5point := proc(i::integer, j::integer, k::integer)
+    dx_5point(proc(mj::integer)
+        dx_5point(proc(mk::integer) DATA(i, j + mj, k + mk) end proc)
+    end proc)
+end proc
+
+> deriv_3d_dxyz_5point := proc(i::integer, j::integer, k::integer)
+> 			dx_5point(
+> 			   proc(mi::integer)
+> 			   dx_5point(
+> 			      proc(mj::integer)
+> 				 dx_5point(
+> 				    proc(mk::integer)
+> 				    DATA(i+mi,j+mj,k+mk)
+> 				    end proc
+> 					  )
+> 			      end proc
+> 				    )
+> 			   end proc
+> 				 )
+> 			end proc;
+deriv_3d_dxyz_5point := proc(i::integer, j::integer, k::integer)
+    dx_5point(proc(mi::integer)
+        dx_5point(proc(mj::integer)
+            dx_5point(
+            proc(mk::integer) DATA(i + mi, j + mj, k + mk) end proc)
+        end proc)
+    end proc)
+end proc
+
+> 
+################################################################################
+################################################################################
+################################################################################
+# 1d.maple -- compute Hermite interpolation coefficients in 1-D
+# $Header$
+> 
+################################################################################
+> 
+#
+# 1d, cube, polynomial order=3, derivatives via 3-point order=2 formula
+# ==> overall order=2, 4-point molecule
+#
+> 
+# interpolating polynomial
+> interp_1d_cube_order2
+>   := Hermite_polynomial_interpolant(fn_1d_order3,
+> 				    coeffs_set_1d_order3,
+> 				    [x],
+> 				    { {x} = deriv_1d_dx_3point },
+> 				    {op(posn_list_1d_size2)},
+> 				    {op(posn_list_1d_size2)});
+interp_1d_cube_order2 := DATA(0) + (- 1/2 DATA(-1) + 1/2 DATA(1)) x
+
+                                                           2
+     + (DATA(-1) + 2 DATA(1) - 5/2 DATA(0) - 1/2 DATA(2)) x
+
+                                                                 3
+     + (3/2 DATA(0) - 1/2 DATA(-1) - 3/2 DATA(1) + 1/2 DATA(2)) x
+
+> 
+# I
+> coeffs_as_lc_of_data(%, posn_list_1d_size4);
+                        2        3                    2            3
+[COEFF(-1) = - 1/2 x + x  - 1/2 x , COEFF(0) = - 5/2 x  + 1 + 3/2 x ,
+
+                      3              2                  3        2
+    COEFF(1) = - 3/2 x  + 1/2 x + 2 x , COEFF(2) = 1/2 x  - 1/2 x ]
+
+> print_coeffs__lc_of_data(%, "coeffs_I->coeff_", "fp",
+> 			 "1d.coeffs/1d.cube.order2/coeffs-I.compute.c");
+bytes used=1001192, alloc=917336, time=0.08
+> 
+# d/dx
+> simplify( diff(interp_1d_cube_order2,x) );
+- 1/2 DATA(-1) + 1/2 DATA(1) + 2 x DATA(-1) + 4 x DATA(1) - 5 x DATA(0)
+
+                        2                2                 2
+     - x DATA(2) + 9/2 x  DATA(0) - 3/2 x  DATA(-1) - 9/2 x  DATA(1)
+
+            2
+     + 3/2 x  DATA(2)
+
+> coeffs_as_lc_of_data(%, posn_list_1d_size4);
+                        2                               2
+[COEFF(-1) = 2 x - 3/2 x  - 1/2, COEFF(0) = -5 x + 9/2 x ,
+
+                                2                       2
+    COEFF(1) = 1/2 + 4 x - 9/2 x , COEFF(2) = -x + 3/2 x ]
+
+> print_coeffs__lc_of_data(%, "coeffs_dx->coeff_", "fp",
+> 			 "1d.coeffs/1d.cube.order2/coeffs-dx.compute.c");
+bytes used=2001768, alloc=1441528, time=0.15
+> 
+# d^2/dx^2
+> simplify( diff(interp_1d_cube_order2,x,x) );
+2 DATA(-1) + 4 DATA(1) - 5 DATA(0) - DATA(2) + 9 x DATA(0) - 3 x DATA(-1)
+
+     - 9 x DATA(1) + 3 x DATA(2)
+
+> coeffs_as_lc_of_data(%, posn_list_1d_size4);
+[COEFF(-1) = 2 - 3 x, COEFF(0) = -5 + 9 x, COEFF(1) = -9 x + 4,
+
+    COEFF(2) = -1 + 3 x]
+
+> print_coeffs__lc_of_data(%, "coeffs_dxx->coeff_", "fp",
+> 			 "1d.coeffs/1d.cube.order2/coeffs-dxx.compute.c");
+> 
+################################################################################
+> 
+#
+# 1d, cube, polynomial order=3, derivatives via 5-point order=4 formula
+# ==> overall order=3, 6-point molecule
+#
+> 
+# interpolating polynomial
+> interp_1d_cube_order3
+>   := Hermite_polynomial_interpolant(fn_1d_order3,
+> 				    coeffs_set_1d_order3,
+> 				    [x],
+> 				    { {x} = deriv_1d_dx_5point },
+> 				    {op(posn_list_1d_size2)},
+> 				    {op(posn_list_1d_size2)});
+interp_1d_cube_order3 := DATA(0)
+
+     + (1/12 DATA(-2) - 2/3 DATA(-1) + 2/3 DATA(1) - 1/12 DATA(2)) x + (
+
+    - 1/6 DATA(-2) + 5/4 DATA(-1) + 5/3 DATA(1) - 1/2 DATA(2) - 7/3 DATA(0)
+
+                      2
+     + 1/12 DATA(3)) x  + (4/3 DATA(0) + 1/12 DATA(-2) - 7/12 DATA(-1)
+
+                                                   3
+     - 4/3 DATA(1) + 7/12 DATA(2) - 1/12 DATA(3)) x
+
+> 
+# I
+> coeffs_as_lc_of_data(%, posn_list_1d_size6);
+                           2         3                             2         3
+[COEFF(-2) = 1/12 x - 1/6 x  + 1/12 x , COEFF(-1) = - 2/3 x + 5/4 x  - 7/12 x ,
+
+                      2            3                    3                2
+    COEFF(0) = - 7/3 x  + 1 + 4/3 x , COEFF(1) = - 4/3 x  + 2/3 x + 5/3 x ,
+
+                     3                 2                     3         2
+    COEFF(2) = 7/12 x  - 1/12 x - 1/2 x , COEFF(3) = - 1/12 x  + 1/12 x ]
+
+> print_coeffs__lc_of_data(%, "coeffs_I->coeff_", "fp",
+> 			 "1d.coeffs/1d.cube.order3/coeffs-I.compute.c");
+bytes used=3001984, alloc=1703624, time=0.23
+> 
+# d/dx
+> simplify( diff(interp_1d_cube_order3,x) );
+1/12 DATA(-2) - 2/3 DATA(-1) + 2/3 DATA(1) - 1/12 DATA(2) - 1/3 x DATA(-2)
+
+     + 5/2 x DATA(-1) + 10/3 x DATA(1) - x DATA(2) - 14/3 x DATA(0)
+
+                          2                2                 2
+     + 1/6 x DATA(3) + 4 x  DATA(0) + 1/4 x  DATA(-2) - 7/4 x  DATA(-1)
+
+          2                2                2
+     - 4 x  DATA(1) + 7/4 x  DATA(2) - 1/4 x  DATA(3)
+
+> coeffs_as_lc_of_data(%, posn_list_1d_size6);
+                                   2                                   2
+[COEFF(-2) = - 1/3 x + 1/12 + 1/4 x , COEFF(-1) = - 2/3 + 5/2 x - 7/4 x ,
+
+                             2                 2
+    COEFF(0) = - 14/3 x + 4 x , COEFF(1) = -4 x  + 10/3 x + 2/3,
+
+                    2                                     2
+    COEFF(2) = 7/4 x  - 1/12 - x, COEFF(3) = 1/6 x - 1/4 x ]
+
+> print_coeffs__lc_of_data(%, "coeffs_dx->coeff_", "fp",
+> 			 "1d.coeffs/1d.cube.order3/coeffs-dx.compute.c");
+bytes used=4002684, alloc=1769148, time=0.30
+> 
+# d^2/dx^2
+> simplify( diff(interp_1d_cube_order3,x,x) );
+- 1/3 DATA(-2) + 5/2 DATA(-1) + 10/3 DATA(1) - DATA(2) - 14/3 DATA(0)
+
+     + 1/6 DATA(3) + 8 x DATA(0) + 1/2 x DATA(-2) - 7/2 x DATA(-1)
+
+     - 8 x DATA(1) + 7/2 x DATA(2) - 1/2 x DATA(3)
+
+> coeffs_as_lc_of_data(%, posn_list_1d_size6);
+[COEFF(-2) = - 1/3 + 1/2 x, COEFF(-1) = - 7/2 x + 5/2, COEFF(0) = - 14/3 + 8 x,
+
+    COEFF(1) = 10/3 - 8 x, COEFF(2) = 7/2 x - 1, COEFF(3) = 1/6 - 1/2 x]
+
+> print_coeffs__lc_of_data(%, "coeffs_dxx->coeff_", "fp",
+> 			 "1d.coeffs/1d.cube.order3/coeffs-dxx.compute.c");
+> 
+################################################################################
+> 
+#
+# 1d, cube, polynomial order=5, derivatives via 5-point order=4 formula
+# ==> overall order=4, 6-point molecule
+#
+# n.b. in higher dimensions this doesn't work -- there aren't enough
+#      equations to determine all the coefficients :( :(
+#
+> 
+# interpolating polynomial
+> interp_1d_cube_order4
+>   := Hermite_polynomial_interpolant(fn_1d_order5,
+> 				    coeffs_set_1d_order5,
+> 				    [x],
+> 				    { {x} = deriv_1d_dx_5point },
+> 				    {op(posn_list_1d_size4)},
+> 				    {op(posn_list_1d_size2)});
+bytes used=5003340, alloc=1769148, time=0.40
+interp_1d_cube_order4 := DATA(0)
+
+                                                                       /
+     + (1/12 DATA(-2) - 2/3 DATA(-1) + 2/3 DATA(1) - 1/12 DATA(2)) x + |
+                                                                       \
+
+                     13                          11           25
+    - 1/8 DATA(-2) + -- DATA(-1) + 3/2 DATA(1) - -- DATA(2) - -- DATA(0)
+                     12                          24           12
+
+                   \  2
+     + 1/12 DATA(3)| x  + (5/12 DATA(0) - 1/24 DATA(-2) - 1/24 DATA(-1)
+                   /
+
+                                                    3   /13
+     - 7/12 DATA(1) + 7/24 DATA(2) - 1/24 DATA(3)) x  + |-- DATA(0)
+                                                        \12
+
+                                                11                       \  4
+     + 1/8 DATA(-2) - 7/12 DATA(-1) - DATA(1) + -- DATA(2) - 1/12 DATA(3)| x
+                                                24                       /
+
+     + (- 5/12 DATA(0) - 1/24 DATA(-2) + 5/24 DATA(-1) + 5/12 DATA(1)
+
+                                     5
+     - 5/24 DATA(2) + 1/24 DATA(3)) x
+
+> 
+# I
+> coeffs_as_lc_of_data(%, posn_list_1d_size6);
+                           2         3        4         5
+[COEFF(-2) = 1/12 x - 1/8 x  - 1/24 x  + 1/8 x  - 1/24 x ,
+
+                          13  2         3         4         5
+    COEFF(-1) = - 2/3 x + -- x  - 1/24 x  - 7/12 x  + 5/24 x ,
+                          12
+
+                 25  2         3   13  4             5
+    COEFF(0) = - -- x  + 5/12 x  + -- x  + 1 - 5/12 x ,
+                 12                12
+
+                       3                2         5    4
+    COEFF(1) = - 7/12 x  + 2/3 x + 3/2 x  + 5/12 x  - x ,
+
+                          11  2         3         5   11  4
+    COEFF(2) = - 1/12 x - -- x  + 7/24 x  - 5/24 x  + -- x ,
+                          24                          24
+
+                       3         5         2         4
+    COEFF(3) = - 1/24 x  + 1/24 x  + 1/12 x  - 1/12 x ]
+
+> print_coeffs__lc_of_data(%, "coeffs_I->coeff_", "fp",
+> 			 "1d.coeffs/1d.cube.order4/coeffs-I.compute.c");
+bytes used=6003504, alloc=1834672, time=0.48
+> 
+# d/dx
+> simplify( diff(interp_1d_cube_order4,x) );
+bytes used=7003716, alloc=1834672, time=0.56
+                                                               3
+2/3 DATA(1) - 2/3 DATA(-1) - 1/12 DATA(2) + 1/12 DATA(-2) - 4 x  DATA(1)
+
+             3                3           25  4                 4
+     + 11/6 x  DATA(2) - 1/3 x  DATA(3) - -- x  DATA(0) - 5/24 x  DATA(-2)
+                                          12
+
+       25  4            25  4           25  4                 4
+     + -- x  DATA(-1) + -- x  DATA(1) - -- x  DATA(2) + 5/24 x  DATA(3)
+       24               12              24
+
+       11
+     - -- x DATA(2) - 1/4 x DATA(-2) + 13/6 x DATA(-1) + 3 x DATA(1)
+       12
+
+                                             2                2
+     - 25/6 x DATA(0) + 1/6 x DATA(3) + 5/4 x  DATA(0) - 1/8 x  DATA(-2)
+
+            2                 2                2                2
+     - 1/8 x  DATA(-1) - 7/4 x  DATA(1) + 7/8 x  DATA(2) - 1/8 x  DATA(3)
+
+             3                3                 3
+     + 13/3 x  DATA(0) + 1/2 x  DATA(-2) - 7/3 x  DATA(-1)
+
+> coeffs_as_lc_of_data(%, posn_list_1d_size6);
+                     4        3               2
+[COEFF(-2) = - 5/24 x  + 1/2 x  + 1/12 - 1/8 x  - 1/4 x,
+
+                         25  4        2              3
+    COEFF(-1) = 13/6 x + -- x  - 1/8 x  - 2/3 - 7/3 x ,
+                         24
+
+                    2         3            25  4
+    COEFF(0) = 5/4 x  + 13/3 x  - 25/6 x - -- x ,
+                                           12
+
+                     25  4        2      3
+    COEFF(1) = 2/3 + -- x  - 7/4 x  - 4 x  + 3 x,
+                     12
+
+                 25  4                3   11          2
+    COEFF(2) = - -- x  - 1/12 + 11/6 x  - -- x + 7/8 x ,
+                 24                       12
+
+                      3                 4        2
+    COEFF(3) = - 1/3 x  + 1/6 x + 5/24 x  - 1/8 x ]
+
+> print_coeffs__lc_of_data(%, "coeffs_dx->coeff_", "fp",
+> 			 "1d.coeffs/1d.cube.order4/coeffs-dx.compute.c");
+bytes used=8003876, alloc=1834672, time=0.63
+> 
+# d^2/dx^2
+> simplify( diff(interp_1d_cube_order4,x,x) );
+                                             11
+- 1/4 DATA(-2) + 13/6 DATA(-1) + 3 DATA(1) - -- DATA(2) - 25/6 DATA(0)
+                                             12
+
+     + 1/6 DATA(3) + 5/2 x DATA(0) - 1/4 x DATA(-2) - 1/4 x DATA(-1)
+
+                                                           2
+     - 7/2 x DATA(1) + 7/4 x DATA(2) - 1/4 x DATA(3) + 13 x  DATA(0)
+
+            2               2                2                 2
+     + 3/2 x  DATA(-2) - 7 x  DATA(-1) - 12 x  DATA(1) + 11/2 x  DATA(2)
+
+        2                 3                3                  3
+     - x  DATA(3) - 25/3 x  DATA(0) - 5/6 x  DATA(-2) + 25/6 x  DATA(-1)
+
+             3                 3                3
+     + 25/3 x  DATA(1) - 25/6 x  DATA(2) + 5/6 x  DATA(3)
+
+> coeffs_as_lc_of_data(%, posn_list_1d_size6);
+                                  2        3
+[COEFF(-2) = - 1/4 - 1/4 x + 3/2 x  - 5/6 x ,
+
+                                  2         3
+    COEFF(-1) = 13/6 - 1/4 x - 7 x  + 25/6 x ,
+
+                       3       2
+    COEFF(0) = - 25/3 x  + 13 x  - 25/6 + 5/2 x,
+
+                               2         3
+    COEFF(1) = 3 - 7/2 x - 12 x  + 25/3 x ,
+
+                     2         3           11
+    COEFF(2) = 11/2 x  - 25/6 x  + 7/4 x - --,
+                                           12
+
+                    3                  2
+    COEFF(3) = 5/6 x  + 1/6 - 1/4 x - x ]
+
+> print_coeffs__lc_of_data(%, "coeffs_dxx->coeff_", "fp",
+> 			 "1d.coeffs/1d.cube.order4/coeffs-dxx.compute.c");
+bytes used=9004032, alloc=1900196, time=0.70
+> 
+################################################################################
+> quit
+bytes used=9134616, alloc=1900196, time=0.73

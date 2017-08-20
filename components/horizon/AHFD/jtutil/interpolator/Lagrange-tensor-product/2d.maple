@@ -1,0 +1,170 @@
+# 2d.maple -- compute Lagrange interpolation coefficients in 2-D
+# $Header$
+
+################################################################################
+
+#
+# 2d, cube, order=1, smoothing=0 (size=2)
+#
+
+# interpolating polynomial
+interp_2d_cube_order1_smooth0
+	:= Lagrange_polynomial_interpolant(fn_2d_order1, coeffs_list_2d_order1,
+					   coords_list_2d, posn_list_2d_size2);
+
+# I
+coeffs_as_lc_of_data(%, posn_list_2d_size2);
+print_coeffs__lc_of_data(%, "coeffs_I->coeff_", "fp",
+			 "2d.coeffs/2d.cube.order1.smooth0/coeffs-I.compute.c");
+
+# d/dx
+simplify( diff(interp_2d_cube_order1_smooth0,x) );
+coeffs_as_lc_of_data(%, posn_list_2d_size2);
+print_coeffs__lc_of_data(%, "coeffs_dx->coeff_", "fp",
+			 "2d.coeffs/2d.cube.order1.smooth0/coeffs-dx.compute.c");
+
+# d/dy
+simplify( diff(interp_2d_cube_order1_smooth0,y) );
+coeffs_as_lc_of_data(%, posn_list_2d_size2);
+print_coeffs__lc_of_data(%, "coeffs_dy->coeff_", "fp",
+			 "2d.coeffs/2d.cube.order1.smooth0/coeffs-dy.compute.c");
+
+################################################################################
+
+#
+# 2d, cube, order=2, smoothing=0 (size=3)
+#
+
+# interpolating polynomial
+interp_2d_cube_order2_smooth0
+	:= Lagrange_polynomial_interpolant(fn_2d_order2, coeffs_list_2d_order2,
+					   coords_list_2d, posn_list_2d_size3);
+
+# I
+coeffs_as_lc_of_data(%, posn_list_2d_size3);
+print_coeffs__lc_of_data(%, "coeffs_I->coeff_", "fp",
+			 "2d.coeffs/2d.cube.order2.smooth0/coeffs-I.compute.c");
+
+# d/dx
+simplify( diff(interp_2d_cube_order2_smooth0,x) );
+coeffs_as_lc_of_data(%, posn_list_2d_size3);
+print_coeffs__lc_of_data(%, "coeffs_dx->coeff_", "fp",
+			 "2d.coeffs/2d.cube.order2.smooth0/coeffs-dx.compute.c");
+
+# d/dy
+simplify( diff(interp_2d_cube_order2_smooth0,y) );
+coeffs_as_lc_of_data(%, posn_list_2d_size3);
+print_coeffs__lc_of_data(%, "coeffs_dy->coeff_", "fp",
+			 "2d.coeffs/2d.cube.order2.smooth0/coeffs-dy.compute.c");
+
+# d^2/dx^2
+simplify( diff(interp_2d_cube_order2_smooth0,x,x) );
+coeffs_as_lc_of_data(%, posn_list_2d_size3);
+print_coeffs__lc_of_data(%, "coeffs_dxx->coeff_", "fp",
+			 "2d.coeffs/2d.cube.order2.smooth0/coeffs-dxx.compute.c");
+
+# d^2/dxdy
+simplify( diff(interp_2d_cube_order2_smooth0,x,y) );
+coeffs_as_lc_of_data(%, posn_list_2d_size3);
+print_coeffs__lc_of_data(%, "coeffs_dxy->coeff_", "fp",
+			 "2d.coeffs/2d.cube.order2.smooth0/coeffs-dxy.compute.c");
+
+# d^2/dy^2
+simplify( diff(interp_2d_cube_order2_smooth0,y,y) );
+coeffs_as_lc_of_data(%, posn_list_2d_size3);
+print_coeffs__lc_of_data(%, "coeffs_dyy->coeff_", "fp",
+			 "2d.coeffs/2d.cube.order2.smooth0/coeffs-dyy.compute.c");
+
+################################################################################
+
+#
+# 2d, cube, order=3, smoothing=0 (size=4)
+#
+
+# interpolating polynomial
+interp_2d_cube_order3_smooth0
+	:= Lagrange_polynomial_interpolant(fn_2d_order3, coeffs_list_2d_order3,
+					   coords_list_2d, posn_list_2d_size4);
+
+# I
+coeffs_as_lc_of_data(%, posn_list_2d_size4);
+print_coeffs__lc_of_data(%, "coeffs_I->coeff_", "fp",
+			 "2d.coeffs/2d.cube.order3.smooth0/coeffs-I.compute.c");
+
+# d/dx
+simplify( diff(interp_2d_cube_order3_smooth0,x) );
+coeffs_as_lc_of_data(%, posn_list_2d_size4);
+print_coeffs__lc_of_data(%, "coeffs_dx->coeff_", "fp",
+			 "2d.coeffs/2d.cube.order3.smooth0/coeffs-dx.compute.c");
+
+# d/dy
+simplify( diff(interp_2d_cube_order3_smooth0,y) );
+coeffs_as_lc_of_data(%, posn_list_2d_size4);
+print_coeffs__lc_of_data(%, "coeffs_dy->coeff_", "fp",
+			 "2d.coeffs/2d.cube.order3.smooth0/coeffs-dy.compute.c");
+
+# d^2/dx^2
+simplify( diff(interp_2d_cube_order3_smooth0,x,x) );
+coeffs_as_lc_of_data(%, posn_list_2d_size4);
+print_coeffs__lc_of_data(%, "coeffs_dxx->coeff_", "fp",
+			 "2d.coeffs/2d.cube.order3.smooth0/coeffs-dxx.compute.c");
+
+# d^2/dxdy
+simplify( diff(interp_2d_cube_order3_smooth0,x,y) );
+coeffs_as_lc_of_data(%, posn_list_2d_size4);
+print_coeffs__lc_of_data(%, "coeffs_dxy->coeff_", "fp",
+			 "2d.coeffs/2d.cube.order3.smooth0/coeffs-dxy.compute.c");
+
+# d^2/dy^2
+simplify( diff(interp_2d_cube_order3_smooth0,y,y) );
+coeffs_as_lc_of_data(%, posn_list_2d_size4);
+print_coeffs__lc_of_data(%, "coeffs_dyy->coeff_", "fp",
+			 "2d.coeffs/2d.cube.order3.smooth0/coeffs-dyy.compute.c");
+
+################################################################################
+
+#
+# 2d, cube, order=4, smoothing=0 (size=5)
+#
+
+# interpolating polynomial
+interp_2d_cube_order4_smooth0
+	:= Lagrange_polynomial_interpolant(fn_2d_order4, coeffs_list_2d_order4,
+					   coords_list_2d, posn_list_2d_size5);
+
+# I
+coeffs_as_lc_of_data(%, posn_list_2d_size5);
+print_coeffs__lc_of_data(%, "coeffs_I->coeff_", "fp",
+			 "2d.coeffs/2d.cube.order4.smooth0/coeffs-I.compute.c");
+
+# d/dx
+simplify( diff(interp_2d_cube_order4_smooth0,x) );
+coeffs_as_lc_of_data(%, posn_list_2d_size5);
+print_coeffs__lc_of_data(%, "coeffs_dx->coeff_", "fp",
+			 "2d.coeffs/2d.cube.order4.smooth0/coeffs-dx.compute.c");
+
+# d/dy
+simplify( diff(interp_2d_cube_order4_smooth0,y) );
+coeffs_as_lc_of_data(%, posn_list_2d_size5);
+print_coeffs__lc_of_data(%, "coeffs_dy->coeff_", "fp",
+			 "2d.coeffs/2d.cube.order4.smooth0/coeffs-dy.compute.c");
+
+# d^2/dx^2
+simplify( diff(interp_2d_cube_order4_smooth0,x,x) );
+coeffs_as_lc_of_data(%, posn_list_2d_size5);
+print_coeffs__lc_of_data(%, "coeffs_dxx->coeff_", "fp",
+			 "2d.coeffs/2d.cube.order4.smooth0/coeffs-dxx.compute.c");
+
+# d^2/dxdy
+simplify( diff(interp_2d_cube_order4_smooth0,x,y) );
+coeffs_as_lc_of_data(%, posn_list_2d_size5);
+print_coeffs__lc_of_data(%, "coeffs_dxy->coeff_", "fp",
+			 "2d.coeffs/2d.cube.order4.smooth0/coeffs-dxy.compute.c");
+
+# d^2/dy^2
+simplify( diff(interp_2d_cube_order4_smooth0,y,y) );
+coeffs_as_lc_of_data(%, posn_list_2d_size5);
+print_coeffs__lc_of_data(%, "coeffs_dyy->coeff_", "fp",
+			 "2d.coeffs/2d.cube.order4.smooth0/coeffs-dyy.compute.c");
+
+################################################################################

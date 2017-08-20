@@ -1,0 +1,266 @@
+# Maple code to define Lagrange interpolating functions/coords/coeffs
+# $Header$
+
+################################################################################
+
+#
+# 1-D interpolating functions
+#
+
+fn_1d_order1 :=
+proc(x)
++ c0 + c1*x
+end proc;
+
+fn_1d_order2 :=
+proc(x)
++ c0 + c1*x + c2*x^2
+end proc;
+
+fn_1d_order3 :=
+proc(x)
++ c0 + c1*x + c2*x^2 + c3*x^3
+end proc;
+
+fn_1d_order4 :=
+proc(x)
++ c0 + c1*x + c2*x^2 + c3*x^3 + c4*x^4
+end;
+
+fn_1d_order5 :=
+proc(x)
++ c0 + c1*x + c2*x^2 + c3*x^3 + c4*x^4 + c5*x^5
+end;
+
+fn_1d_order6 :=
+proc(x)
++ c0 + c1*x + c2*x^2 + c3*x^3 + c4*x^4 + c5*x^5 + c6*x^6
+end;
+
+########################################
+
+# coordinates for 1-D interpolating functions
+coords_list_1d := [x];
+
+########################################
+
+#
+# coefficients in 1-D interpolating functions
+#
+
+coeffs_list_1d_order1 := [c0, c1];
+coeffs_list_1d_order2 := [c0, c1, c2];
+coeffs_list_1d_order3 := [c0, c1, c2, c3];
+coeffs_list_1d_order4 := [c0, c1, c2, c3, c4];
+coeffs_list_1d_order5 := [c0, c1, c2, c3, c4, c5];
+coeffs_list_1d_order6 := [c0, c1, c2, c3, c4, c5, c6];
+
+################################################################################
+
+#
+# 2-D interpolating functions (maximum degree)
+#
+
+fn_2d_order1 :=
+proc(x,y)
++ c01*y
++ c00   + c10*x
+end proc;
+
+fn_2d_order2 :=
+proc(x,y)
++ c02*y^2
++ c01*y   + c11*x*y
++ c00     + c10*x   + c20*x^2
+end proc;
+
+fn_2d_order3 :=
+proc(x,y)
++ c03*y^3
++ c02*y^2 + c12*x*y^2
++ c01*y   + c11*x*y   + c21*x^2*y
++ c00     + c10*x     + c20*x^2   + c30*x^3
+end proc;
+
+fn_2d_order4 :=
+proc(x,y)
++ c04*y^4
++ c03*y^3 + c13*x*y^3
++ c02*y^2 + c12*x*y^2 + c22*x^2*y^2
++ c01*y   + c11*x*y   + c21*x^2*y   + c31*x^3*y
++ c00     + c10*x     + c20*x^2     + c30*x^3   + c40*x^4
+end;
+
+########################################
+
+# coordinates for 2-D interpolating functions
+coords_list_2d := [x,y];
+
+########################################
+
+#
+# coefficients in 2-D interpolating functions (maximum degree)
+#
+
+coeffs_list_2d_order1 := [
+			 c01,
+			 c00, c10
+			 ];
+coeffs_list_2d_order2 := [
+			 c02,
+			 c01, c11,
+			 c00, c10, c20
+			 ];
+coeffs_list_2d_order3 := [
+			 c03,
+			 c02, c12,
+			 c01, c11, c21,
+			 c00, c10, c20, c30
+			 ];
+coeffs_list_2d_order4 := [
+			 c04,
+			 c03, c13,
+			 c02, c12, c22,
+			 c01, c11, c21, c31,
+			 c00, c10, c20, c30, c40
+			 ];
+
+################################################################################
+
+#
+# 3-D interpolating functions (maximum degree)
+#
+
+fn_3d_order1 :=
+proc(x,y,z)
+# z^0 -----------
++ c010*y
++ c000   + c100*x
+# z^1 -----------
++ c001*z
+end proc;
+
+fn_3d_order2 :=
+proc(x,y,z)
+# z^0 --------------------------
++ c020*y^2
++ c010*y   + c110*x*y
++ c000     + c100*x   + c200*x^2
+# z^1 --------------------------
++ c011*y*z
++ c001*z   + c101*x*z
+# z^2 --------------------------
++ c002*z^2
+end proc;
+
+fn_3d_order3 :=
+proc(x,y,z)
+# z^0 -------------------------------------------
++ c030*y^3
++ c020*y^2   + c120*x*y^2
++ c010*y     + c110*x*y   + c210*x^2*y
++ c000       + c100*x     + c200*x^2   + c300*x^3
+# z^1 -------------------------------------------
++ c021*y^2*z
++ c011*y  *z + c111*x*y*z
++ c001    *z + c101*x  *z + c201*x^2*z
+# z^2 -------------------------------------------
++ c012*y*z^2
++ c002  *z^2 + c102*x*z^2
+# z^3 -------------------------------------------
++ c003  *z^3
+end proc;
+
+fn_3d_order4 :=
+proc(x,y,z)
+# z^0 --------------------------------------------------------
++ c040*y^4
++ c030*y^3     + c130*x*y^3
++ c020*y^2     + c120*x*y^2   + c220*x^2*y^2
++ c010*y       + c110*x*y     + c210*x^2*y   + c310*x^3*y
++ c000         + c100*x       + c200*x^2     + c300*x^3   + c400*x^4
+# z^1 -------------------------------------------
++ c031*y^3*z
++ c021*y^2*z   + c121*x*y^2*z
++ c011*y  *z   + c111*x*y  *z + c211*x^2*y*z
++ c001    *z   + c101*x    *z + c201*x^2  *z + c301*x^3*z
+# z^2 -------------------------------------------
++ c022*y^2*z^2
++ c012*y  *z^2 + c112*x*y*z^2
++ c002    *z^2 + c102*x  *z^2 + c202*x^2*z^2
+# z^3 -------------------------------------------
++ c013*y  *z^3
++ c003    *z^3 + c103*x  *z^3
+# z^4 -------------------------------------------
++ c004    *z^4
+end;
+
+########################################
+
+# coordinates for 3-D interpolating functions
+coords_list_3d := [x,y,z];
+
+########################################
+
+#
+# coefficients in 3-D interpolating functions (maximum degree)
+#
+
+coeffs_list_3d_order1 := [
+			 # z^0 -----
+			 c010,
+			 c000, c100,
+			 # z^1 -----
+			 c001
+			 ];
+coeffs_list_3d_order2 := [
+			 # z^0 -----------
+			 c020,
+			 c010, c110,
+			 c000, c100, c200,
+			 # z^1 -----------
+			 c011,
+			 c001, c101,
+			 # z^2 -----------
+			 c002
+			 ];
+coeffs_list_3d_order3 := [
+			 # z^0 ----------------
+			 c030,
+			 c020, c120,
+			 c010, c110, c210,
+			 c000, c100, c200, c300,
+			 # z^1 ----------------
+			 c021,
+			 c011, c111,
+			 c001, c101, c201,
+			 # z^2 ----------------
+			 c012,
+			 c002, c102,
+			 # z^3 ----------------
+			 c003
+			 ];
+coeffs_list_3d_order4 := [
+			 # z^0 -----------------------
+			 c040,
+			 c030, c130,
+			 c020, c120, c220,
+			 c010, c110, c210, c310,
+			 c000, c100, c200, c300, c400,
+			 # z^1 -----------------------
+			 c031,
+			 c021, c121,
+			 c011, c111, c211,
+			 c001, c101, c201, c301,
+			 # z^2 -----------------------
+			 c022,
+			 c012, c112,
+			 c002, c102, c202,
+			 # z^3 -----------------------
+			 c013,
+			 c003, c103,
+			 # z^4 -----------------------
+			 c004
+			 ];
+
+################################################################################

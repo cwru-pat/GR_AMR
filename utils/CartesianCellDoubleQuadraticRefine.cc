@@ -26,25 +26,6 @@
  *
  *************************************************************************
  */
-extern "C" {
-
-#ifdef __INTEL_COMPILER
-#pragma warning (disable:1419)
-#endif
-
-// in cartrefine3d.f:
-void SAMRAI_F77_FUNC(cartquarefcelldoub3d, CARTQUAREFCELLDOUB3D) (const int&,
-   const int&, const int&,
-   const int&, const int&, const int&,
-   const int&, const int&, const int&,
-   const int&, const int&, const int&,
-   const int&, const int&, const int&,
-   const int&, const int&, const int&,
-   const int&, const int&, const int&,
-   const int&, const int&, const int&,
-   const int *, const double *, const double *,
-   const double *, double *);
-}
 
 namespace SAMRAI {
 namespace geom {
@@ -132,11 +113,6 @@ CartesianCellDoubleQuadraticRefine::refine(
    
    const hier::Box cgbox(cdata->getGhostBox());
 
-   const hier::Index& cilo = cgbox.lower();
-   const hier::Index& cihi = cgbox.upper();
-   const hier::Index& filo = fdata->getGhostBox().lower();
-   const hier::Index& fihi = fdata->getGhostBox().upper();
-
    const boost::shared_ptr<CartesianPatchGeometry> cgeom(
       BOOST_CAST<CartesianPatchGeometry, hier::PatchGeometry>(
          coarse.getPatchGeometry()));
@@ -148,8 +124,7 @@ CartesianCellDoubleQuadraticRefine::refine(
    TBOX_ASSERT(fgeom);
 
    const hier::Box coarse_box = hier::Box::coarsen(fine_box, ratio);
-   const int * ifirstc = &coarse_box.lower()[0];
-   const int * ilastc = &coarse_box.upper()[0];
+
    const int * ifirstf = &fine_box.lower()[0];
    const int * ilastf = &fine_box.upper()[0];
 
@@ -162,11 +137,9 @@ CartesianCellDoubleQuadraticRefine::refine(
    const double coef[3][2] =
      {{5.0/32.0, -3.0/32.0},{15.0/16.0, 15.0/16.0},{-3.0/32.0, 5.0/32.0}};
 
-   const double *fdx = &fgeom->getDx()[0];
-   const double *cdx = &cgeom->getDx()[0];
-   
    if ((dim == tbox::Dimension(3)))
    {
+          #pragma omp parallel for
      for(int k = ifirstf[2]; k <= ilastf[2]; k++)
      {
        for(int j = ifirstf[1]; j <= ilastf[1]; j++)

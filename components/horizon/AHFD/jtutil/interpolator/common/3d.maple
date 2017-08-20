@@ -1,0 +1,117 @@
+# Maple code to compute common coefficients for all 3d interpolation schemes
+# $Header$
+
+################################################################################
+
+#
+# generic stuff for 3d, cube, size=2
+#
+
+data_list_3d_size2 := map(data_var_name, posn_list_3d_size2, "data_");
+coeffs_list_3d_size2 := map(coeff_name, posn_list_3d_size2, "coeff_");
+
+print_name_list_dcl(data_list_3d_size2, "fp",
+		    "3d.cube.size2/data-dcl.h");
+print_name_list_dcl(coeffs_list_3d_size2, "fp",
+		    "3d.cube.size2/coeffs-dcl.h");
+
+print_load_data(posn_list_3d_size2, "data->data_",
+		"3d.cube.size2/load-data.c");
+print_evaluate_molecule(posn_list_3d_size2,
+			"coeffs->coeff_", "data->data_",
+			"3d.cube.size2/evaluate-molecule.c");
+print_store_coeffs(posn_list_3d_size2,
+		   "factor * coeffs->coeff_",
+		   "3d.cube.size2/store-coeffs.c");
+
+################################################################################
+
+#
+# generic stuff for 3d, cube, size=3
+#
+
+data_list_3d_size3 := map(data_var_name, posn_list_3d_size3, "data_");
+coeffs_list_3d_size3 := map(coeff_name, posn_list_3d_size3, "coeff_");
+
+print_name_list_dcl(data_list_3d_size3, "fp",
+		    "3d.cube.size3/data-dcl.h");
+print_name_list_dcl(coeffs_list_3d_size3, "fp",
+		    "3d.cube.size3/coeffs-dcl.h");
+
+print_load_data(posn_list_3d_size3, "data->data_",
+		"3d.cube.size3/load-data.c");
+print_evaluate_molecule(posn_list_3d_size3,
+			"coeffs->coeff_", "data->data_",
+			"3d.cube.size3/evaluate-molecule.c");
+print_store_coeffs(posn_list_3d_size3,
+		   "factor * coeffs->coeff_",
+		   "3d.cube.size3/store-coeffs.c");
+
+################################################################################
+
+#
+# generic stuff for 3d, cube, size=4
+#
+
+data_list_3d_size4 := map(data_var_name, posn_list_3d_size4, "data_");
+coeffs_list_3d_size4 := map(coeff_name, posn_list_3d_size4, "coeff_");
+
+print_name_list_dcl(data_list_3d_size4, "fp",
+		    "3d.cube.size4/data-dcl.h");
+print_name_list_dcl(coeffs_list_3d_size4, "fp",
+		    "3d.cube.size4/coeffs-dcl.h");
+
+print_load_data(posn_list_3d_size4, "data->data_",
+		 "3d.cube.size4/load-data.c");
+print_evaluate_molecule(posn_list_3d_size4,
+			"coeffs->coeff_", "data->data_",
+			"3d.cube.size4/evaluate-molecule.c");
+print_store_coeffs(posn_list_3d_size4,
+		   "factor * coeffs->coeff_",
+		   "3d.cube.size4/store-coeffs.c");
+
+################################################################################
+
+#
+# generic stuff for 3d, cube, size=5
+#
+
+data_list_3d_size5 := map(data_var_name, posn_list_3d_size5, "data_");
+coeffs_list_3d_size5 := map(coeff_name, posn_list_3d_size5, "coeff_");
+
+print_name_list_dcl(data_list_3d_size5, "fp",
+		    "3d.cube.size5/data-dcl.h");
+print_name_list_dcl(coeffs_list_3d_size5, "fp",
+		    "3d.cube.size5/coeffs-dcl.h");
+
+print_load_data(posn_list_3d_size5, "data->data_",
+		"3d.cube.size5/load-data.c");
+print_evaluate_molecule(posn_list_3d_size5,
+			"coeffs->coeff_", "data->data_",
+			"3d.cube.size5/evaluate-molecule.c");
+print_store_coeffs(posn_list_3d_size5,
+		   "factor * coeffs->coeff_",
+		   "3d.cube.size5/store-coeffs.c");
+
+################################################################################
+
+#
+# generic stuff for 3d, cube, size=6
+#
+
+data_list_3d_size6 := map(data_var_name, posn_list_3d_size6, "data_");
+coeffs_list_3d_size6 := map(coeff_name, posn_list_3d_size6, "coeff_");
+
+print_name_list_dcl(data_list_3d_size6, "fp",
+		    "3d.cube.size6/data-dcl.h");
+print_name_list_dcl(coeffs_list_3d_size6, "fp",
+		    "3d.cube.size6/coeffs-dcl.h");
+
+print_load_data(posn_list_3d_size6, "data->data_",
+		"3d.cube.size6/load-data.c");
+print_evaluate_molecule(posn_list_3d_size6,
+			"coeffs->coeff_", "data->data_",
+			"3d.cube.size6/evaluate-molecule.c");
+print_store_coeffs(posn_list_3d_size6,
+		   "factor * coeffs->coeff_",
+		   "3d.cube.size6/store-coeffs.c");

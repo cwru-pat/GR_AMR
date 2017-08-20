@@ -1,0 +1,1625 @@
+# Parameter definitions for thorn AHFinderDirect
+# $Header$
+
+################################################################################
+
+#
+# ***** interface to the rest of Cactus *****
+#
+
+# we may need to look at some grid:: parameters to choose our patch system type
+# note our access is read-only
+shares: grid
+USES KEYWORD domain
+USES KEYWORD bitant_plane
+USES KEYWORD quadrant_direction
+USES KEYWORD rotation_axis
+
+# we need to look at ADMBase::metric_type and StaticConformal::conformal_state
+# to check physical/conformal metric
+# note our access is read-only
+shares: ADMBase
+USES KEYWORD metric_type
+USES CCTK_INT metric_timelevels
+
+# we need to look at SpaceMask::use_mask in order to find out about the
+# excision region
+shares: SpaceMask
+USES BOOLEAN use_mask
+
+# we need to look at IO::out_dir to set the default for our own
+# output directory parameters
+shares: IO
+USES STRING out_dir
+
+# we want to know how many surfaces there are, so that we don't access
+# a non-existing one
+shares: SphericalSurface
+USES INT nsurfaces
+USES INT maxntheta
+USES INT maxnphi
+
+# all remaining parameters are private to this thorn
+private:
+
+################################################################################
+
+#
+# ***** overall parameters *****
+#
+
+# set this to (try to) find apparent horizons at every time step
+int find_every "how often should we try to find apparent horizons?" STEERABLE=always
+{
+0   :: "don't find AHs at all (this thorn is a no-op)"
+1:* :: "any integer >= 1"
+} 1
+
+# set this to (try to) find individual apparent horizons at every time step
+int find_every_individual[101] "how often should we try to find individual apparent horizons?  (overrides find_every)" STEERABLE=always
+{
+-1  :: "use the value of find_every"
+0   :: "don't find this AH at all"
+1:* :: "any integer >= 1"
+} -1
+
+# set this to (try to) find individual apparent horizons after a time step
+int find_after_individual[101] "when should we start to find individual apparent horizons?" STEERABLE=always
+{
+0:* :: "after this iteration (inclusively)"
+} 0
+
+int dont_find_after_individual[101] "when should we stop finding individual apparent horizons?" STEERABLE=always
+{
+0:* :: "after this iteration (exclusively)"
+-1  :: "do not use this parameter"
+} -1
+
+# set this to (try to) find individual apparent horizons after a certain time
+real find_after_individual_time[101] "when should we start to find individual apparent horizons?" STEERABLE=always
+{
+*:* :: "after this time (inclusively)"
+} 0.0
+
+real dont_find_after_individual_time[101] "when should we stop finding individual apparent horizons?" STEERABLE=always
+{
+*:* :: "after this time (exclusively); ignore this value if it is less than or equal to find_after_individual_time"
+} 0.0
+
+# set this to disable finding individual horizons
+boolean disable_horizon[101] "should this horizon be disabled?" STEERABLE=always
+{
+} "false"
+
+#
+# These parameters control which schedule bin (or even bins, if you
+# want) AHFinderDirect runs in.  Historically, Erik's branch of
+# AHFinderDirect has run at CCTK_POSTSTEP.  However, for some purposes
+# it's more convenient to run at CCTK_ANALYSIS and/or CCTK_POSTINITIAL.
+#
+# In general we need to run at CCTK_POST_RECOVER_VARIABLES, since
+# (a) parameters may have been steered at recovery, so we may need
+#     to find a new horizon or horizons, and
+# (b) we need to set the mask again to make sure it's correct
+#     right away (since our next regular horizon-finding may not
+#     be until some time steps later)
+# Therefore the  run_at_CCTK_POST_RECOVER_VARIABLES  parameter should
+# probably be left at its default setting of  true .
+#
+Boolean run_at_CCTK_ANALYSIS "should we run at CCTK_ANALYSIS?"
+{
+} false
+Boolean run_at_CCTK_POSTSTEP "should we run at CCTK_POSTSTEP?"
+{
+} true
+Boolean run_at_CCTK_POSTINITIAL "should we run at CCTK_POSTINITIAL?"
+{
+} false
+Boolean run_at_CCTK_POSTPOSTINITIAL "should we run at CCTK_POSTPOSTINITIAL?"
+{
+} false
+Boolean run_at_CCTK_POST_RECOVER_VARIABLES				\
+  "should we run at CCTK_POST_RECOVER_VARIABLES?"
+{
+} false
+
+keyword method "what should this thorn do for each apparent horizon?" \
+  STEERABLE=recover
+{
+# these options are mostly for testing/debugging
+# ... in a multiprocessor Cactus run, the horizons are done sequentually
+#     on processor #0; the other processors do dummy computations
+"evaluate expansions"	  :: "evaluate the LHS function Theta(h)"
+
+# ... in a multiprocessor Cactus run, the Jacobian is computed on
+#     processor #0; the other processors do dummy computations
+"test expansion Jacobians" :: \
+  "compute/print horizon 1's J[Theta(h)] Jacobian matrix (possibly in \
+   multiple ways, depending on the  test_all_Jacobian_methods  parameter)"
+
+# this is for normal apparent horizon finding
+# ... in a multiprocessor Cactus run, the horizons are done in parallel
+#     across processors; see src/driver/README.parallel for details
+"find horizons"		  :: "find the apparent horizon"
+} "find horizons"
+
+#
+# We support searching for up to N_horizons distinct apparent horizons
+# (some of which may be nested inside others) in a slice.
+# ***** IMPORTANT *****: The horizons are numbered 1 to N_horizons.
+# Since Cactus arrays are 0-origin, we make the arrays be of size
+# N_horizons+1, and don't use the [0] array elements.
+#
+# To change the N_horizons limit, just change the upper limit for
+# N_horizons itself, change all the [N_horizons+1] array sizes in this
+# paramter file, change the upper limit for which_horizon_to_announce_centroid,
+# and recompile your configuration.  No changes are needed to the source code.
+#
+int N_horizons "number of apparent horizons to search for" \
+  STEERABLE=recover
+{
+0     :: "turn this thorn into a fancy no-op :)"
+1:100 :: "search for this many apparent horizons"
+} 1
+
+#
+# This parameter controls whether or not (assuming we have found a
+# horizon or horizons), we announce a selected horizon centroid to
+# some other thorn.  In practice the other thorn will be DriftCorrect,
+# which will use this information to adjust the coordinates to try to
+# keep the horizon centroid at a constant coordinate position.
+#
+int which_horizon_to_announce_centroid \
+  "for which horizon should we announce the centroid?" \
+  STEERABLE=recover
+{
+0     :: "don't announce any centroid(s)"
+1:100 :: "announce this horizon's centroid each time we find it"
+} 0
+
+#
+# This parameter controls whether and (if) into which surface the horizon
+# information will be stored.
+#
+int which_surface_to_store_info[101] \
+  "into which surface should we store the info?" \
+  STEERABLE=recover
+{
+-1  :: "don't store info"
+0:* :: "store info into the corresponding surface"
+} -1
+
+string which_surface_to_store_info_by_name[101] \
+  "into which surface should we store the info?" \
+  STEERABLE=recover
+{
+""   :: "use which_surface_to_store_info"
+".*" :: "any string"
+} ""
+
+#
+# This parameter controls how verbose this thorn is in printing
+# informational (non-error) messages describing what it's doing.
+#
+keyword verbose_level \
+  "controls which (how many) messages to print describing AH finding" \
+  STEERABLE=recover
+{
+# 1 line each time step giving number of horizons found and their masses
+# ... this doesn't work yet :(
+"physics highlights"   :: "just a few physics messages"
+
+# 1 line for each horizon giving position/mass/area, + a summary line or two
+"physics details"      :: "more detailed physics messages"
+
+# 1 line giving Theta(h) norms at each Newton iteration
+"algorithm highlights" :: \
+  "physics details + a few messages about the AH-finding algorithm"
+
+# lots of details tracing what the code is doing
+"algorithm details"    :: \
+  "physics details + lots of messages about the AH-finding algorithm"
+
+# even more details tracing what the code is doing :)
+"algorithm debug"    :: \
+  "physics details + lots and lots of messages about the AH-finding algorithm"
+} "physics details"
+
+# n.b. printing timing stats is independent of  verbose_level
+boolean print_timing_stats \
+  "should we print timing stats for the whole apparent-horizon-finding process?" \
+  STEERABLE=recover
+{
+} "false"
+
+# Do we want the gradients of the surface expansion?
+# (Increases run time)
+boolean want_expansion_gradients "should we print the gradients of the expansions?" \
+  STEERABLE=recover
+{
+} "false"
+
+# By default, we find apparent horizons or CE surfaces.
+# This parameter allows the equation to be change so that other surfaces
+# are found instead.
+keyword surface_definition[101] "search for what kind of surface?" STEERABLE=recover
+{
+"expansion"         :: "Theta_(l) (apparent horizons etc.)"
+"inner expansion"   :: "Theta_(n) (expansion of ingoing null normal)"
+"mean curvature"    :: "for CMC surfaces"
+"expansion product" :: "Theta_(l) Theta_(n) (product of the expansions)"
+} "expansion"
+
+# By default, we find surfaces as defined above.
+# This parameter allows the definition to be modified.
+keyword surface_modification[101] "how to modify the surface definition" STEERABLE=recover
+{
+"none"         :: "no modification"
+"radius"       :: "multiply with the coordinate radius"
+"radius^2"     :: "multiply with the square of the coordinate radius"
+"mean radius"  :: "multiply with the mean coordinate radius"
+"areal radius" :: "multiply with the areal radius (does not converge nicely, because the Jacobian is only approximate)"
+} "none"
+
+# By default, we find apparent horizons by looking for a specified expansion.
+# This parameter allows looking for a specified areal radius etc. instead.
+keyword surface_selection[101] "search for a surface with this areal radius" STEERABLE=recover
+{
+"definition"                             :: "look for a surface as defined by 'surface_definition'"
+"mean coordinate radius"                 :: "look for a surface with a certain mean coordinate radius (not covariant, but fast)"
+"areal radius"                           :: "look for a surface with a certain areal radius"
+"expansion times mean coordinate radius" :: "look for a surface with a certain product of expansion and mean coordiante radius"
+"expansion times areal radius"           :: "look for a surface with a certain product of expansion and areal radius"
+} "definition"
+
+# By default, we find apparent horizons by solving the equation
+#  Theta(h) = 0
+# This parameter allows the RHS to be set to any specified constant,
+# to find a surface of constant expansion.
+real desired_value[101] "search for a surface with this (constant) value" STEERABLE=recover
+{
+*:* :: "any real number"
+} 0.0
+
+
+
+# By default, we just find apparent horizons.  This parameter uses
+# pretracking to search for outermost apparent horizons instead.
+boolean use_pretracking[101] "search for an outermost apparent horizon" STEERABLE=recover
+{
+} "no"
+
+int pretracking_max_iterations[101] "maximum number of pretracking iterations" STEERABLE=recover
+{
+  0:* :: ""
+} 100
+
+real pretracking_value[101] "initial pretracking value" STEERABLE=recover
+{
+  *:* :: ""
+} 1.0
+
+real pretracking_minimum_value[101] "minimum pretracking value" STEERABLE=recover
+{
+  *:* :: ""
+} 0.0
+
+real pretracking_maximum_value[101] "maximum pretracking value (should be near the outer boundary)" STEERABLE=recover
+{
+  *:* :: ""
+} 10.0
+
+real pretracking_delta[101] "step size for value" STEERABLE=recover
+{
+  (0.0:* :: ""
+} 1.0
+
+real pretracking_minimum_delta[101] "minimum step size for value" STEERABLE=recover
+{
+  (0.0:* :: ""
+} 1.0e-4
+
+real pretracking_maximum_delta[101] "maximum step size for value" STEERABLE=recover
+{
+  (0.0:* :: ""
+} 1.0
+
+# Horizons can depend on other (usually pretracked) horizons
+int depends_on[101] "the other horizon that this horizon depends on" STEERABLE=recover
+{
+  0     :: "the horizon is independent"
+  1:100 :: "horizon index"
+} 0
+
+real desired_value_factor[101] "factor between this horizon's and the other horizon's desired value, applied before the offset" STEERABLE=recover
+{
+  *:* :: ""
+} 1.0
+
+real desired_value_offset[101] "difference between this horizon's and the other horizon's desired value, applied after the factor" STEERABLE=recover
+{
+  *:* :: ""
+} 0.0
+
+
+
+# By default, we keep the surface from the last time (if so desired).
+# We can also modify it before each finding to try make it find inner
+# or outer horizons.
+real shiftout_factor[101] "enlarge the surface initial guess before finding" STEERABLE=recover
+{
+  (0:* :: "choose 1 for doing nothing, larger for enlarging, smaller for shrinking"
+} 1.0
+
+real smoothing_factor[101] "smoothen (remove higher multipole moments) the surface initial guess before finding" STEERABLE=recover
+{
+  *:* :: "choose 0 for no smoothing, 1 for complete smoothing, larger for over-smoothing, negative for roughening"
+} 0.0
+
+################################################################################
+
+#
+# ***** parameters for the initial guess for each apparent horizon shape *****
+#
+
+#
+# (Note that if at any time we fail to find the (an) apparent horizon,
+# then we reset our trial horizon surface to this initial guess before
+# next attempting to find this horizon.)
+#
+
+keyword initial_guess_method[101] \
+  "method used to set up initial guess for apparent horizon shape" \
+  STEERABLE=recover
+{
+"read from named file"	:: "read from explicitly-named input file"
+"read from h file"	:: \
+  "read from input file named the same as the (later) h output file"
+"Kerr/Kerr"		:: \
+  "set to the (analytical) horizon of Kerr spacetime in Kerr coordinates \
+   (n.b. Schwarzschild/EF is the special case spin=0 of this)"
+"Kerr/Kerr-Schild"	:: \
+  "set to the (analytical) horizon of Kerr spacetime in Kerr-Schild coordinates"
+"coordinate sphere"	:: "set to a coordinate sphere"
+"coordinate ellipsoid"	:: "set to a coordinate ellipsoid"
+} "coordinate sphere"
+
+# if a horizon could not be found, do we want to reset the horizon shape,
+# or do we want to continue with the last shape?
+boolean reset_horizon_after_not_finding[101] \
+  "reset the horizon shape to the initial data if a horizon was not found" \
+  STEERABLE=recover
+{
+} "yes"
+
+# parameters for initial_guess_method = "read from named file"
+string initial_guess__read_from_named_file__file_name[101] \
+  "file name to read initial guess from" \
+  STEERABLE=recover
+{
+".+" :: "file name to read initial guess from"
+} "h.gp"
+
+# parameters for initial_guess_method = "Kerr/Kerr"
+real initial_guess__Kerr_Kerr__x_posn[101] "x coordinate of Kerr BH" STEERABLE=recover
+{
+*:* :: "any real number"
+} 0.0
+real initial_guess__Kerr_Kerr__y_posn[101] "y coordinate of Kerr BH" STEERABLE=recover
+{
+*:* :: "any real number"
+} 0.0
+real initial_guess__Kerr_Kerr__z_posn[101] "z coordinate of Kerr BH" STEERABLE=recover
+{
+*:* :: "any real number"
+} 0.0
+real initial_guess__Kerr_Kerr__mass[101] "mass of Kerr BH" STEERABLE=recover
+{
+(0.0:*		:: "BH mass = any real number > 0"
+} 1.0
+# n.b. my convention is that a=J/m^2 is dimensionless,
+#      while MTW take a=J/m=m * (my a)
+real initial_guess__Kerr_Kerr__spin[101] "dimensionless spin a=J/m^2 of Kerr BH" STEERABLE=recover
+{
+(-1.0:1.0)	:: \
+  "dimensionless BH spin = J/m^2 = any real number with absolute value < 1"
+} 0.6
+
+# parameters for initial_guess_method = "Kerr/Kerr-Schild"
+real initial_guess__Kerr_KerrSchild__x_posn[101] "x coordinate of Kerr BH" STEERABLE=recover
+{
+*:* :: "any real number"
+} 0.0
+real initial_guess__Kerr_KerrSchild__y_posn[101] "y coordinate of Kerr BH" STEERABLE=recover
+{
+*:* :: "any real number"
+} 0.0
+real initial_guess__Kerr_KerrSchild__z_posn[101] "z coordinate of Kerr BH" STEERABLE=recover
+{
+*:* :: "any real number"
+} 0.0
+real initial_guess__Kerr_KerrSchild__mass[101] "mass of Kerr BH" STEERABLE=recover
+{
+(0.0:*		:: "BH mass = any real number > 0"
+} 1.0
+# n.b. my convention is that a=J/m^2 is dimensionless,
+#      while MTW take a=J/m=m * (my a)
+real initial_guess__Kerr_KerrSchild__spin[101] "dimensionless spin a=J/m^2 of Kerr BH" STEERABLE=recover
+{
+(-1.0:1.0)	:: \
+  "dimensionless BH spin = J/m^2 = any real number with absolute value < 1"
+} 0.6
+
+# parameters for initial_guess_method = "sphere"
+real initial_guess__coord_sphere__x_center[101] "x coordinate of sphere center" STEERABLE=recover
+{
+*:* :: "any real number"
+} 0.0
+real initial_guess__coord_sphere__y_center[101] "y coordinate of sphere center" STEERABLE=recover
+{
+*:* :: "any real number"
+} 0.0
+real initial_guess__coord_sphere__z_center[101] "z coordinate of sphere center" STEERABLE=recover
+{
+*:* :: "any real number"
+} 0.0
+real initial_guess__coord_sphere__radius[101] "radius of sphere" STEERABLE=recover
+{
+(0.0:* :: "any real number > 0.0"
+} 2.0
+
+# parameters for initial_guess_method = "ellipsoid"
+real initial_guess__coord_ellipsoid__x_center[101] \
+  "x coordinate of ellipsoid center" STEERABLE=recover
+{
+*:* :: "any real number"
+} 0.0
+real initial_guess__coord_ellipsoid__y_center[101] \
+  "y coordinate of ellipsoid center" STEERABLE=recover
+{
+*:* :: "any real number"
+} 0.0
+real initial_guess__coord_ellipsoid__z_center[101] \
+  "z coordinate of ellipsoid center" STEERABLE=recover
+{
+*:* :: "any real number"
+} 0.0
+real initial_guess__coord_ellipsoid__x_radius[101] "x radius of ellipsoid" STEERABLE=recover
+{
+(0.0:* :: "any real number > 0.0"
+} 2.0
+real initial_guess__coord_ellipsoid__y_radius[101] "y radius of ellipsoid" STEERABLE=recover
+{
+(0.0:* :: "any real number > 0.0"
+} 2.0
+real initial_guess__coord_ellipsoid__z_radius[101] "z radius of ellipsoid" STEERABLE=recover
+{
+(0.0:* :: "any real number > 0.0"
+} 2.0
+
+################################################################################
+
+#
+# ***** I/O parameters *****
+#
+
+########################################
+
+#
+# parameters for BH diagnostics
+#
+
+#
+# The file format is currently hard-wired to a simple ASCII format:
+# - there is one file per AH
+# - after some header comments (starting with '#'),
+#   there is one line per successful-AH-finding
+#   (there is *no* line if we fail to find an AH)
+# - each line contains various tab-separated fields, as described by
+#   the header comment
+#
+boolean output_BH_diagnostics \
+  "should we output BH diagnostics to a data file for each AH found?" \
+  STEERABLE=always
+{
+} "true"
+
+#
+# These file names are actually just "base" file names, with the full
+# file names being given by a printf() format "%s/%s.ah%d.%s",
+# where
+# - the first %s is the BH diagnostics directory as set by the
+#   BH_diagnostics_directory  parameter; this is automagically created
+#   if it doesn't already exist
+# - the second %s is the base file name,
+# - the %d is the global Cactus time iteration number cctk_iteration,
+# - the third %s is the file name extension as set by the
+#   BH_diagnostics_file_name_extension  parameter
+#
+string BH_diagnostics_directory "directory for BH diagnostics output file(s)" \
+  STEERABLE=always
+{
+".+" :: "any nonempty string"
+"^$" :: "an empty string to default to IO::out_dir"
+} ""
+string BH_diagnostics_base_file_name \
+  "base file name for BH diagnostics output file(s)" STEERABLE=always
+{
+".+" :: "any nonempty string"
+} "BH_diagnostics"
+
+string BH_diagnostics_file_name_extension \
+  "extension for BH diagnostics data files" STEERABLE=always
+{
+".+" :: "any nonempty string"
+} "gp"
+
+########################################
+
+#
+# parameters for horizon-shape and other similar data files
+#
+
+# this parameter controls how often we write apparent-horizon-shape
+# output files (format controlled by  horizon_file_format ); we still
+# *find* apparent horizons at each time step, and compute BH diagnostics
+# and (if desired) write them to the one-per-horizon BH diagnostics
+# output files, but this parameter may be used to reduce the number
+# of one-file-per-horizon-per-time-step apparent-horizon-shape output
+# files
+int output_h_every \
+  "how often (in Cactus time steps) should we output h (0 to disable)?" \
+  STEERABLE=always
+{
+0   :: "don't output h at all"
+1:* :: "any integer >= 1"
+} 1
+
+# setting this > 0 is probably only of interest if the Newton iteration
+# fails to converge, or if you're debugging AHFinderDirect internals
+int output_Theta_every \
+  "how often (in Cactus time steps) should we output the Theta(h) functions?" \
+  STEERABLE=always
+{
+0   :: "don't output Theta(h) at all"
+1:* :: "any integer >= 1"
+} 0
+
+int output_mean_curvature_every \
+  "how often (in Cactus time steps) should we output the mean_curvature(h) functions?" \
+  STEERABLE=always
+{
+0   :: "don't output mean_curvature(h) at all"
+1:* :: "any integer >= 1"
+} 0
+
+boolean output_ASCII_files "output h and Theta(h) as ASCII files" STEERABLE=always
+{
+} "yes"
+
+boolean output_HDF5_files "output h and Theta(h) as HDF5 files" STEERABLE=always
+{
+} "no"
+
+# n.b. this refers to the patch system (angular) interpatch ghost zones,
+#      *not* the Cactus interprocessor ghost zones
+boolean output_ghost_zones_for_h \
+  "should we include the patch system (angular) interpatch ghost zones \
+   in h data files?" STEERABLE=always
+{
+} "false"
+
+# n.b. making this "gnuplot" probably isn't a good idea,
+#      since it could create confusion with gnuplot command files
+string ASCII_gnuplot_file_name_extension \
+  "extension for ASCII (gnuplot) data files" STEERABLE=always
+{
+".+" :: "any nonempty string"
+} "gp"
+string HDF5_file_name_extension "extension for HDF5 data files" STEERABLE=always
+{
+".+" :: "any nonempty string"
+} "h5"
+
+#
+# These file names are actually just "base" file names, with the full
+# file names being given by a printf() format "%s/%s.t%d.ah%d[.it%d].%s",
+# where
+# - the first %s is the output directory as set by the  h_directory
+#   parameter (this same directory is used for all of these files);
+#   this is automagically created if it doesn't already exist
+# - the second %s is the base file name,
+# - the first %d is the global Cactus time iteration number cctk_iteration,
+# - the second %d is the apparent horizon number,
+# - the optional third %d is the horizon finder iteration number
+# - the third %s is the file name extension
+#   {ASCII,HDF5}_data_file_name_extension
+#
+string h_directory \
+  "directory for horizon shape and other similar output (or input) file(s)" \
+   STEERABLE=always
+{
+".+" :: "any nonempty string"
+"^$" :: "an empty string to default to IO::out_dir"
+} ""
+
+string h_base_file_name \
+  "base file name for horizon shape h input/output file(s)" \
+  STEERABLE=always
+{
+".+" :: "any nonempty string"
+} "h"
+
+string Theta_base_file_name "base file name for Theta(h) output file(s)" \
+  STEERABLE=always
+{
+".+" :: "any nonempty string"
+} "Theta"
+
+string mean_curvature_base_file_name "base file name for mean_curvature(h) output file(s)" \
+  STEERABLE=always
+{
+".+" :: "any nonempty string"
+} "mean_curvature"
+
+string Delta_h_base_file_name \
+  "base file name for horizon-shape-update Delta_h output file(s)" \
+  STEERABLE=always
+{
+".+" :: "any nonempty string"
+} "Delta_h"
+
+int h_min_digits \
+  "minimum number of digits for the iteration number in the file name" STEERABLE=always
+{
+0:* :: ""
+} 0
+
+#
+# Thomas Radke has written a set of OpenDX macros to read AHFinderDirect
+# ASCII (gnuplot) format files.  These macros require a "control file"
+# for each patch to specify some of the patch metadata.
+#
+# If we write them, the control file names are given by a printf() format
+# "%s/%s.ah%d.%s", where
+# - the first %s is the output directory as set by the  h_directory
+#   parameter (this same directory is used for all of these files);
+#   this is automagically created if it doesn't already exist
+# - the second %s is h_base_file_name
+# - the %d is the apparent horizon number
+# - the third %s is the file name extension OpenDX_control_file_name_extension
+#
+boolean output_OpenDX_control_files \
+  "should we output OpenDX control files to allow reading of AHFinderDirect \
+   'ASCII (gnuplot)' format data files?" STEERABLE=always
+{
+} "true"
+string OpenDX_control_file_name_extension \
+  "file name extension for OpenDX control files" STEERABLE=always
+{
+".+" :: "any nonempty string"
+} "dx"
+
+########################################
+
+#
+# parameters mainly for debugging
+#
+
+# this is mainly useful for debugging purposes
+boolean output_initial_guess \
+  "should we output the initial guess back to the h data file?" \
+  STEERABLE=always
+{
+} "false"
+
+# for debugging convergence failures, we can optionally output
+# h, Theta, and delta_h at each Newton iteration
+# (the file names are the usual ones with ".it%d" appended)
+boolean debugging_output_at_each_Newton_iteration \
+  "should we output {h, Theta, delta_h} at each Newton iteration?" \
+  STEERABLE=recover
+{
+} "false"
+
+string Jacobian_base_file_name "base file name for Jacobian output file(s)" \
+  STEERABLE=always
+{
+".+" :: "any valid file name"
+} "Jacobian.dat"
+
+################################################################################
+
+#
+# ***** parameters for setting a mask grid function ***
+# ***** based on each apparent horizon shape *****
+#
+
+boolean set_mask_for_all_horizons \
+  "should we set a mask grid function (or functions) for all horizons?" \
+  STEERABLE=recover
+{
+} "false"
+
+boolean set_mask_for_individual_horizon[101] \
+  "should we set a mask grid function (or functions) for *this* horizon?" \
+  STEERABLE=recover
+{
+} "false"
+
+#
+# If we set a mask, we do so based on partitioning the Cactus grid into
+# 3 regions, an "inside", a "buffer", and an "outside" (typically the inside
+# region is excised).  For a grid point a distance r[i] from horizon i's
+# local coordinate origin, with horizon i's radius in this same direction
+# (again, measured from its local coordinate origin) being r_horizon[i],
+# the regions are defined as follows:
+#	r[i] <= r_inner[i] for some i				==> inside
+#	r[i] >  r_inner[i] for all i
+#		and r[i] <= r_outer[i] for some i		==> buffer
+#	r[i] >  r_outer[i] for all i				==> outside
+# where
+#	r_inner = mask_radius_multiplier * r_horizon
+#		  +  mask_radius_offset * Delta_x
+#	r_outer = r_innter  +  mask_buffer_thickness * Delta_x
+# and where  Delta_x  is the Cactus base grid spacing (more precisely,
+# the geometric mean of the base grid's x, y, and z Cactus grid spacings)
+# (The "base grid" part here only matters if you're doing mesh refinement.)
+#
+real mask_radius_multiplier \
+  "radius multiplier to define the 'inside' mask region" \
+  STEERABLE=recover
+{
+(0:*) :: \
+  "any positive real number; typically this will be slightly less than 1.0"
+} 0.8
+real mask_radius_offset \
+  "radius offset (in Cactus base grid spacings) to define the 'inside' mask region" \
+  STEERABLE=recover
+{
+*:* :: "any real number; typically this will be negative"
+} -5.0
+real mask_buffer_thickness \
+  "thickness (in Cactus base grid spacings) of the 'buffer' mask region" \
+  STEERABLE=recover
+{
+*:* :: "any real number; typically this will be positive"
+} 5.0
+
+#
+# If this parameter is set to true, then we prevent the inside & buffer
+#    regions from ever shrinking, i.e. if a point is ever set to the inside
+#    value then we leave at that value forever, and if it's ever set to
+#    the buffer value then we leave at that value or the inside value forever.
+# If this parameter is set to false, then we set the inside/buffer/outside
+#    values independently at each time step, so all three regions can grow
+#    or shrink depending on the horizon positions/shapes.
+#
+boolean mask_is_noshrink \
+  "should we prevent the inside & buffer regions from ever shrinking?" \
+  STEERABLE=recover
+{
+} "true"
+
+#
+# If we're using mesh refinement (eg Carpet) it's possible to find a
+# horizon on a fine grid, and then set a mask on a coarser grid where
+# the masked-off region is only a few grid points across.  This then
+# confuses various other thorns (eg LegoExcision) which require excised
+# regions to be "not too small".
+#
+# So...  This parameter may be used to specify that the mask not be set
+# for a given horizon (just as if that horizon wasn't found) on any grid
+# where the inner mask radius  r_inner  is < this many grid spacings.
+# More precisely, we skip masking for any horizon where
+#	r_inner,min < min_horizon_radius_points_for_mask * Delta_x_current,max
+# where
+#	r_inner,min = the minimum over all angles of the inner mask radius
+#		      r_inner
+#	Delta_x_current,max = the maximum of the x,y,and z grid spacings
+#			      in the *current* Cactus grid
+#
+# Note that since r_inner can be negative (if  mask_radius_offset < 0 ),
+# the default setting for this parameter is effectively -infinity, to
+# excise any horizon.
+#
+real min_horizon_radius_points_for_mask \
+  "only set mask if min r_inner >= this number of local grid spacings" \
+  STEERABLE=recover
+{
+*:* :: "any real number"
+} -1.0e10
+
+#
+# This thorn supports two types of mask grid functions:
+# * the "old" style is that defined by CactusEinstein/AHFinder:
+#   the mask is a CCTK_REAL grid function, which is set to specified
+#   (CCTK_REAL) values inside/outside the (adjusted) horizon
+# * the "new" style is that defined by CactusEinstein/SpaceMask:
+#   the mask is a CCTK_INT grid function, with a specified bit field
+#   set to specified values inside/outside the (adjusted) horizon
+#	[N.b. AHFinderDirect doesn't set up the bit fields --
+#	you must arrange for some other thorn to do this.  At
+#	present AHFinderDirect converts the names specified here
+#	to integer bit masks only once, in its setup routine;
+#	this may change to do this conversion each time AHFinderDirect
+#	does horizon finding.]
+# You can choose to set either (or even both!) of these.
+#
+boolean set_old_style_mask \
+  "if we're setting a mask, should we set an old-style (CCTK_REAL) mask gridfn?" STEERABLE=recover
+{
+} "true"
+boolean set_new_style_mask \
+  "if we're setting a mask, should we set an new-style (CCTK_INT) mask gridfn?" STEERABLE=recover
+{
+} "false"
+
+#
+# mask info for  mask_type = "old-style (CCTK_REAL)"
+# defaults match CactusEinstein/AHFinder
+#
+string old_style_mask_gridfn_name "name of the old-style mask grid function" STEERABLE=recover
+{
+".+" :: "any valid Cactus grid function name"
+} "SpaceMask::emask"
+real old_style_mask_inside_value \
+  "set the old-style mask to this value in the 'inside' region" STEERABLE=recover
+{
+*:* :: "any real number"
+} 0.0
+real old_style_mask_buffer_value \
+  "set the old-style mask to this value in the 'buffer' region" STEERABLE=recover
+{
+*:* :: "any real number"
+} 0.5
+real old_style_mask_outside_value \
+  "set the old-style mask to this value in the 'outside' region" STEERABLE=recover
+{
+*:* :: "any real number"
+} 1.0
+
+#
+# mask info for  mask_type = "new-style (CCTK_INT)"
+#
+string new_style_mask_gridfn_name "name of the new-style mask grid function" STEERABLE=recover
+{
+".+" :: "any valid Cactus grid function name"
+} "SpaceMask::space_mask"
+string new_style_mask_bitfield_name \
+  "name of the new-style mask bit field ('type') as registered with SpaceMask" STEERABLE=recover
+{
+".+" :: "any valid bit field ('type') name registered with the SpaceMask thorn"
+} "mask"
+string new_style_mask_inside_value \
+  "set the specified bit field of the new-style mask to this named state \
+   at grid points in the 'inside' region" STEERABLE=recover
+{
+".+" :: "any state name registered with the SpaceMask thorn"
+} "inside"
+string new_style_mask_buffer_value \
+  "set the specified bit field of the new-style mask to this named state \
+   at grid points in the 'buffer' region" STEERABLE=recover
+{
+".+" :: "any state name registered with the SpaceMask thorn"
+} "buffer"
+string new_style_mask_outside_value \
+  "set the specified bit field of the new-style mask to this named state \
+   at grid points in the 'outside' region" STEERABLE=recover
+{
+".+" :: "any state name registered with the SpaceMask thorn"
+} "outside"
+
+################################################################################
+
+#
+# ***** parameters controlling how we handle errors/warnings *****
+#
+
+#
+# We currently "handle" the following errors/warnings by CCTK_VWarn();
+# these parameters give the warning levels (in the sense of the -W flag
+# to Cactus, and the first argument to CCTK_VWarn()) for various conditions:
+#
+
+# point outside (or too close to boundary of) Cactus grid,
+# i.e. geometry interpolator returns CCTK_ERROR_INTERP_POINT_OUTSIDE
+# ... warning level if error occurs on first Newton iteration,
+#     i.e. when evaluating expansion/Jacobian for initial guess
+# ... this may mean that  driver::ghost_size  is too small, especially
+#     if any horizon crosses a symmetry boundary
+#     ==> visible message by default
+int warn_level__point_outside__initial \
+  "warning level for point outside (or too close to boundary of) Cactus grid \
+   (error occurs on first Newton iteration)" STEERABLE=recover
+{
+-1:* :: "any valid Cactus warning level"
+} 1
+# ... warning level if error occurs on a subsequent Newton iteration
+# ... this probably "just" means there's no horizon in the grid
+#     ==> no visible message by default
+int warn_level__point_outside__subsequent \
+  "warning level for point outside (or too close to boundary of) Cactus grid \
+   (error occurs on subsequent Newton iteration)" STEERABLE=recover
+{
+-1:* :: "any valid Cactus warning level"
+} 2
+
+# the Cactus configure process didn't find a finite() function,
+# so we're skipping the "check that the geometry is finite" tests
+# even though the user set  check_that_geometry_is_finite = "true"
+int warn_level__skipping_finite_check \
+  "warning level if the user sets  check_that_geometry_is_finite \
+   but the Cactus configure process doesn't find a  finite()  function \
+   so we have to skip the finite-geometry check" STEERABLE=recover
+{
+-1:* :: "any valid Cactus warning level"
+} 3
+
+# infinity and/or NaN in interpolated {g_ij, partial_k g_ij, K_ij}
+int warn_level__nonfinite_geometry \
+  "warning level if we find infinity and/or NaN in the interpolated geometry \
+   values {g_ij, partial_k g_ij, K_ij}" STEERABLE=recover
+{
+-1:* :: "any valid Cactus warning level"
+} 1
+
+# interpolated g_{ij} isn't positive definite
+# (usually this means we're too close to a singularity)
+# ... warning level if error occurs on first Newton iteration,
+#     i.e. when evaluating expansion/Jacobian for initial guess
+int warn_level__gij_not_positive_definite__initial \
+  "warning level if the interpolated g_{ij} isn't positive definite \
+   (usually this means we're too close to a singularity) \
+   (error occurs on first Newton iteration)" STEERABLE=recover
+{
+-1:* :: "any valid Cactus warning level"
+} 2
+# ... warning level if error occurs on a subsequent Newton iteration
+int warn_level__gij_not_positive_definite__subsequent \
+  "warning level if the interpolated g_{ij} isn't positive definite \
+   (usually this means we're too close to a singularity) \
+   (error occurs on subsequent Newton iteration)" STEERABLE=recover
+{
+-1:* :: "any valid Cactus warning level"
+} 2
+
+################################################################################
+
+#
+# ***** parameters for the Newton's-method solution of Theta(h) = 0 *****
+#
+
+#
+# The first time we (try to) find a given horizon, our initial guess
+# is likely to be rather inaccurate, so we may need a larger number of
+# iterations.  But if we've found this horizon before, then we have its
+# previous position as an initial guess, so (assuming that we've been
+# scheduled at each time step) we shouldn't need as many iterations.
+#
+int max_Newton_iterations__initial \
+  "maximum number of Newton iterations before giving up \
+   when initially finding a given horizon" STEERABLE=recover
+{
+(0:* :: "any positive integer"
+} 20
+int max_Newton_iterations__subsequent \
+  "maximum number of Newton iterations before giving up \
+   when re-finding a given horizon after finding it before" STEERABLE=recover
+{
+(0:* :: "any positive integer"
+} 10
+
+#
+# To avoid the Newton iteration diverging if there is no horizon present
+# or if the initial guess is bad, we limit the distance the horizon may
+# move in any single Newton iteration (i.e. the infinity-norm of Delta_h)
+# to <= this fraction of the mean horizon radius
+#
+real max_allowable_Delta_h_over_h \
+  "don't let horizon move > this fraction of mean radius in a Newton iteration" STEERABLE=recover
+{
+(0.0:* :: "any positive real number"
+} 0.1
+
+#
+# To avoid the Newton iteration diverging (or more accurately, to detect
+# this divergence faster) if there is no horizon present or if the initial
+# guess is bad, we also deem any horizon with a mean radius (measured around
+# its local coordinate origin) larger than this to be "not found".  The
+# default is effectively "no limit"; AHFinderDirect will be more efficient
+# if you (re)set this (for each horizon) to the coordinate radius of a
+# sphere a bit larger than you expect the horizon to be (eg a sphere with
+# areal radius 4m or so, where m is the ADM mass of the slice).
+#
+real max_allowable_horizon_radius[101] \
+  "max mean-coordinate-radius allowed for any trial surface \
+   before we give up and say we can't find this horizon" STEERABLE=recover
+{
+(0.0:* :: "any positive real number"
+} 1.0e10
+
+#
+# convergence tolerance for the Newton iteration
+#
+real Theta_norm_for_convergence \
+  "we declare the horizon to be found if ||Theta||_infinity <= this" STEERABLE=recover
+{
+(0.0:* :: "any positive real number"
+} 1.0e-8
+
+#
+# To detect some divergence cases faster, we also deem any horizon where
+# the infinity-norm of Theta exceeds this parameter, to be "not found".
+# The default is effectively "no limit".
+#
+real max_allowable_Theta \
+  "max ||Theta||_infinity allowed for any trial surface \
+   before we give up and say we can't find this horizon" STEERABLE=recover
+{
+(0.0:* :: "any positive real number"
+} 1.0e10
+
+#
+# To detect some divergence cases faster, we also do not allow the Theta
+# norm to grow for more than a certain number of iterations.
+#
+int max_allowable_Theta_growth_iterations \
+  "max number of consecutive iterations during which ||Theta||_infinity \
+   is allowed to grow before we give up and say we can't find this horizon" STEERABLE=recover
+{
+0   :: "infinitly many"
+1:* :: "that many"
+} 0
+
+#
+# To detect some divergence cases faster, we also do not allow the Theta
+# norm to oscillate without shrinking for more than a certain number of
+# iterations.
+#
+int max_allowable_Theta_nonshrink_iterations \
+  "max number of consecutive iterations during which ||Theta||_infinity \
+   is allowed to oscillate without shrinking before we give up and say \
+   we can't find this horizon" STEERABLE=recover
+{
+0   :: "infinitly many"
+1:* :: "that many"
+} 0
+
+################################################################################
+
+#
+# ***** parameters to define the patch system(s) *****
+#
+
+#
+# For each apparent horizon, you need to set these parameters to the
+# Cactus xyz coordinates of a "local origin point" inside the horizon,
+# which will serve as the origin for the apparent horizon finder's
+# local angular coordinate system.
+#
+# The apparent horizon surface (and in fact all the trial surfaces the
+# apparent horizon finder generates while iteratively solving the apparent
+# horizon equation) is restricted to being a Strahlkoerper ("star-shaped
+# region") about the origin point.  That is, each surface must be of
+# the form r = h(angle) with h a single-valued function.
+#
+# If the origin point is too far from the actual horizon centroid, i.e.
+# if it's too close to the horizon surface itself, then the apparent
+# horizon finder's Newton iteration won't converge as quickly or robustly.
+# However, in practice the tolerances on this are quite loose -- 1/4
+# of the horizon radius is no problem, and even 1/2 the horizon radius
+# only slows the convergence by an extra iteration or two.
+#
+real origin_x[101] "global x coordinate of patch system origin" STEERABLE=recover
+{
+*:* :: "any real number"
+} 0.0
+real origin_y[101] "global y coordinate of patch system origin" STEERABLE=recover
+{
+*:* :: "any real number"
+} 0.0
+real origin_z[101] "global z coordinate of patch system origin" STEERABLE=recover
+{
+*:* :: "any real number"
+} 0.0
+
+boolean move_origins "move the origins with the horizons" STEERABLE=recover
+{
+} "no"
+
+boolean reshape_while_moving "reshape the horizons when moving them" STEERABLE=recover
+{
+} "no"
+
+boolean predict_origin_movement "predict origin movement when moving the origins" STEERABLE=recover
+{
+} "no"
+
+boolean track_origin_from_grid_scalar[101] "track horizon origin from given grid scalars" STEERABLE=recover
+{
+} "no"
+string track_origin_source_x[101] "grid scalar containing the x component of the origin estimate" STEERABLE=recover
+{
+  "" :: "don't use this feature"
+  "[a-zA-Z_][a-zA-Z0-9_]*[:][:][a-zA-Z_][a-zA-Z0-9_]*(\[0-9+\])" :: "name of a grid scalar"
+} ""
+string track_origin_source_y[101] "grid scalar containing the x component of the origin estimate" STEERABLE=recover
+{
+  "" :: "don't use this feature"
+  "[a-zA-Z_][a-zA-Z0-9_]*[:][:][a-zA-Z_][a-zA-Z0-9_]*(\[0-9+\])" :: "name of a grid scalar"
+} ""
+string track_origin_source_z[101] "grid scalar containing the x component of the origin estimate" STEERABLE=recover
+{
+  "" :: "don't use this feature"
+  "[a-zA-Z_][a-zA-Z0-9_]*[:][:][a-zA-Z_][a-zA-Z0-9_]*(\[0-9+\])" :: "name of a grid scalar"
+} ""
+
+#
+# The "(rotating)" patch system types are ok for evaluating Theta(h),
+# but alas they don't work yet for apparent horizon finding
+# (the Jacobian computation doesn't yet grok the nonlocal rotation BCs).
+#
+keyword patch_system_type[101] "what type of patch system should we use?"
+{
+# choose this for normal use
+"match Cactus grid symmetry" :: \
+  "choose automagically based on grid symmetries and the patch system's origin"
+
+"full sphere"	:: "full sphere, no symmetries"
+"+z hemisphere"	:: "mirror symmetry across z=0 plane"
+
+"+xy quadrant (rotating)" :: "90 degree periodic rotation symmetry about z axis"
+"+xy quadrant (mirrored)" :: "mirror symmetry across x=0 and y=0 planes"
+
+"+xz quadrant (mirrored)" :: "mirror symmetry across x=0 and z=0 planes"
+"+xz quadrant (rotating)" :: \
+  "180 degree periodic rotation symmetry about z axis \
+   and mirror symmetry across z=0 plane"
+
+"+xyz octant (rotating)"  :: \
+  "90 degree periodic rotation symmetry about z axis \
+   and mirror symmetry across z=0 plane"
+"+xyz octant (mirrored)"  :: "mirror symmetry across x=0 and y=0 and z=0 planes"
+} "match Cactus grid symmetry"
+
+#
+# This parameter sets the angular resolution of each patch systems:
+# the angular grid spacing in degrees is 90.0/N_zones_per_right_angle.
+#
+# In practice the error in the horizon position is usually dominated
+# by the errors from interpolating the Cactus gij and Kij to the horizon
+# position, not by the angular finite differencing or interpatch interpolation
+# errors.  Thus this parameter can be made fairly small (low resolution)
+# for better performance, without seriously affecting the accuracy
+# with which we can locate the horizon.
+#
+# *** IMPORTANT
+# *** For any patch system type other than "full sphere", there are
+# *** patches with 45 degree widths, so this parameter must be even.
+#
+# Normally we use Simpson's rule (in a variant which doesn't require the
+# number of zones to be even) for angular integrations over the patch
+# system.  However, if the number of angular zones in a patch is very
+# small and odd (i.e. 3 or 5), then we have to use the trapezoid rule
+# instead, so the integrations are less accurate.  This occurs for
+# N_zones_per_right_angle = 3 or 5 for a full sphere patch system,
+# or N_zones_per_right_angle = 6 or 10 for any other patch system type.
+#
+# For large values of this parameter, this thorn takes CPU time which
+# scales roughly as the ...
+# ... 6th power of this parameter
+#     if Jacobian_store_solve_method = "dense matrix/LAPACK"
+# ... 3rd power of this parameter
+#     if Jacobian_store_solve_method = "row-oriented sparse matrix/ILUCG"
+#
+#int N_zones_per_right_angle[101] "sets angular resolution of patch systems" ACCUMULATOR-BASE max_N_zones_per_right_angle
+int N_zones_per_right_angle[101] "sets angular resolution of patch systems"
+{
+1:* :: "any integer >= 1; must be even for patch systems other than full-sphere"
+} 18
+
+# Default parameter values do not trigger accumulator expressions.
+# Therefore the default values here must be large enough for the default
+# horizon shape.
+#int max_N_zones_per_right_angle "the maximum of all N_zones_per_right_angle -- calculated automatically; do not set this parameter directly" ACCUMULATOR=((x>y)*x+!(x>y)*y)
+int max_N_zones_per_right_angle "the maximum of all N_zones_per_right_angle"
+{
+1:* :: "must be at least the maximum of all N_zones_per_right_angle"
+} 18
+
+#
+# This parameter sets the width of the interpatch ghost zones in the
+# patch system.  Note that this thorn uses the terminology "ghost zone"
+# for any of what Cactus in general now calls a "boundary zone" or a
+# "symmetry zone" or a "patch zone".
+#
+# This parameter must be at least
+# ... 2 if FINITE_DIFF_ORDER is set to 4 in "src/include/config.hh"
+# ... 1 if FINITE_DIFF_ORDER is set to 2 in "src/include/config.hh"
+# The code checks for this being too small, and reports a fatal error if so.
+#
+int ghost_zone_width "number of ghost zones on each side of a patch"
+{
+0:* :: "any integer >= 0"
+} 2
+
+#
+# Our code that computes surface integrals over patches (used for
+# computing BH diagnostics like centroids, areas, masses, etc) silently
+# assumes that this parameter is == 1, so you should probably leave
+# it at that setting.
+#
+int patch_overlap_width \
+  "number of grid points that nominally-just-touching patches should overlap"
+{
+1:*:2 :: "any integer >= 0; current implementation requires that it be odd"
+} 1
+
+################################################################################
+
+#
+# ***** parameters for the Jacobian matrix *****
+#
+
+keyword Jacobian_compute_method "how do we compute the Jacobian matrix?" STEERABLE=recover
+{
+# for debugging only"
+"numerical perturbation"    :: "n.b. this is *very* slow"
+
+# use this for normal apparent horizon finding
+"symbolic differentiation with finite diff d/dr" :: \
+  "fast, tricky programming, uses only gij, dx gij, Kij"
+
+# alas, this isn't implemented yet :(
+"symbolic differentiation"  :: \
+  "fast, tricky programming, uses gij, dx gij, dxx gij, Kij, dx Kij"
+} "symbolic differentiation with finite diff d/dr"
+
+########################################
+
+#
+# This parameter lists all known methods for storing the Jacobian and
+# solving linear systems with the Jacobian as the LHS matrix.  See
+# "src/include/config.hh" for which of these are actually compiled in at
+# the moment.  N.b. each compiled-in method requires linking with the
+# corresponding linear-solver library; see "src/make.configuration.defn"
+# for details on these libraries.
+#
+keyword Jacobian_store_solve_method \
+  "how do we store/linear-solve the Jacobian matrix?" STEERABLE=recover
+{
+# good for debugging, but very slow for large  N_zones_per_right_angle
+"dense matrix/LAPACK"	:: \
+  "store as (Fortran) dense matrix, solve with LAPACK routines"
+# use this for normal runs
+"row-oriented sparse matrix/ILUCG" :: \
+  "store as sparse matrix (row-oriented storage format), \
+   solve with ILUCG (incomplete LU decomposition - conjugate gradient) method"
+# this will probably replace ILUCG, but it's not ready yet :(
+"row-oriented sparse matrix/UMFPACK" :: \
+  "store as sparse matrix (row-oriented storage format), \
+   solve with UMFPACK (sparse LU decomposition) method"
+} "row-oriented sparse matrix/UMFPACK"
+
+#
+# Extra parameters for individual linear solvers
+#
+
+# extra parameters for
+#   Jacobian_store_solve_method == "row-oriented sparse matrix/ILUCG"
+real ILUCG__error_tolerance "error tolerance for conjugate gradient iteration" STEERABLE=recover
+{
+(*:0.0)	:: \
+  "negative ==> scale the absolute value by the floating point roundoff \
+                threshold, e.g. -256.0 means to allow the last 8 bits of \
+                the solution to be in error"
+(0.0:*)	:: \
+  "positive ==> error tolerance"
+} 1.0e-10
+boolean ILUCG__limit_CG_iterations \
+  "should we limit the maximum number of conjugate gradient iterations allowed?" STEERABLE=recover
+{
+"false"	:: "no limit on CG iterations"
+"true"	:: "limit to Neqns CG iterations"
+} "true"
+
+# extra parameters for
+#   Jacobian_store_solve_method == "row-oriented sparse matrix/UMFPACK"
+int UMFPACK__N_II_iterations \
+  "number of iterative-improvement iterations to do inside UMFPACK \
+   after the sparse LU decompose/solve, each time we solve a linear system" STEERABLE=recover
+{
+-1	:: "use the UMFPACK default"
+0	:: "don't do iterative improvement"
+1:*	:: "any positive integer \
+	    (in practice a few iterations give almost all the benefit)"
+} 0
+
+########################################
+
+#
+# This parameter controls two different sorts of one-sided finite
+# differencing:
+# - numerical-perturbation Jacobian computations
+# - the finite differencing part of the "symbolic differentiation
+#   with finite diff d/dr" Jacobian computation
+#
+# Notes on this parameter:
+# - don't set it too small or roundoff errors will become large
+# - don't set it too large or finite differencing errors will become large
+# In practice the default value should be fine
+#
+real Jacobian_perturbation_amplitude \
+  "perturbation amplitude for 1-sided finite differencing for Jacobians" STEERABLE=recover
+{
+(0.0:* :: "any real number > 0"
+} 1.0e-6
+
+# if AHFinderDirect::method = "test Jacobian", should we test all
+# known methods for computing the Jacobian, or just the numerical perturbation
+# method (the latter may be useful of some other methods are broken)
+boolean test_all_Jacobian_compute_methods \
+  "should we test all Jacobian computation methods, or just NP?" STEERABLE=recover
+{
+} "true"
+
+################################################################################
+
+#
+# ***** parameters for how we compute the slice's geometry *****
+# ***** (gij, Kij, partial_k gij) *****
+#
+
+########################################
+
+#
+# parameters for geometry interpolation
+#
+# This 3D interpolator is used to interpolate gij and Kij from the
+# Cactus grid to the position of each trial horizon surface, giving
+# gij, Kij, and partial_x gij as outputs.  This interpolator must have
+# the following properties:
+# - It must support taking at least 1st derivatives as part of the
+#   interpolation.
+# - It should give at least $C^1$ interpolants for smooth data, otherwise
+#   the Theta(h) function will have "spikes" and the Newton iteration may
+#   fail to converge all the way down to tight error tolerances.  $C^2$
+#   would be even better, but in practice a ($C^1$) Hermite interpolant
+#   works well.
+# In practice the default values for these parameters should work fine
+# (with the AEIThorns/AEILocalInterp local interpolator).
+#
+
+string coordinate_system_name \
+  "name under which the coordinate system is registered in Cactus" STEERABLE=recover
+{
+".+" :: "any nonempty string"
+} "cart3d"
+
+string geometry_interpolator_name \
+  "name under which the geometry interpolation operator is registered in Cactus" STEERABLE=recover
+{
+".+" :: "any nonempty string"
+} "Hermite polynomial interpolation"
+
+#
+# The defaults here are set up for 2nd order Hermite interpolation,
+# which requires driver::ghost_size >= 2.
+#
+string geometry_interpolator_pars \
+  "parameters for the geometry interpolator" STEERABLE=recover
+{
+".*" :: \
+  "any string acceptable to Util_TableSetFromString() and to the interpolator"
+} "order=2 \
+   boundary_off_centering_tolerance={1.0e-10 1.0e-10 1.0e-10 1.0e-10 1.0e-10 1.0e-10} \
+   boundary_extrapolation_tolerance={0.0 0.0 0.0 0.0 0.0 0.0}"
+
+########################################
+
+#
+# for testing/debugging purposes, instead of interpolating the geometry
+# from the Cactus grid, we can instead hardwire it to an Eddington-Finkelstein
+# slice of Schwarzschild spacetime
+#
+boolean hardwire_Schwarzschild_EF_geometry \
+  "should we hard-wire the geometry to Schwarzschild/EF instead of \
+   interpolating from the Cactus grid?"
+{
+} "false"
+
+real geometry__Schwarzschild_EF__mass "mass of Schwarzschild BH"
+{
+(0.0:*		:: "BH mass = any real number > 0"
+} 1.0
+
+real geometry__Schwarzschild_EF__x_posn "x coordinate of Schwarzschild BH"
+{
+*:* :: "any real number"
+} 0.0
+real geometry__Schwarzschild_EF__y_posn "y coordinate of Schwarzschild BH"
+{
+*:* :: "any real number"
+} 0.0
+real geometry__Schwarzschild_EF__z_posn "z coordinate of Schwarzschild BH"
+{
+*:* :: "any real number"
+} 0.0
+
+# some of the Schwarzschild/EF formulas have 0/0 limits on the z axis;
+# this parameter controls where we switch from the generic formulas to
+# the L'Hopital's-rule z axis limits
+# - don't set this parameter too small or roundoff errors will be excessive
+# - don't set this parameter too large or finite differencing errors will
+#   be excessive
+# in practice the default value should be fine
+# n.b. this is used for centered finite differencing, unlike the Jacobian
+real geometry__Schwarzschild_EF__epsilon \
+  "threshold for sin^2 theta = (x^2+y^2)/r^2 below which we use z axis limits"
+{
+(0.0:*	:: "this should be somewhat above the floating-point roundoff level"
+} 1.0e-9
+
+# we compute partial_k g_ij by numerical finite differencing of the exact
+# analytical g_ij values; this parameter sets the "grid spacing" for this
+# - don't set this parameter too small or roundoff errors will be excessive
+# - don't set this parameter too large or finite differencing errors will
+#   be excessive
+# in practice the default value should be fine
+# ... n.b. this finite differencing is *centered*, unlike that in the
+#          Jacobian computation
+real geometry__Schwarzschild_EF__Delta_xyz \
+  "finite diff pseuo-grid spacing for computing partial_k g_ij"
+{
+(0.0:* :: "any real number > 0"
+} 1.0e-6
+
+########################################
+
+#
+# These parameters control whether we check that various angular gridfns
+# are finite (neither NaN nor infinity) at various points in evaluating
+# the Theta(h) function.  These are pretty cheap tests, and they're quite
+# useful in catching assorted wierdness, so it's probably worth leaving
+# them enabled unless you're trying to squeeze every last nanosecond...
+#
+boolean check_that_h_is_finite \
+  "should we check that horizon shape function h is finite?" \
+  STEERABLE=recover
+{
+} "true"
+boolean check_that_geometry_is_finite \
+  "should we check the interpolated geometry variables are finite?" \
+  STEERABLE=recover
+{
+} "true"
+
+################################################################################
+
+#
+# ***** parameters for the interpatch interpolation *****
+#
+
+#
+# This 1D local interpolator is used to interpolate the h function between
+# angular patches.  Because any given patch boundary only interpolates
+# from a single neighboring patch (this is to simplify the bookkeeping),
+# near the patch corners this interpolator will have to be used off-centered.
+# Thus it's desirable to use an interpolator which retains reasonable
+# accuracy right up to the edge of the data range.  In practice a Lagrange
+# polynomial interpolant works well.
+#
+
+string interpatch_interpolator_name \
+  "name under which the interpatch interpolation operator is registered in Cactus" STEERABLE=recover
+{
+".+" :: "any string (in practice it should be nonempty)"
+} "Lagrange polynomial interpolation"
+
+string interpatch_interpolator_pars \
+  "parameters for the interpatch interpolator" STEERABLE=recover
+{
+".*" :: \
+  "any string acceptable to Util_TableSetFromString() and to the interpolator"
+} "order=5"
+
+################################################################################
+
+#
+# ***** parameters for the surface interpolation *****
+#
+
+#
+# This 2D local interpolator is used to interpolate the horizon radius
+# arbitrary angular coordinate, to find out whether a given xyz point is
+# inside or outside the horizon.
+#
+# At present this interpolator is used only if  set_horizon_mask  is true.
+# Otherwise, these parameters may both be set to empty strings.
+#
+
+string surface_interpolator_name \
+  "name under which the surface interpolation operator is registered in Cactus" STEERABLE=recover
+{
+"^$" :: "the empty string if this interpolator isn't going to be used"
+".+" :: "any string (in practice it should be nonempty)"
+} "Lagrange polynomial interpolation"
+
+string surface_interpolator_pars \
+  "parameters for the surface interpolator" STEERABLE=recover
+{
+".*" :: \
+  "any string acceptable to Util_TableSetFromString() and to the interpolator"
+} "order=2 \
+   boundary_off_centering_tolerance={1.0e-10 1.0e-10 1.0e-10 1.0e-10} \
+   boundary_extrapolation_tolerance={0.0 0.0 0.0 0.0}"
+
+################################################################################
+
+#
+# ***** parameters for computing line/surface integrals over the horizon *****
+#
+
+#
+# In the descriptions, N is the number of grid zones in a patch
+# in either the rho or the sigma direction, i.e. it's 45 or 90 degrees
+# divided by delta_drho_dsigma.
+#
+keyword integral_method "how do we compute integrals over the horizon?" STEERABLE=recover
+{
+"trapezoid"		:: "alternate name for trapezoid rule"
+"trapezoid rule"	:: "trapezoid rule (2nd order for smooth functions)"
+"Simpson"		:: "alternate name for Simpson's rule"
+"Simpson's rule"	:: \
+  "Simpson's rule (4th order for smooth fns, requires N to be even)"
+"Simpson (variant)"	:: "alternate name for Simpson's rule variant"
+"Simpson's rule (variant)":: \
+  "Simpson's rule variant (4th order for smooth fns, requires N >= 7)"
+
+# choose this for normal use (assuming FINITE_DIFF_ORDER is set to 4
+# in "src/include/config.hh")
+"automatic choice"	:: \
+  "choose Simpson's rule or variant if applicable, otherwise trapezoid rule"
+} "automatic choice"
+
+################################################################################
+
+###
+### ***** parameters for the test driver "src/patch/test_patch_system.cc" *****
+###
+### By default this test driver isn't compiled into the cactus executable,
+### and these parameters are ignored.  To compile this test driver into
+### the cactus executable (and have these parameters used),
+### - edit the list of "source files in this directory" in
+###   "src/patch/make.code.defn" to add  test_patch_system.cc
+### - comment out the list of "subdirectories containing source files" in
+###   "src/make.code.defn", and uncomment the alternate list which is
+###   normally commented out there (this omits the higher-level directories
+###   src/elliptic/, src/gr/, and src/driver/)
+###
+##keyword which_test "which test should we do?"
+##{
+##"gridfn"	:: "set up test fn(x,y,z), print it"
+##"read gridfn"	:: "read in ghosted test fn(x,y,z), print it"
+##"synchronize"	:: "set up test fn(x,y,z), synchronize it, print errors"
+##"ghost zone Jacobian":: \
+##  "set up test fn(x,y,z), compute Jacobian of gz.synchronize(), compare with NP"
+##"derivatives"	:: "set up test fn(rho,sigma), take derivs, print errors"
+##} "gridfn"
+##
+##int which_derivs "bit flags to specify which derivatives to test"
+##{
+##0:63 :: "any set of bit flags"
+##} 63
+##
+### true ==> gives a more thorough test of the Jacobian,
+###          but makes the test run much slower
+### false ==> gives a slightly less thorough test, but runs faster
+##boolean NP_Jacobian__perturb_all_y_patch_points \
+##  "should we perturb at *all* points in the y patch, or just those with the \
+##   iperp which is (supposedly) involved in the interpatch interpolation?"
+##{
+##} "true"
+##
+##################################################################################

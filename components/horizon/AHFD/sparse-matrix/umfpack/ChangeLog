@@ -1,0 +1,223 @@
+Apr 11, 2002:
+
+    * bug fix:  the Microsoft compiler doesn't handle NaN's properly.
+	utIsNaN, and other ut* routines, added for MathWorks version
+	to handle this properly.
+
+Apr 1, 2002:
+
+    * bug fix:  if a column was all NaN's, then UMFPACK would fail
+	to find a pivot row.  umf_row_search.c and umf_internal.h
+	modified to fix this problem.
+
+Mar 9, 2002:  V4.0beta released
+
+    * Map argument added to umfpack_*_triplet_to_col.  New files
+	(umf_triplet.[ch]) added.
+    * minor changes made so that UMFPACK can be compiled with g++ 
+    * additional error checking added to umfpack_*_numeric, for
+	detecting more changes in pattern (Ap, Ai) since last
+	call to umfpack_*_symbolic
+
+Feb 21, 2002:
+
+    * User Guide explains the Makefile vs. GNUmakefile
+
+    * umf_config.h modified, so that the complex SCSL C-BLAS uses
+	(void *) arguments instead of (scsl_zomplex *).  gcc generates
+	some spurious warnings (cc doesn't complain).  Affects the SGI
+	IRIX only.
+
+    * ported to Compaq Alpha
+
+Feb 20, 2002: V4.0 (alpha) released.
+
+    * V4.0 not yet ported to the Compaq Alpha (V3.2 was ported).
+
+Feb 6 to Feb 19, 2002:
+
+    * Relaxed restrictions on sizes of arrays for umfpack_*_transpose and
+	umfpack_*_triplet_to_col.  Size of "max(n,nz)" now just size nz.
+
+    * workspace for umfpack_*_wsolve increased in size.
+
+    * two user arrays for umfpack_*_get_symbolic increased in size,
+	by 1 (Chain_maxrows, Chain_maxcols).
+
+    * lu_normest.m added.
+
+Jan 18 to Feb 5, 2002:
+
+    * The matrix A can be complex, singular, and/or rectangular.
+	The solve step that uses the LU factors can only handle
+	matrices that are complex or real, singuluar or non-singular, 
+	and *** square ***, however.
+
+    * Estimate of the condition number computed:
+	(min (abs (diag (U))) / (max (abs (diag (U)))))
+
+    * Forward/backsolves can solve with A.' as well as A'.
+
+    * char * arguments removed from user-callable routines to make it
+	easier for Fortran to call UMFPACK.  No Fortran interface is (yet)
+	provided, however.
+
+	The solve codes for umfpack_*_*solve changed to #define'd
+	integers:
+
+	    UMFPACK_A       Ax=b
+	    UMFPACK_At      A'x=b
+	    UMFPACK_Aat     A.'x=b
+	    UMFPACK_Pt_L    P'Lx=b
+	    UMFPACK_L       Lx=b
+	    UMFPACK_Lt_P    L'Px=b
+	    UMFPACK_Lat_P   L.'Px=b
+	    UMFPACK_Lt      L'x=b
+	    UMFPACK_U_Qt    UQ'x=b
+	    UMFPACK_U       Ux=b
+	    UMFPACK_Q_Ut    QU'x=b
+	    UMFPACK_Q_Uat   QU.'x=b
+	    UMFPACK_Ut      U'x=b
+	    UMFPACK_Uat     U.'x=b
+
+	All arguments are now either int, long scalars (pass by value),
+	or int, long, double arrays (pass by reference), or void * pointers
+	(pass by value or reference).  A void * pointer is of size 32 or 64
+	bits on most machines.  There is no need for the caller (C or Fortran)
+	to dereference the void * pointers, so these can be treated as
+	integer*4 or integer*8 in Fortran.  A Fortran interface would have to
+	have all arguments passed by reference.
+
+    * All user-callable routine names changed.  The four sets are now:
+	umfpack_di_*	real (double precision), int's as integers
+	umfpack_dl_*	real (double precision), longs's as integers
+	umfpack_zi_*	real (double precision), int's as integers
+	umfpack_zl_*	real (double precision), longs's as integers
+
+    * Ptree (row preordering) and info on pivotal rows for each front
+	added to Symbolic object (extracted by umfpack_*_get_symbolic).
+	Ptree added as output argument to "umfpack (A, 'symbolic')"
+	mexFunction.
+
+    * umfpack_*_transpose can do A' or A.'
+
+    * umfpack_wsolve.c file removed (now generated from umfpack_solve.c).
+
+    * Can now extract just the diagonal of U with umfpack_*_get_numeric,
+	without having to extract the entire matrix U.
+
+    * UMFPACK_ERROR_singular_matrix (-2) removed.
+
+    * UMFPACK_WARNING_singular_matrix (1) added.
+
+    * Control [UMFPACK_PIVOT_OPTION] removed.  No longer any symmetric
+	pivot option (conflicts with the handling of singular and
+	rectangular matrices).
+
+    * Iterative refinement can do Ax=b, A'x=b, or A.'x=b.
+
+    * Most floating-point operations done in macros, to support the complex
+	versions.
+
+    * Info [UMFPACK_N] is now Info [UMFPACK_NROW]
+
+    * Info [UMFPACK_NCOL], Info [UMFPACK_UDIAG_NZ], Info [UMFPACK_UDIAG_NZ]
+	added.
+
+    * umfpack_* routines with "n" as input now use two arguments,
+	n_row and n_col.
+
+    * umfpack mexFunction now explicitly transposes A for b/A.  It computes
+	it using the array transpose as (A.'\b.').'
+
+January 1, 2002:  UMFPACK Version 3.2 released.  Submitted to ACM Trans.
+	on Mathematical Software.
+
+    * The umfpack mexFunction now returns the Info array when the matrix
+	is singular.  Returned an empty array prior to this change.
+
+    * Renamed variable that conflicted with system library routines
+    	(system and j1).
+
+    * Added a #ifdef MATHWORKS definition, so the built-in UMFPACK routine
+	(in a future release of MATLAB) can use the internal ut* memory
+	allocation routines, ut* assertion routine, and utPrintf.
+
+    * MAX and MIN are not defined if they are already defined.
+
+    * A bug fix in umf_kernel_init (a variable was not properly initialized).
+
+    * Removed unused variables.
+
+October 8, 2001:  UMFPACK Version 3.1 released.
+
+August-October, 2001:
+
+    * added umfpack_btf M-file.
+
+    * modified the BLAS update in the frontal matrix.  If there are only
+      a few pivots in remaining in the current front, then the BLAS3 update
+      is delayed to include pivots in the next front.
+
+    * Removed the special-case handling of dense columns from the numerical
+      factorization (kept it in the colamd preordering).  This improves the
+      performance of UMFPACK on dense matrices by a factor of 5 or so, and
+      simplifies the code.
+
+    * Added a symmetric-preference pivoting option.  The option slightly
+      (but uniformly) improves the ordering when factorizing matrices with
+      symmetric nonzero pattern.  That class of matrix is better handled by
+      the symmetric-pattern multifrontal method (MA41 in the Harwell
+      Subroutine Library), however.
+
+    * Fixed the detection of integer overflow.  The 32-bit version cannot
+      make use of more than 2GB of main memory (use the 64-bit version
+      in that case, instead).  The 32-bit version did not correctly detect
+      when it was trying to factorize too large of a matrix.
+
+May 4, 2001:
+
+    * SGI port extended.  It can now call the SCSL Scientific Library, with
+	64-bit BLAS.  Make.sgi and umf_config.h modified.
+
+April 30, 2001:  UMFPACK Version 3.0 released.  Changes since 3.0Beta release:
+
+    * Long integer version added (umfpack_l_* user-callable routines).
+
+    * Peak memory usage in the numerical factorization reduced by a total of
+	12n integers (8n temporary workspace used during numerical
+	factorization, and 4n for the permanent LU factors which was allocated
+	at the beginning of factorization).
+
+    * Ported to the IBM RS 6000 and Compaq Alpha, with help from Anshul Gupta
+	and Friedrich Grund, respectively.
+
+    * 64-bit version added.  Uses dgemm_64, dgemv_64, and dger_64 in the Sun
+	Performance Library.  64-bit versions with the BLAS might not work on
+	any other platform, because they take int's as their integer input
+	arguments instead of long's.  Unfortunately, the proposed ANSI
+	definition of the C-BLAS also uses int's as input integer arguments.
+	It ought to use long's, or include a version that uses long's, just
+	like the Sun Performance Library BLAS.
+
+    * Additional statistics returned in Info:
+	Info [UMFPACK_SIZE_OF_INT]	sizeof (int)
+	Info [UMFPACK_SIZE_OF_LONG]	sizeof (long)
+	Info [UMFPACK_SIZE_OF_POINTER]	sizeof (void *)
+	Info [UMFPACK_SIZE_OF_ENTRY]	(was Info [UMFPACK_WORD])
+	Info [UMFPACK_MAX_FRONT_SIZE_ESTIMATE]	est. front matrix size
+	Info [UMFPACK_MAX_FRONT_SIZE]	actual max frontal matrix size.
+	Contents of Info rearranged.
+
+    * UMFPACK_ERROR_bad_configurution error code replaced with
+	UMFPACK_ERROR_problem_too_large error code.  The "bad configuration"
+	error occured when sizeof (int) < sizeof (size_t).  Now, the int
+	version of UMFPACK can use 32-bit int's and 64-bit pointers, and the
+	long version can use 64-bit long's and 64-bit pointers.  Both versions
+	check to see if the array sizes allocated are larger than what can be
+	accessed by an integer index variable (int or long, depending on the
+	version), and returns UMFPACK_ERROR_problem_too_large if they become
+	too large.
+
+March 15, 2001:  UMFPACK Version 3.0Beta released.
+

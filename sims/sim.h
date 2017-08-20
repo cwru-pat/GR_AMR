@@ -7,7 +7,8 @@
 #include "../cosmo_ps.h"
 #include "../cosmo_macros.h"
 #include "../cosmo_types.h"
-#include "../components/horizon/horizon.h"
+//#include "../components/horizon/horizon.h"
+#include "../components/horizon/AHFD/AHFD.h"
 #include "SAMRAI/tbox/Serializable.h"
 
 using namespace SAMRAI;
@@ -23,7 +24,7 @@ public:
 
   BSSN * bssnSim;
 
-  Horizon * horizon;
+  AHFinderDirect::Horizon * horizon;
   
   CosmoSim(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
@@ -94,22 +95,6 @@ public:
   bool hasNaNs(
     const boost::shared_ptr<hier::Patch>& patch, idx_t data_id);
 
-  bool findHorizon(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
-
-  bool advanceHorizonLevel(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
-    int ln,
-    double from_t,
-    double to_t);
-
-  void RKEvolveHorizonLevel(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
-    idx_t ln,
-    double from_t,
-    double to_t);
-  void initHorizonStep(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
 
   
   
@@ -172,8 +157,8 @@ public:
 
   bool use_anguler_momentum_finder;
 
-  std::string gradiant_indicator;
-  idx_t gradiant_indicator_idx;
+  std::string gradient_indicator;
+  idx_t gradient_indicator_idx;
 
   idx_t regridding_step_lower_bound;
   idx_t regridding_step_upper_bound;

@@ -1,0 +1,16 @@
+COEFF(-1,-1) = factor * coeffs->coeff_m1_m1;
+COEFF(0,-1) = factor * coeffs->coeff_0_m1;
+COEFF(1,-1) = factor * coeffs->coeff_p1_m1;
+COEFF(2,-1) = factor * coeffs->coeff_p2_m1;
+COEFF(-1,0) = factor * coeffs->coeff_m1_0;
+COEFF(0,0) = factor * coeffs->coeff_0_0;
+COEFF(1,0) = factor * coeffs->coeff_p1_0;
+COEFF(2,0) = factor * coeffs->coeff_p2_0;
+COEFF(-1,1) = factor * coeffs->coeff_m1_p1;
+COEFF(0,1) = factor * coeffs->coeff_0_p1;
+COEFF(1,1) = factor * coeffs->coeff_p1_p1;
+COEFF(2,1) = factor * coeffs->coeff_p2_p1;
+COEFF(-1,2) = factor * coeffs->coeff_m1_p2;
+COEFF(0,2) = factor * coeffs->coeff_0_p2;
+COEFF(1,2) = factor * coeffs->coeff_p1_p2;
+COEFF(2,2) = factor * coeffs->coeff_p2_p2;

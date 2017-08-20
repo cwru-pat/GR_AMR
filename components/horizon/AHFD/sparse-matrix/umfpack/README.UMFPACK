@@ -1,0 +1,268 @@
+UMFPACK Version 4.0 (Apr 11, 2002).  Copyright (c) 2002 by Timothy A.
+Davis.  All Rights Reserved.
+
+This is the UMFPACK Version 4.0 README file.  It is a terse overview of UMFPACK.
+Refer to the User Guide (UserGuide.ps (postscript) or UserGuide.pdf (PDF))
+for how to install and use UMFPACK.
+
+Description:
+
+    UMFPACK is a set of routines for solving unsymmetric sparse linear systems,
+    Ax=b, using the Unsymmetric MultiFrontal method.  Written in ANSI/ISO C,
+    with a MATLAB (Version 6.0 and 6.1) interface.
+
+Authors:
+
+    Timothy A. Davis (davis@cise.ufl.edu), University of Florida.
+
+    UMFPACK Version 2.2.1 (MA38 in the Harwell Subroutine Library) is
+    co-authored with Iain Duff, Rutherford Appleton Laboratory.
+
+    Includes a modified version of COLAMD V2.0, by Stefan I. Larimore and
+    Timothy A. Davis, University of Florida.  The COLAMD algorithm was developed
+    in collaboration with John Gilbert, Xerox Palo Alto Research Center, and
+    Esmond Ng, Lawrence Berkeley National Laboratory.
+
+Acknowledgements:
+
+    This work was supported by the National Science Foundation, under
+    grants DMS-9504974 and DMS-9803599.
+
+    I would also like to thank the many researchers who provided sparse
+    matrices from a wide range of domains and used earlier versions of UMFPACK/
+    MA38 in their applications, and thus assisted in the practical development
+    of the algorithm (see http://www.cise.ufl.edu/research/sparse, future
+    contributions of matrices are always welcome).
+
+    The MathWorks, Inc., provided a pre-release of MATLAB V6 which allowed me
+    to release the umfpack mexFunction (v3.0) about 6 months earlier than I had
+    originally planned.
+
+    Penny Anderson (The MathWorks, Inc.), Anshul Gupta (IBM), and Friedrich
+    Grund (WAIS) assisted in porting UMFPACK to different platforms.  Penny
+    Anderson also incorporated UMFPACK into MATLAB, for lu, backslash (\),
+    and forward slash (/).
+
+UMFPACK License:
+
+    Your use or distribution of UMFPACK or any modified version of
+    UMFPACK implies that you agree to this License.
+
+    THIS MATERIAL IS PROVIDED AS IS, WITH ABSOLUTELY NO WARRANTY
+    EXPRESSED OR IMPLIED.  ANY USE IS AT YOUR OWN RISK.
+
+    Permission is hereby granted to use or copy this program, provided
+    that the Copyright, this License, and the Availability of the original
+    version is retained on all copies.  User documentation of any code that
+    uses UMFPACK or any modified version of UMFPACK code must cite the
+    Copyright, this License, the Availability note, and "Used by permission."
+    Permission to modify the code and to distribute modified code is granted,
+    provided the Copyright, this License, and the Availability note are
+    retained, and a notice that the code was modified is included.  This
+    software was developed with support from the National Science Foundation,
+    and is provided to you free of charge.
+
+Availability:
+
+    UMFPACK (including versions 2.2.1 and earlier, in Fortran) is available at
+    http://www.cise.ufl.edu/research/sparse.  MA38 is available in the Harwell
+    Subroutine Library.  This version of UMFPACK includes a modified form of
+    COLAMD Version 2.0, originally released on Jan. 31, 2001, also available at
+    http://www.cise.ufl.edu/research/sparse.  COLAMD V2.0 is also incorporated
+    as a built-in function in MATLAB V6, by The MathWorks, Inc.
+    (http://www.mathworks.com).  COLAMD V1.0 appears as a column-preordering
+    in SuperLU (SuperLU is available at http://www.netlib.org).
+
+--------------------------------------------------------------------------------
+Files in this V4.0 distribution:
+--------------------------------------------------------------------------------
+
+    ----------------------------------------------------------------------------
+    Compiling umfpack.a and the umfpack mexFunction:
+    ----------------------------------------------------------------------------
+
+    GNUmakefile			a nice Makefile, for GNU make
+    Makefile			an ugly Unix Makefile (for older make's)
+    Make.alpha			Makefile additions for Compaq Alpha
+    Make.generic		Generic Makefile additions
+    Make.linux			Makefile additions for Linux
+    Make.rs6000			Makefile additions for RS 6000
+    Make.sgi			Makefile additions for SGI
+    Make.solaris		Makefile additions for Solaris
+
+    ----------------------------------------------------------------------------
+    Documentation:
+    ----------------------------------------------------------------------------
+
+    ChangeLog			change log
+    License			the UMFPACK License
+    README			this file
+    UserGuide.bib		references for user guide
+    UserGuide.stex		user guide source
+    UserGuide.sed1		sed script for processing UserGuide.stex
+    UserGuide.sed2		sed script for processing UserGuide.stex
+    UserGuide.tex		user guide in Latex (from UserGuide.stex)
+    UserGuide.pdf		user guide in PDF
+    UserGuide.ps		user guide in postscript
+    UserGuide.dvi		user guide in DVI
+
+    ----------------------------------------------------------------------------
+    MATLAB m-functions:
+    ----------------------------------------------------------------------------
+
+    Contents.m			for "help umfpack" listing of toolbox contents
+    umfpack.m			for "help umfpack" only
+    umfpack_demo.m		a full umfpack demo
+    umfpack_demo.m.out		output of umfpack_demo.m
+    umfpack_details.m		the details of how to use umfpack
+    umfpack_make.m		compile the umfpack mexFunction
+    umfpack_report.m		report statistics
+    umfpack_simple.m		a simple umfpack demo
+    umfpack_simple.m.out	output of umfpack_simple
+    umfpack_btf.m		solve Ax=b using umfpack and dmperm
+    lu_normest.m		1-norm estimate of A-L*U (by Hager & Davis).
+
+    ----------------------------------------------------------------------------
+    User-callable C routines:
+    ----------------------------------------------------------------------------
+
+    umfpack.h			include file for user programs
+
+    umfpack_col_to_triplet.[ch]		convert col form to triplet
+    umfpack_defaults.[ch]		set Control defaults
+    umfpack_free_numeric.[ch]		free Numeric object
+    umfpack_free_symbolic.[ch]		free Symbolic object
+    umfpack_get_lunz.[ch]		get nz's in L and U
+    umfpack_get_numeric.[ch]		get Numeric object
+    umfpack_get_symbolic.[ch]		get Symbolic object
+    umfpack_numeric.[ch]		numeric factorization
+    umfpack_qsymbolic.[ch]		symbolic factorization, user Q
+    umfpack_report_control.[ch]		print Control settings
+    umfpack_report_info.[ch]		print Info statistics
+    umfpack_report_matrix.[ch]		print col or row-form sparse matrix
+    umfpack_report_numeric.[ch]		print Numeric object
+    umfpack_report_perm.[ch]		print permutation
+    umfpack_report_status.[ch]		print return status
+    umfpack_report_symbolic.[ch]	print Symbolic object
+    umfpack_report_triplet.[ch]		print triplet matrix
+    umfpack_report_vector.[ch]		print dense vector
+    umfpack_solve.[ch]			solve a linear system
+    umfpack_symbolic.[ch]		symbolic factorization
+    umfpack_timer.[ch]			timer
+    umfpack_transpose.[ch]		transpose a matrix
+    umfpack_triplet_to_col.[ch]		convert triplet to col form
+    umfpack_wsolve.h			solve a linear system
+					(note that there is no umfpack_wsolve.c;
+					it is generated from umfpack_solve.c)
+
+    ----------------------------------------------------------------------------
+    MATLAB mexFunction
+    ----------------------------------------------------------------------------
+
+    umfpackmex.c
+
+    ----------------------------------------------------------------------------
+    C demo programs
+    ----------------------------------------------------------------------------
+
+    umfpack_simple.c		a simple demo
+    umpack_xx_demo.c		template to create the demo codes below
+    umfpack_di_demo.sed		for creating umfpack_di_demo.c
+    umfpack_dl_demo.sed		for creating umfpack_dl_demo.c
+    umfpack_zi_demo.sed		for creating umfpack_zi_demo.c
+    umfpack_zl_demo.sed		for creating umfpack_zl_demo.c
+
+    umfpack_di_demo.c		a full demo (real/int version)
+    umfpack_di_demo.out		output of umfpack_di_demo with Make.generic
+    umfpack_di_demo.out64	output of umfpack_di_demo with Make.solaris,
+				in LP64 mode and using the Sun Performance
+				Library BLAS (option 4: in Make.solaris).
+
+    umfpack_dl_demo.c		a full demo (real/long version)
+    umfpack_dl_demo.out		output of umfpack_dl_demo with Make.generic
+    umfpack_dl_demo.out64	output of umfpack_dl_demo with Make.solaris,
+				in LP64 mode and using the Sun Performance
+				Library BLAS (option 4 in Make.solaris).
+
+    umfpack_zi_demo.c		a full demo (complex/int version)
+    umfpack_zi_demo.out		output of umfpack_zi_demo with Make.generic
+    umfpack_zi_demo.out64	output of umfpack_zi_demo with Make.solaris,
+				in LP64 mode and using the Sun Performance
+				Library BLAS (option 4 in Make.solaris).
+
+    umfpack_zl_demo.c		a full demo (complex/long version)
+    umfpack_zl_demo.out		output of umfpack_zl_demo with Make.generic
+    umfpack_zl_demo.out64	output of umfpack_zl_demo with Make.solaris,
+				in LP64 mode and using the Sun Performance
+				Library BLAS (option 4 in Make.solaris).
+
+    ----------------------------------------------------------------------------
+    Non-user-callable C code:
+    ----------------------------------------------------------------------------
+
+    umf_analyze.[ch]		symbolic factorization of A'*A
+    umf_apply_order.[ch]	apply column etree postorder
+    umf_assemble.[ch]		assemble elements into current front
+    umf_blas3_update.[ch]	rank-k update
+    umf_build_tuples.[ch]	construct tuples for elements
+    umf_build_tuples_usage.[ch]	determine memory usage for umf_build_tuples
+    umf_colamd.[ch]		COLAMD pre-ordering, modified for UMFPACK
+    umf_create_element.[ch]	create a new element
+    umf_dump.[ch]		debugging routines
+    umf_extend_front.[ch]	extend the current frontal matrix
+    umf_free.[ch]		free memory
+    umf_garbage_collection.[ch]	compact Numeric->Memory
+    umf_get_memory.[ch]		make Numeric->Memory bigger
+    umf_init_front.[ch]		initialize a new frontal matrix
+    umf_is_permutation.[ch]	checks the validity of a permutation vector
+    umf_kernel.[ch]		the main numeric factorization kernel
+    umf_kernel_init.[ch]	initializations for umf_kernel
+    umf_kernel_init_usage.[ch]	determine memory usage for umf_kernel_init
+    umf_kernel_wrapup.[ch]	wrapup for umf_kernel
+    umf_local_search.[ch]	local row and column pivot search
+    umf_lsolve.[ch]		solve Lx=b
+    umf_ltsolve.[ch]		solve L'x=b and L.'x=b
+    umf_malloc.[ch]		malloc some memory
+    umf_mem_alloc_element.[ch]		allocate element in Numeric->Memory
+    umf_mem_alloc_head_block.[ch]	alloc. block at head of Numeric->Memory
+    umf_mem_alloc_tail_block.[ch]	alloc. block at tail of Numeric->Memory
+    umf_mem_free_tail_block.[ch]	free block at tail of Numeric->Memory
+    umf_mem_init_memoryspace.[ch]	initialize Numeric->Memory
+    umf_order_front_tree.[ch]	column etree post-ordering
+    umf_realloc.[ch]		realloc memory
+    umf_report_perm.[ch]	print a permutation vector
+    umf_report_vector.[ch]	print a double vector
+    umf_row_search.[ch]		look for a pivot row
+    umf_scale_column.[ch]	divide the pivot column by the pivot and log LU
+    umf_set_stats.[ch]		set statistics (final or estimates)
+    umf_solve.[ch]		solve a linear system
+    umf_symbolic_usage.[ch]	determine memory usage for Symbolic object
+    umf_transpose.[ch]		transpose a matrix in row or col form
+    umf_tuple_lengths.[ch]	determine the tuple list lengths
+    umf_usolve.[ch]		solve Ux=b
+    umf_utsolve.[ch]		solve U'x=b and U.'x=b
+    umf_valid_numeric.[ch]	checks the validity of a Numeric object
+    umf_valid_symbolic.[ch]	check the validity of a Symbolic object
+
+    ----------------------------------------------------------------------------
+    Non-user-accessible C include files:
+    ----------------------------------------------------------------------------
+
+    umf_config.h		configuration file
+    umf_internal.h		definitions internal to UMFPACK
+    umf_version.h		version definitions (int/long, real/complex)
+
+    ----------------------------------------------------------------------------
+    BLAS library for MATLAB's lcc compiler 
+    ----------------------------------------------------------------------------
+
+    lcc_lib/libmwlapack.lib	for mex, needed for Windows version only
+    lcc_lib/lapacksyms.def	used to created libmwlapack.lib
+
+    ----------------------------------------------------------------------------
+    For Windows (these are not tested)
+    ----------------------------------------------------------------------------
+
+    Make.windows		include file for Cygnus make on Windows
+    libumfpack.def		routines exported by libumfpack.dll
+

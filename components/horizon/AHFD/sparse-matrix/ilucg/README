@@ -1,0 +1,8 @@
+This directory contains the ILUCG (Incomplete LU-decomposition /
+conjugate gradiant) sparse matrix subroutines.
+
+These subroutines were provided to me (JT) by Tom Nicol of the University
+of British Columbia Computing Center in 1985; I believe they were originally
+written by P. Madderom (also of the UBC Computing Center).
+
+I have slightly modified the convergence criteria.

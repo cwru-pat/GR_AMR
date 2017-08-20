@@ -1,0 +1,12 @@
+fp t17;
+fp t16;
+      t17 = RATIONAL(1.0,4.0);
+      t16 = RATIONAL(-1.0,4.0);
+      coeffs_dy->coeff_0_0_0 = t16;
+      coeffs_dy->coeff_p1_0_0 = t16;
+      coeffs_dy->coeff_0_p1_0 = t17;
+      coeffs_dy->coeff_p1_p1_0 = t17;
+      coeffs_dy->coeff_0_0_p1 = t16;
+      coeffs_dy->coeff_p1_0_p1 = t16;
+      coeffs_dy->coeff_0_p1_p1 = t17;
+      coeffs_dy->coeff_p1_p1_p1 = t17;

@@ -1,0 +1,10 @@
+# Cactus specification of things to be compiled in this directory
+# $Header$
+
+# Source files in this directory
+## uncomment the appropriate line for single vs double precision
+##SRCS = silucg.f77
+SRCS = dilucg.f77
+
+# Subdirectories containing source files
+SUBDIRS =

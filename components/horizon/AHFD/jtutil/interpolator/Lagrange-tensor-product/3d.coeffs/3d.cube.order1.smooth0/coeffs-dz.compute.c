@@ -1,0 +1,16 @@
+fp t19;
+fp t17;
+fp t20;
+fp t18;
+      t19 = y*x;
+      t17 = -t19+y;
+      t20 = x+t17;
+      t18 = x-t19;
+      coeffs_dz->coeff_0_0_0 = RATIONAL(-1.0,1.0)+t20;
+      coeffs_dz->coeff_p1_0_0 = -t18;
+      coeffs_dz->coeff_0_p1_0 = -t17;
+      coeffs_dz->coeff_p1_p1_0 = -t19;
+      coeffs_dz->coeff_0_0_p1 = RATIONAL(1.0,1.0)-t20;
+      coeffs_dz->coeff_p1_0_p1 = t18;
+      coeffs_dz->coeff_0_p1_p1 = t17;
+      coeffs_dz->coeff_p1_p1_p1 = t19;

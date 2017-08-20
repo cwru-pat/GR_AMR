@@ -1,0 +1,36 @@
+#!/usr/local/bin/perl -w
+# $Header$
+
+#
+# Usage:
+#	select.patch patch.name <file.adat >file.patch.adat
+#
+# This filter prints that part of standard input starting with a
+# line of the form (eg)
+#	## +z patch
+# and continuing up to and including two consecutive newlines.
+#
+
+use strict;
+
+if (scalar(@ARGV) != 1)
+	{ die "usage: select.patch patch.name <data >data-for-that-patch\n"; }
+my $patch_name = $ARGV[0];
+
+my $in_selected_patch = 0;
+my $newline_count = 0;
+	while (my $line = <STDIN>)
+	{
+	if ($line =~ /^### \Q${patch_name}/o)
+		{ $in_selected_patch = 1; }
+	if ($line =~ /^\n/)
+		{ ++$newline_count; }
+	   else { $newline_count = 0; }
+
+	if ($in_selected_patch)
+		{
+		print $line;
+		if ($newline_count == 2)
+			{ last; }
+		}
+	}

@@ -1,0 +1,19 @@
+This directory contains miscellaneous source code that doesn't fit
+anywher else.
+
+h.movie
+	This is a Perl script to generate gnuplot commands to show
+	a movie of the patch shapes in an evolution.  To use it,
+	type the gnuplot commands
+		load '<h.movie --setup'
+	then set the xyz ranges and any other options.  Then
+		load '<h.movie'
+	will play the movie.
+
+mpp
+	This is the Maple preprocessor used to provide #include-like
+	and #ifdef-like functionality for the Maple code in this thorn.
+
+select.patch
+	This is a Perl script to extract a selected patch from a
+	gridfn output file.

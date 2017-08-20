@@ -1,0 +1,15 @@
+fp t55;
+fp t54;
+fp t53;
+      t55 = RATIONAL(0.0,1.0);
+      t54 = RATIONAL(1.0,4.0);
+      t53 = RATIONAL(-1.0,4.0);
+      coeffs_dxy->coeff_m1_m1 = t54;
+      coeffs_dxy->coeff_0_m1 = t55;
+      coeffs_dxy->coeff_p1_m1 = t53;
+      coeffs_dxy->coeff_m1_0 = t55;
+      coeffs_dxy->coeff_0_0 = t55;
+      coeffs_dxy->coeff_p1_0 = t55;
+      coeffs_dxy->coeff_m1_p1 = t53;
+      coeffs_dxy->coeff_0_p1 = t55;
+      coeffs_dxy->coeff_p1_p1 = t54;

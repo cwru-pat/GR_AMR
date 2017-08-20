@@ -1,0 +1,5 @@
+# make.code.defn file for support routines common to multiple molecule families
+# $Header$
+
+# Source files in this directory
+SRCS = load.c evaluate.c store.c

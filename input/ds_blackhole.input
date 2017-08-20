@@ -12,7 +12,7 @@ Main{
 CartesianGridGeometry {
   domain_boxes = [(0,0,0), (255,255,255)]
   x_lo         = 0, 0, 0
-  x_up         = 100, 100, 100
+  x_up         = 7, 7, 7
   periodic_dimension = 0, 0, 0
 }
 
@@ -112,19 +112,19 @@ BSSN{
   chi_lower_bd = 1e-9
 }
 
-Horizon{
-  origin = 50, 50, 50
-  radius = 0.5
-  is_periodic = FALSE
-  doing_statistic = TRUE
-  is_sphere = TRUE
-  radius_limit = 20
-  non_zero_angular_momentum = FALSE
-
+AHFD{
+  N_horizons = 2
+  origin_x = 3.5, 3.5
+  origin_y = 3.5, 3.5
+  origin_z = 3.5, 3.5
+  sphere_x_center = 3.5, 3.5
+  sphere_y_center = 3.5, 3.5
+  sphere_z_center = 3.5, 3.5
+  sphere_radius = 0.6, 0.12
 }
 
 IO{
-  output_list = "DIFFchi","DIFFK", "F"
-  output_interval = 50, 50, 10
+  output_list = "DIFFchi","DIFFK"
+  output_interval = 50, 50
   gd_c = 1
 }

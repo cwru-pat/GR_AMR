@@ -1,0 +1,69 @@
+$Header$
+
+This directory contains code for Lagrange polynomial interpolation,
+using the tensor-product definition for multiple dimensions.
+
+makefile
+	This has targets to create the subdirectories for the
+	Maple-generated coefficient files, and to run Maple to
+	generated those files.
+
+make.code.defn
+	This tells the Cactus build system which files to compile.
+
+[123]d.maple
+	These files contain the Maple code to generate the interpolation
+	coefficients.
+
+fns.maple
+	These files define the interpolation functions, coefficients, etc,
+	for the Maple code in [123]d.maple
+
+[123]d.cube.order?.smooth?.c
+	These files are the individual cases for the interpolation.
+	Each file defines a separate function.  Each file just #defines
+	a bunch of macros, then #includes "../template.c" to get the
+	actual interpolation code.  Unfortunately, the ISO C standard
+	only guarantees 31 characters for function names (in fact, it
+	doesn't even guarantee that for external names -- they may be
+	limited by a system linker -- but I quietly ignore that and
+	assume I can use 31), so the functions are named in a cryptic
+	manner:
+	   123456789 123456789 123456789 1
+	   AEILocalInterp_U_LagTP_1cube_10
+	   AEILocalInterp_U_LagTP_1cube_20
+	   AEILocalInterp_U_LagTP_1cube_30
+	   AEILocalInterp_U_LagTP_1cube_40
+	   AEILocalInterp_U_LagTP_1cube_50
+	   AEILocalInterp_U_LagTP_1cube_60
+	   AEILocalInterp_U_LagTP_2cube_10
+	   AEILocalInterp_U_LagTP_2cube_20
+	   AEILocalInterp_U_LagTP_2cube_30
+	   AEILocalInterp_U_LagTP_2cube_40
+	   AEILocalInterp_U_LagTP_3cube_10
+	   AEILocalInterp_U_LagTP_3cube_20
+	   AEILocalInterp_U_LagTP_3cube_30
+	   AEILocalInterp_U_LagTP_3cube_40
+
+	The naming convention is as follows (eg for the last function)
+	   AEILocalInterp	name of this thorn
+	   U		these functions are all for the
+			CCTK_InterpLocalUniform() API
+	   LagTP	these functions are all for the
+			"Lagrange polynomial interpolation (tensor product)"
+			interpolation operator
+	   3		this function does 3-d interpolation
+	   cube		this function uses a cube-shaped
+			interpolation molecule
+	   4		this function does 4th order interpolation
+	   0		this function does smoothing=0 interpolation
+
+	The same naming convention is used for the other interpolation
+	operators, except that for Hermite the smoothing part is dropped:
+	   LagTP	"Lagrange polynomial interpolation (tensor product)"
+	   LagMD	"Lagrange polynomial interpolation (maximum degree)"
+	   Herm		"Hermite polynomial interpolation"
+
+all_prototypes.h
+	This file contains C prototypes for each of the functions
+	in [123]d.cube.order?.smooth0.c.

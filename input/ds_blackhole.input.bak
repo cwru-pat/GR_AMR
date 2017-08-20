@@ -1,0 +1,130 @@
+Main
+{
+  simulation_type = "vacuum"  
+  dim = 3
+  base_name = "blackhole"
+  print_precision = 9
+  restart = FALSE
+  restart_basename = "vacuum"
+  restart_step = 2
+  restart_nodes = 4
+}
+
+CartesianGridGeometry {
+  domain_boxes = [(0,0,0), (63,63,63)]
+  x_lo         = 0, 0, 0
+  x_up         = 60, 60, 60
+  periodic_dimension = 0, 0, 0
+}
+
+
+StandardTagAndInitialize {
+  tagging_method = "GRADIENT_DETECTOR"
+}
+
+
+TreeLoadBalancer {
+  DEV_report_load_balance = TRUE
+  DEV_barrier_before = FALSE
+  DEV_barrier_after = FALSE
+}
+
+BergerRigoutsos {
+   combine_efficiency = 0.1
+   efficiency_tolerance = 0.1
+}
+
+TimerManager{
+    print_exclusive      = TRUE
+    timer_list = "loop", "init", "RK_steps"
+}
+
+
+PatchHierarchy {
+   max_levels = 6
+   proper_nesting_buffer = 3, 3, 3, 3, 3, 3   
+   largest_patch_size {
+      level_0 = -1, -1, -1
+      // all finer levels will use same values as level_0...
+   }
+   smallest_patch_size {
+      level_0 = 1, 1, 1   
+      // all finer levels will use same values as level_0...
+   }
+   ratio_to_coarser {
+     level_1            = 2, 2, 2
+     level_2            = 2, 2, 2
+     level_3            = 2, 2, 2
+     level_4            = 2, 2, 2
+     level_5            = 2, 2, 2
+     level_6            = 2, 2, 2
+     level_7            = 2, 2, 2
+   }
+   allow_patches_smaller_than_ghostwidth = TRUE
+   allow_patches_smaller_than_minimum_size_to_prevent_overlaps = TRUE
+}
+
+GriddingAlgorithm {
+   enforce_proper_nesting = TRUE
+   DEV_extend_to_domain_boundary = FALSE
+   // DEV_load_balance = FALSE
+   check_nonrefined_tags = "IGNORE"
+   sequentialize_patch_indices = TRUE
+}
+
+CosmoSim{
+  steps = 200
+  save_interval = 10000
+  do_plot = TRUE
+  dt_frac = 0.05
+  regridding_interval = 100000
+  adaption_threshold = 0.015
+  KO_damping_coefficient = 0.0
+  refine_op_type = "LINEAR_REFINE"
+  coarsen_op_typ = "CONSERVATIVE_COARSEN"
+  use_AHFinder = TRUE
+  AHFinder_interval = 1
+  AHFinder_iter_limit = 20000
+  AHFinder_dt_frac = 0.01
+  surface_move_shreshold = 0
+  use_anguler_momentum_finder = TRUE
+  regridding_step_lower_bound = 0
+  regridding_step_upper_bound = 3000
+  stop_after_found_horizon = FALSE
+  comments = ""
+}
+
+VacuumSim{
+  ic_type = "ds_blackhole"
+  boundary_type = "sommerfield"
+}
+
+BSSN{
+  lapse = "RelativeOnePlusLog"
+  Shift = "GammaDriver"
+  gd_eta = 2
+  normalize_Aij = TRUE
+  normalize_gammaij = FALSE
+  z4c_k1 = 0.1
+  z4c_k2 = 0
+  alpha_lower_bd_for_L2 = 0.3
+  chi_lower_bd_type = "static_blackhole"
+  chi_lower_bd = 1e-9
+}
+
+Horizon{
+  origin = 30, 30, 30
+  radius = 0.5
+  is_periodic = FALSE
+  doing_statistic = TRUE
+  is_sphere = TRUE
+  radius_limit = 1
+  non_zero_angular_momentum = FALSE
+
+}
+
+IO{
+  output_list = "DIFFchi","DIFFK", "F"
+  output_interval = 50, 50, 1
+  gd_c = 1
+}

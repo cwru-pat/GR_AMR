@@ -99,7 +99,6 @@ void Horizon::clear(
   EXTRA_ARRAY_ZERO(s2, hcellmath);
   EXTRA_ARRAY_ZERO(s3, hcellmath);
 }
-
 bool Horizon::initSphericalSurface(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   BSSN * bssn, boost::shared_ptr<hier::RefineOperator> space_refine_op)
@@ -118,7 +117,7 @@ bool Horizon::initSphericalSurface(
   
   int ln_num = hierarchy->getNumberOfLevels();
 
-  double global_min_radius = INF;
+  double global_min_radius = 0;
   
   for(int ln = 0 ; ln < ln_num; ln ++)
   {
@@ -244,8 +243,12 @@ bool Horizon::initSphericalSurface(
               real_t z = domain_lower[2] + (double)k * dx[2] + dx[2]/2.0;
               real_t min_r = sqrt(pw2(x - origin[0]) + pw2(y - origin[1]) + pw2(z - origin[2]));
 
-              if(min_r < radius_limit && min_r < global_min_radius)
-                global_min_radius = min_r;
+              real_t ratio = 0.5;
+              real_t min_r2 = getBoundaryAdjRadius(i, j, k, dx, ratio);
+              real_t ans = (min_r * (1-ratio)+ min_r2 * ratio) ;
+
+              if(ans < radius_limit && min_r > global_min_radius)
+                global_min_radius = ans;
             }
           }
         }
@@ -257,7 +260,7 @@ bool Horizon::initSphericalSurface(
 
   mpi.Barrier();
   if (mpi.getSize() > 1) {
-    mpi.AllReduce(&global_min_radius, 1, MPI_MIN);
+    mpi.AllReduce(&global_min_radius, 1, MPI_MAX);
   }
   mpi.Barrier();
 
@@ -308,9 +311,12 @@ bool Horizon::initSphericalSurface(
               real_t y = domain_lower[1] + (double)j * dx[1] + dx[1]/2.0;
               real_t z = domain_lower[2] + (double)k * dx[2] + dx[2]/2.0;
               real_t min_r = sqrt(pw2(x - origin[0]) + pw2(y - origin[1]) + pw2(z - origin[2]));
-              if(min_r < global_min_radius * 1.2 && min_r > global_min_radius * 0.8)
+              real_t ratio = 0.5;
+              real_t min_r2 = getBoundaryAdjRadius(i, j, k, dx, ratio);
+              real_t ans = (min_r * (1-ratio)+ min_r2 * ratio) ;
+              if(ans < global_min_radius * 1.2 && ans > global_min_radius * 0.8)
               {
-                sum_radius += min_r;
+                sum_radius += ans;
                 cnt ++;
               }
             }
@@ -323,7 +329,6 @@ bool Horizon::initSphericalSurface(
     }    
 
   }
-
   mpi.Barrier();
   if (mpi.getSize() > 1) {
     mpi.AllReduce(&const_radius, 1, MPI_SUM);
@@ -335,7 +340,7 @@ bool Horizon::initSphericalSurface(
   if(cnt > 0) has_surface = true;
   return has_surface;
   
-}
+}  
   
 void Horizon::initSurface(const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
@@ -584,8 +589,8 @@ real_t Horizon::ev_F(BSSNData *bd, HorizonData *hd, const real_t dx[])
   real_t diFdiF = pw2(bd->chi) * (hd->d1F * hd->d1F * bd->gammai11 + hd->d2F * hd->d2F * bd->gammai22 + hd->d3F * hd->d3F * bd->gammai33
          + 2.0 * (hd->d1F * hd->d2F * bd->gammai12 + hd->d1F * hd->d3F * bd->gammai13 + hd->d2F * hd->d3F * bd->gammai23 ));
 
-  real_t kappa =  ((pw2(bd->chi) * COSMO_SUMMATION_2(HORIZON_CALCULATE_DS0)) / sqrt(diFdiF)
-           - pw2(bd->chi) * pw2(bd->chi) * COSMO_SUMMATION_2(HORIZON_CALCULATE_DS) / pow(diFdiF, 1.5)
+  real_t kappa =  (-(pw2(bd->chi) * COSMO_SUMMATION_2(HORIZON_CALCULATE_DS0)) / sqrt(diFdiF)
+           + pw2(bd->chi) * pw2(bd->chi) * COSMO_SUMMATION_2(HORIZON_CALCULATE_DS) / pow(diFdiF, 1.5)
     - bd->K
     +  1.0 / pw2(bd->chi) * (
       (bd->A11 + bd->K * bd->gamma11 / 3.0) * hd->s1 * hd->s1
@@ -620,12 +625,34 @@ void Horizon::RKEvolvePt(
 
 bool Horizon::onTheSurface(idx_t i, idx_t j, idx_t k)
 {
-  if(SIGN(F_a(i-1, j, k)) * SIGN(F_a(i+1, j, k)) < 0 
-     || SIGN(F_a(i, j-1, k)) * SIGN(F_a(i, j+1, k)) < 0
-     || SIGN(F_a(i, j, k-1)) * SIGN(F_a(i, j, k+1)) < 0)
-    return true;
+  for(int xi = -1; xi <= 1; xi += 1)
+    for(int yi = -1; yi <= 1; yi += 1)
+      for(int zi = -1; zi <= 1; zi += 1)
+      {
+        if(SIGN(F_a(i, j, k)) * SIGN(F_a(i+xi, j+yi, k+zi)) < 0)
+          return true;
+      }
   
   return false;
+}
+
+double Horizon::getBoundaryAdjRadius(idx_t i, idx_t j, idx_t k, const double dx[], double &ratio)
+{
+  for(int xi = -1; xi <= 1; xi += 1)
+    for(int yi = -1; yi <= 1; yi += 1)
+      for(int zi = -1; zi <= 1; zi += 1)
+      {
+        if(SIGN(F_a(i, j, k)) * SIGN(F_a(i+xi, j+yi, k+zi)) < 0)
+        {
+          real_t x = domain_lower[0] + (double)(i+xi) * dx[0] + dx[0]/2.0;
+          real_t y = domain_lower[1] + (double)(j+yi) * dx[1] + dx[1]/2.0;
+          real_t z = domain_lower[2] + (double)(k+zi) * dx[2] + dx[2]/2.0;
+          real_t r = sqrt(pw2(x - origin[0]) + pw2(y - origin[1]) + pw2(z - origin[2]));
+          ratio = fabs(F_a(i, j, k)) / (fabs(F_a(i+xi, j+yi, k+zi)) + fabs(F_a(i, j, k)));
+          return r;
+        }
+      }
+  return -1.0;
 }
 
 bool Horizon::belowTheSurface(idx_t i, idx_t j, idx_t k)
@@ -3607,7 +3634,7 @@ void Horizon::findKilling(
   
   tbox::pout<<kd.m22<<" "<<kd.m33<<" "<<ah_radius[0][0]<<" "<<kd.chi<<"\n";
   
-  tbox::pout<<"By calculating mass in the other way get "<<pow(fabs(kd.m22*kd.m33), 0.25) * ah_radius[0][0] / (2.0 * kd.chi)<<"\n";
+  tbox::pout<<"By calculating mass in the other way get "<<pow(fabs(kd.m22*kd.m33), 0.25) * ah_radius[0][0] / (2.0 )<<"\n";
   
 }
   

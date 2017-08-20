@@ -791,8 +791,7 @@ void bssn_ic_awa_shifted_gauge_wave(
   }
 }
 
-
-  
+  //http://arxiv.org/abs/1001.4077v1
 void bssn_ic_kerr_blackhole(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln)
@@ -1211,7 +1210,7 @@ void bssn_ic_static_blackhole(
 
 void bssn_ic_ds_blackhole(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
-  idx_t ln)
+  idx_t ln, BSSN * bssn)
 {
 # if ! USE_BSSN_SHIFT
   std::cerr << "Waning! USE_BSSN_SHIFT is suggested to be enabled in blackhole test " << std::endl;
@@ -1232,15 +1231,20 @@ void bssn_ic_ds_blackhole(
 
 
      
+  real_t H = 0.18, t0 = 0;
+  real_t a = exp(H * t0), m = 1;
 
-
-
-  double rho = 0.02 / grid_geometry.getDx()[0];
-  
 
   idx_t DIFFchi_a_idx =
     variable_db->mapVariableAndContextToIndex(
       variable_db->getVariable("DIFFchi"), variable_db->getContext("ACTIVE"));
+  idx_t DIFFchi_p_idx =
+    variable_db->mapVariableAndContextToIndex(
+      variable_db->getVariable("DIFFchi"), variable_db->getContext("PREVIOUS"));
+
+  idx_t DIFFalpha_a_idx =
+    variable_db->mapVariableAndContextToIndex(
+      variable_db->getVariable("DIFFalpha"), variable_db->getContext("ACTIVE"));
   idx_t A11_a_idx =
     variable_db->mapVariableAndContextToIndex(
       variable_db->getVariable("A11"), variable_db->getContext("ACTIVE"));
@@ -1299,6 +1303,13 @@ void bssn_ic_ds_blackhole(
     boost::shared_ptr<pdat::CellData<real_t> > DIFFchi_a_pdata(
       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFchi_a_idx)));
+    boost::shared_ptr<pdat::CellData<real_t> > DIFFchi_p_pdata(
+      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+        patch->getPatchData(DIFFchi_p_idx)));
+
+    boost::shared_ptr<pdat::CellData<real_t> > DIFFalpha_a_pdata(
+      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+        patch->getPatchData(DIFFalpha_a_idx)));
 
     const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
       BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
@@ -1357,7 +1368,13 @@ void bssn_ic_ds_blackhole(
         patch->getPatchData(Gamma3_a_idx)));
 
     arr_t DIFFchi_a = pdat::ArrayDataAccess::access<DIM, double>(
-      DIFFchi_a_pdata->getArrayData());     
+      DIFFchi_a_pdata->getArrayData());
+    arr_t DIFFchi_p = pdat::ArrayDataAccess::access<DIM, double>(
+      DIFFchi_p_pdata->getArrayData());
+        
+    arr_t DIFFalpha_a = pdat::ArrayDataAccess::access<DIM, double>(
+      DIFFalpha_a_pdata->getArrayData());     
+
     arr_t DIFFgamma11_a = pdat::ArrayDataAccess::access<DIM, double>(
       DIFFgamma11_a_pdata->getArrayData());     
     arr_t DIFFgamma12_a = pdat::ArrayDataAccess::access<DIM, double>(
@@ -1406,7 +1423,7 @@ void bssn_ic_ds_blackhole(
       L[i] = domain_upper[i] - domain_lower[i];
     
     
-    const hier::Box& box = DIFFchi_a_pdata->getBox();
+    const hier::Box& box = DIFFchi_a_pdata->getGhostBox();
 
     //const double *dx = &grid_geometry.getDx()[0];
       
@@ -1414,8 +1431,6 @@ void bssn_ic_ds_blackhole(
     const int * lower = &box.lower()[0];
     const int * upper = &box.upper()[0];
 
-    double M = 0.5, b = 0.00;
-    
     for(int k = lower[2]; k <= upper[2]; k++)
     {
       for(int j = lower[1]; j <= upper[1]; j++)
@@ -1428,31 +1443,15 @@ void bssn_ic_ds_blackhole(
 
           real_t r = sqrt(x*x + y*y + z*z);
 
-          real_t st = sqrt(pw2(x) + pw2(y)) / r;
-          
-          DIFFgamma11_a(i,j,k) =
-            r*((pw2(x)*((r*pw2(z))/(pw2(x) + pw2(y)) - 
-          (pw2(x) + pw2(y) + pw2(z))/(2*M - r + b*pw3(r))))/pow(pw2(x) + pw2(y) + pw2(z),2)
-               + (r*pw2(y)*pw2(st))/pow(pw2(x) + pw2(y),2)) - 1;
-               
-          DIFFgamma12_a(i,j,k) = r*x*y*(((r*pw2(z))/(pw2(x) + pw2(y)) - (pw2(x) + pw2(y) + pw2(z))/(2*M - r + b*pw3(r)))/
-      pow(pw2(x) + pw2(y) + pw2(z),2) - (r*pw2(st))/pow(pw2(x) + pw2(y),2));
-               
-          DIFFgamma13_a(i,j,k) = -((r*x*z*(2*M*r - pow(r,2) + b*pow(r,4) + pw2(x) + pw2(y) + pw2(z)))/
-     ((2*M - r + b*pw3(r))*pow(pw2(x) + pw2(y) + pw2(z),2)));
-               
-          DIFFgamma22_a(i,j,k) =
-               r*((pw2(y)*((r*pw2(z))/(pw2(x) + pw2(y)) - 
-          (pw2(x) + pw2(y) + pw2(z))/(2*M - r + b*pw3(r))))/pow(pw2(x) + pw2(y) + pw2(z),2)\
-      + (r*pw2(x)*pw2(st))/pow(pw2(x) + pw2(y),2)) - 1;
-          
-          DIFFgamma23_a(i,j,k) = -((r*y*z*(2*M*r - pow(r,2) + b*pow(r,4) + pw2(x) + pw2(y) + pw2(z)))/
-     ((2*M - r + b*pw3(r))*pow(pw2(x) + pw2(y) + pw2(z),2)));
-          
-          DIFFgamma33_a(i,j,k) = (r*(2*M*r*(pw2(x) + pw2(y)) - pow(r,2)*(pw2(x) + pw2(y)) + b*pow(r,4)*(pw2(x) + pw2(y)) - 
-       pw2(z)*(pw2(x) + pw2(y) + pw2(z))))/
-   ((2*M - r + b*pw3(r))*pow(pw2(x) + pw2(y) + pw2(z),2)) - 1;
-          DIFFchi_a(i,j,k) = 0;
+          real_t ksi = m / (2.0 * a * r);
+
+          //DIFFchi_p(i,j,k) = DIFFchi_a(i,j,k)
+          //= pw2(2.0*r / (1+ 2.0 * r)) - 1.0;
+
+          DIFFchi_p(i, j, k) = DIFFchi_a(i,j,k) = pw2((2.0*a*r)/(2.0*a*r + m)) / a - 1.0;
+          DIFFK_a(i, j, k) = -3 * H;
+          //          DIFFalpha_a(i, j, k) = - pw2( (1-ksi)/(1+ksi) ) - 1.0;
+          bssn->K0 = -3 * H;
         }
       }
     }

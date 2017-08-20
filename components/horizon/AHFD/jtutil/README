@@ -1,0 +1,52 @@
+This directory holds low-level utility code in the C++ namespace jtutil::.
+This code is not specific to this project -- it's things like min/max
+templates, multidimensional array classes, fuzzy arithmetic routines, etc.
+
+array<fp>
+	is a template class (templated on the integer or floating-point
+	type of the array elements) providing multidimensional arrays.
+	At present these are stored directly in C++ \code{new[]}-allocated
+	storage, but sometime soon I'll add an option to use Cactus
+	grid functions or local arrays.
+
+linear_map<fp>
+	is a template class (templated on the floating-point type)
+	representing a linear map between a contiguous interval of
+	integers, and floating-point numbers.
+
+cpm_map<fp>
+	is a template class (templated on the floating-point type)
+	representing a mapping from the integers to the integers,
+	of the form  i --> constant +/- i .  (The name abbreviates
+	"Constant Plus or Minus MAP".)
+
+fuzzy<fp>
+	(declarations in "util.hh")
+	is a template class (templated on the floating-point type)
+	providing fuzzy arithmetic, to try to paper over some of the
+	effects of floating-point rounding errors.  For example,
+	one can write
+		for (fp x = 0.0 ; fuzzy<fp>::LE(x,1.0) ; x += 0.1)
+		{
+		// ...
+		}
+	and have the loop execute as one would naievly expect,
+	even if rounding errors cause the final value of \code{x}
+	to be 0.9999999999999999 or 1.000000000000001 or suchlike.
+
+round<fp>
+	(declarations in "util.hh")
+	is a template class (templated on the floating-point type)
+	to do machine-independent rounding of floating point values
+
+norm<fp>
+	(declarations in "util.hh")
+	is a template class (templated on the floating-point type)
+	to the compute 2-, rms-, and/or infinity-norms of a set of
+	numbers
+
+miscfp.cc
+	(declarations in "util.hh")
+	contains various misc floating-point routines
+
+There are also a number of test drivers in the files  test_*.cc .

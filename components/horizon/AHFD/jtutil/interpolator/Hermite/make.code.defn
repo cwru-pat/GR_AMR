@@ -1,0 +1,15 @@
+# make.code.defn file for Lagrange polynomial interpolation
+# $Header$
+
+# Source files in this directory
+SRCS =                  \
+       1d.cube.order2.c \
+       1d.cube.order3.c \
+       1d.cube.order4.c \
+                        \
+       2d.cube.order2.c \
+       2d.cube.order3.c \
+                        \
+       3d.cube.order2.c \
+       3d.cube.order3.c \
+		# end of list

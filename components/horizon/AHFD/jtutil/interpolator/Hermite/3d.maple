@@ -1,0 +1,170 @@
+# 3d.maple -- compute Hermite interpolation coeffsicients in 3-D
+# $Header$
+
+################################################################################
+
+#
+# 3d, cube, polynomial order=3, derivatives via 3-point order=2 formula
+# ==> overall order=2, 4-point molecule
+#
+
+# interpolating polynomial
+interp_3d_cube_order2
+  := Hermite_polynomial_interpolant(fn_3d_order3,
+				    coeffs_set_3d_order3,
+				    [x,y,z],
+				    {
+				      {x}     = deriv_3d_dx_3point,
+				      {y}     = deriv_3d_dy_3point,
+				      {z}     = deriv_3d_dz_3point,
+				      {x,y}   = deriv_3d_dxy_3point,
+				      {x,z}   = deriv_3d_dxz_3point,
+				      {y,z}   = deriv_3d_dyz_3point,
+				      {x,y,z} = deriv_3d_dxyz_3point
+				    },
+				    {op(posn_list_3d_size2)},
+				    {op(posn_list_3d_size2)});
+
+# I
+coeffs_as_lc_of_data(%, posn_list_3d_size4);
+print_coeffs__lc_of_data(%, "coeffs_I->coeff_", "fp",
+			 "3d.coeffs/3d.cube.order2/coeffs-I.compute.c");
+
+# d/dx
+simplify( diff(interp_3d_cube_order2,x) );
+coeffs_as_lc_of_data(%, posn_list_3d_size4);
+print_coeffs__lc_of_data(%, "coeffs_dx->coeff_", "fp",
+			 "3d.coeffs/3d.cube.order2/coeffs-dx.compute.c");
+
+# d/dy
+simplify( diff(interp_3d_cube_order2,y) );
+coeffs_as_lc_of_data(%, posn_list_3d_size4);
+print_coeffs__lc_of_data(%, "coeffs_dy->coeff_", "fp",
+			 "3d.coeffs/3d.cube.order2/coeffs-dy.compute.c");
+
+# d/dz
+simplify( diff(interp_3d_cube_order2,z) );
+coeffs_as_lc_of_data(%, posn_list_3d_size4);
+print_coeffs__lc_of_data(%, "coeffs_dz->coeff_", "fp",
+			 "3d.coeffs/3d.cube.order2/coeffs-dz.compute.c");
+
+# d^2/dx^2
+simplify( diff(interp_3d_cube_order2,x,x) );
+coeffs_as_lc_of_data(%, posn_list_3d_size4);
+print_coeffs__lc_of_data(%, "coeffs_dxx->coeff_", "fp",
+			 "3d.coeffs/3d.cube.order2/coeffs-dxx.compute.c");
+
+# d^2/dxdy
+simplify( diff(interp_3d_cube_order2,x,y) );
+coeffs_as_lc_of_data(%, posn_list_3d_size4);
+print_coeffs__lc_of_data(%, "coeffs_dxy->coeff_", "fp",
+			 "3d.coeffs/3d.cube.order2/coeffs-dxy.compute.c");
+
+# d^2/dxdz
+simplify( diff(interp_3d_cube_order2,x,z) );
+coeffs_as_lc_of_data(%, posn_list_3d_size4);
+print_coeffs__lc_of_data(%, "coeffs_dxz->coeff_", "fp",
+			 "3d.coeffs/3d.cube.order2/coeffs-dxz.compute.c");
+
+# d^2/dy^2
+simplify( diff(interp_3d_cube_order2,y,y) );
+coeffs_as_lc_of_data(%, posn_list_3d_size4);
+print_coeffs__lc_of_data(%, "coeffs_dyy->coeff_", "fp",
+			 "3d.coeffs/3d.cube.order2/coeffs-dyy.compute.c");
+
+# d^2/dydz
+simplify( diff(interp_3d_cube_order2,y,z) );
+coeffs_as_lc_of_data(%, posn_list_3d_size4);
+print_coeffs__lc_of_data(%, "coeffs_dyz->coeff_", "fp",
+			 "3d.coeffs/3d.cube.order2/coeffs-dyz.compute.c");
+
+# d^2/dz^2
+simplify( diff(interp_3d_cube_order2,z,z) );
+coeffs_as_lc_of_data(%, posn_list_3d_size4);
+print_coeffs__lc_of_data(%, "coeffs_dzz->coeff_", "fp",
+			 "3d.coeffs/3d.cube.order2/coeffs-dzz.compute.c");
+
+################################################################################
+
+#
+# 3d, cube, polynomial order=3, derivatives via 5-point order=4 formula
+# ==> overall order=3, 6-point molecule
+#
+
+# interpolating polynomial
+interp_3d_cube_order3
+  := Hermite_polynomial_interpolant(fn_3d_order3,
+				    coeffs_set_3d_order3,
+				    [x,y,z],
+				    {
+				      {x}     = deriv_3d_dx_5point,
+				      {y}     = deriv_3d_dy_5point,
+				      {z}     = deriv_3d_dz_5point,
+				      {x,y}   = deriv_3d_dxy_5point,
+				      {x,z}   = deriv_3d_dxz_5point,
+				      {y,z}   = deriv_3d_dyz_5point,
+				      {x,y,z} = deriv_3d_dxyz_5point
+				    },
+				    {op(posn_list_3d_size2)},
+				    {op(posn_list_3d_size2)});
+
+# I
+coeffs_as_lc_of_data(%, posn_list_3d_size6);
+print_coeffs__lc_of_data(%, "coeffs_I->coeff_", "fp",
+			 "3d.coeffs/3d.cube.order3/coeffs-I.compute.c");
+
+# d/dx
+simplify( diff(interp_3d_cube_order3,x) );
+coeffs_as_lc_of_data(%, posn_list_3d_size6);
+print_coeffs__lc_of_data(%, "coeffs_dx->coeff_", "fp",
+			 "3d.coeffs/3d.cube.order3/coeffs-dx.compute.c");
+
+# d/dy
+simplify( diff(interp_3d_cube_order3,y) );
+coeffs_as_lc_of_data(%, posn_list_3d_size6);
+print_coeffs__lc_of_data(%, "coeffs_dy->coeff_", "fp",
+			 "3d.coeffs/3d.cube.order3/coeffs-dy.compute.c");
+
+# d/dz
+simplify( diff(interp_3d_cube_order3,z) );
+coeffs_as_lc_of_data(%, posn_list_3d_size6);
+print_coeffs__lc_of_data(%, "coeffs_dz->coeff_", "fp",
+			 "3d.coeffs/3d.cube.order3/coeffs-dz.compute.c");
+
+# d^2/dx^2
+simplify( diff(interp_3d_cube_order3,x,x) );
+coeffs_as_lc_of_data(%, posn_list_3d_size6);
+print_coeffs__lc_of_data(%, "coeffs_dxx->coeff_", "fp",
+			 "3d.coeffs/3d.cube.order3/coeffs-dxx.compute.c");
+
+# d^2/dxdy
+simplify( diff(interp_3d_cube_order3,x,y) );
+coeffs_as_lc_of_data(%, posn_list_3d_size6);
+print_coeffs__lc_of_data(%, "coeffs_dxy->coeff_", "fp",
+			 "3d.coeffs/3d.cube.order3/coeffs-dxy.compute.c");
+
+# d^2/dxdz
+simplify( diff(interp_3d_cube_order3,x,z) );
+coeffs_as_lc_of_data(%, posn_list_3d_size6);
+print_coeffs__lc_of_data(%, "coeffs_dxz->coeff_", "fp",
+			 "3d.coeffs/3d.cube.order3/coeffs-dxz.compute.c");
+
+# d^2/dy^2
+simplify( diff(interp_3d_cube_order3,y,y) );
+coeffs_as_lc_of_data(%, posn_list_3d_size6);
+print_coeffs__lc_of_data(%, "coeffs_dyy->coeff_", "fp",
+			 "3d.coeffs/3d.cube.order3/coeffs-dyy.compute.c");
+
+# d^2/dydz
+simplify( diff(interp_3d_cube_order3,y,z) );
+coeffs_as_lc_of_data(%, posn_list_3d_size6);
+print_coeffs__lc_of_data(%, "coeffs_dyz->coeff_", "fp",
+			 "3d.coeffs/3d.cube.order3/coeffs-dyz.compute.c");
+
+# d^2/dz^2
+simplify( diff(interp_3d_cube_order3,z,z) );
+coeffs_as_lc_of_data(%, posn_list_3d_size6);
+print_coeffs__lc_of_data(%, "coeffs_dzz->coeff_", "fp",
+			 "3d.coeffs/3d.cube.order3/coeffs-dzz.compute.c");
+
+################################################################################

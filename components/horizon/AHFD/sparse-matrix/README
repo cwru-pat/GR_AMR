@@ -1,0 +1,15 @@
+This directory contains sparse matrix routines imported from elsewhere.
+See the individual files or subdirectories for details on authorship,
+copyright, etc.
+
+ilucg
+	ILUCG (Incomplete LU-decomposition / conjugate gradiant)
+	subroutines.
+
+umfpack
+	UMFPACK sparse LU decomposition package (version 4.0 of 11.Apr.2002).
+
+y12m
+	Sparse LU decomposition subroutines from the Harwell Y12M package.
+	I haven't written the AHFinderDirect support code for this, so
+	the Y12M code isn't compiled yet.

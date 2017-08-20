@@ -1,0 +1,106 @@
+# 1d.maple -- compute Hermite interpolation coefficients in 1-D
+# $Header$
+
+################################################################################
+
+#
+# 1d, cube, polynomial order=3, derivatives via 3-point order=2 formula
+# ==> overall order=2, 4-point molecule
+#
+
+# interpolating polynomial
+interp_1d_cube_order2
+  := Hermite_polynomial_interpolant(fn_1d_order3,
+				    coeffs_set_1d_order3,
+				    [x],
+				    { {x} = deriv_1d_dx_3point },
+				    {op(posn_list_1d_size2)},
+				    {op(posn_list_1d_size2)});
+
+# I
+coeffs_as_lc_of_data(%, posn_list_1d_size4);
+print_coeffs__lc_of_data(%, "coeffs_I->coeff_", "fp",
+			 "1d.coeffs/1d.cube.order2/coeffs-I.compute.c");
+
+# d/dx
+simplify( diff(interp_1d_cube_order2,x) );
+coeffs_as_lc_of_data(%, posn_list_1d_size4);
+print_coeffs__lc_of_data(%, "coeffs_dx->coeff_", "fp",
+			 "1d.coeffs/1d.cube.order2/coeffs-dx.compute.c");
+
+# d^2/dx^2
+simplify( diff(interp_1d_cube_order2,x,x) );
+coeffs_as_lc_of_data(%, posn_list_1d_size4);
+print_coeffs__lc_of_data(%, "coeffs_dxx->coeff_", "fp",
+			 "1d.coeffs/1d.cube.order2/coeffs-dxx.compute.c");
+
+################################################################################
+
+#
+# 1d, cube, polynomial order=3, derivatives via 5-point order=4 formula
+# ==> overall order=3, 6-point molecule
+#
+
+# interpolating polynomial
+interp_1d_cube_order3
+  := Hermite_polynomial_interpolant(fn_1d_order3,
+				    coeffs_set_1d_order3,
+				    [x],
+				    { {x} = deriv_1d_dx_5point },
+				    {op(posn_list_1d_size2)},
+				    {op(posn_list_1d_size2)});
+
+# I
+coeffs_as_lc_of_data(%, posn_list_1d_size6);
+print_coeffs__lc_of_data(%, "coeffs_I->coeff_", "fp",
+			 "1d.coeffs/1d.cube.order3/coeffs-I.compute.c");
+
+# d/dx
+simplify( diff(interp_1d_cube_order3,x) );
+coeffs_as_lc_of_data(%, posn_list_1d_size6);
+print_coeffs__lc_of_data(%, "coeffs_dx->coeff_", "fp",
+			 "1d.coeffs/1d.cube.order3/coeffs-dx.compute.c");
+
+# d^2/dx^2
+simplify( diff(interp_1d_cube_order3,x,x) );
+coeffs_as_lc_of_data(%, posn_list_1d_size6);
+print_coeffs__lc_of_data(%, "coeffs_dxx->coeff_", "fp",
+			 "1d.coeffs/1d.cube.order3/coeffs-dxx.compute.c");
+
+################################################################################
+
+#
+# 1d, cube, polynomial order=5, derivatives via 5-point order=4 formula
+# ==> overall order=4, 6-point molecule
+#
+# n.b. in higher dimensions this doesn't work -- there aren't enough
+#      equations to determine all the coefficients :( :(
+#
+
+# interpolating polynomial
+interp_1d_cube_order4
+  := Hermite_polynomial_interpolant(fn_1d_order5,
+				    coeffs_set_1d_order5,
+				    [x],
+				    { {x} = deriv_1d_dx_5point },
+				    {op(posn_list_1d_size4)},
+				    {op(posn_list_1d_size2)});
+
+# I
+coeffs_as_lc_of_data(%, posn_list_1d_size6);
+print_coeffs__lc_of_data(%, "coeffs_I->coeff_", "fp",
+			 "1d.coeffs/1d.cube.order4/coeffs-I.compute.c");
+
+# d/dx
+simplify( diff(interp_1d_cube_order4,x) );
+coeffs_as_lc_of_data(%, posn_list_1d_size6);
+print_coeffs__lc_of_data(%, "coeffs_dx->coeff_", "fp",
+			 "1d.coeffs/1d.cube.order4/coeffs-dx.compute.c");
+
+# d^2/dx^2
+simplify( diff(interp_1d_cube_order4,x,x) );
+coeffs_as_lc_of_data(%, posn_list_1d_size6);
+print_coeffs__lc_of_data(%, "coeffs_dxx->coeff_", "fp",
+			 "1d.coeffs/1d.cube.order4/coeffs-dxx.compute.c");
+
+################################################################################

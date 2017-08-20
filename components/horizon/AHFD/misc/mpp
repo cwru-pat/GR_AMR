@@ -1,0 +1,377 @@
+#!/usr/local/bin/perl -w
+# $Header: /usr/local/svn/cvs-repositories/numrelcvs/AEIThorns/AHFinderDirect/src/misc/mpp,v 1.2 2002-09-16 14:17:44 jthorn Exp $
+
+my $help_msg = <<'EOF';
+Usage:
+   mpp  [ -Dfoo -DBAR ... ]  [ --debug ]  <input.maple  >output.mm
+or
+   mpp  --help
+
+This program is a preprocessor for Maple source code.  It's modeled
+after a subset of the C preprocessor (cpp), but with a Maple-flavored
+syntax: preprocessor directives use @ as the marker character, instead
+of cpp's #.  The @include, @ifdef, @ifndef, @else, and @endif directives
+are supported with the same syntax and semantics as the corresponding
+cpp directives, except that
+   @include "filename" optional_text
+prints   optional_text   (if present) on a separate line following the
+contents of the include file.
+
+There may be white space on a line before the '@' which introduces a
+preprocessor directive, but no white space between '@' and the directive
+name.
+
+Command line arguments of the form  -Dname  define macros, whose
+existence may be tested with @ifdef, @ifndef, @else, and/or @endif as
+usual.  For example, one might write
+	@ifdef MAPLE_V_RELEASE_3
+	  words(0):
+	  gc(0):
+	@else
+	  kernelopts(printbytes=false);
+	@endif
+to disable Maple's printing of 'bytes used' messages.
+EOF
+
+###############################################################################
+
+#
+# ***** copyright notice and licensing terms *****
+#
+
+#
+# Copyright (C) 2000, Jonathan Thornburg <jthorn@thp.univie.ac.at>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; see the file COPYING.  If not, write to
+# the Free Software Foundation, 59 Temple Place - Suite 330, Boston,
+# MA 02111-1307, USA.
+#
+
+###############################################################################
+
+#
+# ***** table of contents *****
+#
+
+#
+# <<<help message>>>
+# <<<copyright notice and licensing terms>>>
+# <<<this table of contents>>>
+# <<<global data structures>>>
+# main - driver
+# process - recursive function to copy a named file to standard output
+#
+# dirname - find directory part of file name
+#
+
+###############################################################################
+
+#
+# ***** global data structures *****
+#
+
+#
+# This hash table records macros:
+#    key = macro name
+#    value = macro definition
+#
+my %macro_table = ();
+
+###############################################################################
+
+#
+# ***** main program *****
+#
+
+use strict;
+use integer;
+use FileHandle;
+
+#
+# constants
+#
+
+# arguments for process()
+my $true = 1;
+my $false = 0;
+
+# arguments for process()
+my $read_to_endif = 0;
+my $read_to_else_or_endif = 1;
+my $read_to_eof = -1;
+
+# results from process()
+my $got_endif = 0;
+my $got_else = 1;
+my $got_eof = -1;
+
+#
+# command line handling
+#
+
+my $debug = 0;
+
+if ((scalar(@ARGV) == 1) && ($ARGV[0] eq '--help'))
+	{ print $help_msg; exit(0); }
+
+	while (my $arg = shift(@ARGV))
+	{
+	if    ($arg eq '--debug')
+		{ $debug = 1 }
+	elsif ($arg =~ /^-D(.*)$/)
+		{
+		my $macro_name = $1;
+		if ($debug)
+			{ print "defining macro :$macro_name:\n"; }
+		$macro_table{$1} = 1;
+		}
+	else
+		{ die("mpp: bad argument \"$arg\"!\n"); }
+	}
+
+process(new FileHandle('< -'), '(standard input)', 1,
+	$true, $read_to_eof);
+exit;
+
+###############################################################################
+
+#
+# This (recursive) function reads input lines from a FileHandle, and
+# interprets preprocessor directives (making recursive calls for each
+# @include or @ifdef).  It either prints non-preprocessor lines or
+# discards them, depending on a flag argument.  This function returns
+# when it either reaches end of file on the FileHandle, or sees an
+# @else or @endif line.
+#
+# Arguments:
+# $fh = The FileHandle from which to copy data.
+# $file_name = The file name corresponding to $fh.  This is (only) used
+#	       for formatting error messages.  An empty string denotes
+#	       standard input.
+# $line_number = The line number within $file_name at which $fh is positioned.
+#		 This is (only) used for formatting error messages.
+# $print_flag = A Boolean flag:
+#		$true  ==> Print non--preprocessor-directive input lines.
+#		$false ==> Ignore non--preprocessor-directive input lines.
+# $how_to_finish = A flag specifying how we finish our processing:
+#	$read_to_endif         ==> We expect to finish by seeing an @endif.
+#	$read_to_else_or_endif ==> We expect to finish by seeing either an
+#				   @else or an @endif.
+#	$read_to_eof           ==> We expect to finish by reaching
+#				   end-of-file on the input.
+#	In any case, we  die(...)  if we finish due to a wrong reason.
+#
+# Results:
+# This function returns a 2-element list
+#	($final_line_number, $how_finished)
+# where
+#	$final_line_number = The value of $line_number for the last input
+#			     line read
+#	$how_finished = Describes which termination condition actually
+#			caused us to finish:
+#			$got_endif ==> We saw an @ifdef
+#			$got_else  ==> We saw an @else
+#			$got_eof   ==> We reached end-of-file on the input
+#
+sub process
+{
+my ($fh, $file_name, $line_number, $print_flag, $how_to_finish) = @_;
+
+# special-case standard input
+my $stdin_flag = ($file_name eq '');
+if ($file_name eq '')
+	{ $file_name = '(standard input)'; }
+
+if ($debug)
+	{
+	print
+  "process(\"${file_name}\", line ${line_number}):\n",
+  "        print_flag = :${print_flag}:   how_to_finish = :${how_to_finish}:\n";
+	}
+
+# main data loop
+	for ( ; my $line = <$fh> ; ++$line_number)
+	{
+	# not an @ directive
+	if    ($line !~ /^\s*@/)
+		{
+		if ($print_flag)
+			{ print $line; }
+		next;					# *** LOOP CONTROL ***
+		}
+
+	# @include
+	elsif ($line =~ /^\s*\@\s*include\s+"([^"]+)"(.*)$/)
+		{
+		my $include_file_name = $1;
+		my $suffix = $2;
+		if ($debug)
+			{
+			print "got \@include :$include_file_name:",
+			      "   suffix = :$suffix:\n";
+			}
+
+		if ($print_flag)	# if we're discarding lines, we can
+					# skip processing the @include file,
+					# since @ifdef ... @endif directives
+					# are (assumed to be) always properly
+					# nested with respect to @include
+			{
+			# open the @include file
+			# ... first look for it in (relative to) current dir,
+			#     failing that, try directory of file containing
+			#     @include
+			my $include_fh = new FileHandle("< $include_file_name");
+			if ((! defined $include_fh) && (! $stdin_flag))
+				{
+				my $dir = dirname($file_name);
+				my $include_fh
+					= new FileHandle(
+					      "< $dir/$include_file_name"
+							);
+				}
+			if (! defined $include_fh)
+				{
+				die(
+	   "***** mpp: unable to open \@include file \"$include_file_name\"\n",
+	   "           at input file \"$file_name\", line $line_number\n"
+				   );
+				}
+
+			# recursive call to process @include file
+			process($include_fh, $include_file_name, 1,
+				$true, $read_to_eof);
+			$include_fh->close();
+
+			# print any suffix
+			print "$suffix\n";
+			}
+		}
+
+	# @ifdef
+	elsif ($line =~ /^\s*\@\s*if(n?)def\s+(\S+)/)
+		{
+		my $negate_flag = ($1 eq 'n');
+		my $macro_name = $2;
+		if ($debug)
+			{
+			print "got \@ifdef/\@ifndef:",
+			      "   macro_name = :${macro_name}:",
+			      "   negate_flag = :${negate_flag}:\n";
+			}
+		my $macro_is_defined = (exists $macro_table{$macro_name});
+		my $doit_flag = $negate_flag ? (! $macro_is_defined)
+					     : $macro_is_defined;
+		if ($debug)
+			{
+			print "==> macro_is_defined = :${macro_is_defined}:",
+			      "   doit_flag = :${doit_flag}:\n";
+			}
+
+		# recursive call to process body of @ifdef
+		my ($final_line_number, $how_finished)
+			= process($fh, $file_name, $line_number+1,
+				  $print_flag && $doit_flag,
+				  $read_to_else_or_endif);
+		$line_number = $final_line_number;
+		if ($how_finished == $got_else)
+			{
+			# recursive call to skip @else text
+			($final_line_number, $how_finished)
+				= process($fh, $file_name, $line_number+1,
+					  $print_flag && !$doit_flag,
+					  $read_to_endif);
+			$line_number = $final_line_number;
+			}
+		}
+
+	# @endif
+	elsif ($line =~ /^\s*\@\s*endif/)
+		{
+		if (    ($how_to_finish == $read_to_endif)
+		     || ($how_to_finish == $read_to_else_or_endif)    )
+			{
+			return ($line_number, $got_endif);# *** EARLY RETURN ***
+			}
+		   else {
+			die(
+   "***** mpp: \@endif when not within the scope of an \@ifdef\n",
+   "           at input file \"$file_name\", line $line_number\n"
+			   );
+			}
+		}
+
+	# @else
+	elsif ($line =~ /^\s*\@\s*else/)
+		{
+		if ($how_to_finish == $read_to_else_or_endif)
+			{
+			return ($line_number, $got_else); # *** EARLY RETURN ***
+			}
+		   else {
+			die(
+   "***** mpp: \@else when not within the scope of an \@ifdef\n",
+   "           at input file \"$file_name\", line $line_number\n"
+			   );
+			}
+		}
+
+	else	{
+		die(
+   "***** mpp: unknown @-directive \"$line\"!\n",
+   "           at input file \"$file_name\", line $line_number\n"
+		   );
+		}
+	}
+
+if ($how_to_finish != $read_to_eof)
+	{
+	die(
+   "***** mpp: unexpected end-of-file (i.e. unterminated \@ifdef)\n",
+   "           at input file \"$file_name\", line $line_number\n"
+	   );
+	}
+return -1;
+}
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+#
+# This function computes the directory part of a file name.
+# It is (should be) identical in effect to the  dirname(1)  program.
+#
+sub dirname
+{
+my ($file_name) = @_;
+
+# strip off reundant trailing /
+if (($file_name =~ /\/$/) && ($file_name ne '/'))
+	{ $file_name = substr($file_name, 0, length($file_name)-1); }
+
+if (index($file_name, '/') >= 0)
+	{
+	# $file_name contains a /
+	$file_name =~ s:/[^/]+$::;
+	if ($file_name eq '')
+		{ $file_name = '/'; }
+	}
+   else {
+	# $file name doesn't contain a /
+	$file_name = '.';
+	}
+
+return $file_name;
+}

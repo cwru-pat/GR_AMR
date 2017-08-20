@@ -10,9 +10,9 @@ Main{
 }
 
 CartesianGridGeometry {
-  domain_boxes = [(0,0,0), (127,127,127)]
+  domain_boxes = [(0,0,0), (191,191,191)]
   x_lo         = 0, 0, 0
-  x_up         = 3, 3, 3
+  x_up         = 6, 6, 6
   periodic_dimension = 0, 0, 0
 }
 
@@ -108,15 +108,21 @@ BSSN{
   chi_lower_bd = 1e-9
 }
 
-Horizon{
-  origin = 1.5, 1.5, 1.5
-  radius = 0.5
-  doing_statistic = TRUE
-  is_sphere = TRUE
+AHFD{
+  N_horizons = 2
+  origin_x = 3, 3
+  origin_y = 3, 3
+  origin_z = 3, 3
+  sphere_x_center = 3, 3
+  sphere_y_center = 3, 3
+  sphere_z_center = 3, 3.1
+  sphere_radius = 0.6, 0.7
+  Theta_norm_for_convergence = 1e-9
+  max_Newton_iterations__initial = 50
 }
 
 IO{
-  output_list = "DIFFchi","DIFFK", "F"
-  output_interval = 50, 50, 1
+  output_list = "DIFFchi","DIFFK"
+  output_interval = 50, 50
   gd_c = 1
 }

@@ -1,0 +1,17 @@
+fp t34;
+fp t37;
+fp t36;
+fp t40;
+fp t35;
+fp t39;
+      t34 = RATIONAL(-1.0,12.0);
+      t37 = x*x;
+      t36 = x*t37;
+      t40 = RATIONAL(1.0,6.0)*t36+t34*x;
+      t35 = RATIONAL(-2.0,3.0);
+      t39 = t35*t36+RATIONAL(4.0,3.0)*x;
+      coeffs_dx->coeff_m2 = RATIONAL(-1.0,4.0)*t37+RATIONAL(1.0,12.0)+t40;
+      coeffs_dx->coeff_m1 = t35+RATIONAL(1.0,2.0)*t37+t39;
+      coeffs_dx->coeff_0 = t36+RATIONAL(-5.0,2.0)*x;
+      coeffs_dx->coeff_p1 = RATIONAL(-1.0,2.0)*t37+RATIONAL(2.0,3.0)+t39;
+      coeffs_dx->coeff_p2 = t34+RATIONAL(1.0,4.0)*t37+t40;

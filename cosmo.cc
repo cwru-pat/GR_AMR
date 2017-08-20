@@ -4,6 +4,8 @@
 #include "sims/dust.h"
 #include "sims/scalar.h"
 #include "utils/CartesianCellDoubleQuadraticRefine.h"
+#include "utils/CartesianCellDoubleHermiteRefine.h"
+#include "utils/CartesianCellDoubleHermiteCoarsen.h"
 
 
 using namespace SAMRAI;
@@ -43,6 +45,15 @@ void add_extra_operators(
   grid_geometry->addRefineOperator(
     typeid(pdat::CellVariable<double>).name(),
     boost::make_shared<geom::CartesianCellDoubleQuadraticRefine>());
+  
+  grid_geometry->addRefineOperator(
+    typeid(pdat::CellVariable<double>).name(),
+    boost::make_shared<geom::CartesianCellDoubleHermiteRefine>());
+
+  grid_geometry->addCoarsenOperator(
+    typeid(pdat::CellVariable<double>).name(),
+    boost::make_shared<geom::CartesianCellDoubleHermiteCoarsen>());
+
 }
 
 int main(int argc, char* argv[])
@@ -165,7 +176,6 @@ int main(int argc, char* argv[])
   // get file name for VisIt file
   std::string vis_filename =
     main_db->getStringWithDefault("vis_filename", base_name);
-
 
   CosmoSim * cosmoSim;
 

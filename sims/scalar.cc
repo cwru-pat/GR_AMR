@@ -62,9 +62,9 @@ ScalarSim::ScalarSim(
   
   variable_id_list.push_back(weight_idx);
 
-  gradiant_indicator_idx =
+  gradient_indicator_idx =
     variable_db->mapVariableAndContextToIndex(
-      variable_db->getVariable(gradiant_indicator), variable_db->getContext("ACTIVE"));
+      variable_db->getVariable(gradient_indicator), variable_db->getContext("ACTIVE"));
 
   
   hier::VariableDatabase::getDatabase()->printClassData(tbox::plog);
@@ -351,8 +351,8 @@ void ScalarSim::initializeLevelData(
      bssnSim->allocGen1(patch_hierarchy, ln);
      scalarSim->alloc(patch_hierarchy, ln);
      level->allocatePatchData(weight_idx);
-     if(use_AHFinder)
-       horizon->alloc(patch_hierarchy, ln);
+     // if(use_AHFinder)
+     //   horizon->alloc(patch_hierarchy, ln);
 
    }
 
@@ -369,8 +369,8 @@ void ScalarSim::initializeLevelData(
    }
    bssnSim->clearSrc(patch_hierarchy, ln);
    bssnSim->clearGen1(patch_hierarchy, ln);
-   if(use_AHFinder)
-     horizon->clear(patch_hierarchy, ln);
+   // if(use_AHFinder)
+   //   horizon->clear(patch_hierarchy, ln);
 
    /*
     * Refine solution data from coarser level and, if provided, old level.
@@ -442,8 +442,8 @@ void ScalarSim::initializeLevelData(
  
    bssnSim->copyAToP(hcellmath);
    scalarSim->copyAToP(hcellmath);
-   if(use_AHFinder)
-     horizon->copyAToP(hcellmath);
+   // if(use_AHFinder)
+   //   horizon->copyAToP(hcellmath);
    
    level->getBoxLevel()->getMPI().Barrier();
    /* Set vector weight. */
@@ -478,7 +478,7 @@ void ScalarSim::applyGradientDetector(
    double max_der_norm = 0;
    hier::PatchLevel& level =
       (hier::PatchLevel &) * hierarchy.getPatchLevel(ln);
-   size_t ntag = 0, ntotal = 0;
+   int ntag = 0, ntotal = 0;
    //double maxestimate = 0;
    for (hier::PatchLevel::iterator pi(level.begin());
         pi != level.end(); ++pi)
@@ -492,7 +492,7 @@ void ScalarSim::applyGradientDetector(
 
       boost::shared_ptr<pdat::CellData<real_t> > f_pdata(
         BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
-          patch->getPatchData(gradiant_indicator_idx)));
+          patch->getPatchData(gradient_indicator_idx)));
 
       arr_t f =
       pdat::ArrayDataAccess::access<DIM, real_t>(
@@ -538,6 +538,8 @@ void ScalarSim::applyGradientDetector(
    if (mpi.getSize() > 1)
    {
      mpi.AllReduce(&max_der_norm, 1, MPI_MAX);
+     mpi.AllReduce(&ntag, 1, MPI_SUM);
+     mpi.AllReduce(&ntotal, 1, MPI_SUM);
    }
 
    tbox::plog << "Adaption threshold is " << adaption_threshold << "\n";
@@ -693,34 +695,8 @@ void ScalarSim::RKEvolveLevel(
     ((ln>0)?(hierarchy->getPatchLevel(ln-1)):NULL));
   
   
-  xfer::RefineAlgorithm refiner;
-  boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
-
-
-  
-  bssnSim->registerRKRefiner(refiner, space_refine_op);
-  scalarSim->registerRKRefiner(refiner, space_refine_op);
-  
   bssnSim->prepareForK1(coarser_level, to_t);
   scalarSim->prepareForK1(coarser_level, to_t);
-
-  
-  //if not the coarsest level, should 
-  if(coarser_level!=NULL)
-  {
-    boost::shared_ptr<xfer::PatchLevelBorderFillPattern> border_fill_pattern (
-      new xfer::PatchLevelBorderFillPattern());
-    
-    refine_schedule = refiner.createSchedule(
-      //border_fill_pattern,
-      level,
-      //level,
-      coarser_level->getLevelNumber(),
-      hierarchy,
-      (cosmoPS->is_time_dependent)?NULL:cosmoPS);
-  }
-  else
-    refine_schedule = refiner.createSchedule(level, NULL);
   
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
@@ -734,8 +710,7 @@ void ScalarSim::RKEvolveLevel(
   
   // fill ghost cells 
   level->getBoxLevel()->getMPI().Barrier();
-  refine_schedule->fillData(to_t);
-
+  pre_refine_schedules[ln]->fillData(to_t);
   bssnSim->clearSrc(hierarchy, ln);
   
   for( hier::PatchLevel::iterator pit(level->begin());
@@ -763,7 +738,7 @@ void ScalarSim::RKEvolveLevel(
 
   // fill ghost cells 
   level->getBoxLevel()->getMPI().Barrier();
-  refine_schedule->fillData(to_t);
+  pre_refine_schedules[ln]->fillData(to_t);
 
   bssnSim->clearSrc(hierarchy, ln);
   
@@ -794,8 +769,7 @@ void ScalarSim::RKEvolveLevel(
 
   // fill ghost cells 
   level->getBoxLevel()->getMPI().Barrier();
-  refine_schedule->fillData(to_t);
-
+  pre_refine_schedules[ln]->fillData(to_t);
   bssnSim->clearSrc(hierarchy, ln);
   
   for( hier::PatchLevel::iterator pit(level->begin());
@@ -824,8 +798,7 @@ void ScalarSim::RKEvolveLevel(
 
   // fill ghost cells 
   level->getBoxLevel()->getMPI().Barrier();
-  refine_schedule->fillData(to_t);
-
+  pre_refine_schedules[ln]->fillData(to_t);
   bssnSim->clearSrc(hierarchy, ln);
   
   for( hier::PatchLevel::iterator pit(level->begin());
@@ -882,31 +855,12 @@ void ScalarSim::advanceLevel(
   // then update ghost cells through doing refinement if it has finer level
   if(ln < hierarchy->getNumberOfLevels() -1 )
   {
-    xfer::CoarsenAlgorithm coarsener(dim);
-  
-
-    boost::shared_ptr<xfer::CoarsenSchedule> coarsen_schedule;
-
-    bssnSim->registerCoarsenActive(coarsener,space_coarsen_op);
-    scalarSim->registerCoarsenActive(coarsener,space_coarsen_op);
-      
-    coarsen_schedule = coarsener.createSchedule(level, hierarchy->getPatchLevel(ln+1));
     level->getBoxLevel()->getMPI().Barrier();
-    coarsen_schedule->coarsenData();
-
-    xfer::RefineAlgorithm post_refiner;
-
-    boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
-
-    
-
-    bssnSim->registerRKRefinerActive(post_refiner, space_refine_op);
-    scalarSim->registerRKRefinerActive(post_refiner, space_refine_op);
-    
-    refine_schedule = post_refiner.createSchedule(level, NULL);
+    coarsen_schedules[ln]->coarsenData();
 
     level->getBoxLevel()->getMPI().Barrier();
-    refine_schedule->fillData(to_t);
+    post_refine_schedules[ln]->fillData(to_t);
+
   }
 
   // copy _a to _p and set _p time to next timestamp
@@ -931,7 +885,53 @@ void ScalarSim::resetHierarchyConfiguration(
   /*! Coarsest level */ int coarsest_level,
   /*! Finest level */ int finest_level)
 {
+  pre_refine_schedules.resize(finest_level + 1);
+  post_refine_schedules.resize(finest_level + 1);
+  coarsen_schedules.resize(finest_level + 1);
+
+  xfer::RefineAlgorithm pre_refiner, post_refiner;
+  xfer::CoarsenAlgorithm coarsener(dim);  
+  
+  bssnSim->registerRKRefiner(pre_refiner, space_refine_op);
+  bssnSim->registerCoarsenActive(coarsener,space_coarsen_op);
+  bssnSim->registerRKRefinerActive(post_refiner, space_refine_op);
+
+  scalarSim->registerRKRefinerActive(post_refiner, space_refine_op);
+  scalarSim->registerRKRefiner(pre_refiner, space_refine_op);
+  scalarSim->registerCoarsenActive(coarsener,space_coarsen_op);
+  
+  for(int ln = 0; ln <= finest_level; ln++)
+  {
+    const boost::shared_ptr<hier::PatchLevel> level(
+      new_hierarchy->getPatchLevel(ln));
+
+    // reset pre refine refine schedule
+    if(ln == 0)
+    {
+      pre_refine_schedules[ln] = pre_refiner.createSchedule(level, NULL);
+    }
+    else
+    {
+      pre_refine_schedules[ln] = pre_refiner.createSchedule(
+        //border_fill_pattern,
+        level,
+        //level,
+        ln - 1,
+        new_hierarchy,
+        (cosmoPS->is_time_dependent)?NULL:cosmoPS);
+    }
+
+    // reset coarse and post_refine schedule
+    if(ln < finest_level)
+    {
+      coarsen_schedules[ln] = coarsener.createSchedule(level, new_hierarchy->getPatchLevel(ln+1));
+      post_refine_schedules[ln] = post_refiner.createSchedule(level, NULL);
+      
+    }
+  }
+  
   return;
+
 }
 
 void ScalarSim::putToRestart(
