@@ -14,9 +14,13 @@ if(COSMO_DEBUG)
 else()
   set(PROFILING     "")
   set(OPT_LEVEL     "-O3")
+  set(C_OPT_LEVEL     "-O3")
+  set(F_OPT_LEVEL     "-O3")  
   # try to use some GNU compiler special options
   if(CMAKE_COMPILER_IS_GNUCXX)
     set(OPT_LEVEL     "${OPT_LEVEL} -ffast-math -flto -march=native -fext-numeric-literals -Wno-reorder")
+    set(C_OPT_LEVEL     "${C_OPT_LEVEL} -ffast-math -flto -march=native")
+    set(F_OPT_LEVEL     "${F_OPT_LEVEL} -ffast-math -flto -march=native")   
   endif()
   # try to use some Intel compiler special options
   if(${CMAKE_CXX_COMPILER} MATCHES "icpc.*$") 
@@ -46,6 +50,8 @@ endif()
 
 set(WARNINGS          "-pedantic -Wall")
 set(CMAKE_CXX_FLAGS   "${CC_OPTS} ${OPT_LEVEL} ${WARNINGS} ${PROFILING}")
+set(CMAKE_C_FLAGS   "${C_OPT_LEVEL}  ${PROFILING}")
+set(CMAKE_FORTRAN_FLAGS   " ${F_OPT_LEVEL} ${WARNINGS} ${PROFILING}")
 set(CMAKE_EXE_LINKER_FLAGS  "${PROFILING}")
 
 unset(COSMO_DEBUG CACHE)

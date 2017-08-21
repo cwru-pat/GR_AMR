@@ -103,6 +103,21 @@ ScalarSim{
   stop_after_setting_init = FALSE
 }
 
+AHFD{
+  find_every = 5
+  N_horizons = 2
+  origin_x = 0.005, 0.005
+  origin_y = 0.005, 0.005
+  origin_z = 0.005, 0.005
+  sphere_x_center = 0.05, 0.05
+  sphere_y_center = 0.005, 0.005
+  sphere_z_center = 0.005, 0.005
+  sphere_radius = 0.00008, 0.00002
+  find_after_individual = 300, 300 // will only find horizon after this step (inclusive)
+  max_Newton_iterations_initial = 20
+}
+
+
 Horizon{
   origin = 0.005, 0.005, 0.005
   radius = 0.0005

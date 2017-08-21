@@ -1,13 +1,6 @@
 /* InterpLocalUniform.h -- private stuff for this interpolator */
 /* $Header$ */
 
-#ifdef AEILOCALINTERP_STANDALONE_TEST
-  typedef int    CCTK_INT;
-  typedef double CCTK_REAL;
-#endif
-
-typedef CCTK_REAL fp;
-
 /******************************************************************************/
 
 /*
@@ -18,9 +11,6 @@ typedef CCTK_REAL fp;
 /*        already been included, and if so, not duplicate it */
 //typedef int bool;
 #include <stdbool.h>
-#define false	0
-#define true	1
-
 /* make if-else symmetrical:  if (blah) then { ... } else { ... } */
 #define then	/* empty */
 
