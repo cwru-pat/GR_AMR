@@ -106,6 +106,8 @@ CosmoSim::CosmoSim(
 
   AHFinder_interval = cosmo_sim_db->getIntegerWithDefault("AHFinder_interval" , 0);
 
+  if(cosmo_sim_db->keyExists("save_steps"))
+    save_steps = cosmo_sim_db->getIntegerVector("save_steps");
 }
 
 CosmoSim::~CosmoSim()
@@ -170,7 +172,7 @@ void CosmoSim::run(
 }
 
 
-
+  
 /**
  * @brief regrid when necessary and detect NaNs.
  */
@@ -180,7 +182,9 @@ bool CosmoSim::runCommonStepTasks(
     // detecting NaNs
   isValid(hierarchy);
 
-  if(step > starting_step && (step %save_interval == 0))
+  if(step > starting_step &&
+    ((step %save_interval == 0) ||
+      (std::find(save_steps.begin(), save_steps.end(), step) != save_steps.end()) ))
   {
     std::string restart_file_name = simulation_type + comments +".restart";
     tbox::RestartManager::getManager()->writeRestartFile(restart_file_name, step);

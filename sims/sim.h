@@ -154,6 +154,7 @@ public:
   real_t surface_move_shreshold;
 
   idx_t save_interval;
+  std::vector<idx_t> save_steps;
 
   bool use_anguler_momentum_finder;
 
