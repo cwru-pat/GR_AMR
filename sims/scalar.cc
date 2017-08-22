@@ -184,7 +184,8 @@ bool ScalarSim::initLevel(
   bssnSim->clearGen1(hierarchy, ln);
 
   scalarSim->clear(hierarchy, ln);
-  
+
+  if(ln >0) return false;
   if(tbox::RestartManager::getManager()->isFromRestart())
     return true;
   
