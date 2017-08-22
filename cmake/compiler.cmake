@@ -16,7 +16,7 @@ else()
   message(FATAL_ERROR "${Red}The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different compiler.${ColorReset}")
 endif()
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
 
 enable_language (Fortran)
 SET (CMAKE_Fortran_COMPILER  gfortran)

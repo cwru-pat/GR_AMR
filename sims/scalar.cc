@@ -111,7 +111,7 @@ void ScalarSim::setICs(
 
   if(is_from_restart)
     hierarchy->initializeHierarchy();
-  
+
   // set initial condition by calling function initializeLevelData()
   gridding_algorithm->makeCoarsestLevel(cur_t);
 
@@ -184,6 +184,9 @@ bool ScalarSim::initLevel(
   bssnSim->clearGen1(hierarchy, ln);
 
   scalarSim->clear(hierarchy, ln);
+  
+  if(tbox::RestartManager::getManager()->isFromRestart())
+    return true;
   
   
   if(ic_type == "semianalytic_test")

@@ -164,11 +164,8 @@ Horizon::Horizon(const boost::shared_ptr<hier::PatchHierarchy>& hierarchy_in,
   ghost_zone_width(2),
   patch_overlap_width(1),
   Jacobian_compute_method("symbolic differentiation with finite diff d/dr"),
-  Jacobian_store_solve_method("row-oriented sparse matrix/ILUCG"),
-  geom_interp_handle(Util_TableCreateFromString(geometry_interpolator_pars))
+  Jacobian_store_solve_method("row-oriented sparse matrix/ILUCG")
 {
-  if(geom_interp_handle < 0)
-    TBOX_ERROR("Getting geom_interp_handel failed!\n");
   boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
     BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
       hierarchy->getGridGeometry()));
@@ -602,9 +599,10 @@ void Horizon::AHFinderDirect_setup()
   //
   // geometry info
   //
+ // TODOMARKS
   if (verbose_info.print_algorithm_highlights)
     then CCTK_VInfo(CCTK_THORNSTRING, "   setting up geometry interpolator");
-  // struct geometry_info& gi = state.gi;
+  struct geometry_info& gi = state.gi;
   // gi.hardwire_Schwarzschild_EF_geometry
   //   = (hardwire_Schwarzschild_EF_geometry != 0);
 
@@ -613,11 +611,11 @@ void Horizon::AHFinderDirect_setup()
   //   then CCTK_VWarn(FATAL_ERROR, __LINE__, __FILE__, CCTK_THORNSTRING,
   //                   "AHFinderDirect_setup(): couldn't find interpolator \"%s\"!",
   //                   geometry_interpolator_name);		/*NOTREACHED*/
-  //  gi.param_table_handle = Util_TableCreateFromString(geometry_interpolator_pars);
-  // if (gi.param_table_handle < 0)
-  //   then CCTK_VWarn(FATAL_ERROR, __LINE__, __FILE__, CCTK_THORNSTRING,
-  //                   "AHFinderDirect_setup(): bad geometry-interpolator parameter(s) \"%s\"!",
-  //                   geometry_interpolator_pars);		/*NOTREACHED*/
+  gi.param_table_handle = Util_TableCreateFromString(geometry_interpolator_pars);
+  if (gi.param_table_handle < 0)
+    then CCTK_VWarn(FATAL_ERROR, __LINE__, __FILE__, CCTK_THORNSTRING,
+                    "AHFinderDirect_setup(): bad geometry-interpolator parameter(s) \"%s\"!",
+                    geometry_interpolator_pars);		/*NOTREACHED*/
 
   // gi.geometry__Schwarzschild_EF__mass     = geometry__Schwarzschild_EF__mass;
   // gi.geometry__Schwarzschild_EF__x_posn   = geometry__Schwarzschild_EF__x_posn;
@@ -892,7 +890,6 @@ void Horizon::AHFinderDirect_setup()
      //                            origin_y[hn],
      //                            origin_z[hn])
      //   : patch_system::type_of_name(patch_system_type[hn]);
-
      // create the patch system
      AH_data.ps_ptr
        = new patch_system(origin_x[hn], origin_y[hn], origin_z[hn],
@@ -1784,7 +1781,6 @@ if (hs.has_genuine_horizons())
 			   "beginning iteration %d (horizon_is_genuine=%d)",
 			   iteration, int(horizon_is_genuine));
 
-
 	//
 	// evaluate the expansion Theta(h) and its norms
 	// *** this is a synchronous operation across all processors ***
@@ -1821,7 +1817,7 @@ if (hs.has_genuine_horizons())
             ps_ptr->add_to_ghosted_gridfn(epsilon, gfns::gfn__h);
             // ps_ptr->scale_ghosted_gridfn(1.0+epsilon, gfns::gfn__h);
           }
-          
+
           const enum expansion_status raw_shifted_expansion_status
             = expansion(ps_ptr, compute_info,
                         cgi, gi,
@@ -3184,7 +3180,7 @@ enum expansion_status Horizon::
   const bool active_flag = (ps_ptr != NULL);
   if (print_msg_flag)
     then CCTK_VInfo(CCTK_THORNSTRING,
-                    "   %sexpansion",
+                    "   %s expansion",
                     active_flag ? "" : "dummy ");
 
   if (active_flag)
@@ -5640,7 +5636,7 @@ int Horizon::CCTK_InterpGridArrays(
   int N_output_arrays,
   const CCTK_INT output_array_types[],
   void *const output_arrays[])
-{  
+{
   const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
   int ln_num = hierarchy->getNumberOfLevels(), ln;
   const int N_interp_points_bak = N_interp_points;
@@ -5694,19 +5690,18 @@ int Horizon::CCTK_InterpGridArrays(
         DERIV(0),
         DERIV(0), DERIV(1), DERIV(2), DERIV(3)};
    
-   if (Util_TableSetIntArray(geom_interp_handle,  
+   if (Util_TableSetIntArray(param_table_handle,  
                              35, operand_indices,  
                              "operand_indices") < 0)
      CCTK_WARN(-1, "can’t set operand_indices array in parameter table!");
 
-   if (Util_TableSetIntArray(geom_interp_handle,  
+   if (Util_TableSetIntArray(param_table_handle,  
                              35, operation_codes,  
                           "operation_codes") < 0)  
      CCTK_WARN(-1, "can’t set operation_codes array in parameter table!");
    
-   
   #endif
-  
+
   for(rank = 0 ; rank < state.N_procs; rank++)
   {
     // initialization on every node
@@ -5727,7 +5722,7 @@ int Horizon::CCTK_InterpGridArrays(
       mpi.Bcast(&N_interp_points, 1, MPI_INT, rank);
       for(int n = 0; n < N_interp_points; n++)
       {
-        int cur_mpi_rank = -1; 
+        int cur_mpi_rank = -1, cur_mpi_level = -1; 
 
         CCTK_REAL x = 0, y = 0, z = 0;
         if(state.my_proc == rank)
@@ -5838,6 +5833,7 @@ int Horizon::CCTK_InterpGridArrays(
                 && k0 >= lower[2] && k0 <= upper[2])
             {
               cur_mpi_rank = state.my_proc;
+              cur_mpi_level = ln;
               bssn->initPData(patch);
               
 #if USE_HERMITE_GEOM_INTERP
@@ -5862,11 +5858,12 @@ int Horizon::CCTK_InterpGridArrays(
               double * chi_in = bssn->DIFFchi_a_pdata->getPointer();
 
               
-              const void * interp_coords[DIM];
+              const void * local_interp_coords[DIM];
 
-              interp_coords[0] = (const void *) &x;
-              interp_coords[1] = (const void *) &y;
-              interp_coords[2] = (const void *) &z;
+              double local_x = x, local_y = y, local_z = z;
+              local_interp_coords[0] = (const void *) &local_x;
+              local_interp_coords[1] = (const void *) &local_y;
+              local_interp_coords[2] = (const void *) &local_z;
               
               const int input_array_dims[DIM] =
                 {upper[0] - lower[0] + 1 + 2 * STENCIL_ORDER,
@@ -5953,51 +5950,55 @@ int Horizon::CCTK_InterpGridArrays(
 
 
               // shift the point coordinate to match the index
-              x-= (lower[0] - STENCIL_ORDER ) * dx[0];
-              y-= (lower[1] - STENCIL_ORDER ) * dx[1];
-              z-= (lower[2] - STENCIL_ORDER ) * dx[2];
+              local_x-= (lower[0] - STENCIL_ORDER ) * dx[0];
+              local_y-= (lower[1] - STENCIL_ORDER ) * dx[1];
+              local_z-= (lower[2] - STENCIL_ORDER ) * dx[2];
               
               // const CCTK_INT input_array_offsets[14] =
               //   {-offset, -offset, -offset, -offset, -offset,
               //    -offset, -offset, -offset, -offset, -offset,
               //    -offset, -offset, -offset, -offset };
 
-              // if (Util_TableSetIntArray(geom_interp_handle,  
+              // if (Util_TableSetIntArray(param_table_handle,  
               //                           DIM, input_array_strides,  
               //                           "input_array_strides") < 0)
               //   CCTK_WARN(-1, "can’t set operand_indices array in parameter table!");
 
-              // if (Util_TableSetIntArray(geom_interp_handle,  
+              // if (Util_TableSetIntArray(param_table_handle,  
               //                           DIM, input_array_min_subscripts,  
               //                           "input_array_min_subscripts") < 0)
               //   CCTK_WARN(-1, "can’t set operand_indices array in parameter table!");
 
-              // if (Util_TableSetIntArray(geom_interp_handle,  
+              // if (Util_TableSetIntArray(param_table_handle,  
               //                           DIM, input_array_max_subscripts,  
               //                           "input_array_max_subscripts") < 0)
               //   CCTK_WARN(-1, "can’t set operand_indices array in parameter table!");
 
-              // if (Util_TableSetIntArray(geom_interp_handle,  
+              // if (Util_TableSetIntArray(param_table_handle,  
               //                           14, input_array_offsets,  
               //                           "input_array_offsets") < 0)
               //   CCTK_WARN(-1, "can’t set operand_indices array in parameter table!");
 
               const double origin[DIM] = {0,0,0};
               const double delta[DIM] = {dx[0], dx[1], dx[2]} ;
+
+
               if (AEILocalInterp_U_Hermite(DIM,  
                                           param_table_handle,  
                                           origin, delta,  
                                           1,  
                                           CCTK_VARIABLE_REAL,  
-                                          interp_coords,  
+                                          local_interp_coords,  
                                           14,  
                                           input_array_dims,  
                                           input_array_type_codes,  
                                           input_arrays,  
                                           35,  
                                           output_array_type_codes,  
-                                          output_arrays) < 0)  
-                CCTK_WARN(-1, "error return from interpolator!");
+                                          output_arrays) < 0)
+                                   error_exit(-1, "error return from interpolator!");
+
+
               // calculate K from A and gamma
 
               *(double *)output_arrays[31] += 1; // chi = DIFFchi + 1.0
@@ -6074,6 +6075,11 @@ int Horizon::CCTK_InterpGridArrays(
 
         if(state.N_procs > 1)
         {
+          mpi.AllReduce(&cur_mpi_level, 1, MPI_MAX);
+
+          if(ln != cur_mpi_level)
+            cur_mpi_rank = -1;
+          
           mpi.AllReduce(&cur_mpi_rank, 1, MPI_MAX);
           if(cur_mpi_rank == -1)
           {
@@ -6081,6 +6087,8 @@ int Horizon::CCTK_InterpGridArrays(
                       <<x<<","<<y<<","<<z<<")\n";
             return -1;
           }
+          
+          //          std::cout<<"working on level: "<<cur_mpi_level<<"\n";
           if(cur_mpi_rank != rank)
           {
             if(state.my_proc == cur_mpi_rank)
@@ -6161,11 +6169,12 @@ int Horizon::CCTK_InterpGridArrays(
           
 
         }
-          
       }
     }
     
     mpi.Barrier();
+           
+
   }
   
 

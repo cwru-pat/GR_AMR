@@ -4,15 +4,15 @@ Main
   dim = 3
   base_name = "scalar"
   print_precision = 9
-  restart = FALSE
+  restart = TRUE
   restart_basename = "scalar"
-  restart_step = 300
-  restart_nodes = 1
-  omp_num_threads = 12 //enable maximum threads if equals to 0
+  restart_step = 490
+  restart_nodes = 8
+  omp_num_threads = 1 //enable maximum threads if equals to 0
 }
 
 CartesianGridGeometry {
-  domain_boxes = [(0,0,0), (63,63,63)]
+  domain_boxes = [(0,0,0), (127,127,127)]
   x_lo         = 0, 0, 0
   x_up         = 0.01, 0.01, 0.01
   periodic_dimension = 1, 1, 1
@@ -42,7 +42,7 @@ TimerManager{
 
 
 PatchHierarchy {
-   max_levels = 2
+   max_levels = 9
    proper_nesting_buffer = 3, 3, 3, 3, 3, 3   
    largest_patch_size {
       level_0 = -1, -1, -1
@@ -75,10 +75,10 @@ GriddingAlgorithm {
 }
 
 CosmoSim{
-  steps = 1000
-  save_interval = 240
+  steps = 490
+  save_interval = 10
   do_plot = TRUE
-  dt_frac = 0.1
+  dt_frac = 0.15
   regridding_interval = 10
   adaption_threshold = 100
   KO_damping_coefficient = 0.0
@@ -105,28 +105,20 @@ ScalarSim{
 
 AHFD{
   find_every = 5
-  N_horizons = 2
-  origin_x = 0.005, 0.005
-  origin_y = 0.005, 0.005
-  origin_z = 0.005, 0.005
-  sphere_x_center = 0.05, 0.05
-  sphere_y_center = 0.005, 0.005
-  sphere_z_center = 0.005, 0.005
-  sphere_radius = 0.00008, 0.00002
-  find_after_individual = 300, 300 // will only find horizon after this step (inclusive)
-  max_Newton_iterations_initial = 20
+  N_horizons = 3
+  origin_x = 0.005, 0.005, 0.005
+  origin_y = 0.005, 0.005, 0.005
+  origin_z = 0.005, 0.005, 0.005
+  sphere_x_center = 0.005, 0.005, 0.005
+  sphere_y_center = 0.005, 0.005, 0.005
+  sphere_z_center = 0.005, 0.005, 0.005
+  sphere_radius = 0.00001, 0.000002, 0.00005
+  find_after_individual = 300, 300, 300 // will only find horizon after this step (inclusive)
+  max_Newton_iterations_initial = 50
+  max_allowable_horizon_radius = 0.0001, 0.0001, 0.0001
+  Theta_norm_for_convergence = 5e-7
 }
 
-
-Horizon{
-  origin = 0.005, 0.005, 0.005
-  radius = 0.0005
-  is_periodic = TRUE
-  doing_statistic = TRUE
-  is_sphere = TRUE
-  radius_limit = 0.00002
-  non_zero_angular_momentum = FALSE
-}
 
 BSSN{
   lapse = "Harmonic"
@@ -144,8 +136,8 @@ BSSN{
 }
 
 IO{
-  output_list = "DIFFK", "F","DIFFchi"
-  output_interval =  10, 10, 10
+  output_list = "DIFFK", "DIFFchi"
+  output_interval =  10000,  10000
   
 }
 

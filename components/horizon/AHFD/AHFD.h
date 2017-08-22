@@ -693,8 +693,6 @@ int CCTK_InterpGridArrays(
   CCTK_INT which_horizon_to_announce_centroid;
   CCTK_INT which_surface_to_store_info[101];
 
-  const int geom_interp_handle;
-
   char cur_directory[FILENAME_MAX];
 };
 
