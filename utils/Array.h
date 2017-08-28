@@ -4,6 +4,12 @@
 #include <string>
 #include <utility>
 
+#include "../cosmo_macros.h"
+
+#define B_INDEX(i, j, k, nx, ny, nz) \
+  ( STENCIL_ORDER * (1 + (nx+2*STENCIL_ORDER) + (nx+2*STENCIL_ORDER) * (ny+2*STENCIL_ORDER)) \
+    + (i) + (j) * (nx+2*STENCIL_ORDER) + (k) * (nx+2*STENCIL_ORDER) * (ny+2*STENCIL_ORDER))
+
 namespace cosmo
 {
 
@@ -49,7 +55,7 @@ class CosmoArray
       ny = ny_in;
       nz = nz_in;
 
-      pts = nx*ny*nz;
+      pts = (nx+2 * STENCIL_ORDER)*(ny+2 * STENCIL_ORDER)*(nz + 2 * STENCIL_ORDER);
 
       int status = posix_memalign((void **) &_array, 64, pts * sizeof(RT));
       if(status != 0)
@@ -64,6 +70,46 @@ class CosmoArray
       }
     }
 
+    void fillPeriodicBoundary()
+    {
+      for(int i = 1; i <= STENCIL_ORDER; i++) //loops for the index inside bd
+        for(int j = 0 - STENCIL_ORDER; j < ny  + STENCIL_ORDER; j++)
+          for(int k = 0 - STENCIL_ORDER; k < nz  + STENCIL_ORDER; k++)
+          {
+            _array[B_INDEX(-i, j, k, nx, ny, nz)] =
+              _array[B_INDEX(nx - i , j, k, nx, ny, nz)];
+            
+            _array[B_INDEX(nx+i - 1, j, k, nx, ny, nz)] =
+              _array[B_INDEX(i -1, j, k, nx, ny, nz)];
+
+          }
+
+      for(int i = 0; i < nx ; i++) //loops for the index inside bd
+        for(int j = 1; j <= STENCIL_ORDER; j++)
+          for(int k = 0 - STENCIL_ORDER; k < nz + STENCIL_ORDER; k++)
+          {
+            _array[B_INDEX(i, -j, k, nx, ny, nz)] =
+              _array[B_INDEX(i, ny-j, k, nx, ny, nz)];
+            
+            _array[B_INDEX(i, ny+j-1, k, nx, ny, nz)] =
+              _array[B_INDEX(i, j-1, k, nx, ny, nz)];
+
+          }
+
+      for(int i = 0; i < nx ; i++) //loops for the index inside bd
+        for(int j = 0; j < ny ; j++)
+          for(int k = 1; k <= STENCIL_ORDER; k++)
+          {
+            _array[B_INDEX(i, j, nz + k -1, nx, ny, nz)] =
+              _array[B_INDEX(i, j, k -1, nx, ny, nz)];
+            
+            _array[B_INDEX(i, j, -k, nx, ny, nz)] =
+              _array[B_INDEX(i, j, nz-k, nx, ny, nz)];
+          }
+
+
+    }
+    
     RT sum()
     {
       RT res = 0.0;

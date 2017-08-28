@@ -9,6 +9,7 @@
 #include <cstdio>
 #include "../../utils/Array.h"
 
+#include "multigrid_bd_handler.h"
 
 #include "../../cosmo_macros.h"
 
@@ -19,7 +20,7 @@
     for(j=0; j<ny; ++j)                   \
       for(k=0; k<nz; ++k)
 
-#define H_INDEX(i,j,k,nx,ny,nz) (((i+nx)%(nx))*(ny)*(nz) + ((j+ny)%(ny))*(nz) + (k+(nz))%(nz))
+
 
 using namespace SAMRAI;
 
@@ -107,8 +108,12 @@ class FASMultigrid
 
   real_t double_der_coef[9];  ///< vectors that stores coefficients of f(x,y,z) for different order stencils, used for jac equation iteration
 
-  real_t H_LEN_FRAC;
-  
+  real_t H_LEN_FRAC[3];
+
+  std::string boundary_type;
+
+  multigridBdHandler * bd_handler;
+    
   /**
    * @brief indexing scheme of a grid heirarchy
    * @description return index of grid at a particular depth
@@ -193,9 +198,13 @@ class FASMultigrid
 
   molecule ** eqns; ///< All terms in all equations
 
+  char * interpolator_pars;
+
+  int interp_param_handle;
+  
   FASMultigrid(fas_grid_t u_in[], idx_t u_n_in, idx_t molecule_n_in [],
                idx_t max_depth_in, idx_t max_relax_iters_in,
-               real_t relaxation_tolerance_in, real_t H_LEN_FRAC_IN, idx_t NX, idx_t NY, idx_t NZ);
+               real_t relaxation_tolerance_in, real_t H_LEN_FRAC_IN[3], idx_t NX, idx_t NY, idx_t NZ, multigridBdHandler * bd_handler_in);
   ~FASMultigrid();
 
   void add_atom_to_eqn(atom atom_in, idx_t molecule_id, idx_t eqn_id);
@@ -252,13 +261,13 @@ class FASMultigrid
 
   bool _singularityExists(idx_t eqn_id, idx_t depth);
 
-  void _relaxSolution_GaussSeidel( idx_t depth, idx_t max_iterations);
+  bool _relaxSolution_GaussSeidel( idx_t depth, idx_t max_iterations);
 
   void _printStrip(fas_grid_t & out_h);
 
   void build_rho();
 
-  void VCycle();
+  bool VCycle();
 
   void VCycles(idx_t num_cycles);
 
@@ -288,7 +297,7 @@ class FASMultigrid
   real_t derivative(
     idx_t i, idx_t j, idx_t k, idx_t nx, idx_t ny, idx_t nz, int d, fas_grid_t & field);
 
-
+  void fillBoundary(fas_grid_t & data);
 };
 
 } // namespace cosmo

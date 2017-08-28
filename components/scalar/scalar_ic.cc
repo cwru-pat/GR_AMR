@@ -2,6 +2,7 @@
 #include "scalar_ic.h"
 #include "SAMRAI/tbox/HDFDatabase.h"
 #include "../elliptic_solver/full_multigrid.h"
+#include "../elliptic_solver/multigrid_bd_handler.h"
 #include "../../utils/Array.h"
 
 using namespace SAMRAI;
@@ -188,7 +189,8 @@ bool scalar_ic_set_scalar_collapse(
     dx[i] = (grid_geometry.getDx()[i]) / (1<<ln);
   }
 
-
+  std::string boundary_type = "periodic";
+  multigridBdHandler * bd_handler = new multigridBdHandler(boundary_type);
   
   idx_t NX = round(L[0] / dx[0]);
   idx_t NY = round(L[1] / dx[1]); 
@@ -212,8 +214,9 @@ bool scalar_ic_set_scalar_collapse(
 
   /******ending collecting parameters from input database****/
 
-  double * phi = new double[NX * NY * NZ];
-
+  //  double * phi = new double[(NX+2*STENCIL_ORDER) * (NY+2*STENCIL_ORDER) * (NZ+2*STENCIL_ORDER)];
+  CosmoArray<idx_t, real_t>  phi;
+  phi.init(NX, NY, NZ);
   //  std::vector<double> phi(NX*NY*NZ, phi_0);
   
   LOOP3()
@@ -244,7 +247,7 @@ bool scalar_ic_set_scalar_collapse(
       }
     }
   }
-
+  bd_handler->fillBoundary(phi._array, phi.nx, phi.ny, phi.nz);
   // compute background/average K
   real_t K_src = 0;
   LOOP3()
@@ -258,7 +261,6 @@ bool scalar_ic_set_scalar_collapse(
               + pw2((1.0/12.0*phi[INDEX(i,j-2,k)] - 2.0/3.0*phi[INDEX(i,j-1,k)] + 2.0/3.0*phi[INDEX(i,j+1,k)]- 1.0/12.0*phi[INDEX(i,j+2,k)])/dx[1])
               +pw2((1.0/12.0*phi[INDEX(i,j,k-2)] - 2.0/3.0*phi[INDEX(i,j,k-1)] + 2.0/3.0*phi[INDEX(i,j,k+1)]- 1.0/12.0*phi[INDEX(i,j,k+2)])/dx[2])) / 2.0
       + scalar->potentialHandler->ev_potential(&bd, &sd);
-
   }
   
   K_src = -std::sqrt(24.0 * PI * K_src/NX/NY/NZ);
@@ -287,7 +289,7 @@ bool scalar_ic_set_scalar_collapse(
 
     tbox::pout<<"Read initial configuration database for level "<<ln<<"\n";
     
-    for(int i = 0; i < NX*NY*NZ; i++)
+    for(int i = 0; i < temp.size(); i++)
       DIFFchi[0]._array[i] = temp[i];
     
     flag = true;
@@ -301,7 +303,7 @@ bool scalar_ic_set_scalar_collapse(
     idx_t molecule_n[] = {3};
     
     FASMultigrid multigrid(
-      DIFFchi, 1, molecule_n, 4, 5, relaxation_tolerance, L[0], NX, NY, NZ);
+      DIFFchi, 1, molecule_n, 4, 5, relaxation_tolerance, L, NX, NY, NZ, bd_handler);
 
     atom atom_tmp = {0};
 
@@ -364,7 +366,8 @@ bool scalar_ic_set_scalar_collapse(
       DIFFchi[0][idx] = std::pow(-avg1/avg5,1.0/4.0);
     }
 
-    
+    bd_handler->fillBoundary(DIFFchi[0]._array, DIFFchi[0].nx, DIFFchi[0].ny, DIFFchi[0].nz);
+
     multigrid.VCycles(num_vcycles);
 
     LOOP3()
