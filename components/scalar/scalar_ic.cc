@@ -226,27 +226,51 @@ bool scalar_ic_set_scalar_collapse(
   std::mt19937 gen(7.0 /*rd()*/);
   std::uniform_real_distribution<real_t> dist(0, 2.0*PI);
 
-  
-  for(int n = -n_max; n <= n_max; ++n)
-  {
-    if(n != 0)
-    {
-      // random phases
-      real_t x_phase = dist(gen),
-             y_phase = dist(gen),
-             z_phase = dist(gen);
 
-      LOOP3()
+  std::string initial_type =
+    cosmo_scalar_db->getStringWithDefault("initial_type", "modes");
+  if(initial_type == "modes")
+  {
+    for(int n = -n_max; n <= n_max; ++n)
+    {
+      if(n != 0)
       {
-        // some sinusoidal modes
-        phi[INDEX(i,j,k)] += delta_phi*(
-          cos(2.0*PI*((real_t) n/NX)*((real_t)i + 0.5) )
-          + cos(2.0*PI*((real_t) n/NY)*((real_t)j + 0.5) )
-          + cos(2.0*PI*((real_t) n/NZ)*((real_t)k+ 0.5) )
-            );
+        // random phases
+        real_t x_phase = dist(gen),
+          y_phase = dist(gen),
+          z_phase = dist(gen);
+
+        LOOP3()
+        {
+          // some sinusoidal modes
+          phi[INDEX(i,j,k)] += delta_phi*(
+            cos(2.0*PI*((real_t) n/NX)*((real_t)i + 0.5) )
+            + cos(2.0*PI*((real_t) n/NY)*((real_t)j + 0.5) )
+            + cos(2.0*PI*((real_t) n/NZ)*((real_t)k+ 0.5) )
+          );
+        }
       }
     }
   }
+  else if(initial_type == "gaussian")
+  {
+    double r0 = cosmo_scalar_db->getDoubleWithDefault("r0", 0);
+    double sigma = cosmo_scalar_db->getDoubleWithDefault("sigma", 1.0);
+    double q = cosmo_scalar_db->getDoubleWithDefault("q", 2.0);
+    LOOP3()
+    {
+      double x = L[0] / NX * ((double)i + 0.5);
+      double y = L[1] / NX * ((double)j + 0.5);
+      double z = L[2] / NX * ((double)k + 0.5);
+      double r = sqrt(x * x + y * y + z * z);
+      //      phi[INDEX(i,j,k)] = delta_phi *
+      //exp( - pow(fabs( (r - r0) / sigma) , q)) ;
+      phi[INDEX(i,j,k)] = delta_phi *
+        tanh((r-r0) / sigma);
+
+    }
+  }
+    
   bd_handler->fillBoundary(phi._array, phi.nx, phi.ny, phi.nz);
   // compute background/average K
   real_t K_src = 0;
@@ -265,6 +289,7 @@ bool scalar_ic_set_scalar_collapse(
   
   K_src = -std::sqrt(24.0 * PI * K_src/NX/NY/NZ);
   
+  std::cout<<"K is "<<K_src<<"\n";
   
   boost::shared_ptr<tbox::HDFDatabase > hdf (new tbox::HDFDatabase("hdf_db"));
 
@@ -365,7 +390,7 @@ bool scalar_ic_set_scalar_collapse(
       idx_t idx = INDEX(i,j,k);
       DIFFchi[0][idx] = std::pow(-avg1/avg5,1.0/4.0);
     }
-
+    std::cout<<"Init value is : "<<std::pow(-avg1/avg5,1.0/4.0)<<"\n";
     bd_handler->fillBoundary(DIFFchi[0]._array, DIFFchi[0].nx, DIFFchi[0].ny, DIFFchi[0].nz);
 
     multigrid.VCycles(num_vcycles);
