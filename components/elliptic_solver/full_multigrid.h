@@ -13,6 +13,10 @@
 
 #include "../../cosmo_macros.h"
 
+#include "HYPRE_struct_ls.h"
+
+#include "SAMRAI/tbox/SAMRAI_MPI.h"
+
 #define PI  (4.0*atan(1.0))
 
 #define FAS_LOOP3_N(i, j, k, nx, ny, nz)  \
@@ -201,10 +205,21 @@ class FASMultigrid
   char * interpolator_pars;
 
   int interp_param_handle;
+
+  tbox::SAMRAI_MPI::Comm communicator;
+  
+  HYPRE_StructGrid    * hypre_grid;
+  HYPRE_StructStencil * hypre_stencil;
+  HYPRE_StructMatrix  * hypre_matrix;
+  HYPRE_StructVector  * hypre_b;
+  HYPRE_StructVector  * hypre_x;
+  HYPRE_StructSolver  * hypre_solver;
+
   
   FASMultigrid(fas_grid_t u_in[], idx_t u_n_in, idx_t molecule_n_in [],
                idx_t max_depth_in, idx_t max_relax_iters_in,
-               real_t relaxation_tolerance_in, real_t H_LEN_FRAC_IN[3], idx_t NX, idx_t NY, idx_t NZ, multigridBdHandler * bd_handler_in);
+               real_t relaxation_tolerance_in, real_t H_LEN_FRAC_IN[3], idx_t NX, idx_t NY, idx_t NZ,
+               multigridBdHandler * bd_handler_in, tbox::SAMRAI_MPI::Comm communicator_in);
   ~FASMultigrid();
 
   void add_atom_to_eqn(atom atom_in, idx_t molecule_id, idx_t eqn_id);
@@ -212,8 +227,9 @@ class FASMultigrid
   real_t _evaluateEllipticEquationPt(idx_t eqn_id, idx_t depth_idx, idx_t i,
     idx_t j, idx_t k);
 
-  void _evaluateIterationForJacEquation(idx_t eqn_id, idx_t depth_idx,
-    real_t &coef_a, real_t &coef_b, idx_t i, idx_t j, idx_t k, idx_t u_id);
+  void _evaluateIterationForJacEquation(
+    idx_t eqn_id, idx_t depth_idx, idx_t i, idx_t j, idx_t k, idx_t u_id,
+    int nentries, double * mat_entries);
 
   real_t _evaluateDerEllipticEquation(idx_t eqn_id, idx_t depth_idx, idx_t i,
     idx_t j, idx_t k, idx_t var_id);

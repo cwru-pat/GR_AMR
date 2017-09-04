@@ -1,3 +1,4 @@
+
 #include "full_multigrid.h"
 //#include "../../cosmo_includes.h"
 
@@ -169,9 +170,11 @@ void FASMultigrid::fillBoundary(fas_grid_t & data)
 FASMultigrid::FASMultigrid(
   fas_heirarchy_t u_in, idx_t u_n_in, idx_t molecule_n_in [],
   idx_t max_depth_in, idx_t max_relax_iters_in,  real_t relaxation_tolerance_in,
-  real_t H_LEN_FRAC_IN[], idx_t NX, idx_t NY, idx_t NZ, multigridBdHandler * bd_handler_in):
+  real_t H_LEN_FRAC_IN[], idx_t NX, idx_t NY, idx_t NZ,
+  multigridBdHandler * bd_handler_in, tbox::SAMRAI_MPI::Comm communicator_in):
   boundary_type("periodic"),
-  bd_handler(bd_handler_in)
+  bd_handler(bd_handler_in),
+  communicator(communicator_in)
 {
   for(int i = 0 ; i < 3; i++)
     H_LEN_FRAC[i] = H_LEN_FRAC_IN[i];
@@ -198,7 +201,8 @@ FASMultigrid::FASMultigrid(
   eqns = new molecule *[u_n_in];
 
   rho_h = new fas_heirarchy_set_t[u_n];
-  
+
+
   for(idx_t eqn_id = 0; eqn_id < u_n; eqn_id++)
   {
     u_h[eqn_id] = new fas_grid_t[total_depths];
@@ -206,6 +210,14 @@ FASMultigrid::FASMultigrid(
     damping_v_h[eqn_id] = new fas_grid_t[total_depths];
     jac_rhs_h[eqn_id] = new fas_grid_t[total_depths];
     tmp_h[eqn_id] = new fas_grid_t[total_depths];
+
+    hypre_grid = new HYPRE_StructGrid[total_depths];
+    hypre_stencil = new HYPRE_StructStencil[total_depths];;
+    hypre_matrix = new HYPRE_StructMatrix[total_depths];;
+    hypre_b = new HYPRE_StructVector[total_depths];;
+    hypre_x = new HYPRE_StructVector[total_depths];;
+    hypre_solver = new HYPRE_StructSolver[total_depths];;
+
     
     rho_h[eqn_id] = new fas_heirarchy_t[molecule_n[eqn_id]];
     
@@ -256,6 +268,36 @@ FASMultigrid::FASMultigrid(
       jac_rhs_h[eqn_id][depth_idx].init(nx_h[depth_idx], ny_h[depth_idx], nz_h[depth_idx]);
 
       tmp_h[eqn_id][depth_idx].init(nx_h[depth_idx], ny_h[depth_idx], nz_h[depth_idx]);
+
+      /*****hypre ini******************************************/
+      HYPRE_StructGridCreate(communicator, 3, &hypre_grid[depth_idx]);
+      int ilower[3]={0,0,0};
+      int iupper[3]={nx_h[depth_idx]-1,ny_h[depth_idx]-1,nz_h[depth_idx]-1};
+      int periodic[3] = {nx_h[depth_idx], ny_h[depth_idx], nz_h[depth_idx]};
+      int ghost[6] = {2,2,2,2,2,2};
+      int no_ghost[6] = {2,2,2,2,2,2};
+      HYPRE_StructGridSetExtents(hypre_grid[depth_idx], ilower, iupper);
+      HYPRE_StructGridSetPeriodic(hypre_grid[depth_idx], periodic);
+
+      HYPRE_StructGridSetNumGhost(hypre_grid[depth_idx], ghost);
+      
+      HYPRE_StructGridAssemble(hypre_grid[depth_idx]);
+
+      
+      HYPRE_StructStencilCreate(3, 13, &hypre_stencil[depth_idx]);
+      int offsets[13][3] =
+        {{0,0,0},
+         {-1,0,0}, {-2,0,0}, {1,0,0}, {2,0,0},
+         {0,-1,0}, {0,-2,0}, {0,1,0}, {0,2,0},
+         {0,0,-1}, {0,0,-2}, {0,0,1}, {0,0,2}};
+
+      
+      
+       for (int entry = 0; entry < 13; entry++)
+         HYPRE_StructStencilSetElement(hypre_stencil[depth_idx], entry, offsets[entry]);
+
+
+       
     }
 
     for(idx_t mol_id = 0; mol_id < molecule_n[eqn_id]; mol_id++)
@@ -294,7 +336,6 @@ FASMultigrid::FASMultigrid(
   double_der_coef[6] = 49.0 / 18.0;
   double_der_coef[8] = 205.0 / 72.0;
 
-  
 }
 
 
@@ -371,19 +412,23 @@ real_t FASMultigrid::_evaluateEllipticEquationPt(idx_t eqn_id, idx_t depth_idx,
  * @param z grid index
  * @param id of variable in differentiation
  */
-void FASMultigrid::_evaluateIterationForJacEquation(idx_t eqn_id,
-  idx_t depth_idx, real_t &coef_a, real_t &coef_b,
-  idx_t i, idx_t j, idx_t k, idx_t u_id)
+void FASMultigrid::_evaluateIterationForJacEquation(
+  idx_t eqn_id, idx_t depth_idx, idx_t i, idx_t j, idx_t k, idx_t u_id,
+  int nentries, double * mat_entries)
 {
-  real_t dx = H_LEN_FRAC[0] / (real_t)nx_h[depth_idx];
-
-  // Currently can only deal with the case dx = dy = dz, needs to be generilized
+  real_t dx[3];
+  dx[0] = H_LEN_FRAC[0] / (real_t)nx_h[depth_idx];
+  dx[1] = H_LEN_FRAC[1] / (real_t)ny_h[depth_idx];
+  dx[2] = H_LEN_FRAC[2] / (real_t)nz_h[depth_idx];
   
+  real_t coef_a = 0, coef_b = 0;
+  // Currently can only deal with the case dx = dy = dz, needs to be generilized
+  real_t pos_idx = B_INDEX(i,j,k,nx_h[depth_idx],ny_h[depth_idx],nz_h[depth_idx]);
+
   for(idx_t mol_id = 0; mol_id < molecule_n[eqn_id]; mol_id++)
   {
     real_t mol_to_a = 0.0, mol_to_b = 0.0;
     real_t non_der_val = eqns[eqn_id][mol_id].const_coef;
-    real_t pos_idx = B_INDEX(i,j,k,nx_h[depth_idx],ny_h[depth_idx],nz_h[depth_idx]);
 
     if(rho_h[eqn_id][mol_id][depth_idx].pts > 0) // constant
      non_der_val *= rho_h[eqn_id][mol_id][depth_idx][pos_idx];
@@ -419,7 +464,11 @@ void FASMultigrid::_evaluateIterationForJacEquation(idx_t eqn_id,
           mol_to_a = mol_to_a * derivative(i, j, k, vd.nx, vd.ny, vd.nz, der_type[ad.type][0], vd)
             + non_der_val * derivative(i, j, k, jac_vd.nx, jac_vd.ny, jac_vd.nz, der_type[ad.type][0], jac_vd);
           mol_to_b = mol_to_b * derivative(i, j, k, vd.nx, vd.ny, vd.nz, der_type[ad.type][0], vd);
-          non_der_val =non_der_val * derivative(i, j, k, vd.nx, vd.ny, vd.nz, der_type[ad.type][0], vd);
+          non_der_val = non_der_val * derivative(i, j, k, vd.nx, vd.ny, vd.nz, der_type[ad.type][0], vd);
+          mat_entries[ (der_type[ad.type][0]-1) * 4 + 1] +=   1.0 / 12.0 / dx[der_type[ad.type][0]-1];
+          mat_entries[ (der_type[ad.type][0]-1) * 4 + 2] += - 2.0 / 3.0 / dx[der_type[ad.type][0]-1];
+          mat_entries[ (der_type[ad.type][0]-1) * 4 + 3] +=   2.0 / 3.0 / dx[der_type[ad.type][0]-1];
+          mat_entries[ (der_type[ad.type][0]-1) * 4 + 4] += - 1.0 / 12.0 / dx[der_type[ad.type][0]-1];
         }
         else
         {
@@ -430,37 +479,51 @@ void FASMultigrid::_evaluateIterationForJacEquation(idx_t eqn_id,
       }
       else if(ad.type <= 10)
       {
-        fas_grid_t & vd =  u_h[ad.u_id][depth_idx];
-        fas_grid_t & jac_vd =  damping_v_h[u_id][depth_idx];
+        TBOX_ERROR("Not supporting mixed derivative yet!");
+        // fas_grid_t & vd =  u_h[ad.u_id][depth_idx];
+        // fas_grid_t & jac_vd =  damping_v_h[u_id][depth_idx];
 
-        if(u_id == ad.u_id)
-        {
-          mol_to_a = mol_to_a * double_derivative(i, j, k, vd.nx, vd.ny, vd.nz, der_type[ad.type][0], der_type[ad.type][1], vd)
-            + non_der_val * (double_derivative(i, j, k, jac_vd.nx, jac_vd.ny, jac_vd.nz, der_type[ad.type][0], der_type[ad.type][1], jac_vd) +
-                             (ad.type <= 7) * double_der_coef[STENCIL_ORDER] * jac_vd[pos_idx] / (dx*dx));
-          mol_to_b = mol_to_b * double_derivative(i, j, k, vd.nx, vd.ny, vd.nz, der_type[ad.type][0], der_type[ad.type][1], vd)
-            - (ad.type <= 7) * non_der_val * double_der_coef[STENCIL_ORDER]/(dx * dx);
-          non_der_val = non_der_val * double_derivative(i, j, k, vd.nx, vd.ny, vd.nz, der_type[ad.type][0], der_type[ad.type][1], vd);
-        }
-        else
-        {
-          non_der_val *= double_derivative(i, j, k, vd.nx, vd.ny, vd.nz, der_type[ad.type][0], der_type[ad.type][1], vd);
-          mol_to_a *= double_derivative(i, j, k, vd.nx, vd.ny, vd.nz, der_type[ad.type][0], der_type[ad.type][1], vd);
-          mol_to_b *= double_derivative(i, j, k, vd.nx, vd.ny, vd.nz, der_type[ad.type][0], der_type[ad.type][1], vd);
-        }
+        // if(u_id == ad.u_id)
+        // {
+        //   mol_to_a = mol_to_a * double_derivative(i, j, k, vd.nx, vd.ny, vd.nz, der_type[ad.type][0], der_type[ad.type][1], vd)
+        //     + non_der_val * (double_derivative(i, j, k, jac_vd.nx, jac_vd.ny, jac_vd.nz, der_type[ad.type][0], der_type[ad.type][1], jac_vd) +
+        //                      (ad.type <= 7) * double_der_coef[STENCIL_ORDER] * jac_vd[pos_idx] / (dx*dx));
+        //   mol_to_b = mol_to_b * double_derivative(i, j, k, vd.nx, vd.ny, vd.nz, der_type[ad.type][0], der_type[ad.type][1], vd)
+        //     - (ad.type <= 7) * non_der_val * double_der_coef[STENCIL_ORDER]/(dx * dx);
+        //   non_der_val = non_der_val * double_derivative(i, j, k, vd.nx, vd.ny, vd.nz, der_type[ad.type][0], der_type[ad.type][1], vd);
+        // }
+        // else
+        // {
+        //   non_der_val *= double_derivative(i, j, k, vd.nx, vd.ny, vd.nz, der_type[ad.type][0], der_type[ad.type][1], vd);
+        //   mol_to_a *= double_derivative(i, j, k, vd.nx, vd.ny, vd.nz, der_type[ad.type][0], der_type[ad.type][1], vd);
+        //   mol_to_b *= double_derivative(i, j, k, vd.nx, vd.ny, vd.nz, der_type[ad.type][0], der_type[ad.type][1], vd);
+        // }
       }
       else
       {
         fas_grid_t & vd =  u_h[ad.u_id][depth_idx];
         fas_grid_t & jac_vd =  damping_v_h[u_id][depth_idx];
-
         if(u_id == ad.u_id)
         {
           mol_to_a = mol_to_a * laplacian(i, j, k, jac_vd.nx, jac_vd.ny, jac_vd.nz, vd)
-            + non_der_val * (laplacian(i, j, k, jac_vd.nx, jac_vd.ny, jac_vd.nz, jac_vd) + 3.0 * double_der_coef[STENCIL_ORDER] * jac_vd[pos_idx] / (dx * dx));
+            + non_der_val * (laplacian(i, j, k, jac_vd.nx, jac_vd.ny, jac_vd.nz, jac_vd)
+                             + double_der_coef[STENCIL_ORDER] * jac_vd[pos_idx] / (dx[0] * dx[0])
+                             + double_der_coef[STENCIL_ORDER] * jac_vd[pos_idx] / (dx[1] * dx[1])
+                             + double_der_coef[STENCIL_ORDER] * jac_vd[pos_idx] / (dx[2] * dx[2]));
           mol_to_b = mol_to_b * laplacian(i, j, k, jac_vd.nx, jac_vd.ny, jac_vd.nz, vd)
-            - non_der_val * 3.0 * double_der_coef[STENCIL_ORDER] / (dx*dx);
+            - non_der_val * (double_der_coef[STENCIL_ORDER] / (dx[0]*dx[0])
+                             + double_der_coef[STENCIL_ORDER] / (dx[1]*dx[1])
+                             + double_der_coef[STENCIL_ORDER] / (dx[2]*dx[2]));
           non_der_val = non_der_val * laplacian(i, j, k, jac_vd.nx, jac_vd.ny, jac_vd.nz, vd);
+
+          for(int dr = 0; dr < 3; dr++)
+          {
+            //    mat_entries[0] += -5.0 / 2.0 / pw2(dx[dr]);
+            mat_entries[ dr * 4 + 1] += -1.0 / 12.0 / pw2(dx[dr]);
+            mat_entries[ dr * 4 + 2] +=  4.0 / 3.0  / pw2(dx[dr]);
+            mat_entries[ dr * 4 + 3] +=  4.0 / 3.0  / pw2(dx[dr]);
+            mat_entries[ dr * 4 + 4] += -1.0 / 12.0 / pw2(dx[dr]);
+          }
         }
         else
         {
@@ -474,6 +537,8 @@ void FASMultigrid::_evaluateIterationForJacEquation(idx_t eqn_id,
     coef_b += mol_to_b;
   }
 
+  mat_entries[0] += coef_b;
+  
   return;
 }
 
@@ -966,7 +1031,7 @@ bool FASMultigrid::_getLambda( idx_t depth, real_t norm)
       }
       
     }
-
+    //    std::cout<<sum<<" "<<norm<<"\n";
     if(sum <= norm)  // when | F(u + \lambda v) | < | F(u) | stop
     {
       return 1;
@@ -1016,9 +1081,53 @@ bool FASMultigrid::_jacobianRelax( idx_t depth, real_t norm, real_t C, idx_t p)
     }
     fillBoundary(damping_v_h[eqn_id][depth_idx]);  
   }
+  double mat_entries[13];
+  int index[3];
+  int stencil_indices[13] = {0,1,2,3,4,5,6,7,8,9,10,11,12};
 
-  while(norm_r >= std::min(pow(norm, (real_t)(p+1)) * C, norm)) 
+  
+  //  while(norm_r >= std::min(pow(norm, (real_t)(p+1)) * C, norm)) 
   {
+    HYPRE_StructMatrixCreate(communicator, hypre_grid[depth_idx], hypre_stencil[depth_idx], &hypre_matrix[depth_idx]);
+
+    //HYPRE_StructMatrixSetNumGhost(hypre_matrix[depth_idx], ghost);
+       
+    HYPRE_StructMatrixInitialize(hypre_matrix[depth_idx]);
+
+    HYPRE_StructPCGCreate(communicator, &hypre_solver[depth_idx]);
+    //       HYPRE_StructPCGSetMemoryUse(hypre_solver[depth_idx], 0);
+    HYPRE_StructPCGSetPrintLevel(hypre_solver[depth_idx], 3);
+    // HYPRE_StructPCGSetMaxIter(hypre_solver[depth_idx], 100);
+    // HYPRE_StructPCGSetNumPreRelax(hypre_solver[depth_idx],
+    //                               20);
+    // HYPRE_StructPCGSetNumPostRelax(hypre_solver[depth_idx],
+    //                                20);
+
+       
+       
+    HYPRE_StructVectorCreate(communicator, hypre_grid[depth_idx], &hypre_b[depth_idx]);
+    HYPRE_StructVectorCreate(communicator, hypre_grid[depth_idx], &hypre_x[depth_idx]);
+
+    //HYPRE_StructVectorSetNumGhost(hypre_b[depth_idx], no_ghost);
+    //HYPRE_StructVectorSetNumGhost(hypre_x[depth_idx], ghost);
+       
+    HYPRE_StructVectorInitialize(hypre_b[depth_idx]);
+    HYPRE_StructVectorInitialize(hypre_x[depth_idx]);
+
+    int i, j, k;
+    int index[3];
+    FAS_LOOP3_N(i, j, k, nx_h[depth_idx], ny_h[depth_idx], nz_h[depth_idx])
+    {
+      index[0] = i, index[1] = j, index[2] = k;
+      //  HYPRE_StructVectorSetValues(hypre_x[depth_idx], index, 0);
+    }
+    HYPRE_StructVectorAssemble(hypre_x[depth_idx]);
+
+
+    HYPRE_StructPCGSetTwoNorm(hypre_solver[depth_idx], 1);
+    //        HYPRE_StructPCGSetMaxIter(hypre_solver[depth_idx], 3 );
+    //    HYPRE_StructPCGSetTol(hypre_solver[depth_idx], std::min(pow(norm, (real_t)(p+1)) * C, norm));
+                  HYPRE_StructPCGSetTol(hypre_solver[depth_idx], 1.2);
     //relax until the convergent condition got satisfy 
     norm_r = 0.0;
     norm_pre = 0.0;
@@ -1031,20 +1140,38 @@ bool FASMultigrid::_jacobianRelax( idx_t depth, real_t norm, real_t C, idx_t p)
       #pragma omp parallel for default(shared) private(j,k)
       FAS_LOOP3_N(i,j,k,nx,ny,nz)
       {
+        memset(mat_entries, 0, 13 * sizeof(double));
         idx_t idx = B_INDEX(i,j,k,nx,ny,nz);
-        real_t coef_a = 0, coef_b = 0, temp = 0;
-        _evaluateIterationForJacEquation(eqn_id, depth_idx, coef_a, coef_b, i, j, k, eqn_id);
-        for(idx_t u_id = 0; u_id < u_n; u_id++)
-        {   
-          if(u_id != eqn_id)
-            temp += _evaluateDerEllipticEquation(eqn_id, depth_idx, i, j, k, u_id);
-        }
-        damping_v[idx] = (coef_a - jac_rhs[idx] + temp)/ (-coef_b);
+        real_t temp = 0;
+        index[0] = i, index[1] = j, index[2] = k;
+        
+        _evaluateIterationForJacEquation(
+          eqn_id, depth_idx, i, j, k, eqn_id,
+          13, mat_entries);
+       
+        HYPRE_StructMatrixSetValues(hypre_matrix[depth_idx], index, 13, stencil_indices, mat_entries);
+        
+        HYPRE_StructVectorSetValues(hypre_b[depth_idx], index, jac_rhs[idx]);
+
       }
-      fillBoundary(damping_v);
+      HYPRE_StructVectorAssemble(hypre_b[depth_idx]);
+      HYPRE_StructMatrixAssemble(hypre_matrix[depth_idx]);
     }
-    
-    #pragma omp parallel for default(shared) private(i,j,k) reduction(+:norm_r)
+    //        std::cout<<"Flag0\n";
+    HYPRE_StructPCGSetup(
+      hypre_solver[depth_idx], hypre_matrix[depth_idx], hypre_b[depth_idx], hypre_x[depth_idx]);
+    //    std::cout<<"Flag1\n";    
+    HYPRE_StructPCGSolve(
+      hypre_solver[depth_idx], hypre_matrix[depth_idx], hypre_b[depth_idx], hypre_x[depth_idx]);
+    //    std::cout<<"Flag2\n";    
+    FAS_LOOP3_N(i,j,k,nx,ny,nz)
+    {
+      idx_t idx = B_INDEX(i, j, k, nx, ny, nz);
+      index[0] = i, index[1] = j, index[2] = k;
+      HYPRE_StructVectorGetValues(hypre_x[depth_idx], index, &damping_v_h[0][depth_idx][idx]);
+    }
+    fillBoundary(damping_v_h[0][depth_idx]);
+    // #pragma omp parallel for default(shared) private(i,j,k) reduction(+:norm_r)
     FAS_LOOP3_N(i,j,k,nx,ny,nz)
     {
       idx_t idx = B_INDEX(i, j, k, nx, ny, nz);
@@ -1058,17 +1185,14 @@ bool FASMultigrid::_jacobianRelax( idx_t depth, real_t norm, real_t C, idx_t p)
         norm_r += temp * temp;
       }
     }
-    cnt++;
 
-    if(cnt > 500 && norm_r > norm_pre) 
-    {
-      //cannot solve Jacobian equation to precision needed
-      std::cout << "Unable to achieve a precise enough solution within "
-                << cnt << " iterations.\n";
-      return false;
-    }
+    //    std::cout<<"Norm after"<<norm_r<<" "<<std::min(pow(norm, (real_t)(p+1)) * C, norm)<<"\n";
   }
-
+  HYPRE_StructMatrixDestroy(hypre_matrix[depth_idx]);
+  HYPRE_StructVectorDestroy(hypre_x[depth_idx]);
+  HYPRE_StructVectorDestroy(hypre_b[depth_idx]);
+  HYPRE_StructPCGDestroy(hypre_solver[depth_idx]);
+  //    TBOX_ERROR("stop");
   return true;
 }
 
@@ -1083,7 +1207,6 @@ bool FASMultigrid::_relaxSolution_GaussSeidel( idx_t depth, idx_t max_iterations
   idx_t depth_idx = _dIdx(depth);
   idx_t nx = nx_h[depth_idx], ny = ny_h[depth_idx], nz = nz_h[depth_idx];
   real_t   norm;
-
   for(s=0; s<max_iterations; ++s)
   {
     // move this precision condition to the beginning in case

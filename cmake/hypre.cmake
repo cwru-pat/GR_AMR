@@ -1,5 +1,5 @@
 find_library(HYPRE_LIBRARY
-  NAMES HYPRE
+  NAMES libHYPRE_struct_ls
   HINTS ENV LD_LIBRARY_PATH)
 
 find_path(HYPRE_INCLUDE_DIRS

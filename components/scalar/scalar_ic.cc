@@ -228,7 +228,7 @@ bool scalar_ic_set_scalar_collapse(
 
 
   std::string initial_type =
-    cosmo_scalar_db->getStringWithDefault("initial_type", "modes");
+    cosmo_scalar_db->getString("initial_type");
   if(initial_type == "modes")
   {
     for(int n = -n_max; n <= n_max; ++n)
@@ -267,7 +267,6 @@ bool scalar_ic_set_scalar_collapse(
       //exp( - pow(fabs( (r - r0) / sigma) , q)) ;
       phi[INDEX(i,j,k)] = delta_phi *
         tanh((r-r0) / sigma);
-
     }
   }
     
@@ -328,7 +327,8 @@ bool scalar_ic_set_scalar_collapse(
     idx_t molecule_n[] = {3};
     
     FASMultigrid multigrid(
-      DIFFchi, 1, molecule_n, 4, 5, relaxation_tolerance, L, NX, NY, NZ, bd_handler);
+      DIFFchi, 1, molecule_n, 1, 5, relaxation_tolerance, L, NX, NY, NZ,
+      bd_handler, hierarchy->getMPI().getCommunicator());
 
     atom atom_tmp = {0};
 

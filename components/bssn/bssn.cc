@@ -1933,6 +1933,7 @@ void BSSN::output_L2_H_constaint(
   idx_t weight_idx)
 {
   double H_L2=0;
+  double total_mass = 0;
 
   for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln ++)
   {
@@ -1972,8 +1973,7 @@ void BSSN::output_L2_H_constaint(
       const double *dx = &patch_geom->getDx()[0];
 
       
-
-#pragma omp parallel for collapse(2) reduction(+:H_L2)
+#pragma omp parallel for collapse(2) reduction(+:H_L2, total_mass)
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -1986,6 +1986,7 @@ void BSSN::output_L2_H_constaint(
             if(weight_array(i,j,k) > 0 && DIFFalpha_a(i,j,k) > alpha_lower_bd_for_L2 - 1.0)
             {
               real_t h = hamiltonianConstraintCalc(&bd, dx);
+              total_mass += bd.r * dx[0] * dx[1] * dx[2];
               H_L2 += pw2(h) * weight_array(i,j,k) / (L[0] * L[1] * L[2]);
             }
           }
@@ -1997,11 +1998,13 @@ void BSSN::output_L2_H_constaint(
   mpi.Barrier();
   if (mpi.getSize() > 1) {
     mpi.AllReduce(&H_L2, 1, MPI_SUM);
+    mpi.AllReduce(&total_mass, 1, MPI_SUM);
   }
 
   H_L2 = sqrt(H_L2);
   
   tbox::pout<<"L2 norm of Hamiltonian constraint is "<<H_L2<<"\n";
+  tbox::plog<<"total_mass is "<<H_L2<<"\n";
 
   
   return;
