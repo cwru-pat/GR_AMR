@@ -259,14 +259,14 @@ bool scalar_ic_set_scalar_collapse(
     double q = cosmo_scalar_db->getDoubleWithDefault("q", 2.0);
     LOOP3()
     {
-      double x = L[0] / NX * ((double)i + 0.5);
-      double y = L[1] / NX * ((double)j + 0.5);
-      double z = L[2] / NX * ((double)k + 0.5);
+      double x = L[0] / NX * ((double)i + 0.5) - L[0] /2.0;
+      double y = L[1] / NX * ((double)j + 0.5) - L[1] /2.0;
+      double z = L[2] / NX * ((double)k + 0.5) - L[2] /2.0;
       double r = sqrt(x * x + y * y + z * z);
-      //      phi[INDEX(i,j,k)] = delta_phi *
-      //exp( - pow(fabs( (r - r0) / sigma) , q)) ;
-      phi[INDEX(i,j,k)] = delta_phi *
-        tanh((r-r0) / sigma);
+           phi[INDEX(i,j,k)] = delta_phi *
+      exp( - pow(fabs( (r - r0) / sigma) , q)) ;
+      // phi[INDEX(i,j,k)] = delta_phi *
+      //   tanh((r-r0) / sigma);
 
     }
   }
@@ -390,8 +390,8 @@ bool scalar_ic_set_scalar_collapse(
       idx_t idx = INDEX(i,j,k);
       DIFFchi[0][idx] = std::pow(-avg1/avg5,1.0/4.0);
     }
-    std::cout<<"Init value is : "<<std::pow(-avg1/avg5,1.0/4.0)<<"\n";
     bd_handler->fillBoundary(DIFFchi[0]._array, DIFFchi[0].nx, DIFFchi[0].ny, DIFFchi[0].nz);
+    std::cout<<"Init value is : "<<std::pow(-avg1/avg5,1.0/4.0)<<"\n";
 
     multigrid.VCycles(num_vcycles);
 
@@ -400,8 +400,9 @@ bool scalar_ic_set_scalar_collapse(
       idx_t idx = INDEX(i, j, k);
       DIFFchi[0][idx] = 1.0 / pw2(DIFFchi[0][idx]) - 1.0;
     }
+    bd_handler->fillBoundary(DIFFchi[0]._array, DIFFchi[0].nx, DIFFchi[0].ny, DIFFchi[0].nz);
 
-    hdf->putDoubleArray("DIFFchi", DIFFchi[0]._array, NX*NY*NZ);
+    hdf->putDoubleArray("DIFFchi", DIFFchi[0]._array, (NX+2*STENCIL_ORDER)*(NY+2*STENCIL_ORDER)*(NZ+2*STENCIL_ORDER));
     flag = false;
   }
 
@@ -451,7 +452,6 @@ bool scalar_ic_set_scalar_collapse(
         }
       }
     }
-
 
     for(int k = inner_lower[2]; k <= inner_upper[2]; k++)
     {
