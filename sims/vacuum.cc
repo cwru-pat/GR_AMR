@@ -593,7 +593,7 @@ void VacuumSim::outputVacuumStep(
 
   tbox::pout<<"step: "<<step<<"/"<<num_steps<<"\n";
   
-  bssnSim->output_L2_H_constaint(hierarchy, weight_idx);
+  bssnSim->output_L2_H_constaint(hierarchy, weight_idx, cosmoPS);
  
   cosmo_io->registerVariablesWithPlotter(*visit_writer, step);
   cosmo_io->dumpData(hierarchy, *visit_writer, step, cur_t);

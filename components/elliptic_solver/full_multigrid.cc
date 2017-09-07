@@ -375,7 +375,10 @@ void FASMultigrid::_evaluateIterationForJacEquation(idx_t eqn_id,
   idx_t depth_idx, real_t &coef_a, real_t &coef_b,
   idx_t i, idx_t j, idx_t k, idx_t u_id)
 {
-  real_t dx = H_LEN_FRAC[0] / (real_t)nx_h[depth_idx];
+  real_t dx[3];
+  dx[0] = H_LEN_FRAC[0] / (real_t)nx_h[depth_idx];
+  dx[1] = H_LEN_FRAC[1] / (real_t)nx_h[depth_idx];
+  dx[2] = H_LEN_FRAC[2] / (real_t)nx_h[depth_idx];
 
   // Currently can only deal with the case dx = dy = dz, needs to be generilized
   
@@ -437,9 +440,9 @@ void FASMultigrid::_evaluateIterationForJacEquation(idx_t eqn_id,
         {
           mol_to_a = mol_to_a * double_derivative(i, j, k, vd.nx, vd.ny, vd.nz, der_type[ad.type][0], der_type[ad.type][1], vd)
             + non_der_val * (double_derivative(i, j, k, jac_vd.nx, jac_vd.ny, jac_vd.nz, der_type[ad.type][0], der_type[ad.type][1], jac_vd) +
-                             (ad.type <= 7) * double_der_coef[STENCIL_ORDER] * jac_vd[pos_idx] / (dx*dx));
+                             (ad.type <= 7) * double_der_coef[STENCIL_ORDER] * jac_vd[pos_idx] / (dx[(ad.type<=7)?(ad.type-5):0]*dx[(ad.type<=7)?(ad.type-5):0]));
           mol_to_b = mol_to_b * double_derivative(i, j, k, vd.nx, vd.ny, vd.nz, der_type[ad.type][0], der_type[ad.type][1], vd)
-            - (ad.type <= 7) * non_der_val * double_der_coef[STENCIL_ORDER]/(dx * dx);
+            - (ad.type <= 7) * non_der_val * double_der_coef[STENCIL_ORDER]/(dx[(ad.type<=7)?(ad.type-5):0] * dx[(ad.type<=7)?(ad.type-5):0]);
           non_der_val = non_der_val * double_derivative(i, j, k, vd.nx, vd.ny, vd.nz, der_type[ad.type][0], der_type[ad.type][1], vd);
         }
         else
@@ -457,9 +460,13 @@ void FASMultigrid::_evaluateIterationForJacEquation(idx_t eqn_id,
         if(u_id == ad.u_id)
         {
           mol_to_a = mol_to_a * laplacian(i, j, k, jac_vd.nx, jac_vd.ny, jac_vd.nz, vd)
-            + non_der_val * (laplacian(i, j, k, jac_vd.nx, jac_vd.ny, jac_vd.nz, jac_vd) + 3.0 * double_der_coef[STENCIL_ORDER] * jac_vd[pos_idx] / (dx * dx));
+            + non_der_val * (laplacian(i, j, k, jac_vd.nx, jac_vd.ny, jac_vd.nz, jac_vd) + (double_der_coef[STENCIL_ORDER] * jac_vd[pos_idx] / (dx[0] * dx[0])
+                             + double_der_coef[STENCIL_ORDER] * jac_vd[pos_idx] / (dx[1] * dx[1])
+                             + double_der_coef[STENCIL_ORDER] * jac_vd[pos_idx] / (dx[2] * dx[2])) );
           mol_to_b = mol_to_b * laplacian(i, j, k, jac_vd.nx, jac_vd.ny, jac_vd.nz, vd)
-            - non_der_val * 3.0 * double_der_coef[STENCIL_ORDER] / (dx*dx);
+            - non_der_val * ( double_der_coef[STENCIL_ORDER] / (dx[0]*dx[0])
+            + double_der_coef[STENCIL_ORDER] / (dx[1]*dx[1])
+            + double_der_coef[STENCIL_ORDER] / (dx[2]*dx[2]));
           non_der_val = non_der_val * laplacian(i, j, k, jac_vd.nx, jac_vd.ny, jac_vd.nz, vd);
         }
         else
@@ -1059,7 +1066,7 @@ bool FASMultigrid::_jacobianRelax( idx_t depth, real_t norm, real_t C, idx_t p)
       }
     }
     cnt++;
-
+    //    std::cout<<"Norm "<<norm_r<<" "<<std::min(pow(norm, (real_t)(p+1)) * C, norm)<<"\n";
     if(cnt > 500 && norm_r > norm_pre) 
     {
       //cannot solve Jacobian equation to precision needed

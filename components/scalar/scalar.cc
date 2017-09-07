@@ -126,13 +126,23 @@ void Scalar::RKEvolvePatch(
   // might not need this function
 }
 
+  
 void Scalar::RKEvolvePt(
-  idx_t i, idx_t j, idx_t k, BSSNData &bd, const real_t dx[], real_t dt)
+  idx_t i, idx_t j, idx_t k, BSSNData &bd, ScalarData & sd, const real_t dx[], real_t dt)
 {
-  ScalarData sd = getScalarData(i, j, k, &bd, dx);
+  getScalarData(i, j, k, &bd, &sd, dx);
   SCALAR_RK_EVOLVE_PT;
 }
 
+void Scalar::RKEvolvePtBd(
+  idx_t i, idx_t j, idx_t k, BSSNData &bd, ScalarData &sd,
+  const real_t dx[], real_t dt, int l_idx, int codim)
+{
+  getScalarDataBd(i, j, k, &bd, &sd, dx);
+  SCALAR_RK_EVOLVE_BD;
+}
+
+  
 void Scalar::prepareForK1(
   const boost::shared_ptr<hier::PatchLevel> & level,
   real_t to_t)
@@ -546,39 +556,49 @@ void Scalar::K4FinalizePatch(
 }
 
 
-ScalarData Scalar::getScalarData(
-  idx_t i, idx_t j, idx_t k, BSSNData *bd, const real_t dx[])
+void Scalar::getScalarData(
+  idx_t i, idx_t j, idx_t k, BSSNData *bd, ScalarData * sd, const real_t dx[])
 {
-  ScalarData sd = {0};
+  sd->phi = phi_a(i, j, k);
+  sd->Pi = Pi_a(i, j, k);
+  sd->psi1 = psi1_a(i, j, k);
+  sd->psi2 = psi2_a(i, j, k);
+  sd->psi3 = psi3_a(i, j, k);
 
-  sd.phi = phi_a(i, j, k);
-  sd.Pi = Pi_a(i, j, k);
-  sd.psi1 = psi1_a(i, j, k);
-  sd.psi2 = psi2_a(i, j, k);
-  sd.psi3 = psi3_a(i, j, k);
+  sd->d1phi = derivative(i, j, k, 1, phi_a, dx);
+  sd->d2phi = derivative(i, j, k, 2, phi_a, dx);
+  sd->d3phi = derivative(i, j, k, 3, phi_a, dx);
 
-  sd.d1phi = derivative(i, j, k, 1, phi_a, dx);
-  sd.d2phi = derivative(i, j, k, 2, phi_a, dx);
-  sd.d3phi = derivative(i, j, k, 3, phi_a, dx);
+  sd->d1Pi = derivative(i, j, k, 1, Pi_a, dx);
+  sd->d2Pi = derivative(i, j, k, 2, Pi_a, dx);
+  sd->d3Pi = derivative(i, j, k, 3, Pi_a, dx);
 
-  sd.d1Pi = derivative(i, j, k, 1, Pi_a, dx);
-  sd.d2Pi = derivative(i, j, k, 2, Pi_a, dx);
-  sd.d3Pi = derivative(i, j, k, 3, Pi_a, dx);
+  sd->d1psi1 = derivative(i, j, k, 1, psi1_a, dx);
+  sd->d2psi1 = derivative(i, j, k, 2, psi1_a, dx);
+  sd->d3psi1 = derivative(i, j, k, 3, psi1_a, dx);
 
-  sd.d1psi1 = derivative(i, j, k, 1, psi1_a, dx);
-  sd.d2psi1 = derivative(i, j, k, 2, psi1_a, dx);
-  sd.d3psi1 = derivative(i, j, k, 3, psi1_a, dx);
+  sd->d1psi2 = derivative(i, j, k, 1, psi2_a, dx);
+  sd->d2psi2 = derivative(i, j, k, 2, psi2_a, dx);
+  sd->d3psi2 = derivative(i, j, k, 3, psi2_a, dx);
 
-  sd.d1psi2 = derivative(i, j, k, 1, psi2_a, dx);
-  sd.d2psi2 = derivative(i, j, k, 2, psi2_a, dx);
-  sd.d3psi2 = derivative(i, j, k, 3, psi2_a, dx);
+  sd->d1psi3 = derivative(i, j, k, 1, psi3_a, dx);
+  sd->d2psi3 = derivative(i, j, k, 2, psi3_a, dx);
+  sd->d3psi3 = derivative(i, j, k, 3, psi3_a, dx);
 
-  sd.d1psi3 = derivative(i, j, k, 1, psi3_a, dx);
-  sd.d2psi3 = derivative(i, j, k, 2, psi3_a, dx);
-  sd.d3psi3 = derivative(i, j, k, 3, psi3_a, dx);
-
-  return sd;
 }
+
+void Scalar::getScalarDataBd(
+  idx_t i, idx_t j, idx_t k, BSSNData *bd, ScalarData * sd, const real_t dx[])
+{
+#if USE_SOMMERFIELD_BOUNDARY
+  sd->phi = phi_a(i, j, k);
+  sd->Pi = Pi_a(i, j, k);
+  sd->psi1 = psi1_a(i, j, k);
+  sd->psi2 = psi2_a(i, j, k);
+  sd->psi3 = psi3_a(i, j, k);
+#endif
+}
+
 
 real_t Scalar::ev_phi(BSSNData *bd, ScalarData *sd, const real_t dx[])
 {
@@ -670,6 +690,49 @@ real_t Scalar::ev_psi3(BSSNData *bd, ScalarData *sd, const real_t dx[])
     - KO_dissipation_Q(bd->i, bd->j, bd->k, psi3_a, dx, KO_damping_coefficient);
 }
 
+real_t Scalar::ev_phi_bd(BSSNData *bd, ScalarData *sd, const real_t dx[], int l_idx, int codim)
+{
+  return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, phi_a, dx, l_idx, codim) * bd->x
+                        + bd_derivative(bd->i, bd->j, bd->k, 2, phi_a, dx, l_idx, codim) * bd->y
+                        + bd_derivative(bd->i, bd->j, bd->k, 3, phi_a, dx, l_idx, codim) * bd->z 
+                        + sd->phi           );
+
+}
+
+real_t Scalar::ev_Pi_bd(BSSNData *bd, ScalarData *sd, const real_t dx[], int l_idx, int codim)
+{
+    return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, Pi_a, dx, l_idx, codim) * bd->x
+                        + bd_derivative(bd->i, bd->j, bd->k, 2, Pi_a, dx, l_idx, codim) * bd->y
+                        + bd_derivative(bd->i, bd->j, bd->k, 3, Pi_a, dx, l_idx, codim) * bd->z 
+                        + sd->Pi           );
+}
+
+real_t Scalar::ev_psi1_bd(BSSNData *bd, ScalarData *sd, const real_t dx[], int l_idx, int codim)
+{
+    return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, psi1_a, dx, l_idx, codim) * bd->x
+                        + bd_derivative(bd->i, bd->j, bd->k, 2, psi1_a, dx, l_idx, codim) * bd->y
+                        + bd_derivative(bd->i, bd->j, bd->k, 3, psi1_a, dx, l_idx, codim) * bd->z 
+                        + sd->psi1           );
+}
+
+real_t Scalar::ev_psi2_bd(BSSNData *bd, ScalarData *sd, const real_t dx[], int l_idx, int codim)
+{
+    return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, psi2_a, dx, l_idx, codim) * bd->x
+                        + bd_derivative(bd->i, bd->j, bd->k, 2, psi2_a, dx, l_idx, codim) * bd->y
+                        + bd_derivative(bd->i, bd->j, bd->k, 3, psi2_a, dx, l_idx, codim) * bd->z 
+                        + sd->psi2           );
+}
+
+real_t Scalar::ev_psi3_bd(BSSNData *bd, ScalarData *sd, const real_t dx[], int l_idx, int codim)
+{
+    return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, psi3_a, dx, l_idx, codim) * bd->x
+                        + bd_derivative(bd->i, bd->j, bd->k, 2, psi3_a, dx, l_idx, codim) * bd->y
+                        + bd_derivative(bd->i, bd->j, bd->k, 3, psi3_a, dx, l_idx, codim) * bd->z 
+                        + sd->psi3           );
+
+}
+
+  
 void Scalar::addBSSNSrc(
   BSSN * bssn, const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
@@ -746,9 +809,10 @@ void Scalar::addBSSNSrc(
       for(int i = lower[0]; i <= upper[0]; i++)
       {
         BSSNData bd = {0};
+        ScalarData sd = {0};
         // TODO: remove redundant computations here?
         bssn->set_bd_values(i, j, k, &bd, dx);
-        ScalarData sd = getScalarData(i, j, k, &bd, dx);
+        getScalarData(i, j, k, &bd, &sd, dx);
 
         // n^mu d_mu phi
         real_t nmudmuphi = - sd.Pi;    

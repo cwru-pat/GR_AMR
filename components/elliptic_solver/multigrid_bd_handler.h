@@ -18,14 +18,75 @@ private:
   typedef void (multigridBdHandler::*bd_handler_func_t)(double * _array, int nx, int ny, int nz); ///< internal function pointer type
 
   bd_handler_func_t func;
-    
+
+  double L[3];
+  double q;
   std::map<std::string, bd_handler_func_t> bd_handler_map;
   void _initBdMaps()
   {
     // Lapse functions
     bd_handler_map["periodic"] = &multigridBdHandler::periodic;
+    bd_handler_map["exp_decay"] = &multigridBdHandler::exp_decay;
   }
 
+  void exp_decay(double * _array, int nx, int ny, int nz)
+  {
+    double x, y, z, r;
+    double dx = L[0] / (double) nx, dy = L[1] / (double) ny, dz = L[2] / (double) nz;
+    for(int i = 1; i <= STENCIL_ORDER; i++) //loops for the index inside bd
+        for(int j = 0 - STENCIL_ORDER; j < ny  + STENCIL_ORDER; j++)
+          for(int k = 0 - STENCIL_ORDER; k < nz  + STENCIL_ORDER; k++)
+          {
+            x = (-(double)i + 0.5) * dx - L[0] / 2.0;
+            y = ((double)j + 0.5) * dy - L[1] / 2.0;
+            z = ((double)k + 0.5) * dz - L[2] / 2.0;
+            r = sqrt(x * x + y * y + z * z);
+            _array[B_INDEX(-i, j, k, nx, ny, nz)] = 1 + exp(- q * r);
+
+            x = ((double)(nx+i-1) + 0.5) * dx - L[0] / 2.0;
+            y = ((double)j + 0.5) * dy - L[1] / 2.0;
+            z = ((double)k + 0.5) * dz - L[2] / 2.0;
+            r = sqrt(x * x + y * y + z * z);
+
+            _array[B_INDEX(nx+i - 1, j, k, nx, ny, nz)] = 1 + exp(-q * r);
+
+          }
+      for(int i = 0; i < nx ; i++) //loops for the index inside bd
+        for(int j = 1; j <= STENCIL_ORDER; j++)
+          for(int k = 0 - STENCIL_ORDER; k < nz + STENCIL_ORDER; k++)
+          {
+            x = ((double)i + 0.5) * dx - L[0] / 2.0;
+            y = (-(double)j + 0.5) * dy - L[1] / 2.0;
+            z = ((double)k + 0.5) * dz - L[2] / 2.0;
+            r = sqrt(x * x + y * y + z * z);
+            _array[B_INDEX(i, -j, k, nx, ny, nz)] = 1 + exp(- q * r);
+
+            x = ((double)i + 0.5) * dx - L[0] / 2.0;
+            y = ((double)(ny + j -1) + 0.5) * dy - L[1] / 2.0;
+            z = ((double)k + 0.5) * dz - L[2] / 2.0;
+            r = sqrt(x * x + y * y + z * z);
+            _array[B_INDEX(i, ny+j-1, k, nx, ny, nz)] = 1 + exp(- q * r);
+
+          }
+      for(int i = 0; i < nx ; i++) //loops for the index inside bd
+        for(int j = 0; j < ny ; j++)
+          for(int k = 1; k <= STENCIL_ORDER; k++)
+          {
+            x = ((double)i + 0.5) * dx - L[0] / 2.0;
+            y = ((double)j + 0.5) * dy - L[1] / 2.0;
+            z = ((double)(nz + k -1) + 0.5) * dz - L[2] / 2.0;
+            r = sqrt(x * x + y * y + z * z);
+            _array[B_INDEX(i, j, nz + k -1, nx, ny, nz)] = 1 + exp(- q * r);
+
+            x = ((double)i + 0.5) * dx - L[0] / 2.0;
+            y = ((double)j + 0.5) * dy - L[1] / 2.0;
+            z = (-(double)k + 0.5) * dz - L[2] / 2.0;
+            r = sqrt(x * x + y * y + z * z);
+            _array[B_INDEX(i, j, -k, nx, ny, nz)] = 1 + exp(- q * r);
+          }
+    
+  }
+  
   void periodic(double * _array, int nx, int ny, int nz)
   {
 
@@ -64,9 +125,11 @@ private:
           }
   }
 public:
-  multigridBdHandler(std::string bd_type)
+ multigridBdHandler(std::string bd_type, double L_in[3], double q_in)
   {
     _initBdMaps();
+    L[0] = L_in[0], L[1] = L_in[1], L[2] = L_in[2];
+    q = q_in;
     if(bd_handler_map.find(bd_type)!=bd_handler_map.end())
     {
       func = bd_handler_map[bd_type];

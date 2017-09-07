@@ -190,7 +190,7 @@ bool scalar_ic_set_scalar_collapse(
   }
 
   std::string boundary_type = "periodic";
-  multigridBdHandler * bd_handler = new multigridBdHandler(boundary_type);
+  multigridBdHandler * bd_handler = new multigridBdHandler(boundary_type, L, 10);
   
   idx_t NX = round(L[0] / dx[0]);
   idx_t NY = round(L[1] / dx[1]); 
@@ -259,15 +259,12 @@ bool scalar_ic_set_scalar_collapse(
     double q = cosmo_scalar_db->getDoubleWithDefault("q", 2.0);
     LOOP3()
     {
-      double x = L[0] / NX * ((double)i + 0.5) - L[0] /2.0;
-      double y = L[1] / NX * ((double)j + 0.5) - L[1] /2.0;
-      double z = L[2] / NX * ((double)k + 0.5) - L[2] /2.0;
+      double x = L[0] / NX * ((double)i + 0.5) - L[0] / 2.0;
+      double y = L[1] / NX * ((double)j + 0.5) - L[1] / 2.0;
+      double z = L[2] / NX * ((double)k + 0.5) - L[2] / 2.0;
       double r = sqrt(x * x + y * y + z * z);
-           phi[INDEX(i,j,k)] = delta_phi *
+      phi[INDEX(i,j,k)] = delta_phi * pw3(r) *
       exp( - pow(fabs( (r - r0) / sigma) , q)) ;
-      // phi[INDEX(i,j,k)] = delta_phi *
-      //   tanh((r-r0) / sigma);
-
     }
   }
     
@@ -289,7 +286,6 @@ bool scalar_ic_set_scalar_collapse(
   
   K_src = -std::sqrt(24.0 * PI * K_src/NX/NY/NZ);
   
-  std::cout<<"K is "<<K_src<<"\n";
   
   boost::shared_ptr<tbox::HDFDatabase > hdf (new tbox::HDFDatabase("hdf_db"));
 
@@ -388,10 +384,17 @@ bool scalar_ic_set_scalar_collapse(
     LOOP3()
     {
       idx_t idx = INDEX(i,j,k);
+      double x = ((double)i + 0.5) * dx[0] - L[0] / 2.0;
+      double y = ((double)j + 0.5) * dx[1] - L[1] / 2.0;
+      double z = ((double)k + 0.5) * dx[2] - L[2] / 2.0;
+
+      double r = sqrt(x * x + y * y + z * z);
+      
       DIFFchi[0][idx] = std::pow(-avg1/avg5,1.0/4.0);
+      //      DIFFchi[0][idx] = 1 + exp(- 10 * r);
     }
+    //    std::cout<<std::pow(-avg1/avg5,1.0/4.0)<<"\n";
     bd_handler->fillBoundary(DIFFchi[0]._array, DIFFchi[0].nx, DIFFchi[0].ny, DIFFchi[0].nz);
-    std::cout<<"Init value is : "<<std::pow(-avg1/avg5,1.0/4.0)<<"\n";
 
     multigrid.VCycles(num_vcycles);
 

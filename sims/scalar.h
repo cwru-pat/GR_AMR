@@ -96,9 +96,13 @@ public:
     idx_t ln,
     double from_t,
     double to_t);
+  
   void RKEvolve(
     const boost::shared_ptr<hier::Patch> & patch, real_t dt);
+  void RKEvolveBD(
+    const boost::shared_ptr<hier::Patch> & patch, real_t dt);
 
+  
   void advanceLevel(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
     int ln,

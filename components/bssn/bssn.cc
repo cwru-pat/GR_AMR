@@ -590,7 +590,15 @@ void BSSN::RKEvolvePt(
   set_bd_values(i, j, k, &bd, dx);
   BSSN_RK_EVOLVE_PT;
 }
-  
+
+void BSSN::RKEvolvePtBd(
+  idx_t i, idx_t j, idx_t k, BSSNData &bd, const real_t dx[], real_t dt,
+  int l_idx, int codim)
+{
+  set_bd_values_bd(i, j, k, &bd, dx);
+  BSSN_RK_EVOLVE_BD;
+}
+
 
 /**
  * @brief calculate K1 value on coarser level
@@ -1731,7 +1739,7 @@ real_t BSSN::ev_DIFFK_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t cod
   return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, DIFFK_a, dx, l_idx, codim) * bd->x
             + bd_derivative(bd->i, bd->j, bd->k, 2, DIFFK_a, dx, l_idx, codim) * bd->y
             + bd_derivative(bd->i, bd->j, bd->k, 3, DIFFK_a, dx, l_idx, codim) * bd->z 
-            + bd->DIFFK           );
+            + bd->DIFFK - bd->K0           );
 }
 
 real_t BSSN::ev_DIFFchi_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
@@ -1930,10 +1938,21 @@ void BSSN::output_max_H_constaint(
 
 void BSSN::output_L2_H_constaint(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
-  idx_t weight_idx)
+  idx_t weight_idx,   CosmoPatchStrategy * cosmoPS)
 {
   double H_L2=0;
 
+  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+      hierarchy->getGridGeometry()));
+  TBOX_ASSERT(grid_geometry_);
+  geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
+  const double * dx = &grid_geometry.getDx()[0];
+
+  const int base_nx = round(L[0] / dx[0]);
+  const int base_ny = round(L[1] / dx[1]);
+  const int base_nz = round(L[2] / dx[2]);
+  
   for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln ++)
   {
     boost::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
@@ -1980,6 +1999,12 @@ void BSSN::output_L2_H_constaint(
         {
           for(int i = lower[0]; i <= upper[0]; i++)
           {
+            if(cosmoPS->is_time_dependent &&
+               (i < STENCIL_ORDER || i >= base_nx - STENCIL_ORDER ||
+                j < STENCIL_ORDER || j >= base_ny - STENCIL_ORDER ||
+                k < STENCIL_ORDER || k >= base_nz - STENCIL_ORDER))
+              continue;
+            
             BSSNData bd = {0};
 
             set_bd_values(i,j,k,&bd,dx);

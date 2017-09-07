@@ -74,7 +74,10 @@ public:
     const boost::shared_ptr<hier::Patch> & patch, real_t dt);
   void RKEvolvePt(
     idx_t i, idx_t j, idx_t k, BSSNData &bd, const real_t dx[], real_t dt);
-  
+  void RKEvolvePtBd(
+    idx_t i, idx_t j, idx_t k, BSSNData &bd, const real_t dx[], real_t dt,
+    int l_idx, int codim);
+
   
   void prepareForK1(
     const boost::shared_ptr<hier::PatchLevel> & level, real_t to_t);
@@ -258,7 +261,7 @@ public:
 
   void output_L2_H_constaint(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
-    idx_t weight_idx);
+    idx_t weight_idx, CosmoPatchStrategy * cosmoPS);
 
   /* constraint violation calculations */
 
