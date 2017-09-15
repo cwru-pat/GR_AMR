@@ -7,7 +7,7 @@
 #include "../cosmo_ps.h"
 #include "../cosmo_macros.h"
 #include "../cosmo_types.h"
-//#include "../components/horizon/horizon.h"
+#include "../components/horizon/horizon.h"
 #include "../components/horizon/AHFD/AHFD.h"
 #include "SAMRAI/tbox/Serializable.h"
 
@@ -25,6 +25,8 @@ public:
   BSSN * bssnSim;
 
   AHFinderDirect::Horizon * horizon;
+
+  HorizonStatistics * horizon_statistics;
   
   CosmoSim(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,

@@ -9,6 +9,7 @@
 #include "horizon_data.h"
 #include "../components/bssn/bssn.h"
 #include "SAMRAI/hier/LocalId.h"
+#include "AHFD/AHFD.h"
 
 using namespace SAMRAI;
 
@@ -276,7 +277,7 @@ struct Cell{
   double d; // distance on the surface from the certain direction
 };
  
-class Horizon
+class HorizonStatistics
 {
 public:
 
@@ -286,136 +287,17 @@ public:
 
   const tbox::Dimension& dim;
 
-  Horizon(
+  HorizonStatistics(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
     const tbox::Dimension& dim_in,
     boost::shared_ptr<tbox::Database> database_in,
-    std::ostream* l_stream_in,
-    int w_idx_in);
+    int w_idx_in, AHFinderDirect::Horizon *horizon_in);
 
-  ~Horizon();
+  ~HorizonStatistics();
 
-  VAR_CREATE(F);
-
-  RK4_IDX_ALL_CREATE(F);
-  RK4_PDATA_ALL_CREATE(F);
-  RK4_MDA_ACCESS_ALL_CREATE(F);
-
-  VAR_CREATE(s1);
-  VAR_CREATE(s2);
-  VAR_CREATE(s3);
-
-  RK4_IDX_CREATE(s1, a);
-  RK4_PDATA_CREATE(s1, a);
-  RK4_MDA_ACCESS_CREATE(s1, a);
-
-  RK4_IDX_CREATE(s2, a);
-  RK4_PDATA_CREATE(s2, a);
-  RK4_MDA_ACCESS_CREATE(s2, a);
-
-  RK4_IDX_CREATE(s3, a);
-  RK4_PDATA_CREATE(s3, a);
-  RK4_MDA_ACCESS_CREATE(s3, a);
-
-
-  void clear(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
-
-  
-  void addNormVector(
-    BSSN *bssn,   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
-  void addNormVector(
-    BSSN *bssn, const boost::shared_ptr<hier::PatchLevel> & level);
-
-  void addNormVector(
-    BSSN *bssn, const boost::shared_ptr<hier::Patch> & patch);
-
-  
-  
-  HorizonData getHorizonData(
-    idx_t i, idx_t j, idx_t k, BSSNData *bd, const real_t dx[]);  
-  
-  
-  void alloc(const boost::shared_ptr<hier::PatchHierarchy> &hierarchy, idx_t ln);
-  
-  void addFieldsToList(std::vector<idx_t> &list);
-
-  void registerRKRefinerActive(
-    xfer::RefineAlgorithm& refiner,
-    boost::shared_ptr<hier::RefineOperator> &space_refine_op);
-
-  
-  void registerRKRefiner(
-    xfer::RefineAlgorithm& refiner,
-    boost::shared_ptr<hier::RefineOperator> &space_refine_op);
-  void copyAToP(
-    math::HierarchyCellDataOpsReal<real_t> & hcellmath);
-  void initPData(
-    const boost::shared_ptr<hier::Patch> & patch);
-  void initMDA(
-    const boost::shared_ptr<hier::Patch> & patch);
-  void setLevelTime(
-    const boost::shared_ptr<hier::PatchLevel> & level,
-    double from_t, double to_t);
-
-  void registerCoarsenActive(
-    xfer::CoarsenAlgorithm& coarsener,
-    boost::shared_ptr<hier::CoarsenOperator>& coarsen_op);
-
-  
-  void K1FinalizePatch(
-    const boost::shared_ptr<hier::Patch> & patch);
-  void K2FinalizePatch(
-    const boost::shared_ptr<hier::Patch> & patch);
-  void K3FinalizePatch(
-    const boost::shared_ptr<hier::Patch> & patch);
-  void K4FinalizePatch(
-    const boost::shared_ptr<hier::Patch> & patch);
-
-  void initSurface(const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
-  bool initSphericalSurface(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn,   boost::shared_ptr<hier::RefineOperator> space_refine_op);
-
-  void stepInit(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
-  
-  void RKEvolvePatchBD(const boost::shared_ptr<hier::Patch> & patch, real_t dt);
-  real_t getFonBD(
-    const boost::shared_ptr<hier::Patch> & patch,
-    real_t bx, real_t by, real_t bz,
-    hier::Box& g_box);
-
-  bool onTheSurface(idx_t i, idx_t j, idx_t k);
-  double getBoundaryAdjRadius(idx_t i, idx_t j, idx_t k, const double dx[], double &ratio);
-  bool belowTheSurface(idx_t i, idx_t j, idx_t k);
-  
-  real_t maxSurfaceMove(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln, idx_t w_idx);
-
-
-  void RKEvolvePt(
-    idx_t i, idx_t j, idx_t k, BSSNData &bd, const real_t dx[], real_t dt);
-  void RKEvolveHorizon(
-    const boost::shared_ptr<hier::Patch> & patch, BSSN * bssn, real_t dt);
-
-  
-  void prepareForK1(
-    const boost::shared_ptr<hier::PatchLevel> & level, real_t to_t);
-  void prepareForK2(
-    const boost::shared_ptr<hier::PatchLevel> & level, real_t to_t);
-  void prepareForK3(
-    const boost::shared_ptr<hier::PatchLevel> & level, real_t to_t);
-  void prepareForK4(
-    const boost::shared_ptr<hier::PatchLevel> & level, real_t to_t);
-
-  real_t ev_F(BSSNData *bd, HorizonData *hd, const real_t dx[]);
-
-  void updateBD(
-    const boost::shared_ptr<hier::Patch> & patch,
-    real_t dt);
 
   void findKilling(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn);
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn, int horizon_id_in);
   void initGridding(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
   
@@ -507,6 +389,8 @@ public:
   std::vector<std::vector<double>> G111, G112, G122, G211, G212, G222, ah_radius;
 
   bool non_zero_angular_momentum;
+  AHFinderDirect::Horizon *horizon;  
+  int horizon_id;
 };
 
 } // namespace cosmo

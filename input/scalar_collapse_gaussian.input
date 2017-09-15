@@ -1,0 +1,158 @@
+Main
+{
+  simulation_type = "scalar"  
+  dim = 3
+  base_name = "scalar_gaussian"
+  print_precision = 9
+  restart = FALSE
+  restart_basename = "scalar"
+  restart_step = 400
+  restart_nodes = 1
+  omp_num_threads = 10 //enable maximum threads if equals to 0
+}
+
+CartesianGridGeometry {
+  domain_boxes = [(0,0,0), (127,127,127)]
+  x_lo         = 0, 0, 0
+  x_up         = 50, 50, 50
+  periodic_dimension = 0, 0, 0
+}
+
+
+StandardTagAndInitialize {
+  tagging_method = "GRADIENT_DETECTOR"
+}
+
+
+TreeLoadBalancer {
+  DEV_report_load_balance = TRUE
+  DEV_barrier_before = FALSE
+  DEV_barrier_after = FALSE
+}
+
+BergerRigoutsos {
+   combine_efficiency = 0.2
+   efficiency_tolerance = 0.2
+}
+
+TimerManager{
+    print_exclusive      = TRUE
+    timer_list = "loop", "init", "RK_steps"
+}
+
+
+PatchHierarchy {
+   max_levels = 3
+   proper_nesting_buffer = 3, 3, 3, 3, 3, 3   
+   largest_patch_size {
+      level_0 = -1, -1, -1
+      // all finer levels will use same values as level_0...
+   }
+   smallest_patch_size {
+      level_0 = 8, 8, 8   
+      // all finer levels will use same values as level_0...
+   }
+   ratio_to_coarser {
+     level_1            = 2, 2, 2
+     level_2            = 2, 2, 2
+     level_3            = 2, 2, 2
+     level_4            = 2, 2, 2
+     level_5            = 2, 2, 2
+     level_6            = 2, 2, 2
+     level_7            = 2, 2, 2
+     level_8            = 2, 2, 2  
+   }
+   allow_patches_smaller_than_ghostwidth = TRUE
+   allow_patches_smaller_than_minimum_size_to_prevent_overlaps = TRUE
+}
+
+GriddingAlgorithm {
+   enforce_proper_nesting = TRUE
+   DEV_extend_to_domain_boundary = FALSE
+   // DEV_load_balance = FALSE
+   check_nonrefined_tags = "IGNORE"
+   sequentialize_patch_indices = TRUE
+}
+
+CosmoSim{
+  steps = 1001
+  save_steps = 200
+  do_plot = TRUE
+  dt_frac = 0.1
+  regridding_interval = 5
+  adaption_threshold = 0.015
+  KO_damping_coefficient = 0.05
+  refine_op_type = "QUADRATIC_REFINE"
+  coarsen_op_type = "CONSERVATIVE_COARSEN"
+  use_AHFinder = TRUE
+  AHFinder_interval = 5
+  AHFinder_iter_limit = 20000
+  AHFinder_dt_frac = 0.2
+  surface_move_shreshold = 0
+  use_anguler_momentum_finder = FALSE
+  gradient_indicator = "phi"
+  regridding_step_lower_bound = 10
+  regridding_step_upper_bound = 3000
+  stop_after_found_horizon = TRUE
+  comments = ""
+}
+
+ScalarSim{
+  ic_type = "scalar_collapse"
+  boundary_type = "sommerfield"
+  stop_after_setting_init = FALSE
+}
+
+AHFD{
+  find_every = 5
+  N_horizons = 5
+  origin_x = 25, 25, 25, 25, 25
+  origin_y = 25, 25, 25, 25, 25
+  origin_z = 25, 25, 25, 25, 25
+  sphere_x_center = 25, 25, 25, 25, 25
+  sphere_y_center = 25, 25, 25, 25, 25
+  sphere_z_center = 25, 25, 25, 25, 25
+  sphere_radius = 0.2, 0.3, 0.5, 0.8, 1
+  find_after_individual = 100, 100, 100, 100, 100 // will only find horizon after this step (inclusive)
+  max_Newton_iterations_initial = 50
+  max_allowable_horizon_radius = 2, 2, 2, 2, 2
+  Theta_norm_for_convergence = 5e-7
+}
+
+
+BSSN{
+  lapse = "OnePlusLog"
+  Shift = "GammaDriver"
+  gd_eta = 2
+  gd_c = 1
+  normalize_Aij = TRUE
+  normalize_gammaij = FALSE
+  z4c_k1 = 0.1
+  z4c_k2 = 0
+  z4c_k3 = 0.5
+  alpha_lower_bd_for_L2 = 0.3
+  chi_lower_bd_type = "constant"
+  chi_lower_bd = 1e-9
+}
+
+IO{
+  output_list = "DIFFK", "DIFFchi", "phi", "DIFFalpha"
+  output_interval =  5,  5, 5, 5
+  
+}
+
+Scalar{
+  potential_type = "Quadratic"
+  initial_type = "gaussian"
+  sigma = 1
+  r0 = 5
+  q = 2
+  q_coef = 0
+  Lambda = 1
+  delta_phi = 0.002
+  n_max = 1
+  phi_0 = 0
+  relaxation_tolerance = 1e-8
+  vcycles = 250
+  DIFFalpha = 0.0
+}

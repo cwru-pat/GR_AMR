@@ -98,6 +98,8 @@ CosmoSim::CosmoSim(
 
   horizon->AHFinderDirect_setup();
 
+  horizon_statistics = new HorizonStatistics(
+    hierarchy,  dim,input_db->getDatabase("AHFD"),weight_idx, horizon);
   // scractch component for refinement, currently not in use
   refine_scratch_idx = variable_db->registerVariableAndContext( 
       refine_scratch, 
@@ -108,6 +110,7 @@ CosmoSim::CosmoSim(
 
   if(cosmo_sim_db->keyExists("save_steps"))
     save_steps = cosmo_sim_db->getIntegerVector("save_steps");
+  
 }
 
 CosmoSim::~CosmoSim()
@@ -216,11 +219,18 @@ bool CosmoSim::runCommonStepTasks(
     horizon->AHFinderDirect_find_horizons(step, cur_t);
     //    found_horizon = horizon->AHFinderDirect_horizon_was_found(1);
   }
-  // if(found_horizon && use_anguler_momentum_finder)
-  // {
-  //   horizon->findKilling(hierarchy, bssnSim);
+  if(use_anguler_momentum_finder)
+  {
+    for(int i = 1; i <= horizon->N_horizons; i++)
+    {
+      if(horizon->AHFinderDirect_horizon_was_found(i))
+      {
+        horizon_statistics->findKilling(hierarchy, bssnSim,i);
+        
+      }
+    }
     
-  // }
+  }
   return found_horizon;
 }
 

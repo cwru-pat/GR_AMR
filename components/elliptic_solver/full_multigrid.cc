@@ -1067,7 +1067,7 @@ bool FASMultigrid::_jacobianRelax( idx_t depth, real_t norm, real_t C, idx_t p)
     }
     cnt++;
     //    std::cout<<"Norm "<<norm_r<<" "<<std::min(pow(norm, (real_t)(p+1)) * C, norm)<<"\n";
-    if(cnt > 500 && norm_r > norm_pre) 
+    if(cnt > 5000 && norm_r > norm_pre) 
     {
       //cannot solve Jacobian equation to precision needed
       std::cout << "Unable to achieve a precise enough solution within "
