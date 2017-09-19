@@ -6,9 +6,9 @@ Main
   print_precision = 9
   restart = TRUE
   restart_basename = "scalar"
-  restart_step = 490
-  restart_nodes = 8
-  omp_num_threads = 1 //enable maximum threads if equals to 0
+  restart_step = 470
+  restart_nodes = 1
+  omp_num_threads = 12 //enable maximum threads if equals to 0
 }
 
 CartesianGridGeometry {
@@ -75,10 +75,10 @@ GriddingAlgorithm {
 }
 
 CosmoSim{
-  steps = 490
-  save_interval = 10
+  steps = 800
+  save_steps = 10
   do_plot = TRUE
-  dt_frac = 0.15
+  dt_frac = 0.2
   regridding_interval = 10
   adaption_threshold = 100
   KO_damping_coefficient = 0.0
@@ -89,7 +89,7 @@ CosmoSim{
   AHFinder_iter_limit = 20000
   AHFinder_dt_frac = 0.2
   surface_move_shreshold = 0
-  use_anguler_momentum_finder = TRUE
+  use_anguler_momentum_finder = FALSE
   gradient_indicator = "DIFFK"
   regridding_step_lower_bound = 20
   regridding_step_upper_bound = 3000
@@ -104,24 +104,24 @@ ScalarSim{
 }
 
 AHFD{
-  find_every = 5
-  N_horizons = 3
-  origin_x = 0.005, 0.005, 0.005
-  origin_y = 0.005, 0.005, 0.005
-  origin_z = 0.005, 0.005, 0.005
-  sphere_x_center = 0.005, 0.005, 0.005
-  sphere_y_center = 0.005, 0.005, 0.005
-  sphere_z_center = 0.005, 0.005, 0.005
-  sphere_radius = 0.00001, 0.000002, 0.00005
-  find_after_individual = 300, 300, 300 // will only find horizon after this step (inclusive)
+  find_every = 2
+  N_horizons = 2
+  origin_x = 0.005, 0.005
+  origin_y = 0.005, 0.005
+  origin_z = 0.005, 0.005
+  sphere_x_center = 0.005, 0.005
+  sphere_y_center = 0.005, 0.005
+  sphere_z_center = 0.005, 0.005
+  sphere_radius = 0.00005, 0.00009
+  find_after_individual = 470, 470 // will only find horizon after this step (inclusive)
   max_Newton_iterations_initial = 50
-  max_allowable_horizon_radius = 0.0001, 0.0001, 0.0001
-  Theta_norm_for_convergence = 5e-7
+  max_allowable_horizon_radius = 0.0001, 0.001
+  Theta_norm_for_convergence = 1e-6
 }
 
 
 BSSN{
-  lapse = "Harmonic"
+  lapse = "OnePlusLog"
   Shift = "GammaDriver"
   gd_eta = 2
   gd_c = 0.1
@@ -130,14 +130,14 @@ BSSN{
   z4c_k1 = 0.1
   z4c_k2 = 0
   z4c_k3 = 0.5
-  alpha_lower_bd_for_L2 = 0.3
+  alpha_lower_bd_for_L2 = 0.0
   chi_lower_bd_type = "constant"
   chi_lower_bd = 1e-9
 }
 
 IO{
-  output_list = "DIFFK", "DIFFchi"
-  output_interval =  10000,  10000
+  output_list = "DIFFK", "phi"
+  output_interval =  20,  20
   
 }
 
@@ -150,5 +150,5 @@ Scalar{
   phi_0 = 5
   relaxation_tolerance = 1e-8
   vcycles = 80
-  DIFFalpha = 0
+  DIFFalpha = -0.8
 }

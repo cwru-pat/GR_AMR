@@ -632,11 +632,11 @@ real_t Scalar::ev_Pi(BSSNData *bd, ScalarData *sd, const real_t dx[])
       + bd->gammai32*(bd->alpha*sd->d3psi2 + sd->psi3*bd->d2a)
       + bd->gammai33*(bd->alpha*sd->d3psi3 + sd->psi3*bd->d3a))
      + bd->alpha*( (
-        bd->Gamma1 * bd->chi + 1.0*(bd->gammai11*bd->d1chi + bd->gammai12*bd->d2chi + bd->gammai13*bd->d3chi)
+        bd->Gammad1 * bd->chi + 1.0*(bd->gammai11*bd->d1chi + bd->gammai12*bd->d2chi + bd->gammai13*bd->d3chi)
       )*sd->psi1* bd->chi + (
-        bd->Gamma2 * bd->chi + 1.0*(bd->gammai21*bd->d1chi + bd->gammai22*bd->d2chi + bd->gammai23*bd->d3chi)
+        bd->Gammad2 * bd->chi + 1.0*(bd->gammai21*bd->d1chi + bd->gammai22*bd->d2chi + bd->gammai23*bd->d3chi)
       )*sd->psi2* bd->chi + (
-        bd->Gamma3 * bd->chi + 1.0*(bd->gammai31*bd->d1chi + bd->gammai32*bd->d2chi + bd->gammai33*bd->d3chi)
+        bd->Gammad3 * bd->chi + 1.0*(bd->gammai31*bd->d1chi + bd->gammai32*bd->d2chi + bd->gammai33*bd->d3chi)
       )*sd->psi3* bd->chi
       + bd->K*sd->Pi
       + potentialHandler->ev_der_potential(bd, sd)
@@ -815,7 +815,11 @@ void Scalar::addBSSNSrc(
         getScalarData(i, j, k, &bd, &sd, dx);
 
         // n^mu d_mu phi
-        real_t nmudmuphi = - sd.Pi;    
+        //                real_t nmudmuphi = - sd.Pi;
+         real_t nmudmuphi = (ev_phi(&bd, &sd, dx) -
+             upwind_derivative(bd.i, bd.j, bd.k, 1, phi_a, dx, bd.beta1)
+           - upwind_derivative(bd.i, bd.j, bd.k, 2, phi_a, dx, bd.beta2)
+           - upwind_derivative(bd.i, bd.j, bd.k, 3, phi_a, dx, bd.beta3) ) / bd.alpha;
         // gammai^ij d_j phi d_i phi
         real_t diphidiphi = (
           bd.gammai11*sd.d1phi*sd.d1phi + bd.gammai22*sd.d2phi*sd.d2phi + bd.gammai33*sd.d3phi*sd.d3phi

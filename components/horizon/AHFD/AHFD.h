@@ -639,7 +639,9 @@ int CCTK_InterpGridArrays(
   const char * verbose_level;
   const char * which_surface_to_store_info_by_name[101];
   CCTK_INT ILUCG__limit_CG_iterations;
+ public:
   CCTK_INT N_horizons;
+ private:
   CCTK_INT N_zones_per_right_angle[101];
   CCTK_INT UMFPACK__N_II_iterations;
   CCTK_INT check_that_geometry_is_finite;

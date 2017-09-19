@@ -8,7 +8,7 @@ Main
   restart_basename = "scalar"
   restart_step = 400
   restart_nodes = 1
-  omp_num_threads = 10 //enable maximum threads if equals to 0
+  omp_num_threads = 12 //enable maximum threads if equals to 0
 }
 
 CartesianGridGeometry {
@@ -31,8 +31,8 @@ TreeLoadBalancer {
 }
 
 BergerRigoutsos {
-   combine_efficiency = 0.2
-   efficiency_tolerance = 0.2
+   combine_efficiency = 0.5
+   efficiency_tolerance = 0.5
 }
 
 TimerManager{
@@ -42,7 +42,7 @@ TimerManager{
 
 
 PatchHierarchy {
-   max_levels = 3
+   max_levels = 4
    proper_nesting_buffer = 3, 3, 3, 3, 3, 3   
    largest_patch_size {
       level_0 = -1, -1, -1
@@ -78,9 +78,9 @@ CosmoSim{
   steps = 1001
   save_steps = 200
   do_plot = TRUE
-  dt_frac = 0.1
-  regridding_interval = 5
-  adaption_threshold = 0.015
+  dt_frac = 0.15
+  regridding_interval = 10
+  adaption_threshold = 0.008
   KO_damping_coefficient = 0.05
   refine_op_type = "QUADRATIC_REFINE"
   coarsen_op_type = "CONSERVATIVE_COARSEN"
@@ -98,10 +98,11 @@ CosmoSim{
 }
 
 ScalarSim{
-  ic_type = "scalar_collapse"
+  ic_type = "scalar_collapse_sommerfield"
   boundary_type = "sommerfield"
   stop_after_setting_init = FALSE
 }
+
 
 AHFD{
   find_every = 5
@@ -112,11 +113,11 @@ AHFD{
   sphere_x_center = 25, 25, 25, 25, 25
   sphere_y_center = 25, 25, 25, 25, 25
   sphere_z_center = 25, 25, 25, 25, 25
-  sphere_radius = 0.2, 0.3, 0.5, 0.8, 1
-  find_after_individual = 100, 100, 100, 100, 100 // will only find horizon after this step (inclusive)
-  max_Newton_iterations_initial = 50
-  max_allowable_horizon_radius = 2, 2, 2, 2, 2
-  Theta_norm_for_convergence = 5e-7
+  sphere_radius = 0.4, 0.6, 0.7, 0.2, 0.3
+  find_after_individual = 135, 135, 135, 135, 135 // will only find horizon after this step (inclusive)
+  max_Newton_iterations_initial = 40
+  max_allowable_horizon_radius = 5, 5, 5, 5, 5
+  Theta_norm_for_convergence = 2e-7
 }
 
 
@@ -137,7 +138,7 @@ BSSN{
 
 IO{
   output_list = "DIFFK", "DIFFchi", "phi", "DIFFalpha"
-  output_interval =  5,  5, 5, 5
+  output_interval =  10,  10, 10, 10
   
 }
 

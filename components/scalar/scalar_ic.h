@@ -35,6 +35,12 @@ void scalar_ic_set_semianalytic_test(
   idx_t ln, BSSN * bssn, Scalar * scalar,
   boost::shared_ptr<tbox::Database> cosmo_scalar_db);
 
+ bool scalar_ic_set_scalar_collapse_sommerfield(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  idx_t ln, BSSN * bssn, Scalar * scalar,
+  boost::shared_ptr<tbox::Database> cosmo_scalar_db);
+
+ 
  inline bool exist(const std::string& name)
  {
    std::ifstream file(name);

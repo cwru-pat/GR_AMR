@@ -191,7 +191,10 @@ bool ScalarSim::initLevel(
   scalarSim->clear(hierarchy, ln);
 
   if(tbox::RestartManager::getManager()->isFromRestart())
+  {
+    if(ln > 0) return false;
     return true;
+  }
   
   
   if(ic_type == "semianalytic_test")
@@ -202,9 +205,15 @@ bool ScalarSim::initLevel(
   }
   else if(ic_type == "scalar_collapse")
   {
-    //if(ln > 0) return false;
+    if(ln > 0) return false;
     // which means not initial data file exist
     return scalar_ic_set_scalar_collapse(hierarchy, ln, bssnSim, scalarSim, input_db->getDatabase("Scalar"));
+  }
+  else if(ic_type == "scalar_collapse_sommerfield")
+  {
+    //if(ln > 0) return false;
+    // which means not initial data file exist
+    return scalar_ic_set_scalar_collapse_sommerfield(hierarchy, ln, bssnSim, scalarSim, input_db->getDatabase("Scalar"));
   }
   else
     TBOX_ERROR("Undefined IC type!\n");
