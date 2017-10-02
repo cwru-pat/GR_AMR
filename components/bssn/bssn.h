@@ -159,9 +159,9 @@ public:
   void calculate_dbeta(BSSNData *bd, const real_t dx[]);
 #endif
 
-#ifdef USE_EXPANSION
-  void calculate_dexpN(BSSNData *bd, const real_t dx[]);
-#endif
+/* #ifdef USE_EXPANSION */
+/*   void calculate_dexpN(BSSNData *bd, const real_t dx[]); */
+/* #endif */
 
 
   

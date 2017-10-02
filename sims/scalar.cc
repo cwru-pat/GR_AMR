@@ -109,7 +109,7 @@ void ScalarSim::setICs(
   tbox::plog<<"Setting initial conditions (ICs).";
 
   TBOX_ASSERT(gridding_algorithm);
-  
+
   gridding_algorithm->printClassData(tbox::plog);
 
   bool is_from_restart = tbox::RestartManager::getManager()->isFromRestart();
@@ -133,7 +133,6 @@ void ScalarSim::setICs(
       cur_t); 
   }
 
-  
   // regrid initial hierarchy if needed
   while(!is_from_restart &&
         hierarchy->getNumberOfLevels() < hierarchy->getMaxNumberOfLevels())
@@ -152,9 +151,10 @@ void ScalarSim::setICs(
     // no new level is created
     if(post_level_num == pre_level_num) break;
   }
-  
+
   tbox::plog<<"Finished setting ICs. with hierarchy has "
             <<hierarchy->getNumberOfLevels()<<" levels\n";
+
 }
 
 void ScalarSim::initScalarStep(
@@ -561,7 +561,8 @@ void ScalarSim::applyGradientDetector(
    tbox::plog << "Adaption threshold is " << adaption_threshold << "\n";
    tbox::plog << "Number of cells tagged on level " << ln << " is "
               << ntag << "/" << ntotal << "\n";
-   tbox::plog << "Max norm is " << max_der_norm << "\n";
+   tbox::plog << "Max norm is "
+              << std::setprecision(9)<<max_der_norm << "\n";
 }
   
 void ScalarSim::outputScalarStep(
@@ -577,7 +578,10 @@ void ScalarSim::outputScalarStep(
  
   cosmo_io->registerVariablesWithPlotter(*visit_writer, step);
   cosmo_io->dumpData(hierarchy, *visit_writer, step, cur_t);
-  
+
+  cosmo_statistic->output_conformal_avg(
+    hierarchy,
+    bssnSim, weight_idx, step, cur_t);
 }
 
 /**

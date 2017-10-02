@@ -343,16 +343,41 @@ bool scalar_ic_set_scalar_collapse_sommerfield(
 
           DIFFgamma33_a(i, j, k) = (pw2(x) + pw2(y) + pw2(aa)*pw2(z))/(pw2(x) + pw2(y) + pw2(z)) - 1.0;
 
-          DIFFgamma12_a(i, j, k) = ((-1 + pw2(aa))*x*y)/(pw2(x) + pw2(y) + pw2(z));
-          DIFFgamma13_a(i, j, k) = ((-1 + pw2(aa))*x*z)/(pw2(x) + pw2(y) + pw2(z));
+          double gamma33 = DIFFgamma33_a(i, j, k) + 1.0;
+          DIFFgamma12_a(i, j, k) = ((-1.0 + pw2(aa))*x*y)/(pw2(x) + pw2(y) + pw2(z));
+          DIFFgamma13_a(i, j, k) = ((-1.0 + pw2(aa))*x*z)/(pw2(x) + pw2(y) + pw2(z));
 
-          DIFFgamma23_a(i, j, k) = ((-1 + pw2(aa))*y*z)/(pw2(x) + pw2(y) + pw2(z));
-
+          DIFFgamma23_a(i, j, k) = ((-1.0 + pw2(aa))*y*z)/(pw2(x) + pw2(y) + pw2(z));
+          
           DIFFchi_a(i, j, k) = 0;
           phi_a(i, j, k) = phi_0 + delta_phi * /*(1.0+pw2(r)) */ pw2(r) *
             exp( - pow(fabs( (r - r0) / sigma) , q)) ;
             
           DIFFalpha_a(i, j, k) = 0;
+
+          real_t one_minus_det_gamma = -1.0*(
+              DIFFgamma11_a(i,j,k) + DIFFgamma22_a(i,j,k) + DIFFgamma33_a(i,j,k)
+              - pw2(DIFFgamma12_a(i,j,k)) - pw2(DIFFgamma13_a(i,j,k)) - pw2(DIFFgamma23_a(i,j,k))
+              + DIFFgamma11_a(i,j,k)*DIFFgamma22_a(i,j,k)
+              + DIFFgamma11_a(i,j,k)*DIFFgamma33_a(i,j,k)
+              + DIFFgamma22_a(i,j,k)*DIFFgamma33_a(i,j,k)
+              - pw2(DIFFgamma23_a(i,j,k))*DIFFgamma11_a(i,j,k)
+              - pw2(DIFFgamma13_a(i,j,k))*DIFFgamma22_a(i,j,k)
+              - pw2(DIFFgamma12_a(i,j,k))*DIFFgamma33_a(i,j,k)
+              + 2.0*DIFFgamma12_a(i,j,k)*DIFFgamma13_a(i,j,k)*DIFFgamma23_a(i,j,k)
+              + DIFFgamma11_a(i,j,k)*DIFFgamma22_a(i,j,k)*DIFFgamma33_a(i,j,k)
+            );
+          real_t one_minus_det_gamma_thirdpow = -1.0*expm1(log1p(-1.0*one_minus_det_gamma)/3.0);
+          
+          DIFFgamma11_a(i,j,k) = (DIFFgamma11_a(i,j,k) + one_minus_det_gamma_thirdpow) / (1.0 - one_minus_det_gamma_thirdpow);
+          DIFFgamma22_a(i,j,k) = (DIFFgamma22_a(i,j,k) + one_minus_det_gamma_thirdpow) / (1.0 - one_minus_det_gamma_thirdpow);
+          DIFFgamma33_a(i,j,k) = (DIFFgamma33_a(i,j,k) + one_minus_det_gamma_thirdpow) / (1.0 - one_minus_det_gamma_thirdpow);
+          DIFFgamma12_a(i,j,k) = (DIFFgamma12_a(i,j,k)) / (1.0 - one_minus_det_gamma_thirdpow);
+          DIFFgamma13_a(i,j,k) = (DIFFgamma13_a(i,j,k)) / (1.0 - one_minus_det_gamma_thirdpow);
+          DIFFgamma23_a(i,j,k) = (DIFFgamma23_a(i,j,k)) / (1.0 - one_minus_det_gamma_thirdpow);
+       
+          DIFFchi_a(i, j, k) = 1.0/sqrt((1.0 - one_minus_det_gamma_thirdpow)) - 1.0;
+
         }
       }
     }

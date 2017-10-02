@@ -81,6 +81,9 @@ CosmoSim::CosmoSim(
   // initializing IO object
   cosmo_io = new CosmoIO(dim, input_db->getDatabase("IO"), lstream);
 
+  //initializing statistic object
+  cosmo_statistic = new CosmoStatistic(dim, input_db->getDatabase("CosmoStatistic"), lstream);
+  
   hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
 
   // get context ACTIVE to initilize these two extra fields 
@@ -182,9 +185,10 @@ void CosmoSim::run(
 bool CosmoSim::runCommonStepTasks(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
-    // detecting NaNs
+  // detecting NaNs
   isValid(hierarchy);
 
+  // saving checkpoint
   if(step > starting_step &&
     ((step %save_interval == 0) ||
       (std::find(save_steps.begin(), save_steps.end(), step) != save_steps.end()) ))

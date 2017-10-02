@@ -4,6 +4,7 @@
 #include "../cosmo_includes.h"
 #include "../components/bssn/bssn.h"
 #include "../components/IO/io.h"
+#include "../components/statistic/statistic.h"
 #include "../cosmo_ps.h"
 #include "../cosmo_macros.h"
 #include "../cosmo_types.h"
@@ -128,6 +129,7 @@ public:
   CosmoPatchStrategy * cosmoPS;
 
   CosmoIO *cosmo_io;
+  CosmoStatistic *cosmo_statistic;
 
   boost::shared_ptr<pdat::CellVariable<real_t> > weight;
   boost::shared_ptr<pdat::CellVariable<real_t> > refine_scratch;

@@ -1148,9 +1148,9 @@ void BSSN::set_bd_values(idx_t i, idx_t j, idx_t k, BSSNData *bd, const real_t d
   calculate_dbeta(bd,dx);
 # endif
 
-  #if USE_EXPANSION
-  calculate_dexpN(bd,dx);
-  #endif
+  // #if USE_EXPANSION
+  // calculate_dexpN(bd,dx);
+  // #endif
   // Christoffels depend on metric & derivs.
   calculate_conformal_christoffels(bd,dx);
   // DDw depend on christoffels, metric, and derivs
@@ -1306,14 +1306,14 @@ void BSSN::calculate_dbeta(BSSNData *bd, const real_t dx[])
 }
 #endif
 
-#if USE_EXPANSION
-void BSSN::calculate_dexpN(BSSNData *bd, const real_t dx[])
-{
-  bd->d1expN = upwind_derivative(bd->i, bd->j, bd->k, 1, expN_a, dx, bd->beta1);
-  bd->d2expN = upwind_derivative(bd->i, bd->j, bd->k, 2, expN_a, dx, bd->beta2);
-  bd->d3expN = upwind_derivative(bd->i, bd->j, bd->k, 3, expN_a, dx, bd->beta3);
-}
-#endif
+// #if USE_EXPANSION
+// void BSSN::calculate_dexpN(BSSNData *bd, const real_t dx[])
+// {
+//   bd->d1expN = upwind_derivative(bd->i, bd->j, bd->k, 1, expN_a, dx, bd->beta1);
+//   bd->d2expN = upwind_derivative(bd->i, bd->j, bd->k, 2, expN_a, dx, bd->beta2);
+//   bd->d3expN = upwind_derivative(bd->i, bd->j, bd->k, 3, expN_a, dx, bd->beta3);
+// }
+// #endif
 
 
 /*
@@ -1581,7 +1581,7 @@ real_t BSSN::ev_expN(BSSNData *bd, const real_t dx[])
     + upwind_derivative(bd->i, bd->j, bd->k, 2, expN_a, dx, bd->beta2)
     + upwind_derivative(bd->i, bd->j, bd->k, 3, expN_a, dx, bd->beta3)
     -bd->alpha * bd->K/3.0
-    - KO_dissipation_Q(bd->i, bd->j, bd->k, ev_expN_a, dx, KO_damping_coefficient);
+    - KO_dissipation_Q(bd->i, bd->j, bd->k, expN_a, dx, KO_damping_coefficient);
 }
 #endif
 
