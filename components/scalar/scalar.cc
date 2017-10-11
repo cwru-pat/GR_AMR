@@ -771,6 +771,7 @@ void Scalar::setLevelTime(
 void Scalar::addBSSNSrc(
   BSSN * bssn, const boost::shared_ptr<hier::Patch> & patch)
 {
+  
   bssn->initPData(patch);
   bssn->initMDA(patch);
 
@@ -826,7 +827,7 @@ void Scalar::addBSSNSrc(
           + 2.0*(bd.gammai12*sd.d1phi*sd.d2phi + bd.gammai13*sd.d1phi*sd.d3phi + bd.gammai23*sd.d2phi*sd.d3phi)
         );
 
-        DIFFr_a(i,j,k) += 0.5*nmudmuphi*nmudmuphi
+        DIFFr_a(i,j,k) = 0.5*nmudmuphi*nmudmuphi
           + 0.5*pw2(bd.chi)*diphidiphi + potentialHandler->ev_potential(&bd, &sd);
 
         DIFFS_a(i,j,k) += 3.0/2.0*nmudmuphi*nmudmuphi

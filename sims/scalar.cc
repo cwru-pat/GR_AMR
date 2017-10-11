@@ -209,6 +209,12 @@ bool ScalarSim::initLevel(
     // which means not initial data file exist
     return scalar_ic_set_scalar_collapse(hierarchy, ln, bssnSim, scalarSim, input_db->getDatabase("Scalar"));
   }
+  else if(ic_type == "scalar_collapse_p_gaussian")
+  {
+    if(ln > 0) return false;
+    // which means not initial data file exist
+    return scalar_ic_set_scalar_gaussian_collapse(hierarchy, ln, bssnSim, scalarSim, input_db->getDatabase("Scalar"));
+  }
   else if(ic_type == "scalar_collapse_sommerfield")
   {
     //if(ln > 0) return false;

@@ -214,7 +214,8 @@ FASMultigrid::FASMultigrid(
     nz_h = new idx_t[total_depths];
 
     eqns[eqn_id] = new molecule[molecule_n[eqn_id]]; 
-    
+
+
     for(idx_t depth = max_depth; depth >= min_depth; --depth)
     {
       idx_t depth_idx = _dIdx(depth);
@@ -231,8 +232,8 @@ FASMultigrid::FASMultigrid(
         u_h[eqn_id][depth_idx].nz = nz_h[depth_idx];
         u_h[eqn_id][depth_idx].pts =
           (nx_h[depth_idx] + 2 * STENCIL_ORDER)
-          + (ny_h[depth_idx] + 2 * STENCIL_ORDER)
-          + (nz_h[depth_idx] + 2 * STENCIL_ORDER);
+          * (ny_h[depth_idx] + 2 * STENCIL_ORDER)
+          * (nz_h[depth_idx] + 2 * STENCIL_ORDER);
       }
       else
       {
@@ -248,7 +249,6 @@ FASMultigrid::FASMultigrid(
           TBOX_ERROR("Coarsest level too small!");
         }
       }
-      
       coarse_src_h[eqn_id][depth_idx].init(nx_h[depth_idx], ny_h[depth_idx], nz_h[depth_idx]);
 
       damping_v_h[eqn_id][depth_idx].init(nx_h[depth_idx], ny_h[depth_idx], nz_h[depth_idx]);
@@ -1294,9 +1294,8 @@ void FASMultigrid::VCycles(idx_t num_cycles)
   
   for(idx_t eqn_id = 0; eqn_id < u_n; eqn_id++)
   {
-    std::cout << " Solution for variable "<< eqn_id<<" has average / min / max value: "
+    std::cout << " Solution for variable "<< eqn_id<<" has average / min / max value: "<<std::setprecision(9)
               << u_h[eqn_id][max_depth_idx].avg() << " / " << u_h[eqn_id][max_depth_idx].min() << " / " << u_h[eqn_id][max_depth_idx].max() << ".\n" << std::flush;
-
   }
 }
 

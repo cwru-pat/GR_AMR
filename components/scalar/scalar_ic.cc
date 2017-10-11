@@ -714,5 +714,305 @@ bool scalar_ic_set_scalar_collapse(
   
   return flag;
 }
-   
+
+bool scalar_ic_set_scalar_gaussian_collapse(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  idx_t ln, BSSN * bssn, Scalar * scalar,
+  boost::shared_ptr<tbox::Database> cosmo_scalar_db)
+{
+  boost::shared_ptr<hier::PatchLevel> level(
+    hierarchy->getPatchLevel(ln));
+
+  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+      hierarchy->getGridGeometry()));
+  TBOX_ASSERT(grid_geometry_);
+  geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
+
+
+  const double * domain_lower = &grid_geometry.getXLower()[0];
+  const double * domain_upper = &grid_geometry.getXUpper()[0];
+
+  double C = cosmo_scalar_db->getDoubleWithDefault("C", 0);
+    
+  
+  real_t L[3];
+  double dx[3];
+  
+  for(int i = 0 ; i < DIM; i++)
+  {
+    L[i] = domain_upper[i] - domain_lower[i];
+    dx[i] = (grid_geometry.getDx()[i]) / (1<<ln);
+  }
+
+  std::string boundary_type = "periodic";
+  multigridBdHandler * bd_handler = new multigridBdHandler(boundary_type, L, 10);
+  
+  idx_t NX = round(L[0] / dx[0]);
+  idx_t NY = round(L[1] / dx[1]); 
+  idx_t NZ = round(L[2] / dx[2]);
+
+  
+  /******getting some parameters from input database****/
+
+  real_t phi_0 = cosmo_scalar_db->getDoubleWithDefault("phi_0", 1.0);
+
+  int n_max = cosmo_scalar_db->getIntegerWithDefault("n_max", 1);
+
+  real_t delta_phi = cosmo_scalar_db->getDoubleWithDefault("delta_phi", 0.1);
+
+  // solve for BSSN fields using multigrid class:
+  real_t relaxation_tolerance = cosmo_scalar_db->getDoubleWithDefault("relaxation_tolerance", 1e-8);
+
+  int num_vcycles = cosmo_scalar_db->getIntegerWithDefault("vcycles", 20);
+
+  double DIFFalpha_0 = cosmo_scalar_db->getDoubleWithDefault("DIFFalpha", 0);
+
+  /******ending collecting parameters from input database****/
+
+  //  double * phi = new double[(NX+2*STENCIL_ORDER) * (NY+2*STENCIL_ORDER) * (NZ+2*STENCIL_ORDER)];
+  CosmoArray<idx_t, real_t>  phi;
+  phi.init(NX, NY, NZ);
+  //  std::vector<double> phi(NX*NY*NZ, phi_0);
+  
+  LOOP3()
+    phi[INDEX(i, j, k)] = phi_0;
+
+  std::random_device rd;
+  std::mt19937 gen(7.0 /*rd()*/);
+  std::uniform_real_distribution<real_t> dist(0, 2.0*PI);
+
+
+  std::string initial_type =
+    cosmo_scalar_db->getStringWithDefault("initial_type", "gaussian");
+  if(initial_type == "gaussian")
+  {
+    double r0 = cosmo_scalar_db->getDoubleWithDefault("r0", 0);
+    double sigma = cosmo_scalar_db->getDoubleWithDefault("sigma", 1.0);
+    double q = cosmo_scalar_db->getDoubleWithDefault("q", 2.0);
+    LOOP3()
+    {
+      double x = L[0] / NX * ((double)i + 0.5) - L[0] / 2.0;
+      double y = L[1] / NX * ((double)j + 0.5) - L[1] / 2.0;
+      double z = L[2] / NX * ((double)k + 0.5) - L[2] / 2.0;
+      double r = sqrt(x * x + y * y + z * z);
+      phi[INDEX(i,j,k)] += delta_phi  *
+      exp( - pow(fabs( (r - r0) / sigma) , q)) ;
+    }
+  }
+  else
+    TBOX_ERROR("Unsupported initial type!\n");
+  
+  bd_handler->fillBoundary(phi._array, phi.nx, phi.ny, phi.nz);
+  // compute background/average K
+  real_t K_src = 0;
+
+  ScalarData sd = {0};
+  BSSNData bd = {0};
+  
+  sd.phi = phi_0;
+
+  K_src = -std::sqrt(12.0 * (2.0 * PI * (scalar->potentialHandler->ev_potential(&bd, &sd) + pw2(C/(12.0 * PI)) * 0.5)));
+
+  std::cout<<"K0 equals "<<K_src<<"\n";
+
+  boost::shared_ptr<tbox::HDFDatabase > hdf (new tbox::HDFDatabase("hdf_db"));
+
+  std::string filename = "h5_data_lv_";
+
+  filename += tbox::Utilities::intToString(ln, 1);
+
+  CosmoArray<idx_t, real_t> * DIFFchi = new CosmoArray<idx_t, real_t> [1];
+
+  bool flag = false;
+
+  DIFFchi[0].init(NX, NY, NZ);
+
+  if(exist(filename))
+  {
+    hdf->open(filename, 1);
+    const std::vector<double> & temp = hdf->getDoubleVector("DIFFchi");
+
+    // if file exist but corresponding database not exist
+    if(temp.empty())
+      TBOX_ERROR("Getting empty array from file "<<filename<<"\n");
+
+    tbox::pout<<"Read initial configuration database for level "<<ln<<"\n";
+    
+    for(int i = 0; i < temp.size(); i++)
+      DIFFchi[0]._array[i] = temp[i];
+    
+    flag = true;
+  }
+  else
+  {
+    // create and open the file
+    hdf->create(filename);
+    hdf->open(filename, 1);
+
+    idx_t molecule_n[] = {3};
+    
+    FASMultigrid multigrid(
+      DIFFchi, 1, molecule_n, 4, 5, relaxation_tolerance, L, NX, NY, NZ, bd_handler);
+
+    atom atom_tmp = {0};
+
+    //initializing equations
+    multigrid.eqns[0][0].init(1, 1);
+    multigrid.eqns[0][1].init(1, 1);
+    multigrid.eqns[0][2].init(1, 1);
+
+
+    //adding terms to eqn
+    //add first laplacian term
+    atom_tmp.type = multigrid.atom_type::lap;
+    atom_tmp.u_id = 0;
+    multigrid.eqns[0][0].add_atom(atom_tmp);
+
+    //add second term
+  
+    atom_tmp.type = multigrid.atom_type::poly;
+    atom_tmp.u_id = 0;
+    atom_tmp.value = 1;
+    multigrid.eqns[0][1].add_atom(atom_tmp);
+
+    //add third term
+
+    atom_tmp.type = multigrid.atom_type::poly;
+    atom_tmp.u_id = 0;
+    atom_tmp.value = 5;
+    multigrid.eqns[0][2].add_atom(atom_tmp);
+
+    real_t avg1 = 0.0, avg5 = 0.0;
+    LOOP3()
+    {
+      BSSNData bd = {0};
+      ScalarData sd = {0};
+    
+      sd.phi = phi[INDEX(i,j,k)];
+
+      real_t value = PI*
+        (pw2((1.0/12.0*phi[INDEX(i-2,j,k)] - 2.0/3.0*phi[INDEX(i-1,j,k)] + 2.0/3.0*phi[INDEX(i+1,j,k)]- 1.0/12.0*phi[INDEX(i+2,j,k)])/dx[0])
+         + pw2((1.0/12.0*phi[INDEX(i,j-2,k)] - 2.0/3.0*phi[INDEX(i,j-1,k)] + 2.0/3.0*phi[INDEX(i,j+1,k)]- 1.0/12.0*phi[INDEX(i,j+2,k)])/dx[1])
+         +pw2((1.0/12.0*phi[INDEX(i,j,k-2)] - 2.0/3.0*phi[INDEX(i,j,k-1)] + 2.0/3.0*phi[INDEX(i,j,k+1)]- 1.0/12.0*phi[INDEX(i,j,k+2)])/dx[2]));
+
+      avg1 += value;
+      multigrid.setPolySrcAtPt(0, 1, i, j, k, value); //set value for term 1
+
+      double K = - C * (phi[INDEX(i, j, k)] - phi_0) + K_src;
+      value = 2.0* PI*scalar->potentialHandler->ev_potential(&bd, &sd) + pw2(C/(12.0 * PI)) * PI
+        - K * K / 12.0 ;
+      multigrid.setPolySrcAtPt(0, 2, i, j, k, value); //set value for term 2
+      avg5 += value;
+    }
+
+    avg1 = avg1/NX/NY/NZ;
+    avg5 = avg5/NX/NY/NZ;
+    multigrid.initializeRhoHeirarchy();
+
+    // if(avg1 * avg5 > 0)
+    //   TBOX_ERROR("Cannot find proper initial setting for phi\n");
+    
+    LOOP3()
+    {
+      idx_t idx = INDEX(i,j,k);
+      double x = ((double)i + 0.5) * dx[0] - L[0] / 2.0;
+      double y = ((double)j + 0.5) * dx[1] - L[1] / 2.0;
+      double z = ((double)k + 0.5) * dx[2] - L[2] / 2.0;
+
+      double r = sqrt(x * x + y * y + z * z);
+      
+      DIFFchi[0][idx] = std::pow(-avg1/avg5,1.0/4.0);
+      DIFFchi[0][idx] = 1;
+    }
+    std::cout<<avg1<<" "<<avg5<<"\n";
+    //    std::cout<<std::pow(-avg1/avg5,1.0/4.0)<<"\n";
+    bd_handler->fillBoundary(DIFFchi[0]._array, DIFFchi[0].nx, DIFFchi[0].ny, DIFFchi[0].nz);
+
+    multigrid.VCycles(num_vcycles);
+
+    LOOP3()
+    {
+      idx_t idx = INDEX(i, j, k);
+      if(i == 127 && j == 127 && k == 127)
+        std::cout<<"Conformal factor on the boundary is "
+                 <<std::setprecision(9)<<DIFFchi[0][idx]<<"\n";
+
+      DIFFchi[0][idx] = 1.0 / pw2(DIFFchi[0][idx]) - 1.0;
+    }
+    bd_handler->fillBoundary(DIFFchi[0]._array, DIFFchi[0].nx, DIFFchi[0].ny, DIFFchi[0].nz);
+
+    hdf->putDoubleArray("DIFFchi", DIFFchi[0]._array, (NX+2*STENCIL_ORDER)*(NY+2*STENCIL_ORDER)*(NZ+2*STENCIL_ORDER));
+    flag = true;
+  }
+
+  hdf->close();
+  
+  for( hier::PatchLevel::iterator pit(level->begin());
+       pit != level->end(); ++pit)
+  {
+    const boost::shared_ptr<hier::Patch> & patch = *pit;
+
+    bssn->initPData(patch);
+    bssn->initMDA(patch);
+
+    scalar->initPData(patch);
+    scalar->initMDA(patch);
+    
+    arr_t & DIFFchi_a = bssn->DIFFchi_a;
+    arr_t & phi_a = scalar->phi_a; // field
+    arr_t & Pi_a = scalar->Pi_a; // field
+    arr_t & psi1_a = scalar->psi1_a; // derivative of phi in x-dir
+    arr_t & psi2_a = scalar->psi2_a; // derivative of phi in y-dir
+    arr_t & psi3_a = scalar->psi3_a; // derivative of phi in z-dir
+  
+    arr_t & K_a = bssn->DIFFK_a; // extrinsic curvature
+
+    arr_t & DIFFalpha_a = bssn->DIFFalpha_a;
+    
+    const hier::Box& box = bssn->DIFFchi_a_pdata->getGhostBox();
+    const hier::Box& inner_box = patch->getBox();
+
+    const int * lower = &box.lower()[0];
+    const int * upper = &box.upper()[0];
+
+    const int * inner_lower = &inner_box.lower()[0];
+    const int * inner_upper = &inner_box.upper()[0];
+
+    
+    for(int k = lower[2]; k <= upper[2]; k++)
+    {
+      for(int j = lower[1]; j <= upper[1]; j++)
+      {
+        for(int i = lower[0]; i <= upper[0]; i++)
+        {
+          K_a(i, j, k) = - C * (phi[INDEX(i, j, k)] - phi_0) + K_src;
+          DIFFchi_a(i,j,k) = DIFFchi[0][INDEX(i, j, k)];
+          phi_a(i, j, k) = phi[INDEX(i, j, k)];
+          DIFFalpha_a(i, j, k) = DIFFalpha_0;
+          Pi_a(i, j, k) = C / (12.0 * PI);
+        }
+      }
+    }
+
+    for(int k = inner_lower[2]; k <= inner_upper[2]; k++)
+    {
+      for(int j = inner_lower[1]; j <= inner_upper[1]; j++)
+      {
+        for(int i = inner_lower[0]; i <= inner_upper[0]; i++)
+        {
+          psi1_a(i, j, k) = derivative(i, j, k, 1, phi_a, dx);
+          psi2_a(i, j, k) = derivative(i, j, k, 2, phi_a, dx);
+          psi3_a(i, j, k) = derivative(i, j, k, 3, phi_a, dx);
+        }
+      }
+    }   
+  }
+
+  bssn->K0 = K_src;
+  
+  return flag;
+}
+
+  
 }
