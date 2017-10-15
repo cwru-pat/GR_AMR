@@ -75,7 +75,7 @@ public:
     const boost::shared_ptr<hier::PatchLevel> & level,
     double from_t, double to_t);
   void addBSSNSrc(
-    BSSN * bssn, const boost::shared_ptr<hier::Patch> & patch);
+    BSSN * bssn, const boost::shared_ptr<hier::Patch> & patch, bool need_init_arr);
   void addBSSNSrc(
     BSSN * bssn, const boost::shared_ptr<hier::PatchLevel> & level);
   void addBSSNSrc(

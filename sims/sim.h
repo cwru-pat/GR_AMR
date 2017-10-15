@@ -121,6 +121,7 @@ public:
   std::string vis_filename;
 
   real_t cur_t, starting_t;
+
   static boost::shared_ptr<tbox::Timer> t_loop;
   static boost::shared_ptr<tbox::Timer> t_init;
   static boost::shared_ptr<tbox::Timer> t_RK_steps;

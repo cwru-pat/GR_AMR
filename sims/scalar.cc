@@ -951,9 +951,9 @@ void ScalarSim::RKEvolveLevel(
     const boost::shared_ptr<hier::Patch> & patch = *pit;
     bssnSim->K1FinalizePatch(patch);
     scalarSim->K1FinalizePatch(patch);
-    scalarSim->addBSSNSrc(bssnSim,patch);
+    scalarSim->addBSSNSrc(bssnSim,patch, false);
+    bssnSim->set_norm(patch, false);
   }
-  bssnSim->set_norm(level);
   
   /**************Starting K2 *********************************/
   bssnSim->prepareForK2(coarser_level, to_t);
@@ -981,9 +981,10 @@ void ScalarSim::RKEvolveLevel(
     const boost::shared_ptr<hier::Patch> & patch = *pit;
     bssnSim->K2FinalizePatch(patch);
     scalarSim->K2FinalizePatch(patch);
-    scalarSim->addBSSNSrc(bssnSim, patch);
+    scalarSim->addBSSNSrc(bssnSim, patch, false);
+    bssnSim->set_norm(patch, false);
+
   }
-  bssnSim->set_norm(level);
   
   /**************Starting K3 *********************************/
 
@@ -1010,10 +1011,9 @@ void ScalarSim::RKEvolveLevel(
     const boost::shared_ptr<hier::Patch> & patch = *pit;
     bssnSim->K3FinalizePatch(patch);
     scalarSim->K3FinalizePatch(patch);
-    scalarSim->addBSSNSrc(bssnSim,patch);
+    scalarSim->addBSSNSrc(bssnSim,patch, false);
+    bssnSim->set_norm(patch, false);
   }
-
-  bssnSim->set_norm(level);
   
   /**************Starting K4 *********************************/
 
@@ -1039,9 +1039,8 @@ void ScalarSim::RKEvolveLevel(
     const boost::shared_ptr<hier::Patch> & patch = *pit;
     bssnSim->K4FinalizePatch(patch);
     scalarSim->K4FinalizePatch(patch);
+    bssnSim->set_norm(patch, false);
   }
-
-  bssnSim->set_norm(level);
 }
 
 /**
@@ -1078,8 +1077,6 @@ void ScalarSim::advanceLevel(
 
   // recursively advancing children levels
   advanceLevel(hierarchy, ln+1, from_t, from_t + (to_t - from_t)/2.0);
-
-  level->getBoxLevel()->getMPI().Barrier();
   
   advanceLevel(hierarchy, ln+1, from_t + (to_t - from_t)/2.0, to_t);
 

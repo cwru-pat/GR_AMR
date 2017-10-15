@@ -408,6 +408,8 @@ bool scalar_ic_set_scalar_collapse(
   idx_t ln, BSSN * bssn, Scalar * scalar,
   boost::shared_ptr<tbox::Database> cosmo_scalar_db)
 {
+  const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
+
   boost::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
 
@@ -534,6 +536,10 @@ bool scalar_ic_set_scalar_collapse(
 
   filename += tbox::Utilities::intToString(ln, 1);
 
+  filename += "_A_";
+
+  filename += tbox::Utilities::intToString(round(delta_phi*100000), 6);
+  
   CosmoArray<idx_t, real_t> * DIFFchi = new CosmoArray<idx_t, real_t> [1];
 
   bool flag = false;
@@ -821,6 +827,11 @@ bool scalar_ic_set_scalar_gaussian_collapse(
   std::string filename = "h5_data_lv_";
 
   filename += tbox::Utilities::intToString(ln, 1);
+
+  filename += "_A_";
+
+  filename += tbox::Utilities::intToString(round(delta_phi*100000), 6);
+
 
   CosmoArray<idx_t, real_t> * DIFFchi = new CosmoArray<idx_t, real_t> [1];
 

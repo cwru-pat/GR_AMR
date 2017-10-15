@@ -67,6 +67,8 @@ public:
 
   void set_norm(
     const boost::shared_ptr<hier::PatchLevel>& level);
+  void set_norm(
+    const boost::shared_ptr<hier::Patch>& patch, bool need_init_arr);
 
   
 

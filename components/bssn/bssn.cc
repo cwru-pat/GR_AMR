@@ -81,6 +81,89 @@ BSSN::~BSSN()
   
 }
 
+void BSSN::set_norm(
+  const boost::shared_ptr<hier::Patch>& patch, bool need_init_arr)
+{
+  if(need_init_arr)
+  {
+    initPData(patch);
+    initMDA(patch);
+  }
+  boost::shared_ptr<geom::CartesianPatchGeometry> patch_geometry(
+    BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+      patch->getPatchGeometry()));
+
+  const hier::Box& box = DIFFchi_a_pdata->getGhostBox();
+  
+  const int * lower = &box.lower()[0];
+  const int * upper = &box.upper()[0];
+
+#pragma omp parallel for collapse(2)        
+  for(int k = lower[2]; k <= upper[2]; k++)
+  {
+    for(int j = lower[1]; j <= upper[1]; j++)
+    {
+      for(int i = lower[0]; i <= upper[0]; i++)
+      {
+        // 1 - det(1 + DiffGamma)
+        if(normalize_gammaij)
+        {
+          real_t one_minus_det_gamma = -1.0*(
+            DIFFgamma11_a(i,j,k) + DIFFgamma22_a(i,j,k) + DIFFgamma33_a(i,j,k)
+            - pw2(DIFFgamma12_a(i,j,k)) - pw2(DIFFgamma13_a(i,j,k)) - pw2(DIFFgamma23_a(i,j,k))
+            + DIFFgamma11_a(i,j,k)*DIFFgamma22_a(i,j,k)
+            + DIFFgamma11_a(i,j,k)*DIFFgamma33_a(i,j,k)
+            + DIFFgamma22_a(i,j,k)*DIFFgamma33_a(i,j,k)
+            - pw2(DIFFgamma23_a(i,j,k))*DIFFgamma11_a(i,j,k)
+            - pw2(DIFFgamma13_a(i,j,k))*DIFFgamma22_a(i,j,k)
+            - pw2(DIFFgamma12_a(i,j,k))*DIFFgamma33_a(i,j,k)
+            + 2.0*DIFFgamma12_a(i,j,k)*DIFFgamma13_a(i,j,k)*DIFFgamma23_a(i,j,k)
+            + DIFFgamma11_a(i,j,k)*DIFFgamma22_a(i,j,k)*DIFFgamma33_a(i,j,k)
+          );
+
+          // accurately compute 1 - det(g)^(1/3), without roundoff error
+          // = -( det(g)^(1/3) - 1 )
+          // = -( exp{log[det(g)^(1/3)]} - 1 )
+          // = -( expm1{log[det(g)]/3} )
+          // = -expm1{log1p[-one_minus_det_gamma]/3.0}
+          real_t one_minus_det_gamma_thirdpow = -1.0*expm1(log1p(-1.0*one_minus_det_gamma)/3.0);
+
+          // Perform the equivalent of re-scaling the conformal metric so det(gamma) = 1
+          // gamma -> gamma / det(gamma)^(1/3)
+          // DIFFgamma -> (delta + DiffGamma) / det(gamma)^(1/3) - delta
+          //            = ( DiffGamma + delta*[1 - det(gamma)^(1/3)] ) / ( 1 - [1 - det(1 + DiffGamma)^1/3] )
+          DIFFgamma11_a(i,j,k) = (DIFFgamma11_a(i,j,k) + one_minus_det_gamma_thirdpow) / (1.0 - one_minus_det_gamma_thirdpow);
+          DIFFgamma22_a(i,j,k) = (DIFFgamma22_a(i,j,k) + one_minus_det_gamma_thirdpow) / (1.0 - one_minus_det_gamma_thirdpow);
+          DIFFgamma33_a(i,j,k) = (DIFFgamma33_a(i,j,k) + one_minus_det_gamma_thirdpow) / (1.0 - one_minus_det_gamma_thirdpow);
+          DIFFgamma12_a(i,j,k) = (DIFFgamma12_a(i,j,k)) / (1.0 - one_minus_det_gamma_thirdpow);
+          DIFFgamma13_a(i,j,k) = (DIFFgamma13_a(i,j,k)) / (1.0 - one_minus_det_gamma_thirdpow);
+          DIFFgamma23_a(i,j,k) = (DIFFgamma23_a(i,j,k)) / (1.0 - one_minus_det_gamma_thirdpow);
+        }
+        if(normalize_Aij)
+        {
+          // re-scale A_ij / ensure it is trace-free
+          // need inverse gamma for finding Tr(A)
+          real_t gammai11 = 1.0 + DIFFgamma22_a(i,j,k) + DIFFgamma33_a(i,j,k) - pw2(DIFFgamma23_a(i,j,k)) + DIFFgamma22_a(i,j,k)*DIFFgamma33_a(i,j,k);
+          real_t gammai22 = 1.0 + DIFFgamma11_a(i,j,k) + DIFFgamma33_a(i,j,k) - pw2(DIFFgamma13_a(i,j,k)) + DIFFgamma11_a(i,j,k)*DIFFgamma33_a(i,j,k);
+          real_t gammai33 = 1.0 + DIFFgamma11_a(i,j,k) + DIFFgamma22_a(i,j,k) - pw2(DIFFgamma12_a(i,j,k)) + DIFFgamma11_a(i,j,k)*DIFFgamma22_a(i,j,k);
+          real_t gammai12 = DIFFgamma13_a(i,j,k)*DIFFgamma23_a(i,j,k) - DIFFgamma12_a(i,j,k)*(1.0 + DIFFgamma33_a(i,j,k));
+          real_t gammai13 = DIFFgamma12_a(i,j,k)*DIFFgamma23_a(i,j,k) - DIFFgamma13_a(i,j,k)*(1.0 + DIFFgamma22_a(i,j,k));
+          real_t gammai23 = DIFFgamma12_a(i,j,k)*DIFFgamma13_a(i,j,k) - DIFFgamma23_a(i,j,k)*(1.0 + DIFFgamma11_a(i,j,k));
+          real_t trA = gammai11*A11_a(i,j,k) + gammai22*A22_a(i,j,k) + gammai33*A33_a(i,j,k)
+            + 2.0*(gammai12*A12_a(i,j,k) + gammai13*A13_a(i,j,k) + gammai23*A23_a(i,j,k));
+          // A_ij -> ( A_ij - 1/3 gamma_ij A )
+          A11_a(i,j,k) = ( A11_a(i,j,k) - 1.0/3.0*(1.0 + DIFFgamma11_a(i,j,k))*trA ) ;
+          A22_a(i,j,k) = ( A22_a(i,j,k) - 1.0/3.0*(1.0 + DIFFgamma22_a(i,j,k))*trA ) ;
+          A33_a(i,j,k) = ( A33_a(i,j,k) - 1.0/3.0*(1.0 + DIFFgamma33_a(i,j,k))*trA ) ;
+          A12_a(i,j,k) = ( A12_a(i,j,k) - 1.0/3.0*DIFFgamma12_a(i,j,k)*trA ) ;
+          A13_a(i,j,k) = ( A13_a(i,j,k) - 1.0/3.0*DIFFgamma13_a(i,j,k)*trA ) ;
+          A23_a(i,j,k) = ( A23_a(i,j,k) - 1.0/3.0*DIFFgamma23_a(i,j,k)*trA ) ;
+        }
+      }
+    }
+  }
+
+}
 /**
  * @brief  normalize Aij or gammaij or both
  */
@@ -93,86 +176,9 @@ void BSSN::set_norm(
   {
     const boost::shared_ptr<hier::Patch>& patch = *p;
 
-    initPData(patch);
-    initMDA(patch);
-
-    boost::shared_ptr<geom::CartesianPatchGeometry> patch_geometry(
-      BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
-        patch->getPatchGeometry()));
-
-    const hier::Box& box = DIFFchi_a_pdata->getGhostBox();
-  
-    const int * lower = &box.lower()[0];
-    const int * upper = &box.upper()[0];
-
-    #pragma omp parallel for collapse(2)        
-    for(int k = lower[2]; k <= upper[2]; k++)
-    {
-      for(int j = lower[1]; j <= upper[1]; j++)
-      {
-        for(int i = lower[0]; i <= upper[0]; i++)
-        {
-          // 1 - det(1 + DiffGamma)
-          if(normalize_gammaij)
-          {
-            real_t one_minus_det_gamma = -1.0*(
-              DIFFgamma11_a(i,j,k) + DIFFgamma22_a(i,j,k) + DIFFgamma33_a(i,j,k)
-              - pw2(DIFFgamma12_a(i,j,k)) - pw2(DIFFgamma13_a(i,j,k)) - pw2(DIFFgamma23_a(i,j,k))
-              + DIFFgamma11_a(i,j,k)*DIFFgamma22_a(i,j,k)
-              + DIFFgamma11_a(i,j,k)*DIFFgamma33_a(i,j,k)
-              + DIFFgamma22_a(i,j,k)*DIFFgamma33_a(i,j,k)
-              - pw2(DIFFgamma23_a(i,j,k))*DIFFgamma11_a(i,j,k)
-              - pw2(DIFFgamma13_a(i,j,k))*DIFFgamma22_a(i,j,k)
-              - pw2(DIFFgamma12_a(i,j,k))*DIFFgamma33_a(i,j,k)
-              + 2.0*DIFFgamma12_a(i,j,k)*DIFFgamma13_a(i,j,k)*DIFFgamma23_a(i,j,k)
-              + DIFFgamma11_a(i,j,k)*DIFFgamma22_a(i,j,k)*DIFFgamma33_a(i,j,k)
-            );
-
-            // accurately compute 1 - det(g)^(1/3), without roundoff error
-            // = -( det(g)^(1/3) - 1 )
-            // = -( exp{log[det(g)^(1/3)]} - 1 )
-            // = -( expm1{log[det(g)]/3} )
-            // = -expm1{log1p[-one_minus_det_gamma]/3.0}
-            real_t one_minus_det_gamma_thirdpow = -1.0*expm1(log1p(-1.0*one_minus_det_gamma)/3.0);
-
-            // Perform the equivalent of re-scaling the conformal metric so det(gamma) = 1
-            // gamma -> gamma / det(gamma)^(1/3)
-            // DIFFgamma -> (delta + DiffGamma) / det(gamma)^(1/3) - delta
-            //            = ( DiffGamma + delta*[1 - det(gamma)^(1/3)] ) / ( 1 - [1 - det(1 + DiffGamma)^1/3] )
-            DIFFgamma11_a(i,j,k) = (DIFFgamma11_a(i,j,k) + one_minus_det_gamma_thirdpow) / (1.0 - one_minus_det_gamma_thirdpow);
-            DIFFgamma22_a(i,j,k) = (DIFFgamma22_a(i,j,k) + one_minus_det_gamma_thirdpow) / (1.0 - one_minus_det_gamma_thirdpow);
-            DIFFgamma33_a(i,j,k) = (DIFFgamma33_a(i,j,k) + one_minus_det_gamma_thirdpow) / (1.0 - one_minus_det_gamma_thirdpow);
-            DIFFgamma12_a(i,j,k) = (DIFFgamma12_a(i,j,k)) / (1.0 - one_minus_det_gamma_thirdpow);
-            DIFFgamma13_a(i,j,k) = (DIFFgamma13_a(i,j,k)) / (1.0 - one_minus_det_gamma_thirdpow);
-            DIFFgamma23_a(i,j,k) = (DIFFgamma23_a(i,j,k)) / (1.0 - one_minus_det_gamma_thirdpow);
-          }
-          if(normalize_Aij)
-          {
-            // re-scale A_ij / ensure it is trace-free
-            // need inverse gamma for finding Tr(A)
-            real_t gammai11 = 1.0 + DIFFgamma22_a(i,j,k) + DIFFgamma33_a(i,j,k) - pw2(DIFFgamma23_a(i,j,k)) + DIFFgamma22_a(i,j,k)*DIFFgamma33_a(i,j,k);
-            real_t gammai22 = 1.0 + DIFFgamma11_a(i,j,k) + DIFFgamma33_a(i,j,k) - pw2(DIFFgamma13_a(i,j,k)) + DIFFgamma11_a(i,j,k)*DIFFgamma33_a(i,j,k);
-            real_t gammai33 = 1.0 + DIFFgamma11_a(i,j,k) + DIFFgamma22_a(i,j,k) - pw2(DIFFgamma12_a(i,j,k)) + DIFFgamma11_a(i,j,k)*DIFFgamma22_a(i,j,k);
-            real_t gammai12 = DIFFgamma13_a(i,j,k)*DIFFgamma23_a(i,j,k) - DIFFgamma12_a(i,j,k)*(1.0 + DIFFgamma33_a(i,j,k));
-            real_t gammai13 = DIFFgamma12_a(i,j,k)*DIFFgamma23_a(i,j,k) - DIFFgamma13_a(i,j,k)*(1.0 + DIFFgamma22_a(i,j,k));
-            real_t gammai23 = DIFFgamma12_a(i,j,k)*DIFFgamma13_a(i,j,k) - DIFFgamma23_a(i,j,k)*(1.0 + DIFFgamma11_a(i,j,k));
-            real_t trA = gammai11*A11_a(i,j,k) + gammai22*A22_a(i,j,k) + gammai33*A33_a(i,j,k)
-              + 2.0*(gammai12*A12_a(i,j,k) + gammai13*A13_a(i,j,k) + gammai23*A23_a(i,j,k));
-            // A_ij -> ( A_ij - 1/3 gamma_ij A )
-            A11_a(i,j,k) = ( A11_a(i,j,k) - 1.0/3.0*(1.0 + DIFFgamma11_a(i,j,k))*trA ) ;
-            A22_a(i,j,k) = ( A22_a(i,j,k) - 1.0/3.0*(1.0 + DIFFgamma22_a(i,j,k))*trA ) ;
-            A33_a(i,j,k) = ( A33_a(i,j,k) - 1.0/3.0*(1.0 + DIFFgamma33_a(i,j,k))*trA ) ;
-            A12_a(i,j,k) = ( A12_a(i,j,k) - 1.0/3.0*DIFFgamma12_a(i,j,k)*trA ) ;
-            A13_a(i,j,k) = ( A13_a(i,j,k) - 1.0/3.0*DIFFgamma13_a(i,j,k)*trA ) ;
-            A23_a(i,j,k) = ( A23_a(i,j,k) - 1.0/3.0*DIFFgamma23_a(i,j,k)*trA ) ;
-          }
-        }
-      }
-    }
-
+    set_norm(patch, true);
   }
-
-  /*
+    /*
    * On all but the finest level, assign 0 to vector
    * weight to cells covered by finer cells.
    */
@@ -589,6 +595,8 @@ void BSSN::RKEvolvePt(
 {
   set_bd_values(i, j, k, &bd, dx);
   BSSN_RK_EVOLVE_PT;
+  if(DIFFK_s(i, j, k) < 0)
+    TBOX_ERROR("Blackhole would not form (I guess)");
 }
 
 void BSSN::RKEvolvePtBd(
