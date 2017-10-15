@@ -447,6 +447,16 @@ void ScalarSim::initializeLevelData(
                                 level,
                                 NULL);
      }
+     if(has_initial && ln > 0)
+     {
+       xfer::CoarsenAlgorithm coarsener(dim);
+       bssnSim->registerCoarsenActive(coarsener,space_coarsen_op);
+       scalarSim->registerCoarsenActive(coarsener,space_coarsen_op);
+       boost::shared_ptr<xfer::CoarsenSchedule> coarsen_schedules =
+         coarsener.createSchedule(patch_hierarchy->getPatchLevel(ln-1),level);
+       coarsen_schedules->coarsenData();
+     }
+
    }
    level->getBoxLevel()->getMPI().Barrier();
      
