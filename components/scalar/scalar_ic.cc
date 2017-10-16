@@ -561,12 +561,16 @@ bool scalar_ic_set_scalar_collapse(
       DIFFchi[0]._array[i] = temp[i];
     
     flag = true;
+    hdf->close();
   }
   else
   {
     // create and open the file
-    hdf->create(filename);
-    hdf->open(filename, 1);
+    if(mpi.getRank() == 0)
+    {
+      hdf->create(filename);
+      hdf->open(filename, 1);
+    }
 
     idx_t molecule_n[] = {3};
     
@@ -651,11 +655,13 @@ bool scalar_ic_set_scalar_collapse(
     }
     bd_handler->fillBoundary(DIFFchi[0]._array, DIFFchi[0].nx, DIFFchi[0].ny, DIFFchi[0].nz);
 
-    hdf->putDoubleArray("DIFFchi", DIFFchi[0]._array, (NX+2*STENCIL_ORDER)*(NY+2*STENCIL_ORDER)*(NZ+2*STENCIL_ORDER));
+    if(mpi.getRank() == 0)
+    {
+      hdf->putDoubleArray("DIFFchi", DIFFchi[0]._array, (NX+2*STENCIL_ORDER)*(NY+2*STENCIL_ORDER)*(NZ+2*STENCIL_ORDER));
+      hdf->close();
+    }
     flag = true;
   }
-
-  hdf->close();
   
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
@@ -806,6 +812,31 @@ bool scalar_ic_set_scalar_gaussian_collapse(
       exp( - pow(fabs( (r - r0) / sigma) , q)) ;
     }
   }
+  else if(initial_type == "ellipsoid_gaussian")
+  {
+    double e_a = cosmo_scalar_db->getDoubleWithDefault("e_a", 1.0);
+    double e_b = cosmo_scalar_db->getDoubleWithDefault("e_b", 1.0);
+    double e_c = cosmo_scalar_db->getDoubleWithDefault("e_c", 1.0);
+    double r0 = cosmo_scalar_db->getDoubleWithDefault("r0", 0);
+
+    double q = cosmo_scalar_db->getDoubleWithDefault("q", 2.0);
+
+    LOOP3()
+    {
+      double x = L[0] / NX * ((double)i + 0.5) - L[0] / 2.0;
+      double y = L[1] / NX * ((double)j + 0.5) - L[1] / 2.0;
+      double z = L[2] / NX * ((double)k + 0.5) - L[2] / 2.0;
+      double r = sqrt(x * x + y * y + z * z);
+
+      double sigma = sqrt(pw2(e_a) * pw2(z * x / r) / (pw2(x) + pw2(y))
+                          + pw2(e_b) * pw2(z * y / r) / (pw2(x) + pw2(y))
+                          + pw2(e_c) * (pw2(x) + pw2(y)) / pw2(r) );
+
+      phi[INDEX(i,j,k)] += delta_phi  *
+        exp( - pow(fabs( (r - r0) / sigma) , q)) ;
+
+    }
+  }
   else
     TBOX_ERROR("Unsupported initial type!\n");
   
@@ -854,12 +885,16 @@ bool scalar_ic_set_scalar_gaussian_collapse(
       DIFFchi[0]._array[i] = temp[i];
     
     flag = true;
+    hdf->close();
   }
   else
   {
     // create and open the file
-    hdf->create(filename);
-    hdf->open(filename, 1);
+    if(mpi.getRank() == 0)
+    {
+      hdf->create(filename);
+      hdf->open(filename, 1);
+    }
 
     idx_t molecule_n[] = {3};
     
@@ -945,15 +980,16 @@ bool scalar_ic_set_scalar_gaussian_collapse(
     LOOP3()
     {
       idx_t idx = INDEX(i, j, k);
-      if(i == 127 && j == 127 && k == 127)
-        std::cout<<"Conformal factor on the boundary is "
-                 <<std::setprecision(9)<<DIFFchi[0][idx]<<"\n";
 
       DIFFchi[0][idx] = 1.0 / pw2(DIFFchi[0][idx]) - 1.0;
     }
     bd_handler->fillBoundary(DIFFchi[0]._array, DIFFchi[0].nx, DIFFchi[0].ny, DIFFchi[0].nz);
 
-    hdf->putDoubleArray("DIFFchi", DIFFchi[0]._array, (NX+2*STENCIL_ORDER)*(NY+2*STENCIL_ORDER)*(NZ+2*STENCIL_ORDER));
+    if(mpi.getRank() == 0)
+    {
+      hdf->putDoubleArray("DIFFchi", DIFFchi[0]._array, (NX+2*STENCIL_ORDER)*(NY+2*STENCIL_ORDER)*(NZ+2*STENCIL_ORDER));
+      hdf->close();
+    }
     flag = true;
   }
 
