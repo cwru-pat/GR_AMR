@@ -732,6 +732,7 @@ bool scalar_ic_set_scalar_gaussian_collapse(
   idx_t ln, BSSN * bssn, Scalar * scalar,
   boost::shared_ptr<tbox::Database> cosmo_scalar_db)
 {
+  const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
   boost::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
 
