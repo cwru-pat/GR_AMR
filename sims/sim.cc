@@ -221,7 +221,12 @@ bool CosmoSim::runCommonStepTasks(
   if(use_AHFinder)
   {
     horizon->AHFinderDirect_find_horizons(step, cur_t);
-    //    found_horizon = horizon->AHFinderDirect_horizon_was_found(1);
+    for(int i = 1; i <= horizon->N_horizons; i++)
+      if(horizon->AHFinderDirect_horizon_was_found(i))
+      {
+        found_horizon = true;
+        break;
+      }
   }
   if(use_anguler_momentum_finder)
   {
