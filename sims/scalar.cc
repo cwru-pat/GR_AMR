@@ -161,8 +161,11 @@ void ScalarSim::initScalarStep(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   bssnSim->stepInit(hierarchy);
-  bssnSim->clearSrc(hierarchy);
-  scalarSim->addBSSNSrc(bssnSim, hierarchy);
+  if(step == starting_step)
+  {
+    bssnSim->clearSrc(hierarchy);
+    scalarSim->addBSSNSrc(bssnSim, hierarchy);
+  }
   if(stop_after_setting_init)
     TBOX_ERROR("Stop after initializing hierarchy as demanded\n");
 }
@@ -1049,6 +1052,7 @@ void ScalarSim::RKEvolveLevel(
     const boost::shared_ptr<hier::Patch> & patch = *pit;
     bssnSim->K4FinalizePatch(patch);
     scalarSim->K4FinalizePatch(patch);
+    scalarSim->addBSSNSrc(bssnSim,patch, false);
     bssnSim->set_norm(patch, false);
   }
 }
