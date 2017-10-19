@@ -161,11 +161,9 @@ void ScalarSim::initScalarStep(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   bssnSim->stepInit(hierarchy);
-  if(step == starting_step)
-  {
-    bssnSim->clearSrc(hierarchy);
-    scalarSim->addBSSNSrc(bssnSim, hierarchy);
-  }
+  bssnSim->clearSrc(hierarchy);
+  scalarSim->addBSSNSrc(bssnSim, hierarchy);
+
   if(stop_after_setting_init)
     TBOX_ERROR("Stop after initializing hierarchy as demanded\n");
 }
@@ -936,6 +934,8 @@ void ScalarSim::RKEvolveLevel(
   const boost::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
 
+  int max_ln = hierarchy->getMaxNumberOfLevels();
+  
   const boost::shared_ptr<hier::PatchLevel> coarser_level(
     ((ln>0)?(hierarchy->getPatchLevel(ln-1)):NULL));
   
@@ -1050,7 +1050,7 @@ void ScalarSim::RKEvolveLevel(
        pit != level->end(); ++pit)
   {
     const boost::shared_ptr<hier::Patch> & patch = *pit;
-    bssnSim->K4FinalizePatch(patch);
+    bssnSim->K4FinalizePatch(patch, ln, max_ln);
     scalarSim->K4FinalizePatch(patch);
     scalarSim->addBSSNSrc(bssnSim,patch, false);
     bssnSim->set_norm(patch, false);

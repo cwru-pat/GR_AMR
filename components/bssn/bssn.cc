@@ -595,8 +595,6 @@ void BSSN::RKEvolvePt(
 {
   set_bd_values(i, j, k, &bd, dx);
   BSSN_RK_EVOLVE_PT;
-  if(DIFFK_s(i, j, k) < 0)
-    TBOX_ERROR("Blackhole would not form (I guess)");
 }
 
 void BSSN::RKEvolvePtBd(
@@ -1017,6 +1015,35 @@ void BSSN::K3FinalizePatch(
       for(int i = lower[0]; i <= upper[0]; i++)
       {
         BSSN_FINALIZE_K(3);
+      }
+    }
+  }
+}
+
+// Only use this when you need to take the changes
+// of some field as stop critieria
+void BSSN::K4FinalizePatch(
+  const boost::shared_ptr<hier::Patch> & patch, int ln, int max_ln)
+{
+  initPData(patch);
+  initMDA(patch);
+
+  //Only evolv inner grids for K4
+  const hier::Box& box = DIFFchi_a_pdata->getGhostBox();
+
+  const int * lower = &box.lower()[0];
+  const int * upper = &box.upper()[0];
+
+  #pragma omp parallel for collapse(2)  
+  for(int k = lower[2]; k <= upper[2]; k++)
+  {
+    for(int j = lower[1]; j <= upper[1]; j++)
+    {
+      for(int i = lower[0]; i <= upper[0]; i++)
+      {
+        BSSN_FINALIZE_K(4);
+        if(ln == max_ln - 1 && DIFFK_a(i, j, k) < DIFFK_p(i, j, k))
+          TBOX_ERROR("Blackhole would not form (I guess)\n");
       }
     }
   }

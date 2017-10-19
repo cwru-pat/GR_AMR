@@ -207,7 +207,7 @@ bool scalar_ic_set_scalar_collapse_sommerfield(
   std::ifstream myReadFile;
   myReadFile.open("init.dat");
 
-  double temp2[50001];
+  double temp2[60001];
 
   int cnt =0;
   if (myReadFile.is_open()) {
@@ -248,7 +248,7 @@ bool scalar_ic_set_scalar_collapse_sommerfield(
 
   const void* input_arrays[1];
 
-  const CCTK_INT input_array_dims[1] = {50000};
+  const CCTK_INT input_array_dims[1] = {60000};
   const CCTK_INT input_array_type_codes[1] = {CCTK_VARIABLE_REAL};
 
   CCTK_REAL    output_real[1];

@@ -132,6 +132,8 @@ public:
   void K3FinalizePatch(
     const boost::shared_ptr<hier::Patch> & patch);
   void K4FinalizePatch(
+    const boost::shared_ptr<hier::Patch> & patch, int ln, int max_ln);
+  void K4FinalizePatch(
     const boost::shared_ptr<hier::Patch> & patch);
 
   void set_bd_values_bd(
