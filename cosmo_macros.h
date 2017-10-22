@@ -76,6 +76,10 @@
   #endif
 #endif
 
+#ifndef BH_FORMATION_CRITIERIA
+ #define BH_FORMATION_CRITIERIA 0
+#endif
+
 /*****************************************/
 /* Additional variable/macro definitions */
 /*****************************************/

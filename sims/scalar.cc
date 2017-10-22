@@ -134,7 +134,7 @@ void ScalarSim::setICs(
   }
 
   // regrid initial hierarchy if needed
-  while(!is_from_restart &&
+  while(!is_from_restart && regrid_at_beginning &&
         hierarchy->getNumberOfLevels() < hierarchy->getMaxNumberOfLevels())
   {
     int pre_level_num = hierarchy->getNumberOfLevels();
@@ -933,9 +933,9 @@ void ScalarSim::RKEvolveLevel(
 {
   const boost::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
-
+#if BH_FORMATION_CRITIERIA
   int max_ln = hierarchy->getMaxNumberOfLevels();
-  
+#endif 
   const boost::shared_ptr<hier::PatchLevel> coarser_level(
     ((ln>0)?(hierarchy->getPatchLevel(ln-1)):NULL));
   
@@ -1050,7 +1050,12 @@ void ScalarSim::RKEvolveLevel(
        pit != level->end(); ++pit)
   {
     const boost::shared_ptr<hier::Patch> & patch = *pit;
+#if BH_FORMATION_CRITIERIA
     bssnSim->K4FinalizePatch(patch, ln, max_ln);
+#else
+    bssnSim->K4FinalizePatch(patch);
+#endif
+    
     scalarSim->K4FinalizePatch(patch);
     scalarSim->addBSSNSrc(bssnSim,patch, false);
     bssnSim->set_norm(patch, false);

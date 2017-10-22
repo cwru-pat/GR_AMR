@@ -138,6 +138,7 @@ public:
   idx_t refine_scratch_idx;
 
   idx_t regridding_interval;
+  bool regrid_at_beginning;
   real_t KO_damping_coefficient;
   real_t adaption_threshold;
   boost::shared_ptr<hier::RefineOperator> space_refine_op;

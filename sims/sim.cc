@@ -52,6 +52,7 @@ CosmoSim::CosmoSim(
   refine_scratch(new pdat::CellVariable<real_t>(dim, "refine_scratch", 1)),
   weight_idx(0),
   regridding_interval(cosmo_sim_db->getInteger("regridding_interval")),
+  regrid_at_beginning(cosmo_sim_db->getBoolWithDefault("regrid_at_beginning", true)),
   KO_damping_coefficient(cosmo_sim_db->getDoubleWithDefault("KO_damping_coefficient",0)),
   adaption_threshold(cosmo_sim_db->getDoubleWithDefault("adaption_threshold", 1)),
   refine_op_type(cosmo_sim_db->getStringWithDefault("refine_op_type", "LINEAR_REFINE")),
