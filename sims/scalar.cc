@@ -934,7 +934,7 @@ void ScalarSim::RKEvolveLevel(
   const boost::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
 #if BH_FORMATION_CRITIERIA
-  int max_ln = hierarchy->getMaxNumberOfLevels();
+  int max_ln = hierarchy->getNumberOfLevels();
 #endif 
   const boost::shared_ptr<hier::PatchLevel> coarser_level(
     ((ln>0)?(hierarchy->getPatchLevel(ln-1)):NULL));

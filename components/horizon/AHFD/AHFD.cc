@@ -206,7 +206,6 @@ Horizon::Horizon(const boost::shared_ptr<hier::PatchHierarchy>& hierarchy_in,
   AHFD_VEC_INIT(desired_value_offset,0);
   AHFD_VEC_INIT(shiftout_factor,1.0);
   AHFD_VEC_INIT(smoothing_factor,0.0);
-  AHFD_VEC_INIT(initial_guess_method,"coordinate sphere");
   AHFD_VEC_INIT(reset_horizon_after_not_finding,1);
   AHFD_VEC_INIT(initial_guess__read_from_named_file__file_name,"h.gp");
   AHFD_VEC_INIT(initial_guess__coord_sphere__x_center,0);
@@ -235,21 +234,53 @@ Horizon::Horizon(const boost::shared_ptr<hier::PatchHierarchy>& hierarchy_in,
   
   
   /*********initializing initial guess******************************/
-  
-  AHFD_db->getDoubleArray("origin_x", origin_x+1, N_horizons);
-  AHFD_db->getDoubleArray("origin_y", origin_y+1, N_horizons);
-  AHFD_db->getDoubleArray("origin_z", origin_z+1, N_horizons);
 
-  AHFD_db->getDoubleArray(
-    "sphere_x_center", initial_guess__coord_sphere__x_center+1, N_horizons);
-  AHFD_db->getDoubleArray(
-    "sphere_y_center", initial_guess__coord_sphere__y_center+1, N_horizons);
-  AHFD_db->getDoubleArray(
-    "sphere_z_center", initial_guess__coord_sphere__z_center+1, N_horizons);
+  static std::string initial_guess_type;
+  initial_guess_type = AHFD_db->getStringWithDefault("initial_guess_type", "coordinate sphere");
 
-  AHFD_db->getDoubleArray(
-    "sphere_radius",initial_guess__coord_sphere__radius+1, N_horizons);
+  AHFD_VEC_INIT(initial_guess_method,initial_guess_type.c_str());
 
+  if(initial_guess_type == "coordinate sphere")
+  {
+    AHFD_db->getDoubleArray("origin_x", origin_x+1, N_horizons);
+    AHFD_db->getDoubleArray("origin_y", origin_y+1, N_horizons);
+    AHFD_db->getDoubleArray("origin_z", origin_z+1, N_horizons);
+
+    AHFD_db->getDoubleArray(
+      "sphere_x_center", initial_guess__coord_sphere__x_center+1, N_horizons);
+    AHFD_db->getDoubleArray(
+      "sphere_y_center", initial_guess__coord_sphere__y_center+1, N_horizons);
+    AHFD_db->getDoubleArray(
+      "sphere_z_center", initial_guess__coord_sphere__z_center+1, N_horizons);
+
+    AHFD_db->getDoubleArray(
+      "sphere_radius",initial_guess__coord_sphere__radius+1, N_horizons);
+  }
+  else if(initial_guess_type == "coordinate ellipsoid")
+  {
+    AHFD_db->getDoubleArray("origin_x", origin_x+1, N_horizons);
+    AHFD_db->getDoubleArray("origin_y", origin_y+1, N_horizons);
+    AHFD_db->getDoubleArray("origin_z", origin_z+1, N_horizons);
+
+    AHFD_db->getDoubleArray(
+      "ellipsoid_x_center", initial_guess__coord_ellipsoid__x_center+1, N_horizons);
+    AHFD_db->getDoubleArray(
+      "ellipsoid_y_center", initial_guess__coord_ellipsoid__y_center+1, N_horizons);
+    AHFD_db->getDoubleArray(
+      "ellipsoid_z_center", initial_guess__coord_ellipsoid__z_center+1, N_horizons);
+
+    AHFD_db->getDoubleArray(
+      "ellipsoid_x_radius",initial_guess__coord_ellipsoid__x_radius+1, N_horizons);
+    AHFD_db->getDoubleArray(
+      "ellipsoid_y_radius",initial_guess__coord_ellipsoid__y_radius+1, N_horizons);
+    AHFD_db->getDoubleArray(
+      "ellipsoid_z_radius",initial_guess__coord_ellipsoid__z_radius+1, N_horizons);
+
+  }
+  else
+  {
+    TBOX_ERROR("Unrecgnized horizon initial guess type!\n");
+  }
   /*********initializing other settings******************************/
   if(AHFD_db->keyExists("find_after_individual"))
     AHFD_db->getIntegerArray(

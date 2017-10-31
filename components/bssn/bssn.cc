@@ -1034,6 +1034,12 @@ void BSSN::K4FinalizePatch(
   const int * lower = &box.lower()[0];
   const int * upper = &box.upper()[0];
 
+  const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+    BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+      patch->getPatchGeometry()));
+
+  const double *dx = &patch_geom->getDx()[0];
+  
   #pragma omp parallel for collapse(2)  
   for(int k = lower[2]; k <= upper[2]; k++)
   {
@@ -1042,7 +1048,10 @@ void BSSN::K4FinalizePatch(
       for(int i = lower[0]; i <= upper[0]; i++)
       {
         BSSN_FINALIZE_K(4);
-        if(ln == max_ln - 1 && DIFFK_a(i, j, k) < DIFFK_p(i, j, k))
+        if(ln == max_ln - 1 && DIFFK_a(i, j, k) < DIFFK_p(i, j, k)
+           && round((double)L[0] / dx[0]) / 2 == i
+           && round((double)L[1] / dx[1]) / 2 == j
+           && round((double)L[2] / dx[2]) / 2 == k)
           TBOX_ERROR("Blackhole would not form (I guess)\n");
       }
     }

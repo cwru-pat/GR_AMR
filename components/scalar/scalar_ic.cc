@@ -445,8 +445,12 @@ bool scalar_ic_set_scalar_collapse(
   real_t phi_0 = cosmo_scalar_db->getDoubleWithDefault("phi_0", 1.0);
 
   int n_max = cosmo_scalar_db->getIntegerWithDefault("n_max", 1);
-
-  real_t delta_phi = cosmo_scalar_db->getDoubleWithDefault("delta_phi", 0.1);
+  real_t delta_phi = 0.1;
+  if(cosmo_scalar_db->keyExists("delta_phi"))
+    delta_phi = cosmo_scalar_db->getDouble("delta_phi");
+  real_t delta_phi_x = cosmo_scalar_db->getDoubleWithDefault("delta_phi_x", 0.1);
+  real_t delta_phi_y = cosmo_scalar_db->getDoubleWithDefault("delta_phi_y", 0.1);
+  real_t delta_phi_z = cosmo_scalar_db->getDoubleWithDefault("delta_phi_z", 0.1);
 
   // solve for BSSN fields using multigrid class:
   real_t relaxation_tolerance = cosmo_scalar_db->getDoubleWithDefault("relaxation_tolerance", 1e-8);
@@ -483,14 +487,27 @@ bool scalar_ic_set_scalar_collapse(
           y_phase = dist(gen),
           z_phase = dist(gen);
 
-        LOOP3()
+        if(cosmo_scalar_db->keyExists("delta_phi"))
         {
-          // some sinusoidal modes
-          phi[INDEX(i,j,k)] += delta_phi*(
-            cos(2.0*PI*((real_t) n/NX)*((real_t)i + 0.5) )
-            + cos(2.0*PI*((real_t) n/NY)*((real_t)j + 0.5) )
-            + cos(2.0*PI*((real_t) n/NZ)*((real_t)k+ 0.5) )
-          );
+          LOOP3()
+          {
+            // some sinusoidal modes
+            phi[INDEX(i,j,k)] += delta_phi*(
+              cos(2.0*PI*((real_t) n/NX)*((real_t)i + 0.5) )
+              + cos(2.0*PI*((real_t) n/NY)*((real_t)j + 0.5) )
+              + cos(2.0*PI*((real_t) n/NZ)*((real_t)k+ 0.5) )
+            );
+          }
+        }
+        else
+        {
+          LOOP3()
+          {
+          phi[INDEX(i,j,k)] +=
+            delta_phi_x * cos(2.0*PI*((real_t) n/NX)*((real_t)i + 0.5))
+            + delta_phi_y * cos(2.0*PI*((real_t) n/NY)*((real_t)j + 0.5) )
+            + delta_phi_z * cos(2.0*PI*((real_t) n/NZ)*((real_t)k+ 0.5) );
+          }
         }
       }
     }
@@ -546,6 +563,7 @@ bool scalar_ic_set_scalar_collapse(
 
   DIFFchi[0].init(NX, NY, NZ);
 
+  mpi.Barrier();
   if(exist(filename))
   {
     hdf->open(filename, 1);
@@ -565,12 +583,6 @@ bool scalar_ic_set_scalar_collapse(
   }
   else
   {
-    // create and open the file
-    if(mpi.getRank() == 0)
-    {
-      hdf->create(filename);
-      hdf->open(filename, 1);
-    }
 
     idx_t molecule_n[] = {3};
     
@@ -657,12 +669,17 @@ bool scalar_ic_set_scalar_collapse(
 
     if(mpi.getRank() == 0)
     {
+      // create and open the file
+      hdf->create(filename);
+      hdf->open(filename, 1);
+
       hdf->putDoubleArray("DIFFchi", DIFFchi[0]._array, (NX+2*STENCIL_ORDER)*(NY+2*STENCIL_ORDER)*(NZ+2*STENCIL_ORDER));
       hdf->close();
     }
     flag = true;
   }
-  
+
+  double tot_r = 0;
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
@@ -717,11 +734,29 @@ bool scalar_ic_set_scalar_collapse(
           psi1_a(i, j, k) = derivative(i, j, k, 1, phi_a, dx);
           psi2_a(i, j, k) = derivative(i, j, k, 2, phi_a, dx);
           psi3_a(i, j, k) = derivative(i, j, k, 3, phi_a, dx);
+          
+          BSSNData bd = {0};
+          ScalarData sd = {0};
+
+          sd.phi = phi[INDEX(i,j,k)];
+          tot_r += 1.0 / pw3(DIFFchi_a(i, j, k) + 1.0) *
+            (0.5 * pw2(DIFFchi_a(i,j,k) + 1.0) * (
+              (pw2((1.0/12.0*phi[INDEX(i-2,j,k)] - 2.0/3.0*phi[INDEX(i-1,j,k)] + 2.0/3.0*phi[INDEX(i+1,j,k)]- 1.0/12.0*phi[INDEX(i+2,j,k)])/dx[0])
+               + pw2((1.0/12.0*phi[INDEX(i,j-2,k)] - 2.0/3.0*phi[INDEX(i,j-1,k)] + 2.0/3.0*phi[INDEX(i,j+1,k)]- 1.0/12.0*phi[INDEX(i,j+2,k)])/dx[1])
+               +pw2((1.0/12.0*phi[INDEX(i,j,k-2)] - 2.0/3.0*phi[INDEX(i,j,k-1)] + 2.0/3.0*phi[INDEX(i,j,k+1)]- 1.0/12.0*phi[INDEX(i,j,k+2)])/dx[2]))
+            )
+             + scalar->potentialHandler->ev_potential(&bd, &sd)) / NX / NY / NZ;
+
         }
       }
     }   
   }
 
+  mpi.AllReduce(&tot_r,1,MPI_SUM);
+
+  tbox::pout<<"Total energy (conformal) is "<<tot_r * pw3(0.01)<<"\n";
+
+  
   bssn->K0 = K_src;
   
   return flag;
@@ -833,8 +868,11 @@ bool scalar_ic_set_scalar_gaussian_collapse(
                           + pw2(e_b) * pw2(z * y / r) / (pw2(x) + pw2(y))
                           + pw2(e_c) * (pw2(x) + pw2(y)) / pw2(r) );
 
+      // phi[INDEX(i,j,k)] += delta_phi  *
+      //   exp( - pow(fabs( (r - r0) / sigma) , q)) ;
+
       phi[INDEX(i,j,k)] += delta_phi  *
-        exp( - pow(fabs( (r - r0) / sigma) , q)) ;
+        exp( - (pow(x / e_a , q) + pow(y / e_b , q) + pow(z / e_c , q)) );
 
     }
   }
@@ -871,6 +909,7 @@ bool scalar_ic_set_scalar_gaussian_collapse(
 
   DIFFchi[0].init(NX, NY, NZ);
 
+  mpi.Barrier();
   if(exist(filename))
   {
     hdf->open(filename, 1);
@@ -890,12 +929,6 @@ bool scalar_ic_set_scalar_gaussian_collapse(
   }
   else
   {
-    // create and open the file
-    if(mpi.getRank() == 0)
-    {
-      hdf->create(filename);
-      hdf->open(filename, 1);
-    }
 
     idx_t molecule_n[] = {3};
     
@@ -988,6 +1021,10 @@ bool scalar_ic_set_scalar_gaussian_collapse(
 
     if(mpi.getRank() == 0)
     {
+      // create and open the file
+      hdf->create(filename);
+      hdf->open(filename, 1);
+
       hdf->putDoubleArray("DIFFchi", DIFFchi[0]._array, (NX+2*STENCIL_ORDER)*(NY+2*STENCIL_ORDER)*(NZ+2*STENCIL_ORDER));
       hdf->close();
     }
