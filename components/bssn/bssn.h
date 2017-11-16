@@ -67,6 +67,8 @@ public:
 
   void set_norm(
     const boost::shared_ptr<hier::PatchLevel>& level);
+  void set_norm(
+    const boost::shared_ptr<hier::Patch>& patch, bool need_init_arr);
 
   
 
@@ -74,7 +76,10 @@ public:
     const boost::shared_ptr<hier::Patch> & patch, real_t dt);
   void RKEvolvePt(
     idx_t i, idx_t j, idx_t k, BSSNData &bd, const real_t dx[], real_t dt);
-  
+  void RKEvolvePtBd(
+    idx_t i, idx_t j, idx_t k, BSSNData &bd, const real_t dx[], real_t dt,
+    int l_idx, int codim);
+
   
   void prepareForK1(
     const boost::shared_ptr<hier::PatchLevel> & level, real_t to_t);
@@ -127,6 +132,8 @@ public:
   void K3FinalizePatch(
     const boost::shared_ptr<hier::Patch> & patch);
   void K4FinalizePatch(
+    const boost::shared_ptr<hier::Patch> & patch, int ln, int max_ln);
+  void K4FinalizePatch(
     const boost::shared_ptr<hier::Patch> & patch);
 
   void set_bd_values_bd(
@@ -156,9 +163,9 @@ public:
   void calculate_dbeta(BSSNData *bd, const real_t dx[]);
 #endif
 
-#ifdef USE_EXPANSION
-  void calculate_dexpN(BSSNData *bd, const real_t dx[]);
-#endif
+/* #ifdef USE_EXPANSION */
+/*   void calculate_dexpN(BSSNData *bd, const real_t dx[]); */
+/* #endif */
 
 
   
@@ -258,7 +265,7 @@ public:
 
   void output_L2_H_constaint(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
-    idx_t weight_idx);
+    idx_t weight_idx, CosmoPatchStrategy * cosmoPS);
 
   /* constraint violation calculations */
 

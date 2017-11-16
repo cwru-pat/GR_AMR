@@ -729,7 +729,7 @@ inline real_t mixed_derivative_stencil_Odx2(
 inline real_t mixed_derivative_stencil_Odx4(
   idx_t i, idx_t j, idx_t k, int d1, int d2, arr_t & field, const double dx[])
 {
-  if( (d1 == 1 && d2 == 2) || (d1 == 2 && d2 == 1) ) {
+    if( (d1 == 1 && d2 == 2) || (d1 == 2 && d2 == 1) ) {
     return (
       (
         - field(i+1,j-1,k) + field(i+1,j+1,k)
@@ -767,6 +767,36 @@ inline real_t mixed_derivative_stencil_Odx4(
 
   /* XXX */
   return 0;
+  
+  /* if( (d1 == 1 && d2 == 2) || (d1 == 2 && d2 == 1) ) { */
+  /*   return ( */
+  /*     field(i-2,j-2,k) - 8.0*field(i-1,j-2,k) + 8.0*field(i+1,j-2,k)-field(i+2,j-2,k) */
+  /*     -8.0*(field(i-2,j-1,k) - 8.0*field(i-1,j-1,k) + 8.0*field(i+1,j-1,k)-field(i+2,j-1,k)) */
+  /*     +8.0*(field(i-2,j+1,k) - 8.0*field(i-1,j+1,k) + 8.0*field(i+1,j+1,k)-field(i+2,j+1,k)) */
+  /*     -(field(i-2,j+2,k) - 8.0*field(i-1,j+2,k) + 8.0*field(i+1,j+2,k)-field(i+2,j+2,k)) */
+  /*   )/144.0/dx[0]/dx[1]; */
+  /* } */
+
+  /* if( (d1 == 1 && d2 == 3) || (d1 == 3 && d2 == 1) ) { */
+  /*   return ( */
+  /*     field(i-2,j,k-2) - 8.0*field(i-1,j,k-2) + 8.0*field(i+1,j,k-2)-field(i+2,j,k-2) */
+  /*     -8.0*(field(i-2,j,k-1) - 8.0*field(i-1,j,k-1) + 8.0*field(i+1,j,k-1)-field(i+2,j,k-1)) */
+  /*     +8.0*(field(i-2,j,k+1) - 8.0*field(i-1,j,k+1) + 8.0*field(i+1,j,k+1)-field(i+2,j,k+1)) */
+  /*     -(field(i-2,j,k+2) - 8.0*field(i-1,j,k+2) + 8.0*field(i+1,j,k+2)-field(i+2,j,k+2)) */
+  /*   )/144.0/dx[0]/dx[2]; */
+  /* } */
+
+  /* if( (d1 == 3 && d2 == 2) || (d1 == 2 && d2 == 3) ) { */
+  /*   return ( */
+  /*     field(i,j-2,k-2) - 8.0*field(i,j-1,k-2) + 8.0*field(i,j+1,k-2)-field(i,j+2,k-2) */
+  /*     -8.0*(field(i,j-2,k-1) - 8.0*field(i,j-1,k-1) + 8.0*field(i,j+1,k-1)-field(i,j+2,k-1)) */
+  /*     +8.0*(field(i,j-2,k+1) - 8.0*field(i,j-1,k+1) + 8.0*field(i,j+1,k+1)-field(i,j+2,k+1)) */
+  /*     -(field(i,j-2,k+2) - 8.0*field(i,j-1,k+2) + 8.0*field(i,j+1,k+2)-field(i,j+2,k+2)) */
+  /*   )/144.0/dx[2]/dx[1]; */
+  /* } */
+
+  /* /\* XXX *\/ */
+  /* return 0; */
 }
 
 inline real_t mixed_derivative_stencil_Odx6(idx_t i, idx_t j, idx_t k, int d1, int d2, arr_t & field, const double dx[])

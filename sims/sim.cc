@@ -52,6 +52,7 @@ CosmoSim::CosmoSim(
   refine_scratch(new pdat::CellVariable<real_t>(dim, "refine_scratch", 1)),
   weight_idx(0),
   regridding_interval(cosmo_sim_db->getInteger("regridding_interval")),
+  regrid_at_beginning(cosmo_sim_db->getBoolWithDefault("regrid_at_beginning", true)),
   KO_damping_coefficient(cosmo_sim_db->getDoubleWithDefault("KO_damping_coefficient",0)),
   adaption_threshold(cosmo_sim_db->getDoubleWithDefault("adaption_threshold", 1)),
   refine_op_type(cosmo_sim_db->getStringWithDefault("refine_op_type", "LINEAR_REFINE")),
@@ -81,6 +82,9 @@ CosmoSim::CosmoSim(
   // initializing IO object
   cosmo_io = new CosmoIO(dim, input_db->getDatabase("IO"), lstream);
 
+  //initializing statistic object
+  cosmo_statistic = new CosmoStatistic(dim, input_db->getDatabase("CosmoStatistic"), lstream);
+  
   hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
 
   // get context ACTIVE to initilize these two extra fields 
@@ -98,6 +102,8 @@ CosmoSim::CosmoSim(
 
   horizon->AHFinderDirect_setup();
 
+  horizon_statistics = new HorizonStatistics(
+    hierarchy,  dim,input_db->getDatabase("AHFD"),weight_idx, horizon);
   // scractch component for refinement, currently not in use
   refine_scratch_idx = variable_db->registerVariableAndContext( 
       refine_scratch, 
@@ -108,6 +114,7 @@ CosmoSim::CosmoSim(
 
   if(cosmo_sim_db->keyExists("save_steps"))
     save_steps = cosmo_sim_db->getIntegerVector("save_steps");
+  
 }
 
 CosmoSim::~CosmoSim()
@@ -179,9 +186,10 @@ void CosmoSim::run(
 bool CosmoSim::runCommonStepTasks(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
-    // detecting NaNs
+  // detecting NaNs
   isValid(hierarchy);
 
+  // saving checkpoint
   if(step > starting_step &&
     ((step %save_interval == 0) ||
       (std::find(save_steps.begin(), save_steps.end(), step) != save_steps.end()) ))
@@ -214,13 +222,25 @@ bool CosmoSim::runCommonStepTasks(
   if(use_AHFinder)
   {
     horizon->AHFinderDirect_find_horizons(step, cur_t);
-    //    found_horizon = horizon->AHFinderDirect_horizon_was_found(1);
+    for(int i = 1; i <= horizon->N_horizons; i++)
+      if(horizon->AHFinderDirect_horizon_was_found(i))
+      {
+        found_horizon = true;
+        break;
+      }
   }
-  // if(found_horizon && use_anguler_momentum_finder)
-  // {
-  //   horizon->findKilling(hierarchy, bssnSim);
+  if(use_anguler_momentum_finder)
+  {
+    for(int i = 1; i <= horizon->N_horizons; i++)
+    {
+      if(horizon->AHFinderDirect_horizon_was_found(i))
+      {
+        horizon_statistics->findKilling(hierarchy, bssnSim,i);
+        
+      }
+    }
     
-  // }
+  }
   return found_horizon;
 }
 

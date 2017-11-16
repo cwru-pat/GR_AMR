@@ -47,9 +47,11 @@ public:
 
   scalarPotentialHandler * potentialHandler;
   
-  ScalarData getScalarData(
-    idx_t i, idx_t j, idx_t k, BSSNData *bd, const real_t dx[]);  
-  
+  void getScalarData(
+    idx_t i, idx_t j, idx_t k, BSSNData *bd, ScalarData *sd, const real_t dx[]);  
+  void getScalarDataBd(
+    idx_t i, idx_t j, idx_t k, BSSNData *bd, ScalarData * sd, const real_t dx[]);
+
   
   void alloc(const boost::shared_ptr<hier::PatchHierarchy> &hierarchy, idx_t ln);
   
@@ -73,7 +75,7 @@ public:
     const boost::shared_ptr<hier::PatchLevel> & level,
     double from_t, double to_t);
   void addBSSNSrc(
-    BSSN * bssn, const boost::shared_ptr<hier::Patch> & patch);
+    BSSN * bssn, const boost::shared_ptr<hier::Patch> & patch, bool need_init_arr);
   void addBSSNSrc(
     BSSN * bssn, const boost::shared_ptr<hier::PatchLevel> & level);
   void addBSSNSrc(
@@ -109,7 +111,11 @@ public:
     const boost::shared_ptr<hier::Patch> & patch, real_t dt);
 
   void RKEvolvePt(
-    idx_t i, idx_t j, idx_t k, BSSNData &bd, const real_t dx[], real_t dt);
+    idx_t i, idx_t j, idx_t k, BSSNData &bd, ScalarData &sd, const real_t dx[], real_t dt);
+
+  void RKEvolvePtBd(
+    idx_t i, idx_t j, idx_t k, BSSNData &bd, ScalarData &sd,
+    const real_t dx[], real_t dt, int l_idx, int codim);
 
   
   void prepareForK1(
@@ -127,11 +133,11 @@ public:
   real_t ev_psi2(BSSNData *bd, ScalarData *sd, const real_t dx[]);
   real_t ev_psi3(BSSNData *bd, ScalarData *sd, const real_t dx[]);
 
-  real_t ev_phi_bd(BSSNData *bd, ScalarData *sd, const real_t dx[]);
-  real_t ev_Pi_bd(BSSNData *bd, ScalarData *sd, const real_t dx[]);  
-  real_t ev_psi1_bd(BSSNData *bd, ScalarData *sd, const real_t dx[]);
-  real_t ev_psi2_bd(BSSNData *bd, ScalarData *sd, const real_t dx[]);
-  real_t ev_psi3_bd(BSSNData *bd, ScalarData *sd, const real_t dx[]);
+  real_t ev_phi_bd(BSSNData *bd, ScalarData *sd, const real_t dx[], int l_idx, int codim);
+  real_t ev_Pi_bd(BSSNData *bd, ScalarData *sd, const real_t dx[], int l_idx, int codim);  
+  real_t ev_psi1_bd(BSSNData *bd, ScalarData *sd, const real_t dx[], int l_idx, int codim);
+  real_t ev_psi2_bd(BSSNData *bd, ScalarData *sd, const real_t dx[], int l_idx, int codim);
+  real_t ev_psi3_bd(BSSNData *bd, ScalarData *sd, const real_t dx[], int l_idx, int codim);
 
   
   

@@ -12,7 +12,9 @@
 
 using namespace SAMRAI;
 
-#define INDEX(i,j,k) ( ((i+NX)%(NX))*(NY)*(NZ) + ((j+NY)%(NY))*(NZ) + (k+NZ)%(NZ))
+#define INDEX(i,j,k) \
+  (STENCIL_ORDER * (1 + (NX+ 2*STENCIL_ORDER) + (NX+ 2*STENCIL_ORDER) * (NY+ 2*STENCIL_ORDER))        \
+   + (i) + (j) * (NX+ 2*STENCIL_ORDER) + (k) * (NX+ 2*STENCIL_ORDER) * (NY+ 2*STENCIL_ORDER))
 
 #define LOOP3()  \
   for(int i=0; i<NX; ++i) \
@@ -33,6 +35,18 @@ void scalar_ic_set_semianalytic_test(
   idx_t ln, BSSN * bssn, Scalar * scalar,
   boost::shared_ptr<tbox::Database> cosmo_scalar_db);
 
+ bool scalar_ic_set_scalar_gaussian_collapse(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  idx_t ln, BSSN * bssn, Scalar * scalar,
+  boost::shared_ptr<tbox::Database> cosmo_scalar_db);
+
+ 
+ bool scalar_ic_set_scalar_collapse_sommerfield(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  idx_t ln, BSSN * bssn, Scalar * scalar,
+  boost::shared_ptr<tbox::Database> cosmo_scalar_db);
+
+ 
  inline bool exist(const std::string& name)
  {
    std::ifstream file(name);

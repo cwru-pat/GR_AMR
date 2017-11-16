@@ -4,10 +4,11 @@
 #include "../cosmo_includes.h"
 #include "../components/bssn/bssn.h"
 #include "../components/IO/io.h"
+#include "../components/statistic/statistic.h"
 #include "../cosmo_ps.h"
 #include "../cosmo_macros.h"
 #include "../cosmo_types.h"
-//#include "../components/horizon/horizon.h"
+#include "../components/horizon/horizon.h"
 #include "../components/horizon/AHFD/AHFD.h"
 #include "SAMRAI/tbox/Serializable.h"
 
@@ -25,6 +26,8 @@ public:
   BSSN * bssnSim;
 
   AHFinderDirect::Horizon * horizon;
+
+  HorizonStatistics * horizon_statistics;
   
   CosmoSim(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
@@ -118,6 +121,7 @@ public:
   std::string vis_filename;
 
   real_t cur_t, starting_t;
+
   static boost::shared_ptr<tbox::Timer> t_loop;
   static boost::shared_ptr<tbox::Timer> t_init;
   static boost::shared_ptr<tbox::Timer> t_RK_steps;
@@ -126,6 +130,7 @@ public:
   CosmoPatchStrategy * cosmoPS;
 
   CosmoIO *cosmo_io;
+  CosmoStatistic *cosmo_statistic;
 
   boost::shared_ptr<pdat::CellVariable<real_t> > weight;
   boost::shared_ptr<pdat::CellVariable<real_t> > refine_scratch;
@@ -133,6 +138,7 @@ public:
   idx_t refine_scratch_idx;
 
   idx_t regridding_interval;
+  bool regrid_at_beginning;
   real_t KO_damping_coefficient;
   real_t adaption_threshold;
   boost::shared_ptr<hier::RefineOperator> space_refine_op;

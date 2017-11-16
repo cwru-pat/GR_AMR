@@ -2,11 +2,11 @@ Main
 {
   simulation_type = "scalar"  
   dim = 3
-  base_name = "scalar"
+  base_name = "scalar_gaussian"
   print_precision = 9
-  restart = TRUE
+  restart = FALSE
   restart_basename = "scalar"
-  restart_step = 470
+  restart_step = 400
   restart_nodes = 1
   omp_num_threads = 12 //enable maximum threads if equals to 0
 }
@@ -14,8 +14,8 @@ Main
 CartesianGridGeometry {
   domain_boxes = [(0,0,0), (127,127,127)]
   x_lo         = 0, 0, 0
-  x_up         = 0.01, 0.01, 0.01
-  periodic_dimension = 1, 1, 1
+  x_up         = 50, 50, 50
+  periodic_dimension = 0, 0, 0
 }
 
 
@@ -31,8 +31,8 @@ TreeLoadBalancer {
 }
 
 BergerRigoutsos {
-   combine_efficiency = 0.7
-   efficiency_tolerance = 0.7
+   combine_efficiency = 0.5
+   efficiency_tolerance = 0.5
 }
 
 TimerManager{
@@ -42,7 +42,7 @@ TimerManager{
 
 
 PatchHierarchy {
-   max_levels = 9
+   max_levels = 4
    proper_nesting_buffer = 3, 3, 3, 3, 3, 3   
    largest_patch_size {
       level_0 = -1, -1, -1
@@ -75,13 +75,13 @@ GriddingAlgorithm {
 }
 
 CosmoSim{
-  steps = 800
-  save_steps = 10
+  steps = 1001
+  save_steps = 200
   do_plot = TRUE
-  dt_frac = 0.2
+  dt_frac = 0.15
   regridding_interval = 10
-  adaption_threshold = 100
-  KO_damping_coefficient = 0.0
+  adaption_threshold = 0.008
+  KO_damping_coefficient = 0.05
   refine_op_type = "QUADRATIC_REFINE"
   coarsen_op_type = "CONSERVATIVE_COARSEN"
   use_AHFinder = TRUE
@@ -90,33 +90,34 @@ CosmoSim{
   AHFinder_dt_frac = 0.2
   surface_move_shreshold = 0
   use_anguler_momentum_finder = FALSE
-  gradient_indicator = "DIFFK"
-  regridding_step_lower_bound = 20
+  gradient_indicator = "phi"
+  regridding_step_lower_bound = 10
   regridding_step_upper_bound = 3000
-  stop_after_found_horizon = FALSE
+  stop_after_found_horizon = TRUE
   comments = ""
 }
 
 ScalarSim{
-  ic_type = "scalar_collapse"
-  boundary_type = "periodic"
+  ic_type = "scalar_collapse_sommerfield"
+  boundary_type = "sommerfield"
   stop_after_setting_init = FALSE
 }
 
+
 AHFD{
-  find_every = 2
-  N_horizons = 2
-  origin_x = 0.005, 0.005
-  origin_y = 0.005, 0.005
-  origin_z = 0.005, 0.005
-  sphere_x_center = 0.005, 0.005
-  sphere_y_center = 0.005, 0.005
-  sphere_z_center = 0.005, 0.005
-  sphere_radius = 0.00005, 0.00009
-  find_after_individual = 470, 470 // will only find horizon after this step (inclusive)
-  max_Newton_iterations_initial = 50
-  max_allowable_horizon_radius = 0.0001, 0.001
-  Theta_norm_for_convergence = 1e-6
+  find_every = 5
+  N_horizons = 5
+  origin_x = 25, 25, 25, 25, 25
+  origin_y = 25, 25, 25, 25, 25
+  origin_z = 25, 25, 25, 25, 25
+  sphere_x_center = 25, 25, 25, 25, 25
+  sphere_y_center = 25, 25, 25, 25, 25
+  sphere_z_center = 25, 25, 25, 25, 25
+  sphere_radius = 0.4, 0.6, 0.7, 0.2, 0.3
+  find_after_individual = 135, 135, 135, 135, 135 // will only find horizon after this step (inclusive)
+  max_Newton_iterations_initial = 40
+  max_allowable_horizon_radius = 5, 5, 5, 5, 5
+  Theta_norm_for_convergence = 2e-7
 }
 
 
@@ -124,31 +125,35 @@ BSSN{
   lapse = "OnePlusLog"
   Shift = "GammaDriver"
   gd_eta = 2
-  gd_c = 0.1
+  gd_c = 1
   normalize_Aij = TRUE
   normalize_gammaij = FALSE
   z4c_k1 = 0.1
   z4c_k2 = 0
   z4c_k3 = 0.5
-  alpha_lower_bd_for_L2 = 0.0
+  alpha_lower_bd_for_L2 = 0.3
   chi_lower_bd_type = "constant"
   chi_lower_bd = 1e-9
 }
 
 IO{
-  output_list = "DIFFK", "phi"
-  output_interval =  20,  20
+  output_list = "DIFFK", "DIFFchi", "phi", "DIFFalpha"
+  output_interval =  10,  10, 10, 10
   
 }
 
 Scalar{
   potential_type = "Quadratic"
-  q_coef = 1
+  initial_type = "gaussian"
+  sigma = 1
+  r0 = 5
+  q = 2
+  q_coef = 0
   Lambda = 1
-  delta_phi = 0.2
+  delta_phi = 0.002
   n_max = 1
-  phi_0 = 5
+  phi_0 = 0
   relaxation_tolerance = 1e-8
-  vcycles = 80
-  DIFFalpha = -0.8
+  vcycles = 250
+  DIFFalpha = 0.0
 }

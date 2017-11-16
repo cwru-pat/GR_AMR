@@ -19,8 +19,15 @@
 #define SCALAR_RK_EVOLVE_PT_FIELD(field)               \
   field##_s(i,j,k) = ev_##field(&bd, &sd, dx) * dt;
 
+#define SCALAR_RK_EVOLVE_BD_FIELD(field)               \
+  field##_s(i,j,k) = ev_##field##_bd(&bd, &sd, dx, l_idx, codim) * dt;
+
+
 #define SCALAR_RK_EVOLVE_PT \
   SCALAR_APPLY_TO_FIELDS(SCALAR_RK_EVOLVE_PT_FIELD)
+
+#define SCALAR_RK_EVOLVE_BD \
+  SCALAR_APPLY_TO_FIELDS(SCALAR_RK_EVOLVE_BD_FIELD)
 
 
 

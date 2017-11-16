@@ -10,15 +10,15 @@ real_t FASMultigrid::mixed_derivative_stencil(
   idx_t i, idx_t j, idx_t k,idx_t nx, idx_t ny, idx_t nz,
   int d1, int d2, fas_grid_t & field)
 {
-    real_t dx = H_LEN_FRAC / nx, dy = H_LEN_FRAC / ny, dz = H_LEN_FRAC / nz;
+    real_t dx = H_LEN_FRAC[0] / nx, dy = H_LEN_FRAC[0] / ny, dz = H_LEN_FRAC[0] / nz;
   if( (d1 == 1 && d2 == 2) || (d1 == 2 && d2 == 1) ) {
     return (
       (
-        - field[H_INDEX(i+1,j-1,k,nx,ny,nz)] + field[H_INDEX(i+1,j+1,k,nx,ny,nz)]
-        + field[H_INDEX(i-1,j-1,k,nx,ny,nz)] - field[H_INDEX(i-1,j+1,k,nx,ny,nz)]
+        - field[B_INDEX(i+1,j-1,k,nx,ny,nz)] + field[B_INDEX(i+1,j+1,k,nx,ny,nz)]
+        + field[B_INDEX(i-1,j-1,k,nx,ny,nz)] - field[B_INDEX(i-1,j+1,k,nx,ny,nz)]
       ) - 1.0/16.0*(
-        - field[H_INDEX(i+2,j-2,k,nx,ny,nz)] + field[H_INDEX(i+2,j+2,k,nx,ny,nz)]
-        + field[H_INDEX(i-2,j-2,k,nx,ny,nz)] - field[H_INDEX(i-2,j+2,k,nx,ny,nz)]
+        - field[B_INDEX(i+2,j-2,k,nx,ny,nz)] + field[B_INDEX(i+2,j+2,k,nx,ny,nz)]
+        + field[B_INDEX(i-2,j-2,k,nx,ny,nz)] - field[B_INDEX(i-2,j+2,k,nx,ny,nz)]
       )
     )/3.0/dx/dy;
   }
@@ -26,11 +26,11 @@ real_t FASMultigrid::mixed_derivative_stencil(
   if( (d1 == 1 && d2 == 3) || (d1 == 3 && d2 == 1) ) {
     return (
       (
-        - field[H_INDEX(i+1,j,k-1,nx,ny,nz)] + field[H_INDEX(i+1,j,k+1,nx,ny,nz)]
-        + field[H_INDEX(i-1,j,k-1,nx,ny,nz)] - field[H_INDEX(i-1,j,k+1,nx,ny,nz)]
+        - field[B_INDEX(i+1,j,k-1,nx,ny,nz)] + field[B_INDEX(i+1,j,k+1,nx,ny,nz)]
+        + field[B_INDEX(i-1,j,k-1,nx,ny,nz)] - field[B_INDEX(i-1,j,k+1,nx,ny,nz)]
       ) - 1.0/16.0*(
-        - field[H_INDEX(i+2,j,k-2,nx,ny,nz)] + field[H_INDEX(i+2,j,k+2,nx,ny,nz)]
-        + field[H_INDEX(i-2,j,k-2,nx,ny,nz)] - field[H_INDEX(i-2,j,k+2,nx,ny,nz)]
+        - field[B_INDEX(i+2,j,k-2,nx,ny,nz)] + field[B_INDEX(i+2,j,k+2,nx,ny,nz)]
+        + field[B_INDEX(i-2,j,k-2,nx,ny,nz)] - field[B_INDEX(i-2,j,k+2,nx,ny,nz)]
       )
     )/3.0/dx/dz;
   }
@@ -38,11 +38,11 @@ real_t FASMultigrid::mixed_derivative_stencil(
   if( (d1 == 3 && d2 == 2) || (d1 == 2 && d2 == 3) ) {
     return (
       (
-        - field[H_INDEX(i,j+1,k-1,nx,ny,nz)] + field[H_INDEX(i,j+1,k+1,nx,ny,nz)]
-        + field[H_INDEX(i,j-1,k-1,nx,ny,nz)] - field[H_INDEX(i,j-1,k+1,nx,ny,nz)]
+        - field[B_INDEX(i,j+1,k-1,nx,ny,nz)] + field[B_INDEX(i,j+1,k+1,nx,ny,nz)]
+        + field[B_INDEX(i,j-1,k-1,nx,ny,nz)] - field[B_INDEX(i,j-1,k+1,nx,ny,nz)]
       ) - 1.0/16.0*(
-        - field[H_INDEX(i,j+2,k-2,nx,ny,nz)] + field[H_INDEX(i,j+2,k+2,nx,ny,nz)]
-        + field[H_INDEX(i,j-2,k-2,nx,ny,nz)] - field[H_INDEX(i,j-2,k+2,nx,ny,nz)]
+        - field[B_INDEX(i,j+2,k-2,nx,ny,nz)] + field[B_INDEX(i,j+2,k+2,nx,ny,nz)]
+        + field[B_INDEX(i,j-2,k-2,nx,ny,nz)] - field[B_INDEX(i,j-2,k+2,nx,ny,nz)]
       )
     )/3.0/dy/dz;
   }
@@ -55,33 +55,33 @@ real_t FASMultigrid::mixed_derivative_stencil(
 real_t FASMultigrid::double_derivative_stencil(
   idx_t i, idx_t j, idx_t k, idx_t nx, idx_t ny, idx_t nz, int d, fas_grid_t & field)
 {
-  real_t dx = H_LEN_FRAC / nx, dy = H_LEN_FRAC / ny, dz = H_LEN_FRAC / nz;  
+  real_t dx = H_LEN_FRAC[0] / nx, dy = H_LEN_FRAC[1] / ny, dz = H_LEN_FRAC[2] / nz;  
   switch (d) {
     case 1:
       return (
-          - 1.0/12.0*field[H_INDEX(i-2,j,k,nx,ny,nz)]
-          + 4.0/3.0*field[H_INDEX(i-1,j,k,nx,ny,nz)]
-          - 5.0/2.0*field[H_INDEX(i-0,j,k,nx,ny,nz)]
-          + 4.0/3.0*field[H_INDEX(i+1,j,k,nx,ny,nz)]
-          - 1.0/12.0*field[H_INDEX(i+2,j,k,nx,ny,nz)]
+          - 1.0/12.0*field[B_INDEX(i-2,j,k,nx,ny,nz)]
+          + 4.0/3.0*field[B_INDEX(i-1,j,k,nx,ny,nz)]
+          - 5.0/2.0*field[B_INDEX(i-0,j,k,nx,ny,nz)]
+          + 4.0/3.0*field[B_INDEX(i+1,j,k,nx,ny,nz)]
+          - 1.0/12.0*field[B_INDEX(i+2,j,k,nx,ny,nz)]
         )/dx/dx;
       break;
     case 2:
       return (
-          - 1.0/12.0*field[H_INDEX(i,j-2,k,nx,ny,nz)]
-          + 4.0/3.0*field[H_INDEX(i,j-1,k,nx,ny,nz)]
-          - 5.0/2.0*field[H_INDEX(i,j-0,k,nx,ny,nz)]
-          + 4.0/3.0*field[H_INDEX(i,j+1,k,nx,ny,nz)]
-          - 1.0/12.0*field[H_INDEX(i,j+2,k,nx,ny,nz)]
+          - 1.0/12.0*field[B_INDEX(i,j-2,k,nx,ny,nz)]
+          + 4.0/3.0*field[B_INDEX(i,j-1,k,nx,ny,nz)]
+          - 5.0/2.0*field[B_INDEX(i,j-0,k,nx,ny,nz)]
+          + 4.0/3.0*field[B_INDEX(i,j+1,k,nx,ny,nz)]
+          - 1.0/12.0*field[B_INDEX(i,j+2,k,nx,ny,nz)]
         )/dy/dy;
       break;
     case 3:
       return (
-          - 1.0/12.0*field[H_INDEX(i,j,k-2,nx,ny,nz)]
-          + 4.0/3.0*field[H_INDEX(i,j,k-1,nx,ny,nz)]
-          - 5.0/2.0*field[H_INDEX(i,j,k-0,nx,ny,nz)]
-          + 4.0/3.0*field[H_INDEX(i,j,k+1,nx,ny,nz)]
-          - 1.0/12.0*field[H_INDEX(i,j,k+2,nx,ny,nz)]
+          - 1.0/12.0*field[B_INDEX(i,j,k-2,nx,ny,nz)]
+          + 4.0/3.0*field[B_INDEX(i,j,k-1,nx,ny,nz)]
+          - 5.0/2.0*field[B_INDEX(i,j,k-0,nx,ny,nz)]
+          + 4.0/3.0*field[B_INDEX(i,j,k+1,nx,ny,nz)]
+          - 1.0/12.0*field[B_INDEX(i,j,k+2,nx,ny,nz)]
         )/dz/dz;
       break;
   }
@@ -119,30 +119,30 @@ real_t FASMultigrid::laplacian(
 real_t FASMultigrid::derivative(
   idx_t i, idx_t j, idx_t k, idx_t nx, idx_t ny, idx_t nz, int d, fas_grid_t & field)
 {
-  real_t dx = H_LEN_FRAC / nx, dy = H_LEN_FRAC / ny, dz = H_LEN_FRAC / nz;
+  real_t dx = H_LEN_FRAC[0] / nx, dy = H_LEN_FRAC[1] / ny, dz = H_LEN_FRAC[2] / nz;
   switch (d) {
     case 1:
       return (
-        + 1.0/12.0*field[H_INDEX(i-2,j,k,nx,ny,nz)]
-        - 2.0/3.0*field[H_INDEX(i-1,j,k,nx,ny,nz)]
-        + 2.0/3.0*field[H_INDEX(i+1,j,k,nx,ny,nz)]
-        - 1.0/12.0*field[H_INDEX(i+2,j,k,nx,ny,nz)]
+        + 1.0/12.0*field[B_INDEX(i-2,j,k,nx,ny,nz)]
+        - 2.0/3.0*field[B_INDEX(i-1,j,k,nx,ny,nz)]
+        + 2.0/3.0*field[B_INDEX(i+1,j,k,nx,ny,nz)]
+        - 1.0/12.0*field[B_INDEX(i+2,j,k,nx,ny,nz)]
       )/dx;
       break;
     case 2:
       return (
-        + 1.0/12.0*field[H_INDEX(i,j-2,k,nx,ny,nz)]
-        - 2.0/3.0*field[H_INDEX(i,j-1,k,nx,ny,nz)]
-        + 2.0/3.0*field[H_INDEX(i,j+1,k,nx,ny,nz)]
-        - 1.0/12.0*field[H_INDEX(i,j+2,k,nx,ny,nz)]
+        + 1.0/12.0*field[B_INDEX(i,j-2,k,nx,ny,nz)]
+        - 2.0/3.0*field[B_INDEX(i,j-1,k,nx,ny,nz)]
+        + 2.0/3.0*field[B_INDEX(i,j+1,k,nx,ny,nz)]
+        - 1.0/12.0*field[B_INDEX(i,j+2,k,nx,ny,nz)]
       )/dy;
       break;
     case 3:
       return (
-        + 1.0/12.0*field[H_INDEX(i,j,k-2,nx,ny,nz)]
-        - 2.0/3.0*field[H_INDEX(i,j,k-1,nx,ny,nz)]
-        + 2.0/3.0*field[H_INDEX(i,j,k+1,nx,ny,nz)]
-        - 1.0/12.0*field[H_INDEX(i,j,k+2,nx,ny,nz)]
+        + 1.0/12.0*field[B_INDEX(i,j,k-2,nx,ny,nz)]
+        - 2.0/3.0*field[B_INDEX(i,j,k-1,nx,ny,nz)]
+        + 2.0/3.0*field[B_INDEX(i,j,k+1,nx,ny,nz)]
+        - 1.0/12.0*field[B_INDEX(i,j,k+2,nx,ny,nz)]
       )/dz;
       break;
   }
@@ -151,7 +151,12 @@ real_t FASMultigrid::derivative(
   return 0;
 }
 
-  
+
+  // temporary solution
+void FASMultigrid::fillBoundary(fas_grid_t & data)
+{
+  bd_handler->fillBoundary(data._array, data.nx, data.ny, data.nz);
+}
 /**
  * @brief Method to initialize internal variables, allocate memory
  * @param[in]  input arrays, has its initial value at finest grid, so need no memory
@@ -161,11 +166,16 @@ real_t FASMultigrid::derivative(
  * @param[in]  set number of interations for each relaxation
  * @param[in]  set relaxation jump out precision
  */
-FASMultigrid::FASMultigrid(fas_heirarchy_t u_in, idx_t u_n_in, idx_t molecule_n_in [],
-                           idx_t max_depth_in, idx_t max_relax_iters_in,  real_t relaxation_tolerance_in,
-                           real_t H_LEN_FRAC_IN, idx_t NX, idx_t NY, idx_t NZ)
+FASMultigrid::FASMultigrid(
+  fas_heirarchy_t u_in, idx_t u_n_in, idx_t molecule_n_in [],
+  idx_t max_depth_in, idx_t max_relax_iters_in,  real_t relaxation_tolerance_in,
+  real_t H_LEN_FRAC_IN[], idx_t NX, idx_t NY, idx_t NZ, multigridBdHandler * bd_handler_in):
+  boundary_type("periodic"),
+  bd_handler(bd_handler_in)
 {
-  H_LEN_FRAC = H_LEN_FRAC_IN;
+  for(int i = 0 ; i < 3; i++)
+    H_LEN_FRAC[i] = H_LEN_FRAC_IN[i];
+  
   relax_scheme = relax_t::inexact_newton;
 
   max_relax_iters = max_relax_iters_in;
@@ -204,7 +214,8 @@ FASMultigrid::FASMultigrid(fas_heirarchy_t u_in, idx_t u_n_in, idx_t molecule_n_
     nz_h = new idx_t[total_depths];
 
     eqns[eqn_id] = new molecule[molecule_n[eqn_id]]; 
-    
+
+
     for(idx_t depth = max_depth; depth >= min_depth; --depth)
     {
       idx_t depth_idx = _dIdx(depth);
@@ -219,7 +230,10 @@ FASMultigrid::FASMultigrid(fas_heirarchy_t u_in, idx_t u_n_in, idx_t molecule_n_
         u_h[eqn_id][depth_idx].nx = nx_h[depth_idx];
         u_h[eqn_id][depth_idx].ny = ny_h[depth_idx];
         u_h[eqn_id][depth_idx].nz = nz_h[depth_idx];
-        u_h[eqn_id][depth_idx].pts = nx_h[depth_idx] * ny_h[depth_idx] * nz_h[depth_idx];
+        u_h[eqn_id][depth_idx].pts =
+          (nx_h[depth_idx] + 2 * STENCIL_ORDER)
+          * (ny_h[depth_idx] + 2 * STENCIL_ORDER)
+          * (nz_h[depth_idx] + 2 * STENCIL_ORDER);
       }
       else
       {
@@ -228,8 +242,13 @@ FASMultigrid::FASMultigrid(fas_heirarchy_t u_in, idx_t u_n_in, idx_t molecule_n_
         nz_h[depth_idx] = nz_h[depth_idx+1] / 2 + (nz_h[depth_idx+1] % 2);
 
         u_h[eqn_id][depth_idx].init(nx_h[depth_idx], ny_h[depth_idx], nz_h[depth_idx]);
+        if(nx_h[depth_idx] < STENCIL_ORDER ||
+           ny_h[depth_idx] < STENCIL_ORDER ||
+           nz_h[depth_idx] < STENCIL_ORDER)
+        {
+          TBOX_ERROR("Coarsest level too small!");
+        }
       }
-      
       coarse_src_h[eqn_id][depth_idx].init(nx_h[depth_idx], ny_h[depth_idx], nz_h[depth_idx]);
 
       damping_v_h[eqn_id][depth_idx].init(nx_h[depth_idx], ny_h[depth_idx], nz_h[depth_idx]);
@@ -274,6 +293,8 @@ FASMultigrid::FASMultigrid(fas_heirarchy_t u_in, idx_t u_n_in, idx_t molecule_n_
   double_der_coef[4] = 2.5;
   double_der_coef[6] = 49.0 / 18.0;
   double_der_coef[8] = 205.0 / 72.0;
+
+  
 }
 
 
@@ -299,7 +320,7 @@ real_t FASMultigrid::_evaluateEllipticEquationPt(idx_t eqn_id, idx_t depth_idx,
   {
     // value will end up being the value of a particular term in an equation
     real_t val = eqns[eqn_id][mol_id].const_coef;
-    real_t pos_idx = H_INDEX(i, j, k,
+    real_t pos_idx = B_INDEX(i, j, k,
        nx_h[depth_idx], ny_h[depth_idx], nz_h[depth_idx]);
 
     if(rho_h[eqn_id][mol_id][depth_idx].pts > 0) // constant
@@ -354,7 +375,10 @@ void FASMultigrid::_evaluateIterationForJacEquation(idx_t eqn_id,
   idx_t depth_idx, real_t &coef_a, real_t &coef_b,
   idx_t i, idx_t j, idx_t k, idx_t u_id)
 {
-  real_t dx = H_LEN_FRAC / (real_t)nx_h[depth_idx];
+  real_t dx[3];
+  dx[0] = H_LEN_FRAC[0] / (real_t)nx_h[depth_idx];
+  dx[1] = H_LEN_FRAC[1] / (real_t)nx_h[depth_idx];
+  dx[2] = H_LEN_FRAC[2] / (real_t)nx_h[depth_idx];
 
   // Currently can only deal with the case dx = dy = dz, needs to be generilized
   
@@ -362,7 +386,7 @@ void FASMultigrid::_evaluateIterationForJacEquation(idx_t eqn_id,
   {
     real_t mol_to_a = 0.0, mol_to_b = 0.0;
     real_t non_der_val = eqns[eqn_id][mol_id].const_coef;
-    real_t pos_idx = H_INDEX(i,j,k,nx_h[depth_idx],ny_h[depth_idx],nz_h[depth_idx]);
+    real_t pos_idx = B_INDEX(i,j,k,nx_h[depth_idx],ny_h[depth_idx],nz_h[depth_idx]);
 
     if(rho_h[eqn_id][mol_id][depth_idx].pts > 0) // constant
      non_der_val *= rho_h[eqn_id][mol_id][depth_idx][pos_idx];
@@ -416,9 +440,9 @@ void FASMultigrid::_evaluateIterationForJacEquation(idx_t eqn_id,
         {
           mol_to_a = mol_to_a * double_derivative(i, j, k, vd.nx, vd.ny, vd.nz, der_type[ad.type][0], der_type[ad.type][1], vd)
             + non_der_val * (double_derivative(i, j, k, jac_vd.nx, jac_vd.ny, jac_vd.nz, der_type[ad.type][0], der_type[ad.type][1], jac_vd) +
-                             (ad.type <= 7) * double_der_coef[STENCIL_ORDER] * jac_vd[pos_idx] / (dx*dx));
+                             (ad.type <= 7) * double_der_coef[STENCIL_ORDER] * jac_vd[pos_idx] / (dx[(ad.type<=7)?(ad.type-5):0]*dx[(ad.type<=7)?(ad.type-5):0]));
           mol_to_b = mol_to_b * double_derivative(i, j, k, vd.nx, vd.ny, vd.nz, der_type[ad.type][0], der_type[ad.type][1], vd)
-            - (ad.type <= 7) * non_der_val * double_der_coef[STENCIL_ORDER]/(dx * dx);
+            - (ad.type <= 7) * non_der_val * double_der_coef[STENCIL_ORDER]/(dx[(ad.type<=7)?(ad.type-5):0] * dx[(ad.type<=7)?(ad.type-5):0]);
           non_der_val = non_der_val * double_derivative(i, j, k, vd.nx, vd.ny, vd.nz, der_type[ad.type][0], der_type[ad.type][1], vd);
         }
         else
@@ -436,9 +460,13 @@ void FASMultigrid::_evaluateIterationForJacEquation(idx_t eqn_id,
         if(u_id == ad.u_id)
         {
           mol_to_a = mol_to_a * laplacian(i, j, k, jac_vd.nx, jac_vd.ny, jac_vd.nz, vd)
-            + non_der_val * (laplacian(i, j, k, jac_vd.nx, jac_vd.ny, jac_vd.nz, jac_vd) + 3.0 * double_der_coef[STENCIL_ORDER] * jac_vd[pos_idx] / (dx * dx));
+            + non_der_val * (laplacian(i, j, k, jac_vd.nx, jac_vd.ny, jac_vd.nz, jac_vd) + (double_der_coef[STENCIL_ORDER] * jac_vd[pos_idx] / (dx[0] * dx[0])
+                             + double_der_coef[STENCIL_ORDER] * jac_vd[pos_idx] / (dx[1] * dx[1])
+                             + double_der_coef[STENCIL_ORDER] * jac_vd[pos_idx] / (dx[2] * dx[2])) );
           mol_to_b = mol_to_b * laplacian(i, j, k, jac_vd.nx, jac_vd.ny, jac_vd.nz, vd)
-            - non_der_val * 3.0 * double_der_coef[STENCIL_ORDER] / (dx*dx);
+            - non_der_val * ( double_der_coef[STENCIL_ORDER] / (dx[0]*dx[0])
+            + double_der_coef[STENCIL_ORDER] / (dx[1]*dx[1])
+            + double_der_coef[STENCIL_ORDER] / (dx[2]*dx[2]));
           non_der_val = non_der_val * laplacian(i, j, k, jac_vd.nx, jac_vd.ny, jac_vd.nz, vd);
         }
         else
@@ -476,7 +504,7 @@ real_t FASMultigrid::_evaluateDerEllipticEquation(idx_t eqn_id, idx_t depth_idx,
     real_t non_der_val = eqns[eqn_id][mol_id].const_coef, der_val = 0.0;
     // pre_val to help keep track of the result of terms with only one derivative
 
-    real_t pos_idx = H_INDEX(i,j,k,nx_h[depth_idx],ny_h[depth_idx],nz_h[depth_idx]);
+    real_t pos_idx = B_INDEX(i,j,k,nx_h[depth_idx],ny_h[depth_idx],nz_h[depth_idx]);
 
     if(rho_h[eqn_id][mol_id][depth_idx].pts > 0) // constant
       non_der_val *= rho_h[eqn_id][mol_id][depth_idx][pos_idx];
@@ -602,13 +630,17 @@ void FASMultigrid::_restrictFine2coarse(fas_heirarchy_t grid_heirarchy, idx_t fi
   idx_t n_fine_x = grid_heirarchy[fine_idx].nx,
         n_fine_y = grid_heirarchy[fine_idx].ny,
         n_fine_z = grid_heirarchy[fine_idx].nz;
-  idx_t n_coarse_x = n_fine_x / 2, n_coarse_y = n_fine_y / 2, n_coarse_z = n_fine_z / 2 ;
+  idx_t n_coarse_x = grid_heirarchy[coarse_idx].nx,
+    n_coarse_y = grid_heirarchy[coarse_idx].ny,
+    n_coarse_z = grid_heirarchy[coarse_idx].nz;
 
   fas_grid_t & fine_grid = grid_heirarchy[fine_idx];
   fas_grid_t & coarse_grid = grid_heirarchy[coarse_idx];
   idx_t i, j, k; // coarse grid iterator
   idx_t fi, fj, fk; // fine grid indexes
 
+  _zeroGrid(coarse_grid);
+  
   #pragma omp parallel for default(shared) private(i,j,k)
   FAS_LOOP3_N(i, j, k, n_coarse_x, n_coarse_y, n_coarse_z)
   {
@@ -616,41 +648,23 @@ void FASMultigrid::_restrictFine2coarse(fas_heirarchy_t grid_heirarchy, idx_t fi
     fj = j*2;
     fk = k*2;
 
-    coarse_grid[H_INDEX(i,j,k,n_coarse_x, n_coarse_y, n_coarse_z)] =
-      0.125 * fine_grid[H_INDEX(fi,fj,fk,n_fine_x, n_fine_y, n_fine_z)]
-      + 0.0625 * (
-        fine_grid[H_INDEX(fi+1,fj,fk,n_fine_x, n_fine_y, n_fine_z)] +
-        fine_grid[H_INDEX(fi,fj+1,fk,n_fine_x, n_fine_y, n_fine_z)] +
-        fine_grid[H_INDEX(fi,fj,fk+1,n_fine_x, n_fine_y, n_fine_z)] +
-        fine_grid[H_INDEX(fi-1,fj,fk,n_fine_x, n_fine_y, n_fine_z)] +
-        fine_grid[H_INDEX(fi,fj-1,fk,n_fine_x, n_fine_y, n_fine_z)] +
-        fine_grid[H_INDEX(fi,fj,fk-1,n_fine_x, n_fine_y, n_fine_z)]
-      ) + 0.03125 * (
-        fine_grid[H_INDEX(fi+1,fj+1,fk,n_fine_x, n_fine_y, n_fine_z)] +
-        fine_grid[H_INDEX(fi+1,fj-1,fk,n_fine_x, n_fine_y, n_fine_z)] +
-        fine_grid[H_INDEX(fi-1,fj+1,fk,n_fine_x, n_fine_y, n_fine_z)] +
-        fine_grid[H_INDEX(fi-1,fj-1,fk,n_fine_x, n_fine_y, n_fine_z)] +
-        fine_grid[H_INDEX(fi+1,fj,fk+1,n_fine_x, n_fine_y, n_fine_z)] +
-        fine_grid[H_INDEX(fi+1,fj,fk-1,n_fine_x, n_fine_y, n_fine_z)] +
-        fine_grid[H_INDEX(fi-1,fj,fk+1,n_fine_x, n_fine_y, n_fine_z)] +
-        fine_grid[H_INDEX(fi-1,fj,fk-1,n_fine_x, n_fine_y, n_fine_z)] +
-        fine_grid[H_INDEX(fi,fj+1,fk+1,n_fine_x, n_fine_y, n_fine_z)] +
-        fine_grid[H_INDEX(fi,fj+1,fk-1,n_fine_x, n_fine_y, n_fine_z)] +
-        fine_grid[H_INDEX(fi,fj-1,fk+1,n_fine_x, n_fine_y, n_fine_z)] +
-        fine_grid[H_INDEX(fi,fj-1,fk-1,n_fine_x, n_fine_y, n_fine_z)]
-      ) + 0.015625 * (
-        fine_grid[H_INDEX(fi+1,fj+1,fk+1,n_fine_x, n_fine_y, n_fine_z)] +
-        fine_grid[H_INDEX(fi+1,fj+1,fk-1,n_fine_x, n_fine_y, n_fine_z)] +
-        fine_grid[H_INDEX(fi+1,fj-1,fk+1,n_fine_x, n_fine_y, n_fine_z)] +
-        fine_grid[H_INDEX(fi-1,fj+1,fk+1,n_fine_x, n_fine_y, n_fine_z)] +
-        fine_grid[H_INDEX(fi+1,fj-1,fk-1,n_fine_x, n_fine_y, n_fine_z)] +
-        fine_grid[H_INDEX(fi-1,fj+1,fk-1,n_fine_x, n_fine_y, n_fine_z)] +
-        fine_grid[H_INDEX(fi-1,fj-1,fk+1,n_fine_x, n_fine_y, n_fine_z)] +
-        fine_grid[H_INDEX(fi-1,fj-1,fk-1,n_fine_x, n_fine_y, n_fine_z)]
-      );
-
+    for(int sk = 0; sk <= 1; sk++)
+    {
+      double tempj = 0;
+      for(int sj = 0; sj <= 1; sj++)
+      {
+        double tempi = 0;
+        for(int si = 0; si <= 1; si++)
+        {
+          tempi += fine_grid[B_INDEX(fi+si, fj+sj,fk+sk,n_fine_x,n_fine_y,n_fine_z)] * 0.5;
+        }
+        tempj += tempi * 0.5;
+      }
+      coarse_grid[B_INDEX(i,j,k,n_coarse_x,n_coarse_y,n_coarse_z)] += tempj * 0.5;
+    }
   } // end loop
 
+  fillBoundary(coarse_grid);
 }
 
 /**
@@ -666,49 +680,42 @@ void FASMultigrid::_interpolateCoarse2fine(fas_heirarchy_t grid_heirarchy, idx_t
   idx_t n_coarse_x = nx_h[coarse_idx],
     n_coarse_y = ny_h[coarse_idx],
     n_coarse_z = nz_h[coarse_idx];
-  idx_t n_fine_x = n_coarse_x *2, n_fine_y = n_coarse_y * 2, n_fine_z = n_coarse_z *2;
+  idx_t n_fine_x = nx_h[fine_idx],
+    n_fine_y = ny_h[fine_idx],
+    n_fine_z = nz_h[fine_idx];
 
   fas_grid_t & coarse_grid = grid_heirarchy[coarse_idx];
   fas_grid_t & fine_grid = grid_heirarchy[fine_idx];
   idx_t i, j, k;
-  idx_t fi, fj, fk;
 
   _zeroGrid(fine_grid);
 
+  double coef[2][2] = {{0.25,0.75},{0.75,0.25}};
   
-  #pragma omp parallel for private(i, j, k, fi, fj, fk)
-  FAS_LOOP3_N(i, j, k, n_coarse_x, n_coarse_y, n_coarse_z)
+  #pragma omp parallel for private(i, j, k)
+  FAS_LOOP3_N(i, j, k, n_fine_x, n_fine_y, n_fine_z)
   {
-    fi = i*2;
-    fj = j*2;
-    fk = k*2;
-
-    real_t coarse_grid_val = coarse_grid[H_INDEX(i,j,k,n_coarse_x, n_coarse_y, n_coarse_z)];
-    // loop over adjacent cells.
-    for(idx_t  i_adj = -1; i_adj <= 1; ++i_adj )
-      for(idx_t  j_adj = -1; j_adj <= 1; ++j_adj )
-        for(idx_t  k_adj = -1; k_adj <= 1; ++k_adj )
+    int ci = (i%2)?(i/2):(i/2-1);
+    int cj = (j%2)?(j/2):(j/2-1);
+    int ck = (k%2)?(k/2):(k/2-1);
+    for(int sk = 0; sk <= 1; sk++)
+    {
+      double tempj = 0;
+      for(int sj = 0; sj <= 1; sj++)
+      {
+        double tempi = 0;
+        for(int si = 0; si <= 1; si++)
         {
-          idx_t fine_grid_loc = H_INDEX(fi + i_adj, fj + j_adj, fk + k_adj,
-            n_fine_x, n_fine_y, n_fine_z);
-          idx_t coarse_grid_loc = H_INDEX(fi + i_adj, fj + j_adj, fk + k_adj,
-            n_coarse_x*2, n_coarse_y*2, n_coarse_z*2);
-
-          if(i_adj == 0 && j_adj == 0 && k_adj == 0)
-          {            
-            #pragma omp atomic
-            fine_grid[fine_grid_loc] += coarse_grid_val;
-          }
-          else if(fine_grid_loc == coarse_grid_loc)
-          {
-            real_t divisor = std::pow( 2.0,
-              std::abs(i_adj) + std::abs(j_adj) + std::abs(k_adj) );
-            #pragma omp atomic
-            fine_grid[fine_grid_loc] += coarse_grid_val/divisor;
-          }
-        } // end for loop
+          tempi += coarse_grid[B_INDEX(ci+si, cj+sj,ck+sk,n_coarse_x,n_coarse_y,n_carse_z)] * coef[i%2][si];
+        }
+        tempj += tempi * coef[j%2][sj];
+      }
+      fine_grid[B_INDEX(i,j,k,n_fine_x,n_fine_y,n_fine_z)] += tempj * coef[k%2][sk];
+    }
   }
-
+  
+  fillBoundary(fine_grid);
+  
 }
 
 /**
@@ -729,9 +736,10 @@ void FASMultigrid::_evaluateEllipticEquation(fas_heirarchy_t result_h, idx_t eqn
   #pragma omp parallel for default(shared) private(i,j,k)
   FAS_LOOP3_N(i, j, k, nx, ny, nz)
   {
-    idx_t idx = H_INDEX(i, j, k, nx, ny, nz);
+    idx_t idx = B_INDEX(i, j, k, nx, ny, nz);
     result[idx] = _evaluateEllipticEquationPt(eqn_id, depth_idx, i, j, k); 
   }
+  fillBoundary(result);
 }
 
   
@@ -755,9 +763,10 @@ void FASMultigrid::_computeResidual(fas_heirarchy_t residual_h, idx_t eqn_id, id
   #pragma omp parallel for default(shared) private(i,j,k)
   FAS_LOOP3_N(i,j,k,nx,ny,nz)
   {
-    idx_t idx = H_INDEX(i, j, k, nx, ny, nz);
+    idx_t idx = B_INDEX(i, j, k, nx, ny, nz);
     residual[idx] = coarse_src[idx] - residual[idx];
   }
+  fillBoundary(residual);
 }
 
 /**
@@ -775,18 +784,15 @@ real_t FASMultigrid::_getMaxResidual(idx_t eqn_id, idx_t depth)
 
   real_t max_residual = 0.0;
 
-  #pragma omp parallel for default(shared) private(j,k)
+#pragma omp parallel for collapse(2) reduction(max : max_residual)
   FAS_LOOP3_N(i,j,k,nx,ny,nz)
   {
-    idx_t idx = H_INDEX(i, j, k, nx, ny, nz);
+    idx_t idx = B_INDEX(i, j, k, nx, ny, nz);
     real_t current_residual = std::fabs(coarse_src[idx]
           - _evaluateEllipticEquationPt(eqn_id, depth_idx, i, j, k));
       
-    #pragma omp critical
-    {
-      if(current_residual > max_residual)
-        max_residual = current_residual;
-    }
+    if(current_residual > max_residual)
+      max_residual = current_residual;
   }
 
   return max_residual;
@@ -837,9 +843,10 @@ void FASMultigrid::_computeCoarseRestrictions(idx_t eqn_id, idx_t fine_depth)
   #pragma omp parallel for default(shared) private(i,j,k)
   FAS_LOOP3_N(i,j,k,nx,ny,nz)
   {
-    idx_t idx = H_INDEX(i, j, k, nx, ny, nz);
+    idx_t idx = B_INDEX(i, j, k, nx, ny, nz);
     coarse_src[idx] += tmp[idx];
   }
+  fillBoundary(coarse_src);
 }
 
 /**
@@ -864,9 +871,10 @@ void FASMultigrid::_changeApproximateSolutionToError(fas_heirarchy_t  appx_to_er
   #pragma omp parallel for default(shared) private(i,j,k)
   FAS_LOOP3_N(i,j,k,nx,ny,nz)
   {
-    idx_t idx = H_INDEX(i, j, k, nx, ny, nz);
+    idx_t idx = B_INDEX(i, j, k, nx, ny, nz);
     appx_to_err[idx] = exact_soln[idx] - appx_to_err[idx];
   }
+  fillBoundary(appx_to_err);
 }
 
 /**
@@ -894,7 +902,7 @@ void FASMultigrid::_correctFineFromCoarseErr_Err2Appx(fas_heirarchy_t err2appx_h
   #pragma omp parallel for default(shared) private(i,j,k)
   FAS_LOOP3_N(i,j,k, n_fine_x, n_fine_y, n_fine_z)
   {
-    idx_t idx = H_INDEX(i, j, k, n_fine_x,n_fine_y,n_fine_z);
+    idx_t idx = B_INDEX(i, j, k, n_fine_x,n_fine_y,n_fine_z);
     // appx. solution in intermediate variable
     real_t appx_val = appx_soln[idx];
     // correct approximate solution with error
@@ -902,6 +910,8 @@ void FASMultigrid::_correctFineFromCoarseErr_Err2Appx(fas_heirarchy_t err2appx_h
     // store approximate solution in err2appx
     err2appx[idx] = appx_val;
   }
+  fillBoundary(appx_soln);
+  fillBoundary(err2appx);
 }
 
 /**
@@ -939,9 +949,10 @@ bool FASMultigrid::_getLambda( idx_t depth, real_t norm)
     fas_grid_t & damping_v = damping_v_h[eqn_id][depth_idx];
     FAS_LOOP3_N(i,j,k,nx,ny,nz)
     {
-      idx_t idx = H_INDEX(i, j, k, nx,ny,nz);
+      idx_t idx = B_INDEX(i, j, k, nx,ny,nz);
       u[idx] +=  1.0 * damping_v[idx] ;
     }
+    fillBoundary(u);
   }
   
   for( s = 0; s < 100; s++)
@@ -956,7 +967,7 @@ bool FASMultigrid::_getLambda( idx_t depth, real_t norm)
       #pragma omp parallel for default(shared) private(j,k) reduction(+:sum)
       FAS_LOOP3_N(i,j,k,nx,ny,nz)
       {
-        idx_t idx = H_INDEX(i, j, k, nx,ny,nz);
+        idx_t idx = B_INDEX(i, j, k, nx,ny,nz);
         real_t temp = _evaluateEllipticEquationPt(eqn_id, depth_idx, i, j, k) - coarse_src[idx];
         sum += temp * temp;
       }
@@ -964,7 +975,9 @@ bool FASMultigrid::_getLambda( idx_t depth, real_t norm)
     }
 
     if(sum <= norm)  // when | F(u + \lambda v) | < | F(u) | stop
+    {
       return 1;
+    }
 
     for(idx_t eqn_id = 0; eqn_id < u_n; eqn_id++)
     {
@@ -973,9 +986,10 @@ bool FASMultigrid::_getLambda( idx_t depth, real_t norm)
       FAS_LOOP3_N(i,j,k,nx,ny,nz)
       {
         fas_grid_t & damping_v = damping_v_h[eqn_id][depth_idx];
-        idx_t idx = H_INDEX(i, j, k, nx,ny,nz);
+        idx_t idx = B_INDEX(i, j, k, nx,ny,nz);
         u[idx] -= (0.01) * damping_v[idx];
       }
+      fillBoundary(u);
     }
   }
   
@@ -1000,44 +1014,47 @@ bool FASMultigrid::_jacobianRelax( idx_t depth, real_t norm, real_t C, idx_t p)
   real_t   norm_r = 1e100,    norm_pre;
 
   //initilizing value of damping_v
-  #pragma omp parallel for default(shared) private(j,k)
-  FAS_LOOP3_N(i, j, k, nx, ny, nz)
+  for(idx_t eqn_id =0; eqn_id < u_n; eqn_id++)
   {
-    for(idx_t eqn_id =0; eqn_id < u_n; eqn_id++)
-      damping_v_h[eqn_id][depth_idx][H_INDEX(i,j,k,nx, ny, nz)] = 0.0;
+    #pragma omp parallel for default(shared) private(j,k)
+    FAS_LOOP3_N(i, j, k, nx, ny, nz)
+    {
+      damping_v_h[eqn_id][depth_idx][B_INDEX(i,j,k,nx, ny, nz)] = 0.0;
+    }
+    fillBoundary(damping_v_h[eqn_id][depth_idx]);  
   }
-  
-  while( norm_r >= std::min(pow(norm, (real_t)(p+1)) * C, norm)) 
+
+  while(norm_r >= std::min(pow(norm, (real_t)(p+1)) * C, norm)) 
   {
     //relax until the convergent condition got satisfy 
     norm_r = 0.0;
     norm_pre = 0.0;
-
     // TODO: parallelize
     for(idx_t eqn_id = 0; eqn_id < u_n; eqn_id++)
     {
       fas_grid_t & damping_v = damping_v_h[eqn_id][depth_idx];
       fas_grid_t & jac_rhs = jac_rhs_h[eqn_id][depth_idx];
+      
       #pragma omp parallel for default(shared) private(j,k)
       FAS_LOOP3_N(i,j,k,nx,ny,nz)
       {
-        idx_t idx = H_INDEX(i,j,k,nx,ny,nz);
-        real_t coef_a =0, coef_b = 0, temp = 0;
+        idx_t idx = B_INDEX(i,j,k,nx,ny,nz);
+        real_t coef_a = 0, coef_b = 0, temp = 0;
         _evaluateIterationForJacEquation(eqn_id, depth_idx, coef_a, coef_b, i, j, k, eqn_id);
         for(idx_t u_id = 0; u_id < u_n; u_id++)
-        {
-          
+        {   
           if(u_id != eqn_id)
             temp += _evaluateDerEllipticEquation(eqn_id, depth_idx, i, j, k, u_id);
         }
         damping_v[idx] = (coef_a - jac_rhs[idx] + temp)/ (-coef_b);
-      }      
+      }
+      fillBoundary(damping_v);
     }
     
     #pragma omp parallel for default(shared) private(i,j,k) reduction(+:norm_r)
     FAS_LOOP3_N(i,j,k,nx,ny,nz)
     {
-      idx_t idx = H_INDEX(i, j, k, nx, ny, nz);
+      idx_t idx = B_INDEX(i, j, k, nx, ny, nz);
       for(idx_t eqn_id = 0; eqn_id < u_n; eqn_id++)
       {
         real_t temp = 0;
@@ -1045,13 +1062,12 @@ bool FASMultigrid::_jacobianRelax( idx_t depth, real_t norm, real_t C, idx_t p)
         for(idx_t u_id =0; u_id < u_n; u_id++)
           temp += _evaluateDerEllipticEquation(eqn_id, depth_idx, i, j, k, u_id);
         temp -= jac_rhs[idx];
-        norm_r += temp * temp;      
+        norm_r += temp * temp;
       }
     }
-          
     cnt++;
-
-    if(cnt > 500 && norm_r > norm_pre) 
+    //    std::cout<<"Norm "<<norm_r<<" "<<std::min(pow(norm, (real_t)(p+1)) * C, norm)<<"\n";
+    if(cnt > 5000 && norm_r > norm_pre) 
     {
       //cannot solve Jacobian equation to precision needed
       std::cout << "Unable to achieve a precise enough solution within "
@@ -1068,7 +1084,7 @@ bool FASMultigrid::_jacobianRelax( idx_t depth, real_t norm, real_t C, idx_t p)
  * @param depth
  * @param max interation number
  */
-void FASMultigrid::_relaxSolution_GaussSeidel( idx_t depth, idx_t max_iterations)
+bool FASMultigrid::_relaxSolution_GaussSeidel( idx_t depth, idx_t max_iterations)
 {
   idx_t i, j, k, s;
   idx_t depth_idx = _dIdx(depth);
@@ -1077,7 +1093,6 @@ void FASMultigrid::_relaxSolution_GaussSeidel( idx_t depth, idx_t max_iterations
 
   for(s=0; s<max_iterations; ++s)
   {
-    
     // move this precision condition to the beginning in case
     // perfect initial geuss causes infinite number of
     // iterations for function: _jacobianRelax()
@@ -1100,32 +1115,32 @@ void FASMultigrid::_relaxSolution_GaussSeidel( idx_t depth, idx_t max_iterations
         FAS_LOOP3_N(i,j,k,nx,ny,nz)
         {
       
-          idx_t idx = H_INDEX(i, j, k, nx, ny, nz);
+          idx_t idx = B_INDEX(i, j, k, nx, ny, nz);
 
           real_t temp = _evaluateEllipticEquationPt(eqn_id, depth_idx, i, j, k) - coarse_src[idx];
 
           norm += temp * temp;
 
-
           //evalue jac_source at right hand side of Jacobian linear equation
-          jac_rhs[idx] = -temp;  
+          jac_rhs[idx] = -temp;
         }
       }
       if( _jacobianRelax(depth, norm, 1, 0) == false)
       {
-        break;
+        return 0;
       }
-      
+
       // get damping parameter lambda
       if(_getLambda(depth, norm) == false)
       {
-        std::cout<<"Can't fine suitable damping factor!!!\n";
-        throw -1;
+        tbox::pout<<"Can't find suitable damping factor!!!\n";
+        return 0;
       }
     }
 
   } // end iterations loop
 
+  return 1;
 }
 
 
@@ -1136,7 +1151,7 @@ void FASMultigrid::_printStrip(fas_grid_t &out)
   std::cout << std::fixed << std::setprecision(15) << "Values: { ";
   for(i=0; i<nx; i++)
   {
-    idx_t idx = H_INDEX(i,nx/4,ny/4, nx, ny, nz);
+    idx_t idx = B_INDEX(i,nx/4,ny/4, nx, ny, nz);
     std::cout << out[idx];
     std::cout << ", ";
   }
@@ -1215,9 +1230,10 @@ void FASMultigrid::initializeRhoHeirarchy()
 }
 
   
-void FASMultigrid::VCycle()
+bool FASMultigrid::VCycle()
 {
-  _relaxSolution_GaussSeidel(max_depth, max_relax_iters);
+  if(!_relaxSolution_GaussSeidel(max_depth, max_relax_iters))
+    return 0;
 
    std::cout << "  Initial max. residual on fine grid is: "
       << _getMaxResidualAllEqs(max_depth) << ".\n" << std::flush;
@@ -1233,7 +1249,8 @@ void FASMultigrid::VCycle()
 
    for(coarse_depth = min_depth; coarse_depth < max_depth; coarse_depth++)
    {
-     _relaxSolution_GaussSeidel(coarse_depth, max_relax_iters);
+     if(!_relaxSolution_GaussSeidel(coarse_depth, max_relax_iters))
+       return 0;
     
     std::cout << "    Working on upward stroke at depth " << coarse_depth
               << "; residual after solving is: "
@@ -1251,27 +1268,34 @@ void FASMultigrid::VCycle()
     // phi_h now holds corrected solution on finer grid
    }
 
-    _relaxSolution_GaussSeidel(max_depth, max_relax_iters);
-    std::cout << "  Final max. residual on fine grid is: "
-              << _getMaxResidualAllEqs(max_depth) << ".\n" << std::flush;
+   if(!_relaxSolution_GaussSeidel(max_depth, max_relax_iters))
+     return 0;
+   std::cout << "  Final max. residual on fine grid is: "
+             << _getMaxResidualAllEqs(max_depth) << ".\n" << std::flush;
+   return 1;
 }
 
 void FASMultigrid::VCycles(idx_t num_cycles)
 {
-  for(idx_t cycle = 0; cycle < num_cycles; ++cycle)
+  int cycle = 0;
+  for(cycle = 0; cycle < num_cycles; ++cycle)
   {
-    VCycle();
+    if(!VCycle())
+    {
+      std::cout<< "Jumping out of the Vcycles!\n";
+      break;
+    }
   }
-  
-  _relaxSolution_GaussSeidel(max_depth, 10);
+
+  if(cycle == num_cycles)
+    _relaxSolution_GaussSeidel(max_depth, 10);
   std::cout << "  Final solution residual is: "
       << _getMaxResidualAllEqs(max_depth) << "\n" << std::flush;
   
   for(idx_t eqn_id = 0; eqn_id < u_n; eqn_id++)
   {
-    std::cout << " Solution for variable "<< eqn_id<<" has average / min / max value: "
+    std::cout << " Solution for variable "<< eqn_id<<" has average / min / max value: "<<std::setprecision(9)
               << u_h[eqn_id][max_depth_idx].avg() << " / " << u_h[eqn_id][max_depth_idx].min() << " / " << u_h[eqn_id][max_depth_idx].max() << ".\n" << std::flush;
-
   }
 }
 
@@ -1283,7 +1307,7 @@ void FASMultigrid::printSolutionStrip(idx_t depth)
 
 void FASMultigrid::setPolySrcAtPt(idx_t eqn_id, idx_t mol_id, idx_t i, idx_t j, idx_t k, real_t value)
 {
-  idx_t idx = H_INDEX(i, j, k,
+  idx_t idx = B_INDEX(i, j, k,
     nx_h[max_depth_idx], ny_h[max_depth_idx], nz_h[max_depth_idx]);
 
   if(rho_h[eqn_id][mol_id][max_depth_idx].pts == 0)
