@@ -402,7 +402,117 @@ bool scalar_ic_set_scalar_collapse_sommerfield(
 
 
 }
+
+bool scalar_ic_set_periodic_fast_collapse_test(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  idx_t ln, BSSN * bssn, Scalar * scalar,
+  boost::shared_ptr<tbox::Database> cosmo_scalar_db)
+{
+  const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
+
+  boost::shared_ptr<hier::PatchLevel> level(
+    hierarchy->getPatchLevel(ln));
+
+  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+      hierarchy->getGridGeometry()));
+  TBOX_ASSERT(grid_geometry_);
+  geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
+
+
+  const double * domain_lower = &grid_geometry.getXLower()[0];
+  const double * domain_upper = &grid_geometry.getXUpper()[0];
+
+  real_t L[3];
+  double dx[3];
   
+  for(int i = 0 ; i < DIM; i++)
+  {
+    L[i] = domain_upper[i] - domain_lower[i];
+    dx[i] = (grid_geometry.getDx()[i]) / (1<<ln);
+  }
+
+  std::string boundary_type = "periodic";
+  
+  idx_t NX = round(L[0] / dx[0]);
+  idx_t NY = round(L[1] / dx[1]); 
+  idx_t NZ = round(L[2] / dx[2]);
+
+  // phi is exponential \phi on Exp(\phi), which is conformal factor
+
+  real_t A = cosmo_scalar_db->getDoubleWithDefault("A",0.1);
+
+  real_t sigma = cosmo_scalar_db->getDoubleWithDefault("sigma", 0.01);
+
+  real_t K = cosmo_scalar_db->getDoubleWithDefault("K", -10);
+
+  for( hier::PatchLevel::iterator pit(level->begin());
+       pit != level->end(); ++pit)
+  {
+    const boost::shared_ptr<hier::Patch> & patch = *pit;
+
+    bssn->initPData(patch);
+    bssn->initMDA(patch);
+
+    scalar->initPData(patch);
+    scalar->initMDA(patch);
+    
+    arr_t & DIFFchi_a = bssn->DIFFchi_a;
+    arr_t & phi_a = scalar->phi_a; // field
+    arr_t & Pi_a = scalar->Pi_a; // time derivative of the field
+  
+    arr_t & K_a = bssn->DIFFK_a; // extrinsic curvature
+
+    arr_t & DIFFalpha_a = bssn->DIFFalpha_a;
+    arr_t & DIFFgamma11_a = bssn->DIFFgamma11_a;
+    arr_t & DIFFgamma22_a = bssn->DIFFgamma22_a;
+    arr_t & DIFFgamma33_a = bssn->DIFFgamma33_a;
+    arr_t & DIFFgamma12_a = bssn->DIFFgamma12_a;
+    arr_t & DIFFgamma13_a = bssn->DIFFgamma13_a;
+    arr_t & DIFFgamma23_a = bssn->DIFFgamma23_a;
+    
+    const hier::Box& box = bssn->DIFFchi_a_pdata->getGhostBox();
+    const hier::Box& inner_box = patch->getBox();
+
+    const int * lower = &box.lower()[0];
+    const int * upper = &box.upper()[0];
+
+    const int * inner_lower = &inner_box.lower()[0];
+    const int * inner_upper = &inner_box.upper()[0];
+
+    for(int k = lower[2]; k <= upper[2]; k++)
+    {
+      for(int j = lower[1]; j <= upper[1]; j++)
+      {
+        for(int i = lower[0]; i <= upper[0]; i++)
+        {
+          K_a(i, j, k ) = K;
+
+          double x = ((double)i + 0.5) * dx[0] - L[0] / 2.0;
+          double y = ((double)j + 0.5) * dx[1] - L[1] / 2.0;
+          double z = ((double)k + 0.5) * dx[2] - L[2] / 2.0;
+
+          double r = sqrt(x * x + y * y + z * z);
+
+          real_t Psi = exp(4.0 * A * exp(- pw2(r / sigma) )); 
+          
+          real_t rho = (pw2(K) - (24.0*A*exp((-4*A)*exp(-pw2(r)/pw2(sigma)))* 
+                                  (2*A*pw2(r) * exp(-(2*pw2(r))/pw2(sigma)) + exp(-pw2(r)/pw2(sigma))*
+                                       (2*pw2(r) - 3*pw2(sigma))))/pw2(pw2(sigma)))/(24.0*PI);
+          if(rho <= 0)
+            TBOX_ERROR("Energy gets negative at "<<x<<" "<<y<<" "<<z<<"\n");
+
+          Pi_a(i, j, k) = - sqrt(2.0 * rho);
+
+          DIFFchi_a(i, j, k) = exp(-2.0 * A * exp(- pw2(r / sigma) )) - 1.0; 
+          
+        }
+      }
+    }
+  }
+
+}
+
 bool scalar_ic_set_scalar_collapse(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln, BSSN * bssn, Scalar * scalar,
