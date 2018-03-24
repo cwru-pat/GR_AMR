@@ -10,7 +10,7 @@
 #include "SAMRAI/math/HierarchyCellDataOpsReal.h"
 #include "scalarPotentialHandler.h"
 #include "scalar_data.h"
-#include "../components/bssn/bssn.h"
+#include "../bssn/bssn.h"
 
 using namespace SAMRAI;
 

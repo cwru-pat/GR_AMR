@@ -7,7 +7,7 @@
 #include "SAMRAI/xfer/RefinePatchStrategy.h"
 #include "SAMRAI/math/HierarchyCellDataOpsReal.h"
 #include "horizon_data.h"
-#include "../components/bssn/bssn.h"
+#include "../bssn/bssn.h"
 #include "SAMRAI/hier/LocalId.h"
 #include "AHFD/AHFD.h"
 
