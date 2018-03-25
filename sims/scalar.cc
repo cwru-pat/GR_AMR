@@ -222,6 +222,13 @@ bool ScalarSim::initLevel(
     // which means not initial data file exist
     return scalar_ic_set_scalar_collapse_sommerfield(hierarchy, ln, bssnSim, scalarSim, input_db->getDatabase("Scalar"));
   }
+  else if(ic_type == "scalar_periodic_fast_collapse_test")
+  {
+    //if(ln > 0) return false;
+    // which means not initial data file exist
+    return scalar_ic_set_periodic_fast_collapse_test(hierarchy, ln, bssnSim, scalarSim, input_db->getDatabase("Scalar"));
+  }
+
   else
     TBOX_ERROR("Undefined IC type!\n");
 
