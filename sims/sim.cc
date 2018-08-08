@@ -66,7 +66,8 @@ CosmoSim::CosmoSim(
   gradient_indicator(cosmo_sim_db->getStringWithDefault("gradient_indicator", "DIFFchi")),
   regridding_step_lower_bound(cosmo_sim_db->getIntegerWithDefault("regridding_step_lower_bound", 0)),
   regridding_step_upper_bound(cosmo_sim_db->getIntegerWithDefault("regridding_step_upper_bound", 100000000)),
-  stop_after_found_horizon(cosmo_sim_db->getBoolWithDefault("stop_after_found_horizon",false))
+  stop_after_found_horizon(cosmo_sim_db->getBoolWithDefault("stop_after_found_horizon",false)),
+  stop_regridding_after_found_horizon(cosmo_sim_db->getBoolWithDefault("stop_regridding_after_found_horizon",false))
 {
   t_loop = tbox::TimerManager::getManager()->
     getTimer("loop");
@@ -85,6 +86,7 @@ CosmoSim::CosmoSim(
   //initializing statistic object
   cosmo_statistic = new CosmoStatistic(dim, input_db->getDatabase("CosmoStatistic"), lstream);
   
+
   hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
 
   // get context ACTIVE to initilize these two extra fields 
@@ -111,6 +113,8 @@ CosmoSim::CosmoSim(
       hier::IntVector(dim, STENCIL_ORDER));
 
   AHFinder_interval = cosmo_sim_db->getIntegerWithDefault("AHFinder_interval" , 0);
+
+  has_found_horizon = false;
 
   if(cosmo_sim_db->keyExists("save_steps"))
     save_steps = cosmo_sim_db->getIntegerVector("save_steps");
@@ -183,39 +187,12 @@ void CosmoSim::run(
 /**
  * @brief regrid when necessary and detect NaNs.
  */
-bool CosmoSim::runCommonStepTasks(
+void CosmoSim::runCommonStepTasks(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   // detecting NaNs
   isValid(hierarchy);
 
-  // saving checkpoint
-  if(step > starting_step &&
-    ((step %save_interval == 0) ||
-      (std::find(save_steps.begin(), save_steps.end(), step) != save_steps.end()) ))
-  {
-    std::string restart_file_name = simulation_type + comments +".restart";
-    tbox::RestartManager::getManager()->writeRestartFile(restart_file_name, step);
-  }
-
-  // since all neccecery levels were built when setting IC
-  // no need to regrid again at zero step
-  if(step > starting_step && step >= regridding_step_lower_bound
-     && step <= regridding_step_upper_bound
-     && (step % regridding_interval == 0))
-  {
-    std::vector<int> tag_buffer(hierarchy->getMaxNumberOfLevels());
-    for (idx_t ln = 0; ln < static_cast<int>(tag_buffer.size()); ++ln) {
-      tag_buffer[ln] = 1;
-    }
-    gridding_algorithm->regridAllFinerLevels(
-      0,
-      tag_buffer,
-      step,
-      cur_t);
-    tbox::plog << "Newly adapted hierarchy\n";
-    hierarchy->recursivePrint(tbox::plog, "    ", 1);
-  }
 
   bool found_horizon = false;
   
@@ -241,7 +218,39 @@ bool CosmoSim::runCommonStepTasks(
     }
     
   }
-  return found_horizon;
+
+  if(found_horizon)
+    has_found_horizon = true;
+
+  // saving checkpoint
+  if(step > starting_step &&
+    ((step %save_interval == 0) ||
+      (std::find(save_steps.begin(), save_steps.end(), step) != save_steps.end()) ))
+  {
+    std::string restart_file_name = simulation_type + comments +".restart";
+    tbox::RestartManager::getManager()->writeRestartFile(restart_file_name, step);
+  }
+
+  // since all neccecery levels were built when setting IC
+  // no need to regrid again at zero step
+  if(step > starting_step && step >= regridding_step_lower_bound
+     && step <= regridding_step_upper_bound
+     && (step % regridding_interval == 0)
+     && (!has_found_horizon || !stop_regridding_after_found_horizon))
+  {
+    std::vector<int> tag_buffer(hierarchy->getMaxNumberOfLevels());
+    for (idx_t ln = 0; ln < static_cast<int>(tag_buffer.size()); ++ln) {
+      tag_buffer[ln] = 1;
+    }
+    gridding_algorithm->regridAllFinerLevels(
+      0,
+      tag_buffer,
+      step,
+      cur_t);
+    tbox::plog << "Newly adapted hierarchy\n";
+    hierarchy->recursivePrint(tbox::plog, "    ", 1);
+  }
+
 }
 
 

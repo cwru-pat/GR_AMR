@@ -32,6 +32,10 @@ ScalarSim::ScalarSim(
   stop_after_setting_init =
     cosmo_scalar_db->getBoolWithDefault("stop_after_setting_init", false);
 
+  approaching_horizon_emerge_step =
+    cosmo_scalar_db->getBoolWithDefault("approaching_horizon_emerge_step", false);
+
+  
   t_init->start();
 
   hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
@@ -161,6 +165,7 @@ void ScalarSim::initScalarStep(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   bssnSim->stepInit(hierarchy);
+  scalarSim->stepInit(hierarchy);
   bssnSim->clearSrc(hierarchy);
   scalarSim->addBSSNSrc(bssnSim, hierarchy);
 
@@ -226,7 +231,7 @@ bool ScalarSim::initLevel(
   {
     //if(ln > 0) return false;
     // which means not initial data file exist
-    return scalar_ic_set_periodic_fast_collapse_test(hierarchy, ln, bssnSim, scalarSim, input_db->getDatabase("Scalar"));
+    // return scalar_ic_set_periodic_fast_collapse_test(hierarchy, ln, bssnSim, scalarSim, input_db->getDatabase("Scalar"));
   }
 
   else
@@ -656,16 +661,84 @@ double ScalarSim::getDt(
 void ScalarSim::runStep(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
-  bool found_horizon = runCommonStepTasks(hierarchy);
+  runCommonStepTasks(hierarchy);
   double dt = getDt(hierarchy);
+
+  if(has_found_horizon && stop_after_found_horizon)
+  {
+    tbox::pout<<"Starting horizon approaching process!\n";
+    // try to find minimum next dt that gives horizon
+    // default is 0
+    if(approaching_horizon_emerge_step)
+    {
+      // get maximum difference 
+#if USE_BACKUP_FIELDS
+      double r_min = 1e100, r_max = 0, r_diff = -1;
+      for(int i = 1; i <= horizon->N_horizons; i++)
+      {
+        if(horizon->AHFinderDirect_horizon_was_found(i))
+        {
+          r_min = std::min(r_min,
+                           horizon->state.AH_data_array[i]->BH_diagnostics.mean_radius);
+
+          r_max = std::max(r_max,
+                           horizon->state.AH_data_array[i]->BH_diagnostics.mean_radius);
+        }
+      }
+      if(r_min < 1e99 && r_max > 0)
+        r_diff = r_max - r_min;
+
+      tbox::pout<<"r_diff is "<<r_diff<<" "
+		<<"with dt "<<dt<<"\n";
+
+      // difference between 2 horizons is too big
+      if(r_diff > 1e-6 || (r_diff < 5e-10 && r_diff > -1e-10))
+      {
+        // roll back data
+        cur_t -= dt;
+	dt /= 2;
+        for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln++)
+        {
+          math::HierarchyCellDataOpsReal<real_t> hcellmath(hierarchy,ln,ln);
+          bssnSim->copyBToP(hcellmath);
+	  scalarSim->copyBToP(hcellmath);
+	  bssnSim->copyBToA(hcellmath);
+	  scalarSim->copyBToA(hcellmath);
+        }
+
+      }
+      else if(r_diff < 0) //do not have horizon or have only 1 horizon
+      {
+        // do nothing here
+      }
+      else // difference is small enough
+      {
+        TBOX_ERROR("Horizon founded, with small enough difference, stop the code as demanded!\n");
+      }
+      
+      dt_frac /= 2.0;
+
+      if(dt_frac <= 0.000001) // takes too many steps
+      {
+        TBOX_ERROR("Horizon founded, but cannot identify 2 horizons close enough!\n");
+      }
+#endif
+    }
+    else
+      TBOX_ERROR("Horizon founded, stop the code as demanded!\n");
+  }
+
+
   initScalarStep(hierarchy);
   
   outputScalarStep(hierarchy);
 
-  if(found_horizon && stop_after_found_horizon)
-    TBOX_ERROR("Horizon founded, stop the code as demanded!\n");
   runScalarStep(hierarchy, cur_t, cur_t + dt);
+
   cur_t += dt;
+
+  
+
 }
 
 
@@ -1060,7 +1133,7 @@ void ScalarSim::RKEvolveLevel(
 #if BH_FORMATION_CRITIERIA
     bssnSim->K4FinalizePatch(patch, ln, max_ln);
 #else
-    bssnSim->K4FinalizePatch(patch);
+        bssnSim->K4FinalizePatch(patch);
 #endif
     
     scalarSim->K4FinalizePatch(patch);
@@ -1196,6 +1269,7 @@ void ScalarSim::putToRestart(
   restart_db->putDouble("cur_t", cur_t);
   restart_db->putInteger("step", step);
   restart_db->putDouble("BSSNK0", step);
+  restart_db->putBool("has_found_horizon", step);
   return;
 }
 
@@ -1221,6 +1295,7 @@ void ScalarSim::getFromRestart()
   
   starting_step = step;
 
+  has_found_horizon = db->getBool("has_found_horizon");
 }
 
 

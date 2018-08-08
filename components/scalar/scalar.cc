@@ -38,7 +38,12 @@ Scalar::Scalar(
     variable_db->getContext("RK_K3"));
   boost::shared_ptr<hier::VariableContext> context_k4(
     variable_db->getContext("RK_K4"));
+#if USE_BACKUP_FIELDS
+  boost::shared_ptr<hier::VariableContext> context_b(
+    variable_db->getContext("BACKUP"));
+#endif
 
+  
   SCALAR_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_scratch, s, STENCIL_ORDER);
   SCALAR_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_previous, p, STENCIL_ORDER);
   SCALAR_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_active, a, STENCIL_ORDER);
@@ -46,6 +51,9 @@ Scalar::Scalar(
   SCALAR_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_k2, k2, STENCIL_ORDER);
   SCALAR_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_k3, k3, STENCIL_ORDER);
   SCALAR_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_k4, k4, STENCIL_ORDER);
+#if USE_BACKUP_FIELDS
+  SCALAR_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_b, b, STENCIL_ORDER);
+#endif
     
 }
 
@@ -89,7 +97,14 @@ void Scalar::addFieldsToList(std::vector<idx_t> &list)
 void Scalar::stepInit(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
-  
+#if USE_BACKUP_FIELDS
+  for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln++)
+  {
+    math::HierarchyCellDataOpsReal<real_t> hcellmath(hierarchy,ln,ln);
+    copyPToB(hcellmath);
+  }
+#endif
+
 }
 
 
@@ -428,6 +443,30 @@ void Scalar::copyAToP(
 {
   SCALAR_APPLY_TO_FIELDS(COPY_A_TO_P);
 }
+
+#if USE_BACKUP_FIELDS
+
+void Scalar::copyPToB(
+  math::HierarchyCellDataOpsReal<real_t> & hcellmath)
+{
+  SCALAR_APPLY_TO_FIELDS(COPY_P_TO_B);
+}
+
+void Scalar::copyBToP(
+  math::HierarchyCellDataOpsReal<real_t> & hcellmath)
+{
+  SCALAR_APPLY_TO_FIELDS(COPY_B_TO_P);
+}
+
+void Scalar::copyBToA(
+  math::HierarchyCellDataOpsReal<real_t> & hcellmath)
+{
+  SCALAR_APPLY_TO_FIELDS(COPY_B_TO_A);
+}
+
+
+#endif
+
 
 
 

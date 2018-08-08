@@ -10,7 +10,7 @@
 #include "SAMRAI/math/HierarchyCellDataOpsReal.h"
 #include "scalarPotentialHandler.h"
 #include "scalar_data.h"
-#include "../components/bssn/bssn.h"
+#include "../../components/bssn/bssn.h"
 
 using namespace SAMRAI;
 
@@ -67,6 +67,14 @@ public:
     boost::shared_ptr<hier::RefineOperator> &space_refine_op);
   void copyAToP(
     math::HierarchyCellDataOpsReal<real_t> & hcellmath);
+#if USE_BACKUP_FIELDS
+  void copyBToP(
+    math::HierarchyCellDataOpsReal<real_t> & hcellmath);
+  void copyPToB(
+    math::HierarchyCellDataOpsReal<real_t> & hcellmath);
+  void copyBToA(
+    math::HierarchyCellDataOpsReal<real_t> & hcellmath);
+#endif
   void initPData(
     const boost::shared_ptr<hier::Patch> & patch);
   void initMDA(

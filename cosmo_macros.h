@@ -50,6 +50,12 @@
   #define USE_GAMMA_DRIVER true
 #endif
 
+// creat backup fields from _f fiels
+// at certain step, might need it under
+// certain circumstaince
+#ifndef USE_BACKUP_FIELDS
+  #define USE_BACKUP_FIELDS false
+#endif
 
 
 // Optionally exclude some second-order terms
@@ -122,6 +128,17 @@
 #define RK4_MDA_ACCESS_CREATE(field,type)       \
   arr_t field##_##type
 
+#if USE_BACKUP_FIELDS
+#define RK4_PDATA_ALL_CREATE(field)                             \
+  boost::shared_ptr<pdat::CellData<real_t>> field##_a_pdata;    \
+  boost::shared_ptr<pdat::CellData<real_t>> field##_s_pdata;    \
+  boost::shared_ptr<pdat::CellData<real_t>> field##_p_pdata;    \
+  boost::shared_ptr<pdat::CellData<real_t>> field##_k1_pdata;   \
+  boost::shared_ptr<pdat::CellData<real_t>> field##_k2_pdata;   \
+  boost::shared_ptr<pdat::CellData<real_t>> field##_k3_pdata;   \
+  boost::shared_ptr<pdat::CellData<real_t>> field##_k4_pdata;   \
+  boost::shared_ptr<pdat::CellData<real_t>> field##_b_pdata
+#else
 #define RK4_PDATA_ALL_CREATE(field)                             \
   boost::shared_ptr<pdat::CellData<real_t>> field##_a_pdata;    \
   boost::shared_ptr<pdat::CellData<real_t>> field##_s_pdata;    \
@@ -130,7 +147,19 @@
   boost::shared_ptr<pdat::CellData<real_t>> field##_k2_pdata;   \
   boost::shared_ptr<pdat::CellData<real_t>> field##_k3_pdata;   \
   boost::shared_ptr<pdat::CellData<real_t>> field##_k4_pdata
+#endif
 
+#if USE_BACKUP_FIELDS
+#define RK4_MDA_ACCESS_ALL_CREATE(field)        \
+  arr_t field##_a;                              \
+  arr_t field##_s;                              \
+  arr_t field##_p;                              \
+  arr_t field##_k1;                             \
+  arr_t field##_k2;                             \
+  arr_t field##_k3;                             \
+  arr_t field##_k4;                             \
+  arr_t field##_b
+#else
 #define RK4_MDA_ACCESS_ALL_CREATE(field)        \
   arr_t field##_a;                              \
   arr_t field##_s;                              \
@@ -139,16 +168,21 @@
   arr_t field##_k2;                             \
   arr_t field##_k3;                             \
   arr_t field##_k4
-
+#endif
 // RK4 method, using 4 "registers" plus _p represents "previous,
 // _a represents "active", _s represents "scratch".
 // for the data being "_a"ctively used for calculation
 // "_p" stores results on previous step 
 // "_s" is used when you need a temperary register to store somthing
+#if USE_BACKUP_FIELDS
+#define RK4_IDX_ALL_CREATE(name)                                        \
+  idx_t name##_a_idx, name##_s_idx, name##_p_idx, name##_k1_idx,        \
+    name##_k2_idx, name##_k3_idx, name##_k4_idx, name##_b_idx
+#else
 #define RK4_IDX_ALL_CREATE(name)                                        \
   idx_t name##_a_idx, name##_s_idx, name##_p_idx, name##_k1_idx,        \
     name##_k2_idx, name##_k3_idx, name##_k4_idx
-
+#endif
 #define RK4_IDX_CREATE(name, type)              \
   idx_t name##_##type##_idx
 
@@ -160,7 +194,17 @@
       hier::IntVector(dim, width))
 
 
-
+#if USE_BACKUP_FIELDS
+#define RK4_ARRAY_ZERO(field, hcellmath)                \
+  hcellmath.setToScalar(field##_a_idx, 0, 0);  \
+  hcellmath.setToScalar(field##_s_idx, 0, 0);  \
+  hcellmath.setToScalar(field##_p_idx, 0, 0);  \
+  hcellmath.setToScalar(field##_k1_idx, 0, 0); \
+  hcellmath.setToScalar(field##_k2_idx, 0, 0); \
+  hcellmath.setToScalar(field##_k3_idx, 0, 0); \
+  hcellmath.setToScalar(field##_k4_idx, 0, 0); \
+  hcellmath.setToScalar(field##_b_idx, 0, 0)
+#else
 #define RK4_ARRAY_ZERO(field, hcellmath)                \
   hcellmath.setToScalar(field##_a_idx, 0, 0);  \
   hcellmath.setToScalar(field##_s_idx, 0, 0);  \
@@ -169,7 +213,19 @@
   hcellmath.setToScalar(field##_k2_idx, 0, 0); \
   hcellmath.setToScalar(field##_k3_idx, 0, 0); \
   hcellmath.setToScalar(field##_k4_idx, 0, 0)
+#endif
 
+#if USE_BACKUP_FIELDS
+#define RK4_ARRAY_ALLOC(field)                 \
+  level->allocatePatchData(field##_a_idx);     \
+  level->allocatePatchData(field##_s_idx);     \
+  level->allocatePatchData(field##_p_idx);     \
+  level->allocatePatchData(field##_k1_idx);    \
+  level->allocatePatchData(field##_k2_idx);    \
+  level->allocatePatchData(field##_k3_idx);    \
+  level->allocatePatchData(field##_k4_idx);    \
+  level->allocatePatchData(field##_b_idx)
+#else
 #define RK4_ARRAY_ALLOC(field)                 \
   level->allocatePatchData(field##_a_idx);     \
   level->allocatePatchData(field##_s_idx);     \
@@ -178,6 +234,8 @@
   level->allocatePatchData(field##_k2_idx);    \
   level->allocatePatchData(field##_k3_idx);    \
   level->allocatePatchData(field##_k4_idx)
+#endif
+
 
 #define EXTRA_ARRAY_ZERO(field, hcellmath)                \
   hcellmath.setToScalar(field##_a_idx, 0, 0);  
@@ -285,6 +343,15 @@
 #define COPY_A_TO_P(field)  \
   hcellmath.copyData(field##_p_idx, field##_a_idx, 0)
 
+#if USE_BACKUP_FIELDS
+#define COPY_P_TO_B(field)  \
+  hcellmath.copyData(field##_b_idx, field##_p_idx, 0)
+#define COPY_B_TO_P(field)  \
+  hcellmath.copyData(field##_p_idx, field##_b_idx, 0)
+#define COPY_B_TO_A(field)  \
+  hcellmath.copyData(field##_a_idx, field##_b_idx, 0)
+#endif
+
 #define PDATA_INIT(field, type)   \
   field##_##type##_pdata =  \
     BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
@@ -295,6 +362,7 @@
     field##_##type##_pdata->getArrayData())
 
 
+#if USE_BACKUP_FIELDS
 #define PDATA_ALL_INIT(field)  \
   field##_p_pdata =  \
     BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
@@ -316,11 +384,37 @@
       patch->getPatchData(field##_k3##_idx));             \
   field##_k4_pdata =  \
     BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+      patch->getPatchData(field##_k4##_idx));             \
+  field##_b_pdata =                                       \
+    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+      patch->getPatchData(field##_b##_idx))
+#else
+#define PDATA_ALL_INIT(field)                             \
+   field##_p_pdata =                                      \
+    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+      patch->getPatchData(field##_p##_idx));  \
+  field##_s_pdata =  \
+    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+      patch->getPatchData(field##_s##_idx));  \
+  field##_a_pdata =  \
+    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+      patch->getPatchData(field##_a##_idx));  \
+  field##_k1_pdata =  \
+    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+      patch->getPatchData(field##_k1##_idx));             \
+  field##_k2_pdata =                                      \
+    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(    \
+      patch->getPatchData(field##_k2##_idx));               \
+  field##_k3_pdata =  \
+    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+      patch->getPatchData(field##_k3##_idx));             \
+  field##_k4_pdata =  \
+    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
       patch->getPatchData(field##_k4##_idx))
+#endif
 
 
-
-
+#if USE_BACKUP_FIELDS
 #define MDA_ACCESS_ALL_INIT(field)  \
   field##_p = pdat::ArrayDataAccess::access<DIM, double>(  \
     field##_p_pdata->getArrayData());                    \
@@ -335,7 +429,27 @@
   field##_k3 = pdat::ArrayDataAccess::access<DIM, double>(  \
     field##_k3_pdata->getArrayData());                    \
   field##_k4 = pdat::ArrayDataAccess::access<DIM, double>(  \
-    field##_k4_pdata->getArrayData())                  
+    field##_k4_pdata->getArrayData());                      \
+  field##_b = pdat::ArrayDataAccess::access<DIM, double>( \
+    field##_b_pdata->getArrayData())
+#else
+#define MDA_ACCESS_ALL_INIT(field)                         \
+  field##_p = pdat::ArrayDataAccess::access<DIM, double>(  \
+    field##_p_pdata->getArrayData());                    \
+  field##_a = pdat::ArrayDataAccess::access<DIM, double>(  \
+    field##_a_pdata->getArrayData());                    \
+  field##_s = pdat::ArrayDataAccess::access<DIM, double>(  \
+    field##_s_pdata->getArrayData());                    \
+  field##_k1 = pdat::ArrayDataAccess::access<DIM, double>(  \
+    field##_k1_pdata->getArrayData());                    \
+  field##_k2 = pdat::ArrayDataAccess::access<DIM, double>(  \
+    field##_k2_pdata->getArrayData());                    \
+  field##_k3 = pdat::ArrayDataAccess::access<DIM, double>(  \
+    field##_k3_pdata->getArrayData());                    \
+  field##_k4 = pdat::ArrayDataAccess::access<DIM, double>(  \
+    field##_k4_pdata->getArrayData())
+#endif
+
 
 #define SET_PATCH_TIME(field, from_t, to_t)        \
   patch->getPatchData(field##_a_idx)->setTime(to_t); \

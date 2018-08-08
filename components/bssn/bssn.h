@@ -118,6 +118,14 @@ public:
     boost::shared_ptr<hier::CoarsenOperator>& coarsen_op);
   void copyAToP(
     math::HierarchyCellDataOpsReal<real_t> & hcellmath);
+#if USE_BACKUP_FIELDS
+  void copyBToP(
+    math::HierarchyCellDataOpsReal<real_t> & hcellmath);
+  void copyPToB(
+    math::HierarchyCellDataOpsReal<real_t> & hcellmath);
+  void copyBToA(
+    math::HierarchyCellDataOpsReal<real_t> & hcellmath);
+#endif
   void initPData(
     const boost::shared_ptr<hier::Patch> & patch);
   void initMDA(

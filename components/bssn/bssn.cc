@@ -56,7 +56,10 @@ BSSN::BSSN(
     variable_db->getContext("RK_K3"));
   boost::shared_ptr<hier::VariableContext> context_k4(
     variable_db->getContext("RK_K4"));
-
+#if USE_BACKUP_FIELDS
+  boost::shared_ptr<hier::VariableContext> context_b(
+    variable_db->getContext("BACKUP"));
+#endif
 
   // creating BSSN fields with contexts 
   BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_scratch, s, STENCIL_ORDER);
@@ -66,6 +69,9 @@ BSSN::BSSN(
   BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_k2, k2, STENCIL_ORDER);
   BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_k3, k3, STENCIL_ORDER);
   BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_k4, k4, STENCIL_ORDER);
+#if USE_BACKUP_FIELDS
+  BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_b, b, STENCIL_ORDER);
+#endif
 
   // creating source fields only with ACTIVE context
   BSSN_APPLY_TO_SOURCES_ARGS(REG_TO_CONTEXT, context_active, a, STENCIL_ORDER);
@@ -298,7 +304,14 @@ void BSSN::addFieldsToList(std::vector<idx_t> &list)
 void BSSN::stepInit(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
-  
+  // if enabling backup fields _b, copy _p data to _b data as backup
+#if USE_BACKUP_FIELDS
+  for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln++)
+  {
+    math::HierarchyCellDataOpsReal<real_t> hcellmath(hierarchy,ln,ln);
+    copyPToB(hcellmath);
+  }
+#endif
 }
 
 /**
@@ -903,6 +916,28 @@ void BSSN::copyAToP(
   BSSN_APPLY_TO_FIELDS(COPY_A_TO_P);
 }
 
+#if USE_BACKUP_FIELDS
+
+void BSSN::copyPToB(
+  math::HierarchyCellDataOpsReal<real_t> & hcellmath)
+{
+  BSSN_APPLY_TO_FIELDS(COPY_P_TO_B);
+}
+
+void BSSN::copyBToP(
+  math::HierarchyCellDataOpsReal<real_t> & hcellmath)
+{
+  BSSN_APPLY_TO_FIELDS(COPY_B_TO_P);
+}
+
+void BSSN::copyBToA(
+  math::HierarchyCellDataOpsReal<real_t> & hcellmath)
+{
+  BSSN_APPLY_TO_FIELDS(COPY_B_TO_A);
+}
+
+
+#endif
 
 
 /**
