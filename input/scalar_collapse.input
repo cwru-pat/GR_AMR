@@ -141,6 +141,10 @@ IO{
   
 }
 
+CosmoStatistic{
+
+}
+
 Scalar{
   potential_type = "Quadratic"
   q_coef = 1
