@@ -65,6 +65,11 @@ real_t BSSNGaugeHandler::RelativeOnePlusLogLapse(BSSNData *bd)
   return -2.0*bd->alpha*( bd->K - bd->K0  )*gd_c;
 }
 
+real_t BSSNGaugeHandler::RelativeAverageOnePlusLogLapse(BSSNData *bd)
+{
+  return -2.0*bd->alpha*( bd->K - bd->K_avg  )*gd_c;
+}
+
 
 /**
  * @brief Untested/experimental gauge choice; conformal synchronous gauge

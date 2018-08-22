@@ -283,6 +283,7 @@ public:
   real_t momentumConstraintCalc(BSSNData *bd, const real_t dx[]);
   real_t momentumConstraintScale(BSSNData *bd, const real_t dx[]);
 
+  void setExtraFieldData();
   
   // Domain size
   real_t L[DIM];
@@ -302,6 +303,7 @@ public:
   void deBug(  const boost::shared_ptr<hier::Patch> & patch);
 
   double K0;
+  double K_avg;
 };
 
 }

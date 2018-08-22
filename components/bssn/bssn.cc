@@ -297,6 +297,12 @@ void BSSN::addFieldsToList(std::vector<idx_t> &list)
 {
   BSSN_APPLY_TO_FIELDS_ARGS(ADD_TO_LIST, list);
 }
+
+void BSSN::setExtraFieldData()
+{
+  
+}
+
 /**
  * @brief  some initialization for each step, currently does nothing
  * 
@@ -304,6 +310,7 @@ void BSSN::addFieldsToList(std::vector<idx_t> &list)
 void BSSN::stepInit(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
+  setExtraFieldData(); // Set extra field information (eg. derived field data for gauge conditions)
   // if enabling backup fields _b, copy _p data to _b data as backup
 #if USE_BACKUP_FIELDS
   for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln++)
@@ -1198,6 +1205,7 @@ void BSSN::set_bd_values(idx_t i, idx_t j, idx_t k, BSSNData *bd, const real_t d
   bd->S_FRW = 0;
 
   bd->K0 = K0;
+  bd->K_avg = K_avg;
   
   // draw data from cache
   set_local_vals(bd);

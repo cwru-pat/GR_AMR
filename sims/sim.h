@@ -93,6 +93,10 @@ public:
   void setGriddingAlgs(
     boost::shared_ptr<mesh::GriddingAlgorithm>& gridding_algorithm_in);
 
+  void calculateKAvg(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
+
+  
   bool isValid(
       const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
   bool hasNaNs(
@@ -173,6 +177,10 @@ public:
   bool stop_regridding_after_found_horizon;
   bool stop_after_found_horizon;
   bool has_found_horizon;
+
+  bool calculate_K_avg;
+
+  real_t K_avg;
 };
 
 } /* namespace cosmo */

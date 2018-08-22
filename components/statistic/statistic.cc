@@ -36,6 +36,104 @@ CosmoStatistic::CosmoStatistic(
   
 }
 
+real_t CosmoStatistic::calculate_conformal_avg(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  BSSN *bssn,
+  idx_t weight_idx,
+  idx_t field_idx)
+{
+  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+      hierarchy->getGridGeometry()));
+  TBOX_ASSERT(grid_geometry_);
+  geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
+  const double * dx = &grid_geometry.getDx()[0];
+
+  int output_num = static_cast<idx_t>(conformal_avg_list.size());
+  double conformal_avg = 0;
+
+  arr_t * arrays = new arr_t[output_num];
+
+  double tot_vol = 0;
+
+  for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln ++)
+  {
+    boost::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+
+    
+    for( hier::PatchLevel::iterator pit(level->begin());
+         pit != level->end(); ++pit)
+    {
+      const boost::shared_ptr<hier::Patch> & patch = *pit;
+
+      const hier::Box& box = patch->getBox();
+
+      const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+          patch->getPatchGeometry()));
+
+      bssn->initPData(patch);
+
+      bssn->initMDA(patch);
+
+
+      boost::shared_ptr<pdat::CellData<double> > weight(
+        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+          patch->getPatchData(weight_idx)));
+      
+      arr_t weight_array =
+        pdat::ArrayDataAccess::access<DIM, double>(
+          weight->getArrayData());
+
+      arr_t DIFFchi_array = bssn->DIFFchi_a;
+
+      boost::shared_ptr<pdat::CellData<double> > var_cell_data(
+        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+          patch->getPatchData(field_idx)));
+
+      arr_t array = pdat::ArrayDataAccess::access<DIM, double>(
+        var_cell_data->getArrayData());
+      
+      const int * lower = &box.lower()[0];
+      const int * upper = &box.upper()[0];
+      
+      const double *dx = &patch_geom->getDx()[0];
+
+      
+
+#pragma omp parallel for collapse(2) reduction(+:tot_vol)
+      for(int k = lower[2]; k <= upper[2]; k++)
+      {
+        for(int j = lower[1]; j <= upper[1]; j++)
+        {
+          for(int i = lower[0]; i <= upper[0]; i++)
+          {
+            
+            if(weight_array(i,j,k) > 0)
+            {
+              tot_vol += weight_array(i, j, k) * 1.0 / pw3(DIFFchi_array(i, j, k) + 1.0);
+              for(int var_id = 0; var_id < output_num; var_id++)
+                conformal_avg +=
+                  1.0 / pw3(DIFFchi_array(i, j, k) + 1.0) * array(i, j, k)
+                  * weight_array(i, j, k);
+            }
+          }
+        }
+      }
+    }
+  }
+  const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
+  mpi.Barrier();
+  if (mpi.getSize() > 1) {
+    mpi.AllReduce(&tot_vol, 1, MPI_SUM);
+    mpi.AllReduce(&conformal_avg, 1, MPI_SUM);
+  }
+
+  return conformal_avg / tot_vol;
+  
+}
+
+  
 void CosmoStatistic::output_conformal_avg(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
     BSSN *bssn,

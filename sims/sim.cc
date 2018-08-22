@@ -67,7 +67,9 @@ CosmoSim::CosmoSim(
   regridding_step_lower_bound(cosmo_sim_db->getIntegerWithDefault("regridding_step_lower_bound", 0)),
   regridding_step_upper_bound(cosmo_sim_db->getIntegerWithDefault("regridding_step_upper_bound", 100000000)),
   stop_after_found_horizon(cosmo_sim_db->getBoolWithDefault("stop_after_found_horizon",false)),
-  stop_regridding_after_found_horizon(cosmo_sim_db->getBoolWithDefault("stop_regridding_after_found_horizon",false))
+  stop_regridding_after_found_horizon(cosmo_sim_db->getBoolWithDefault("stop_regridding_after_found_horizon",false)),
+  calculate_K_avg(cosmo_sim_db->getBoolWithDefault("calculate_K_avg",false)),
+  K_avg(0)
 {
   t_loop = tbox::TimerManager::getManager()->
     getTimer("loop");
@@ -182,7 +184,14 @@ void CosmoSim::run(
   tbox::plog<<"\nEnding simulation.";
 }
 
-
+void CosmoSim::calculateKAvg(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+{
+  K_avg = cosmo_statistic->calculate_conformal_avg(
+    hierarchy, bssnSim, weight_idx, bssnSim->DIFFK_a_idx);
+  // not a very good implementation, may consider it later
+  bssnSim->K_avg = K_avg;
+}
   
 /**
  * @brief regrid when necessary and detect NaNs.
@@ -219,6 +228,8 @@ void CosmoSim::runCommonStepTasks(
     
   }
 
+  if(calculate_K_avg)
+    calculateKAvg(hierarchy);
   if(found_horizon)
     has_found_horizon = true;
 
