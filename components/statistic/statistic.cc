@@ -101,7 +101,7 @@ real_t CosmoStatistic::calculate_conformal_avg(
 
       
 
-#pragma omp parallel for collapse(2) reduction(+:tot_vol)
+#pragma omp parallel for collapse(2) reduction(+:tot_vol, conformal_avg)
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -112,10 +112,9 @@ real_t CosmoStatistic::calculate_conformal_avg(
             if(weight_array(i,j,k) > 0)
             {
               tot_vol += weight_array(i, j, k) * 1.0 / pw3(DIFFchi_array(i, j, k) + 1.0);
-              for(int var_id = 0; var_id < output_num; var_id++)
-                conformal_avg +=
-                  1.0 / pw3(DIFFchi_array(i, j, k) + 1.0) * array(i, j, k)
-                  * weight_array(i, j, k);
+              conformal_avg +=
+                1.0 / pw3(DIFFchi_array(i, j, k) + 1.0) * array(i, j, k)
+                * weight_array(i, j, k);
             }
           }
         }
