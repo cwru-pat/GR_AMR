@@ -41,6 +41,11 @@ HorizonStatistics::HorizonStatistics(
     domain_upper[i] = upper[i];
   }
 
+  origin.resize(3); // position of the locale of origin of horizon
+  coord_origin.resize(3); // position of the coordinate origin where spherical coordinate is built
+
+  for(int i = 0; i < 3; i ++)
+    coord_origin[i] = (upper[i] - lower[i]) / 2.0;
   
   patch_work_i = patch_work_j = patch_work_k = -1;
   
@@ -50,6 +55,31 @@ HorizonStatistics::~HorizonStatistics()
   
 }
 
+  // doing derivatives to ONLY level function:
+  // r - h(\theta, \phi)
+real_t HorizonStatistics::dF(int theta_i, int phi_i, int d, double x, double y, double z, double r)
+{
+  double res;
+  if(theta_i + 1 >= 2 * n_theta || theta_i < 0)
+    TBOX_ERROR("Theta_i is out of the range!\b");
+  
+  double dphi = 2.0 * PI / (double) n_phi / 2.0;
+  double dtheta = PI / (double) n_theta / 2.0;
+  
+  double dtheta_dh = (ah_radius[theta_i + 1][phi_i] - ah_radius[theta_i][phi_i]) / (dtheta);
+  double dphi_dh = (ah_radius[theta_i][(phi_i+1)%(2*n_phi)]
+                    - ah_radius[theta_i][(phi_i)%(2*n_phi)]) / (dphi);
+  if(d == 1)
+    res = x/r - (x*z/(pw3(r)*sqrt(1-pw2(z/r))))*dtheta_dh + (y/(pw2(x)+pw2(y)))*dphi_dh;
+  else if(d == 2)
+    res = y/r - (y*z/(pw3(r)*sqrt(1-pw2(z/r))))*dtheta_dh - (x/(pw2(x)+pw2(y)))*dphi_dh;
+  else if(d == 3)
+    res = z/r + sqrt(pw2(x)+pw2(y)) / pw2(r) * dtheta_dh;
+  else
+    TBOX_ERROR("Direction "<<d<< "is not recognized\n");
+  return res;
+}
+  
 real_t HorizonStatistics::findRadius(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   double theta_0, double phi_0)
@@ -94,9 +124,9 @@ void HorizonStatistics::set_G_values(
 
 
       const real_t * dx = &(patch_geometry->getDx())[0];
-      int i0 = floor((x + origin[0] - domain_lower[0] ) / dx[0] - 0.5);
-      int j0 = floor((y + origin[1] - domain_lower[1] ) / dx[1] - 0.5);
-      int k0 = floor((z + origin[2] - domain_lower[2] ) / dx[2] - 0.5);
+      int i0 = floor((x + coord_origin[0] - domain_lower[0] ) / dx[0] - 0.5);
+      int j0 = floor((y + coord_origin[1] - domain_lower[1] ) / dx[1] - 0.5);
+      int k0 = floor((z + coord_origin[2] - domain_lower[2] ) / dx[2] - 0.5);
 
       if( i0 >= lower[0] && i0 <= upper[0]
           && j0 >= lower[1] && j0 <= upper[1]
@@ -117,19 +147,19 @@ void HorizonStatistics::set_G_values(
         
         for(int k = k0; k <= k0 + 1; k++)
         {
-          real_t z0 = domain_lower[2] + (double)k * dx[2] + dx[2]/2.0 - origin[2];
+          real_t z0 = domain_lower[2] + (double)k * dx[2] + dx[2]/2.0 - coord_origin[2];
           
           COSMO_APPLY_TO_IJK_PERMS(HORIZON_DEFINE_TEMP_GJ);
           
           for(int j = j0; j <= j0 + 1; j++)
           {
-            real_t y0 = domain_lower[1] + (double)j * dx[1] + dx[1]/2.0 - origin[1];
+            real_t y0 = domain_lower[1] + (double)j * dx[1] + dx[1]/2.0 - coord_origin[1];
       
             COSMO_APPLY_TO_IJK_PERMS(HORIZON_DEFINE_TEMP_GI);
 
             for(int i = i0; i <= i0 + 1; i++)
             {
-              real_t x0 = domain_lower[0] + (double)i * dx[0] + dx[0]/2.0 - origin[0];
+              real_t x0 = domain_lower[0] + (double)i * dx[0] + dx[0]/2.0 - coord_origin[0];
               bssn->set_bd_values(i, j, k, &bd, dx);
               COSMO_APPLY_TO_IJK_PERMS(HORIZON_INTERPOLATE_G_1);
 
@@ -324,9 +354,9 @@ void HorizonStatistics::set_kd_values(
 
 
       const real_t * dx = &(patch_geometry->getDx())[0];
-      int i0 = floor((x + origin[0] - domain_lower[0] ) / dx[0] - 0.5);
-      int j0 = floor((y + origin[1] - domain_lower[1] ) / dx[1] - 0.5);
-      int k0 = floor((z + origin[2] - domain_lower[2] ) / dx[2] - 0.5);
+      int i0 = floor((x + coord_origin[0] - domain_lower[0] ) / dx[0] - 0.5);
+      int j0 = floor((y + coord_origin[1] - domain_lower[1] ) / dx[1] - 0.5);
+      int k0 = floor((z + coord_origin[2] - domain_lower[2] ) / dx[2] - 0.5);
 
       
       if( i0 >= lower[0] && i0 <= upper[0]
@@ -346,7 +376,7 @@ void HorizonStatistics::set_kd_values(
 
         for(int k = k0; k <= k0 + 1; k++)
         {
-          real_t z0 = domain_lower[2] + (double)k * dx[2] + dx[2]/2.0 - origin[2];
+          real_t z0 = domain_lower[2] + (double)k * dx[2] + dx[2]/2.0 - coord_origin[2];
 
           COSMO_APPLY_TO_IJK_PERMS(HORIZON_DEFINE_TEMP_GJ);
           COSMO_APPLY_TO_IJ_PERMS(HORIZON_DEFINE_TEMP_MJ);
@@ -354,7 +384,7 @@ void HorizonStatistics::set_kd_values(
           HORIZON_DEFINE_TEMP_CHIJ;
           for(int j = j0; j <= j0 + 1; j++)
           {
-            real_t y0 = domain_lower[1] + (double)j * dx[1] + dx[1]/2.0 - origin[1];
+            real_t y0 = domain_lower[1] + (double)j * dx[1] + dx[1]/2.0 - coord_origin[1];
 
             COSMO_APPLY_TO_IJK_PERMS(HORIZON_DEFINE_TEMP_GI);
             COSMO_APPLY_TO_IJ_PERMS(HORIZON_DEFINE_TEMP_MI);
@@ -362,7 +392,7 @@ void HorizonStatistics::set_kd_values(
             HORIZON_DEFINE_TEMP_CHII;
             for(int i = i0; i <= i0 + 1; i++)
             {
-              real_t x0 = domain_lower[0] + (double)i * dx[0] + dx[0]/2.0 - origin[0];
+              real_t x0 = domain_lower[0] + (double)i * dx[0] + dx[0]/2.0 - coord_origin[0];
               bssn->set_bd_values(i, j, k, &bd, dx);                
                           
               COSMO_APPLY_TO_IJK_PERMS(HORIZON_INTERPOLATE_G_1);
@@ -604,16 +634,17 @@ real_t HorizonStatistics::ev_k_L_dtheta(KillingData *kd, int theta_i, int phi_i)
     //* (kd->qi11 * k_theta[theta_i][phi_i] + kd->qi12 * k_phi[theta_i][phi_i]);
 }
 
-real_t HorizonStatistics::getRadius(int theta_i, int phi_i)
+real_t HorizonStatistics::getRadius(double theta_i, double phi_i)
 {
 
-  real_t x = (domain_upper[0] - domain_lower[0]) * cos(phi_i) * sin(theta_i);
-  real_t y = (domain_upper[1] - domain_lower[1]) * sin(phi_i) * sin(theta_i);
-  real_t z = (domain_upper[2] - domain_lower[2]) * cos(theta_i);
+  real_t x = 1.0 * cos(phi_i) * sin(theta_i);
+  real_t y = 1.0 * sin(phi_i) * sin(theta_i);
+  real_t z = 1.0 * cos(theta_i);
 
   real_t res = 0;
   horizon->AHFinderDirect_radius_in_direction(
     horizon_id, 1, &x, &y, &z, &res);
+
   return res;
 
 }
@@ -653,7 +684,7 @@ void HorizonStatistics::transportKillingTheta(
     /********Doing K1 ******************************************/
     double theta =  PI * ((double) theta_i +0.5) / (double)n_theta;
     //    real_t r = ah_radius[theta_i*2][phi_i*2];
-    real_t r = getRadius(theta_i*2, phi_i*2);
+    real_t r = getRadius(theta, phi);
     
     set_kd_values(hierarchy, theta, phi, theta_i*2, phi_i*2, r, &kd, bssn);
     
@@ -680,7 +711,7 @@ void HorizonStatistics::transportKillingTheta(
     mpi.Barrier();
     //    r =  findRadius(hierarchy, theta, phi);
     //    r = ah_radius[theta_i * 2 + 1][phi_i*2];
-    r = getRadius(theta_i * 2 +1, phi_i *2);
+    r = getRadius(theta, phi);
     
     mpi.Barrier();
     
@@ -726,7 +757,7 @@ void HorizonStatistics::transportKillingTheta(
     mpi.Barrier();
     //    r =  findRadius(hierarchy, theta, phi);
     //    r = ah_radius[theta_i * 2 + 2][phi_i*2];
-    r = getRadius(theta_i * 2 +2, phi_i *2);
+    r = getRadius(theta, phi);
     mpi.Barrier();
     set_kd_values(hierarchy, theta, phi, (theta_i*2 +2)%(2*n_theta), phi_i*2, r, &kd, bssn);
 
@@ -781,7 +812,7 @@ void HorizonStatistics::transportKillingTheta(
     double theta =  PI * ((double) theta_i +0.5) / (double)n_theta;
     mpi.Barrier();
     //    real_t r = ah_radius[theta_i*2][phi_i*2];
-    real_t r = getRadius(theta_i*2, phi_i*2);
+    real_t r = getRadius(theta, phi);
 
     mpi.Barrier();
     set_kd_values(hierarchy, theta, phi, theta_i*2, phi_i*2, r, &kd, bssn);
@@ -810,7 +841,7 @@ void HorizonStatistics::transportKillingTheta(
     mpi.Barrier();
     //    r =  findRadius(hierarchy, theta, phi);
     //    r = ah_radius[theta_i*2-1][phi_i*2];
-    r = getRadius(theta_i*2-1, phi_i*2);
+    r = getRadius(theta, phi);
     mpi.Barrier();
     set_kd_values(hierarchy, theta, phi, (theta_i*2 +1)%(2*n_theta), phi_i*2, r, &kd, bssn);
 
@@ -856,7 +887,7 @@ void HorizonStatistics::transportKillingTheta(
     mpi.Barrier();
     //    r =  findRadius(hierarchy, theta, phi);
     //    r = ah_radius[theta_i*2-2][phi_i*2];
-    r= getRadius(theta_i*2-2, phi_i*2);
+    r= getRadius(theta, phi);
     mpi.Barrier();
     set_kd_values(hierarchy, theta, phi, (theta_i*2 +2)%(2*n_theta), phi_i*2, r, &kd, bssn);
 
@@ -927,7 +958,7 @@ void HorizonStatistics::transportKillingPhi(
     double phi = 2.0 * PI * ((double) phi_i +0.5) / (double)n_phi;
 
     //    real_t r = ah_radius[theta_i*2][phi_i*2];
-    real_t r = getRadius(theta_i*2, phi_i*2);
+    real_t r = getRadius(theta, phi);
     
     set_kd_values(hierarchy, theta, phi, theta_i*2 , phi_i*2, r, &kd, bssn);
 
@@ -957,7 +988,7 @@ void HorizonStatistics::transportKillingPhi(
     mpi.Barrier();
 
 
-    r = getRadius(theta_i*2, phi_i*2+1);
+    r = getRadius(theta, phi);
 
     mpi.Barrier();
     set_kd_values(hierarchy, theta, phi, theta_i*2, (phi_i*2+1)%(2*n_phi), r, &kd, bssn);
@@ -1005,7 +1036,7 @@ void HorizonStatistics::transportKillingPhi(
 
     mpi.Barrier();
     //    r = ah_radius[theta_i*2][(phi_i*2 + 2)%n_phi];
-    r =  getRadius(theta_i*2, phi_i*2+2);
+    r =  getRadius(theta, phi);
 
 
     mpi.Barrier();
@@ -1155,12 +1186,12 @@ void HorizonStatistics::initGridding(
   real_t dx = tbox::MathUtilities<double>::Min(
     tbox::MathUtilities<double>::Min(grid_geometry.getDx()[0], grid_geometry.getDx()[1]),
     grid_geometry.getDx()[2]) / (real_t)(1<<(ln_num-1));
-  
-  n_theta = PI * max_r / dx;
 
-  n_phi = 2.0 * PI * max_r / dx;
+  n_theta = PI * max_r / dx * 2;
 
-  tbox::pout<<"Dibviding the space into n_theta = "<<n_theta
+  n_phi = 2.0 * PI * max_r / dx * 2;
+
+  tbox::pout<<"Dividing the space into n_theta = "<<n_theta
             <<" and n_phi = "<<n_phi<<"\n";
 
   // initializing spherical mesh
@@ -1225,8 +1256,8 @@ void HorizonStatistics::findM(
 
 
 
-  tbox::pout<<"\n";
-  tbox::pout << "Here is the matrix m:\n" << M << "\n";
+  //  tbox::pout<<"\n";
+  //tbox::pout << "Here is the matrix m:\n" << M << "\n";
 
   // solve the eigenvalue equation to get 3 eigenvalues;
 
@@ -1238,7 +1269,7 @@ void HorizonStatistics::findM(
   Eigen::EigenSolver< Eigen::Matrix3d >::EigenvalueType e_val = eigensolver.eigenvalues();
   Eigen::EigenSolver< Eigen::Matrix3d >::EigenvectorsType e_vec = eigensolver.eigenvectors();
 
-  tbox::pout<<"\n Eigenvalues are "<<e_val<<"\n";
+  //  tbox::pout<<"\n Eigenvalues are "<<e_val<<"\n";
   
   double dis_to_I = INF;
   int identity_idx=-1;
@@ -1254,8 +1285,8 @@ void HorizonStatistics::findM(
   x[2] = e_vec(2, identity_idx).real();
   
 
-  tbox::pout<<"Solution with identity eigenvalue is ("
-            << x[0]<<" "<<x[1]<<" "<<x[2]<<")\n";
+  //  tbox::pout<<"Solution with identity eigenvalue is ("
+  //        << x[0]<<" "<<x[1]<<" "<<x[2]<<")\n";
   
   
 }
@@ -1272,8 +1303,11 @@ void HorizonStatistics::set_norm_values(
   real_t x = r * cos(phi) * sin(theta);
   real_t y = r * sin(phi) * sin(theta);
   real_t z = r * cos(theta);
-        
 
+
+  kd->d1F = dF(theta_i*2, phi_i*2, 1, x, y, z, sqrt(pw2(x)+pw2(y)+pw2(z)));
+  kd->d2F = dF(theta_i*2, phi_i*2, 2, x, y, z, sqrt(pw2(x)+pw2(y)+pw2(z)));
+  kd->d3F = dF(theta_i*2, phi_i*2, 3, x, y, z, sqrt(pw2(x)+pw2(y)+pw2(z)));
 
   for (ln = ln_num - 1; ln >= 0; ln--)
   {
@@ -1293,9 +1327,9 @@ void HorizonStatistics::set_norm_values(
 
 
       const real_t * dx = &(patch_geometry->getDx())[0];
-      int i0 = floor((x + origin[0] - domain_lower[0] ) / dx[0] - 0.5);
-      int j0 = floor((y + origin[1] - domain_lower[1] ) / dx[1] - 0.5);
-      int k0 = floor((z + origin[2] - domain_lower[2] ) / dx[2] - 0.5);
+      int i0 = floor((x + coord_origin[0] - domain_lower[0] ) / dx[0] - 0.5);
+      int j0 = floor((y + coord_origin[1] - domain_lower[1] ) / dx[1] - 0.5);
+      int k0 = floor((z + coord_origin[2] - domain_lower[2] ) / dx[2] - 0.5);
 
       if( i0 >= lower[0] && i0 <= upper[0]
           && j0 >= lower[1] && j0 <= upper[1]
@@ -1314,7 +1348,7 @@ void HorizonStatistics::set_norm_values(
 
         for(int k = k0; k <= k0 + 1; k++)
         {
-          real_t z0 = domain_lower[2] + (double)k * dx[2] + dx[2]/2.0 - origin[2];
+          real_t z0 = domain_lower[2] + (double)k * dx[2] + dx[2]/2.0 - coord_origin[2];
 
           COSMO_APPLY_TO_IJ_PERMS(HORIZON_DEFINE_TEMP_MJ);
           COSMO_APPLY_TO_IJ_PERMS(HORIZON_DEFINE_TEMP_KJ);
@@ -1325,7 +1359,7 @@ void HorizonStatistics::set_norm_values(
           
           for(int j = j0; j <= j0 + 1; j++)
           {
-            real_t y0 = domain_lower[1] + (double)j * dx[1] + dx[1]/2.0 - origin[1];
+            real_t y0 = domain_lower[1] + (double)j * dx[1] + dx[1]/2.0 - coord_origin[1];
 
             COSMO_APPLY_TO_IJ_PERMS(HORIZON_DEFINE_TEMP_MI);
             COSMO_APPLY_TO_IJ_PERMS(HORIZON_DEFINE_TEMP_KI);
@@ -1335,28 +1369,28 @@ void HorizonStatistics::set_norm_values(
 
             for(int i = i0; i <= i0 + 1; i++)
             {
-              real_t x0 = domain_lower[0] + (double)i * dx[0] + dx[0]/2.0 - origin[0];
+              real_t x0 = domain_lower[0] + (double)i * dx[0] + dx[0]/2.0 - coord_origin[0];
               bssn->set_bd_values(i, j, k, &bd, dx);
               COSMO_APPLY_TO_IJ_PERMS(HORIZON_INTERPOLATE_M_1);
               COSMO_APPLY_TO_IJ_PERMS(HORIZON_INTERPOLATE_K_1);
-              HORIZON_INTERPOLATE_DF_1(1);
-              HORIZON_INTERPOLATE_DF_1(2);
-              HORIZON_INTERPOLATE_DF_1(3);
+              // HORIZON_INTERPOLATE_DF_1(1);
+              // HORIZON_INTERPOLATE_DF_1(2);
+              // HORIZON_INTERPOLATE_DF_1(3);
             }
       
             COSMO_APPLY_TO_IJ_PERMS(HORIZON_INTERPOLATE_M_2);
             COSMO_APPLY_TO_IJ_PERMS(HORIZON_INTERPOLATE_K_2);
-            HORIZON_INTERPOLATE_DF_2(1);
-            HORIZON_INTERPOLATE_DF_2(2);
-            HORIZON_INTERPOLATE_DF_2(3);
+            // HORIZON_INTERPOLATE_DF_2(1);
+            // HORIZON_INTERPOLATE_DF_2(2);
+            // HORIZON_INTERPOLATE_DF_2(3);
 
           }
     
           COSMO_APPLY_TO_IJ_PERMS(HORIZON_INTERPOLATE_M_3);
           COSMO_APPLY_TO_IJ_PERMS(HORIZON_INTERPOLATE_K_3);
-          HORIZON_INTERPOLATE_DF_3(1);
-          HORIZON_INTERPOLATE_DF_3(2);
-          HORIZON_INTERPOLATE_DF_3(3);
+          // HORIZON_INTERPOLATE_DF_3(1);
+          // HORIZON_INTERPOLATE_DF_3(2);
+          // HORIZON_INTERPOLATE_DF_3(3);
         }
 
         break;
@@ -1508,7 +1542,7 @@ void HorizonStatistics::normKilling()
 {
   double c = getNormFactor();
 
-  tbox::pout<<"Norm factor "<<c<<"\n";
+  //  tbox::pout<<"Norm factor "<<c<<"\n";
   for(int i = 0 ; i < n_theta; i++)
     for(int j = 0; j < n_phi; j ++)
     {
@@ -1532,8 +1566,8 @@ real_t HorizonStatistics::getNormFactor()
   
   real_t dt = 0.01 * dtheta / max_abs;
 
-  tbox::pout<<"Time interval for process of getting norm factor is "
-            <<dt<<"\n";
+  // tbox::pout<<"Time interval for process of getting norm factor is "
+  //           <<dt<<"\n";
 
   
   real_t t = 0;
@@ -1567,7 +1601,7 @@ real_t HorizonStatistics::getNormFactor()
     t += dt;
   }
 
-  tbox::pout<<"When \phi gets back, the corresponding theta is "<<theta<<"\n";
+  //  tbox::pout<<"When \phi gets back, the corresponding theta is "<<theta<<"\n";
   return t/ (2.0 * PI) ;
 }
 
@@ -1583,6 +1617,7 @@ real_t HorizonStatistics::angularMomentum(
   {
     for(int phi_i = 0; phi_i < n_phi; phi_i++)
     {
+      //      std::cout<<theta_i<<" "<<phi_i<<" "<<res<<"\n";
       double theta = PI * ((double) theta_i +0.5) / (double)n_theta;
       double phi = 2.0 * PI * ((double) phi_i +0.5) / (double)n_phi;
 
@@ -1591,14 +1626,14 @@ real_t HorizonStatistics::angularMomentum(
       real_t sp = sin(phi);
       real_t cp = cos(phi);
       
-      real_t r = getRadius(theta_i*2, phi_i*2);
+      real_t r = getRadius(theta, phi);
       
       KillingData kd = {0};
 
       // set_norm_values(hierarchy, theta, phi, theta_i, phi_i,
       //                 ah_radius[theta_i*2][phi_i*2], &kd, bssn);
       set_norm_values(hierarchy, theta, phi, theta_i, phi_i,
-                      getRadius(theta_i*2, phi_i*2), &kd, bssn);
+                      getRadius(theta, phi), &kd, bssn);
       
 
       real_t k1 = r * (k_theta[theta_i][phi_i] * ct * cp
@@ -1621,6 +1656,8 @@ real_t HorizonStatistics::angularMomentum(
       real_t K11 = kd.K11, K12 = kd.K12, K13 = kd.K13;
       real_t K22 = kd.K22, K23 = kd.K23, K33 = kd.K33;
 
+      //      std::cout<<s1<<" "<<kd.mi11<<" "<<theta<<" "<<phi<<" "<<kd.d1F<<"\n";
+      
       kd = {0};
       // set_kd_values(hierarchy, theta, phi, theta_i*2, phi_i*2,
       //               ah_radius[theta_i*2][phi_i*2], &kd, bssn);
@@ -1658,7 +1695,7 @@ void HorizonStatistics::convertToVector(
 
       KillingData kd = {0};
       //      set_kd_values(hierarchy, theta, phi, theta_i*2, phi_i*2, ah_radius[theta_i*2][phi_i*2], &kd, bssn);
-      set_kd_values(hierarchy, theta, phi, theta_i*2, phi_i*2, getRadius(theta_i*2, phi_i*2), &kd, bssn);
+      set_kd_values(hierarchy, theta, phi, theta, phi, getRadius(theta, phi), &kd, bssn);
       
       k_theta[theta_i][phi_i] = kd.qi11 * k_theta0 + kd.qi12 * k_phi0;
       k_phi[theta_i][phi_i] = kd.qi12 * k_theta0 + kd.qi22 * k_phi0;
@@ -1695,7 +1732,7 @@ real_t HorizonStatistics::area(
       real_t sp = sin(phi);
       real_t cp = cos(phi);
       
-      real_t r = getRadius(theta_i*2, phi_i*2);
+      real_t r = getRadius(theta, phi);
       
       KillingData kd = {0};
 
@@ -1719,14 +1756,16 @@ real_t HorizonStatistics::area(
 
 
 void HorizonStatistics::findKilling(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn, int horizon_id_in)
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn, int horizon_id_in, int step)
 {
+  if(step % horizon->find_every != 0)
+    return;
   horizon_id = horizon_id_in;
-  origin.resize(3);
+
   horizon->AHFinderDirect_local_coordinate_origin(
     horizon_id, &origin[0],&origin[1],&origin[2]);
   
-  tbox::pout<<"Starting the process of finding Killing vectors for horionz: "<<horizon_id<<"\n!";
+  tbox::pout<<"Starting the process of finding Killing vectors for horions: "<<horizon_id<<"\n!";
 
   initGridding(hierarchy);
 
@@ -1760,10 +1799,11 @@ void HorizonStatistics::findKilling(
   double a = area(hierarchy, bssn);
 
   double R_Delta = sqrt(a / (4.0 * PI));
-  
+
+  double bare_mass = sqrt(a / (4.0 * PI)) / 2.0;
   double mass = sqrt(pw2(pw2(R_Delta)) + 4.0 * pw2(angular_m)) / (2.0 * R_Delta);
 
-  tbox::pout<<"Mass is "<<mass<<"\n";
+  tbox::pout<<"Mass is "<<mass<<" and bare mass is "<<bare_mass<<"\n";
   
 }
   

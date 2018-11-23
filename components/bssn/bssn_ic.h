@@ -12,6 +12,11 @@
 
 using namespace SAMRAI;
 
+#define INDEX(i,j,k) \
+  (STENCIL_ORDER * (1 + (NX+ 2*STENCIL_ORDER) + (NX+ 2*STENCIL_ORDER) * (NY+ 2*STENCIL_ORDER))        \
+   + (i) + (j) * (NX+ 2*STENCIL_ORDER) + (k) * (NX+ 2*STENCIL_ORDER) * (NY+ 2*STENCIL_ORDER))
+
+
 namespace cosmo
 {
   
@@ -37,6 +42,26 @@ void bssn_ic_kerr_blackhole(
 void bssn_ic_ds_blackhole(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln, BSSN * bssn);
+
+void bssn_ic_kerr_BHL_CTT(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  idx_t ln,
+  real_t M,
+  real_t a,
+  real_t K_c,
+  real_t relaxation_tolerance,
+  idx_t num_vcycles,
+  idx_t max_depth);
+
+void bssn_ic_static_BHL_CTT(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  idx_t ln,
+  real_t M,
+  real_t a,
+  real_t K_c,
+  real_t relaxation_tolerance,
+  idx_t num_vcycles);
+
  
 }
 

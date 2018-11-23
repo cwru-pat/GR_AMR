@@ -212,6 +212,36 @@ bool VacuumSim::initLevel(
     bssn_ic_kerr_blackhole(hierarchy,ln);
     return true;
   }
+  else if(ic_type == "kerr_BHL_CTT")
+  {
+    if(ln > 0) return false;
+    double M = cosmo_vacuum_db->getDoubleWithDefault("M", 1);
+    double a = cosmo_vacuum_db->getDoubleWithDefault("spin", 0.5);
+    double K_c = cosmo_vacuum_db->getDoubleWithDefault("K_c", 1);
+    double relaxation_tolerance = cosmo_vacuum_db->getDoubleWithDefault("relaxation_tolerance", 1e-8);
+    int num_vcycles = cosmo_vacuum_db->getIntegerWithDefault("num_vcycles", 4);
+    int max_depth = cosmo_vacuum_db->getIntegerWithDefault("max_depth", 4);
+
+    if(!USE_BSSN_SHIFT)
+      TBOX_ERROR("Must enable shift for blackhole simulation!\n");
+    
+    bssn_ic_kerr_BHL_CTT(hierarchy,ln, M, a, K_c, relaxation_tolerance
+                         , num_vcycles, max_depth);
+    return true;
+  }
+  else if(ic_type == "static_BHL_CTT")
+  {
+    double M = cosmo_vacuum_db->getDoubleWithDefault("M", 1);
+    double K_c = cosmo_vacuum_db->getDoubleWithDefault("K_c", 1);
+    double relaxation_tolerance = cosmo_vacuum_db->getDoubleWithDefault("relaxation_tolerance", 1e-8);
+    int num_vcycles = cosmo_vacuum_db->getIntegerWithDefault("num_vcycles", 4);
+
+    if(!USE_BSSN_SHIFT)
+      TBOX_ERROR("Must enable shift for blackhole simulation!\n");
+    
+    bssn_ic_static_BHL_CTT(hierarchy,ln, M, 0, K_c, relaxation_tolerance, num_vcycles);
+    return true;
+  }
   else if(ic_type == "ds_blackhole")
   {
     if(!USE_BSSN_SHIFT)

@@ -180,7 +180,7 @@ bool scalar_ic_set_scalar_collapse_sommerfield(
   idx_t ln, BSSN * bssn, Scalar * scalar,
   boost::shared_ptr<tbox::Database> cosmo_scalar_db)
 {
-
+  const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
   boost::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
 
@@ -210,14 +210,22 @@ bool scalar_ic_set_scalar_collapse_sommerfield(
   double temp2[60001];
 
   int cnt =0;
-  if (myReadFile.is_open()) {
-    while (!myReadFile.eof()) {
+  int rank = 0;
+  while(rank < mpi.getSize())
+  {
+    if(mpi.getRank() == rank)
+    {
+      if (myReadFile.is_open()) {
+        while (!myReadFile.eof()) {
 
 
-      myReadFile >> temp2[cnt];
-      cnt++;
+          myReadFile >> temp2[cnt];
+          cnt++;
 
+        }
+      }
     }
+    rank++;
   }
     
   double r0 = cosmo_scalar_db->getDoubleWithDefault("r0", 0);
@@ -446,6 +454,33 @@ bool scalar_ic_set_periodic_fast_collapse_test(
 
   real_t K = cosmo_scalar_db->getDoubleWithDefault("K", -10);
 
+  real_t phi_0 = cosmo_scalar_db->getDoubleWithDefault("phi_0", 1.0);
+
+  // solve for BSSN fields using multigrid class:
+  real_t relaxation_tolerance = cosmo_scalar_db->getDoubleWithDefault("relaxation_tolerance", 1e-8);
+
+  int num_vcycles = cosmo_scalar_db->getIntegerWithDefault("vcycles", 20);
+
+  double DIFFalpha_0 = cosmo_scalar_db->getDoubleWithDefault("DIFFalpha", 0);
+
+    CosmoArray<idx_t, real_t>  phi;
+  phi.init(NX, NY, NZ);
+  //  std::vector<double> phi(NX*NY*NZ, phi_0);
+  
+  LOOP3()
+    phi[INDEX(i, j, k)] = phi_0;
+
+  LOOP3()
+  {
+    double x_frac = ((real_t)i + 0.5) / NX;
+    double y_frac = ((real_t)j + 0.5) / NY;
+    double z_frac = ((real_t)k + 0.5) / NZ; 
+    // some sinusoidal modes
+    phi[INDEX(i,j,k)] += A *
+      exp( -1.0 / pw2(sqrt(pw2(x_frac) + pw2(y_frac) + pw2(z_frac)) - 1.0) ) *
+      exp( -1.0 / pw2(sqrt(pw2(x_frac) + pw2(y_frac) + pw2(z_frac)) + 1.0) );
+  }
+  
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
@@ -633,8 +668,17 @@ bool scalar_ic_set_scalar_collapse(
       double y = L[1] / NX * ((double)j + 0.5) - L[1] / 2.0;
       double z = L[2] / NX * ((double)k + 0.5) - L[2] / 2.0;
       double r = sqrt(x * x + y * y + z * z);
-      phi[INDEX(i,j,k)] = delta_phi * pw3(r) *
-      exp( - pow(fabs( (r - r0) / sigma) , q)) ;
+      double x_frac = fabs(((real_t)i + 0.5) / NX - 0.5);
+      double y_frac = fabs(((real_t)j + 0.5) / NY - 0.5);
+      double z_frac = fabs(((real_t)k + 0.5) / NZ - 0.5);
+      if(2.0 * sqrt(pw2(x_frac) + pw2(y_frac) + pw2(z_frac)) <= 1)
+        phi[INDEX(i,j,k)] += delta_phi *
+          exp( -1.0 / pw2(2.0 * sqrt(pw2(x_frac) + pw2(y_frac) + pw2(z_frac)) - 1.0) ) *
+          exp( -1.0 / pw2(2.0 * sqrt(pw2(x_frac) + pw2(y_frac) + pw2(z_frac)) + 1.0) ) - 0.1;
+      else
+        phi[INDEX(i,j,k)] += -0.1;
+      //      phi[INDEX(i,j,k)] = delta_phi * pw3(r) *
+      //exp( - pow(fabs( (r - r0) / sigma) , q)) ;
     }
   }
     
@@ -676,20 +720,29 @@ bool scalar_ic_set_scalar_collapse(
   mpi.Barrier();
   if(exist(filename))
   {
-    hdf->open(filename, 1);
-    const std::vector<double> & temp = hdf->getDoubleVector("DIFFchi");
+    int rank = 0;
+    while(rank < mpi.getSize())
+    {
+      if(rank == mpi.getRank())
+      {
+        hdf->open(filename, 1);
+        const std::vector<double> & temp = hdf->getDoubleVector("DIFFchi");
 
-    // if file exist but corresponding database not exist
-    if(temp.empty())
-      TBOX_ERROR("Getting empty array from file "<<filename<<"\n");
+        // if file exist but corresponding database not exist
+        if(temp.empty())
+          TBOX_ERROR("Getting empty array from file "<<filename<<"\n");
 
-    tbox::pout<<"Read initial configuration database for level "<<ln<<"\n";
+        tbox::pout<<"Read initial configuration database for level "<<ln<<"\n";
     
-    for(int i = 0; i < temp.size(); i++)
-      DIFFchi[0]._array[i] = temp[i];
+        for(int i = 0; i < temp.size(); i++)
+          DIFFchi[0]._array[i] = temp[i];
     
-    flag = true;
-    hdf->close();
+        flag = true;
+        hdf->close();
+      }
+      mpi.Barrier();
+      rank ++;
+    }
   }
   else
   {
@@ -728,6 +781,7 @@ bool scalar_ic_set_scalar_collapse(
     multigrid.eqns[0][2].add_atom(atom_tmp);
 
     real_t avg1 = 0.0, avg5 = 0.0;
+
     LOOP3()
     {
       BSSNData bd = {0};
@@ -789,7 +843,8 @@ bool scalar_ic_set_scalar_collapse(
     flag = true;
   }
 
-  double tot_r = 0;
+  double tot_r = 0, tot_v = 0.0;
+  real_t rho_sigma = 0.0, rho_max = 0.0;
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
@@ -849,6 +904,7 @@ bool scalar_ic_set_scalar_collapse(
           ScalarData sd = {0};
 
           sd.phi = phi[INDEX(i,j,k)];
+          tot_v += 1.0 / pw3(DIFFchi_a(i, j, k) + 1.0);
           tot_r += 1.0 / pw3(DIFFchi_a(i, j, k) + 1.0) *
             (0.5 * pw2(DIFFchi_a(i,j,k) + 1.0) * (
               (pw2((1.0/12.0*phi[INDEX(i-2,j,k)] - 2.0/3.0*phi[INDEX(i-1,j,k)] + 2.0/3.0*phi[INDEX(i+1,j,k)]- 1.0/12.0*phi[INDEX(i+2,j,k)])/dx[0])
@@ -856,18 +912,80 @@ bool scalar_ic_set_scalar_collapse(
                +pw2((1.0/12.0*phi[INDEX(i,j,k-2)] - 2.0/3.0*phi[INDEX(i,j,k-1)] + 2.0/3.0*phi[INDEX(i,j,k+1)]- 1.0/12.0*phi[INDEX(i,j,k+2)])/dx[2]))
             )
              + scalar->potentialHandler->ev_potential(&bd, &sd)) / NX / NY / NZ;
-
+          rho_max = std::max(rho_max, (0.5 * pw2(DIFFchi_a(i,j,k) + 1.0) * (
+              (pw2((1.0/12.0*phi[INDEX(i-2,j,k)] - 2.0/3.0*phi[INDEX(i-1,j,k)] + 2.0/3.0*phi[INDEX(i+1,j,k)]- 1.0/12.0*phi[INDEX(i+2,j,k)])/dx[0])
+               + pw2((1.0/12.0*phi[INDEX(i,j-2,k)] - 2.0/3.0*phi[INDEX(i,j-1,k)] + 2.0/3.0*phi[INDEX(i,j+1,k)]- 1.0/12.0*phi[INDEX(i,j+2,k)])/dx[1])
+               +pw2((1.0/12.0*phi[INDEX(i,j,k-2)] - 2.0/3.0*phi[INDEX(i,j,k-1)] + 2.0/3.0*phi[INDEX(i,j,k+1)]- 1.0/12.0*phi[INDEX(i,j,k+2)])/dx[2]))
+            )
+             + scalar->potentialHandler->ev_potential(&bd, &sd)));
         }
       }
     }   
   }
 
-  mpi.AllReduce(&tot_r,1,MPI_SUM);
+  mpi.AllReduce(&tot_v,1,MPI_SUM);
+  mpi.AllReduce(&rho_max,1,MPI_MAX);
 
-  tbox::pout<<"Total energy (conformal) is "<<tot_r * pw3(0.01)<<"\n";
+  //  tot_v *= pw3(0.01);
 
   
+  tbox::pout<<"Total energy (conformal) is "<<tot_r * pw3(0.01)<<"\n";
+  tbox::pout<<"rho_max is "<<rho_max<<" Detla is "<<(rho_max - tot_r) / tot_r<<"\n";
+
   bssn->K0 = K_src;
+
+  for( hier::PatchLevel::iterator pit(level->begin());
+       pit != level->end(); ++pit)
+  {
+    const boost::shared_ptr<hier::Patch> & patch = *pit;
+
+    bssn->initPData(patch);
+    bssn->initMDA(patch);
+
+    scalar->initPData(patch);
+    scalar->initMDA(patch);
+    
+    arr_t & DIFFchi_a = bssn->DIFFchi_a;
+    arr_t & phi_a = scalar->phi_a; // field
+    
+    const hier::Box& box = bssn->DIFFchi_a_pdata->getGhostBox();
+    const hier::Box& inner_box = patch->getBox();
+
+    const int * lower = &box.lower()[0];
+    const int * upper = &box.upper()[0];
+
+    const int * inner_lower = &inner_box.lower()[0];
+    const int * inner_upper = &inner_box.upper()[0];
+
+    
+    for(int k = inner_lower[2]; k <= inner_upper[2]; k++)
+    {
+      for(int j = inner_lower[1]; j <= inner_upper[1]; j++)
+      {
+        for(int i = inner_lower[0]; i <= inner_upper[0]; i++)
+        {
+          BSSNData bd = {0};
+          ScalarData sd = {0};
+
+          sd.phi = phi[INDEX(i,j,k)];
+
+          rho_sigma += (1.0 / pw3(DIFFchi_a(i, j, k) + 1.0)) *
+            pw2((0.5 * pw2(DIFFchi_a(i,j,k) + 1.0) * (
+              (pw2((1.0/12.0*phi[INDEX(i-2,j,k)] - 2.0/3.0*phi[INDEX(i-1,j,k)] + 2.0/3.0*phi[INDEX(i+1,j,k)]- 1.0/12.0*phi[INDEX(i+2,j,k)])/dx[0])
+               + pw2((1.0/12.0*phi[INDEX(i,j-2,k)] - 2.0/3.0*phi[INDEX(i,j-1,k)] + 2.0/3.0*phi[INDEX(i,j+1,k)]- 1.0/12.0*phi[INDEX(i,j+2,k)])/dx[1])
+               +pw2((1.0/12.0*phi[INDEX(i,j,k-2)] - 2.0/3.0*phi[INDEX(i,j,k-1)] + 2.0/3.0*phi[INDEX(i,j,k+1)]- 1.0/12.0*phi[INDEX(i,j,k+2)])/dx[2]))
+            )
+             + scalar->potentialHandler->ev_potential(&bd, &sd)) - tot_r);
+        }
+      }
+    }   
+  }
+
+  mpi.AllReduce(&rho_sigma,1,MPI_SUM);
+  tbox::pout<<"sigma rho is "
+            <<sqrt(pw3(NX) / (pw3(NX)-1) * rho_sigma / tot_v)<<
+    " sigma rho / rho is "<<sqrt(pw3(NX) / (pw3(NX)-1) * rho_sigma / tot_v) /
+    ( tot_r  / (tot_v / NX/NY/NZ)  )<<"\n";
   
   return flag;
 }

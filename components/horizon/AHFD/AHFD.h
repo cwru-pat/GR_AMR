@@ -641,6 +641,7 @@ int CCTK_InterpGridArrays(
   CCTK_INT ILUCG__limit_CG_iterations;
  public:
   CCTK_INT N_horizons;
+  CCTK_INT find_every;
  private:
   CCTK_INT N_zones_per_right_angle[101];
   CCTK_INT UMFPACK__N_II_iterations;
@@ -651,7 +652,6 @@ int CCTK_InterpGridArrays(
   CCTK_INT disable_horizon[101];
   CCTK_INT dont_find_after_individual[101];
   CCTK_INT find_after_individual[101];
-  CCTK_INT find_every;
   CCTK_INT find_every_individual[101];
   CCTK_INT ghost_zone_width;
   CCTK_INT h_min_digits;

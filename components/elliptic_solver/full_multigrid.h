@@ -91,7 +91,8 @@ class FASMultigrid
   fas_heirarchy_set_t jac_rhs_h;       ///< - F(u) which is rhs of Jacob Linear function
   fas_heirarchy_set_t damping_v_h;     ///< _lap (u) - f, used to calculate F(u + \lambda v)
   fas_heirarchy_set_t * rho_h;         ///< source matter terms with number being rho_num;
- 
+  fas_heirarchy_set_t u_shift_h;    ///< the shift function of u, only change vars in poly to (u+u_shift) 
+  
   idx_t u_n;          ///< number of variables ( = number of equations)
 
   idx_t * molecule_n; ///< number of molecules for each equation
@@ -274,7 +275,11 @@ class FASMultigrid
   void setPolySrcAtPt(idx_t eqn_id, idx_t mol_id, idx_t i, idx_t j, idx_t k,
     real_t value);
 
+  void setShiftSrcAtPt(idx_t u_id, idx_t i, idx_t j, idx_t k, real_t value);
+  
   void initializeRhoHeirarchy();
+
+  void initializeShiftHeirarchy();
   
   void printSolutionStrip(idx_t depth);
 

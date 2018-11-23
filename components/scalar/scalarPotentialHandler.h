@@ -3,7 +3,7 @@
 
 #include "../../cosmo_includes.h"
 #include "scalar_data.h"
-#include "../components/bssn/bssn_data.h"
+#include "../bssn/bssn_data.h"
 #include <map>
 
 using namespace SAMRAI;

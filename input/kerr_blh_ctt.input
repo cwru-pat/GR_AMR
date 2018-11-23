@@ -1,0 +1,146 @@
+Main{
+  simulation_type = "vacuum"  
+  dim = 3
+  base_name = "kerr_blackhole"
+  print_precision = 9
+  restart = FALSE
+  restart_basename = "vacuum"
+  restart_step = 2
+  restart_nodes = 4
+  omp_num_threads = 1
+}
+
+CartesianGridGeometry {
+  domain_boxes = [(0,0,0), (127,127,127)]
+  x_lo         = 0, 0, 0
+  x_up         = 10, 10, 10
+  periodic_dimension = 1, 1, 1
+}
+
+
+StandardTagAndInitialize {
+  tagging_method = "GRADIENT_DETECTOR"
+}
+
+
+TreeLoadBalancer {
+  DEV_report_load_balance = TRUE
+  DEV_barrier_before = FALSE
+  DEV_barrier_after = FALSE
+}
+
+BergerRigoutsos {
+   combine_efficiency = 0.1
+   efficiency_tolerance = 0.1
+}
+
+TimerManager{
+    print_exclusive      = TRUE
+    timer_list = "loop", "init", "RK_steps"
+}
+
+
+PatchHierarchy {
+   max_levels = 1
+   proper_nesting_buffer = 3, 3, 3, 3, 3, 3   
+   largest_patch_size {
+      level_0 = -1, -1, -1
+      // all finer levels will use same values as level_0...
+   }
+   smallest_patch_size {
+      level_0 = 1, 1, 1   
+      // all finer levels will use same values as level_0...
+   }
+   ratio_to_coarser {
+     level_1            = 2, 2, 2
+     level_2            = 2, 2, 2
+     level_3            = 2, 2, 2
+     level_4            = 2, 2, 2
+     level_5            = 2, 2, 2
+     level_6            = 2, 2, 2
+     level_7            = 2, 2, 2
+   }
+   allow_patches_smaller_than_ghostwidth = TRUE
+   allow_patches_smaller_than_minimum_size_to_prevent_overlaps = TRUE
+}
+
+GriddingAlgorithm {
+   enforce_proper_nesting = TRUE
+   DEV_extend_to_domain_boundary = FALSE
+   // DEV_load_balance = FALSE
+   check_nonrefined_tags = "IGNORE"
+   sequentialize_patch_indices = TRUE
+}
+
+CosmoSim{
+  steps = 1000
+  save_steps = 1000000
+  do_plot = TRUE
+  dt_frac = 0.05
+  regridding_interval = 100000
+  adaption_threshold = 0.018
+  KO_damping_coefficient = 0.05
+  refine_op_type = "QUADRATIC_REFINE"
+  coarsen_op_typ = "CONSERVATIVE_COARSEN"
+  use_AHFinder = TRUE
+  AHFinder_interval = 1
+  AHFinder_iter_limit = 200000
+  AHFinder_dt_frac = 0.02
+  gradient_indicator = "DIFFK"
+  regridding_step_lower_bound = 0
+  regridding_step_upper_bound = 20
+  surface_move_shreshold = 0
+  use_anguler_momentum_finder = TRUE
+  stop_after_found_horizon = FALSE
+  comments = ""
+}
+
+CosmoStatistic
+{
+
+}
+
+
+VacuumSim{
+  ic_type = "kerr_BHL_CTT"
+  boundary_type = "periodic"
+  M = 1
+  spin = 0.6
+  K_c = -0.21
+  relaxation_tolerance = 1e-7
+  num_vcycles = 80
+}
+
+BSSN{
+  lapse = "OnePlusLog"
+  Shift = "GammaDriver"
+  gd_eta = 1
+  normalize_Aij = TRUE
+  normalize_gammaij = FALSE
+  z4c_k1 = 0.1
+  z4c_k2 = 0
+  alpha_lower_bd_for_L2 = 0.3
+  chi_lower_bd_type = "static_blackhole"
+  chi_lower_bd = 1e-9
+}
+
+AHFD{
+  find_every = 5
+  N_horizons = 2
+  origin_x = 5, 5
+  origin_y = 5, 5
+  origin_z = 5, 5
+  sphere_x_center = 5, 5
+  sphere_y_center = 5, 5
+  sphere_z_center = 5, 5
+  sphere_radius = 0.6, 0.7
+  find_after_individual = 0, 0 // will only find horizon after this step (inclusive)
+  Theta_norm_for_convergence = 1e-9
+  max_Newton_iterations__initial = 50
+}
+
+IO{
+  output_list = "DIFFchi","DIFFK", "DIFFalpha"
+  output_interval = 10, 10, 10
+  gd_c = 1
+}

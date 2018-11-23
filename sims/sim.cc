@@ -221,7 +221,7 @@ void CosmoSim::runCommonStepTasks(
     {
       if(horizon->AHFinderDirect_horizon_was_found(i))
       {
-        horizon_statistics->findKilling(hierarchy, bssnSim,i);
+        horizon_statistics->findKilling(hierarchy, bssnSim,i, step);
         
       }
     }

@@ -7,7 +7,7 @@
 #include "SAMRAI/xfer/RefinePatchStrategy.h"
 #include "SAMRAI/math/HierarchyCellDataOpsReal.h"
 #include "horizon_data.h"
-#include "../components/bssn/bssn.h"
+#include "../bssn/bssn.h"
 #include "SAMRAI/hier/LocalId.h"
 #include "AHFD/AHFD.h"
 
@@ -296,8 +296,9 @@ public:
   ~HorizonStatistics();
 
 
+  real_t dF(int theta_i, int phi_i, int d, double x, double y, double z, double r);
   void findKilling(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn, int horizon_id_in);
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn, int horizon_id_in, int step);
   void initGridding(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
   
@@ -323,7 +324,7 @@ public:
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
     double theta_0, double phi_0);
 
-  real_t getRadius(int theta_i, int phi_i);
+  real_t getRadius(double theta_i, double phi_i);
   
   void set_kd_values(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
@@ -364,7 +365,7 @@ public:
 
   
   real_t domain_lower[3], domain_upper[3], radius;
-  std::vector<double> origin;
+  std::vector<double> origin, coord_origin;
 
   // whether or not periodic boundary is used,
   // if so, will initialize 2 initial surface
