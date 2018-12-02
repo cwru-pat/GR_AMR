@@ -22,7 +22,7 @@ class CosmoStatistic
 
 
   std::vector<std::string> conformal_avg_list;
-  idx_t conformal_avg_interval;
+  idx_t conformal_avg_interval, expansion_info_interval;
   std::vector<idx_t> conformal_avg_idx;
 
   real_t calculate_conformal_avg(
@@ -38,6 +38,13 @@ class CosmoStatistic
     idx_t step_num,
     real_t time);
 
+  void output_expansion_info(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    BSSN *bssn,
+    idx_t weight_idx,
+    idx_t step_num,
+    real_t time);
+  
   bool is_empty;
 };
 

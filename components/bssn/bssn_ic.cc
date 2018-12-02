@@ -1500,7 +1500,7 @@ void bssn_ic_kerr_BHL_CTT(
     X[2].init(NX, NY, NZ);
     X[3].init(NX, NY, NZ);
 
-    idx_t molecule_n[4] = {35, 6, 6, 6};
+    idx_t molecule_n[4] = {27, 6, 6, 6};
 
     atom atom_tmp = {0};
     
@@ -1570,56 +1570,46 @@ void bssn_ic_kerr_BHL_CTT(
         multigrid.eqns[0][(12 + i+j - 2)].add_atom(atom_tmp);
       }
 
-    for(int i = 1; i <= 3; i++)
-      for(int j = 1; j <= 3; j++)
-      {
-        multigrid.eqns[0][16 + i + j -2].init(2, 0.5);
-
-        atom_tmp.type = i + 1;
-        atom_tmp.u_id = j;
-        multigrid.eqns[0][16 + i + j - 2].add_atom(atom_tmp);
-
-        atom_tmp.type = 1;
-        atom_tmp.u_id = 0;
-        atom_tmp.value = -7;
-        multigrid.eqns[0][(16 + i+j - 2)].add_atom(atom_tmp);
-      }
-
+    // adding \partial X \partial S terms
+    // where S is divergen shift
     for(int i = 1; i <= 3; i++)
       for(int j = 1; j <= 3; j++)
       {
         if( i == 3 && j == 3) continue;
 
-        multigrid.eqns[0][23+3*(i-1)+j].init(2, 1.0);
+        multigrid.eqns[0][15+3*(i-1)+j].init(2, 1.0);
         
         atom_tmp.type = i+1;
         atom_tmp.u_id = j;
-        multigrid.eqns[0][23+3*(i-1)+j].add_atom(atom_tmp);
+        multigrid.eqns[0][15+3*(i-1)+j].add_atom(atom_tmp);
 
         atom_tmp.type = 1;
         atom_tmp.u_id = 0;
         atom_tmp.value = -7;
-        multigrid.eqns[0][23+3*(i-1)+j].add_atom(atom_tmp);
+        multigrid.eqns[0][15+3*(i-1)+j].add_atom(atom_tmp);
       }
 
-    multigrid.eqns[0][32].init(1, 1.0);
+    // adding pure \partial S terms
+    multigrid.eqns[0][24].init(1, 1.0);
     atom_tmp.type = 1;
     atom_tmp.u_id = 0;
     atom_tmp.value = -7;
-    multigrid.eqns[0][32].add_atom(atom_tmp);
+    multigrid.eqns[0][24].add_atom(atom_tmp);
 
-    multigrid.eqns[0][33].init(1, 1.0);
-  
+    multigrid.eqns[0][25].init(1, 1.0);
+
+    // adding \Psi^5 terms
     atom_tmp.type = multigrid.atom_type::poly;
     atom_tmp.u_id = 0;
     atom_tmp.value = 5;
-    multigrid.eqns[0][33].add_atom(atom_tmp);
+    multigrid.eqns[0][25].add_atom(atom_tmp);
 
-    multigrid.eqns[0][34].init(1, 1.0);
+    // adding Lap(divergence part) as a ^0 polynomial
+    multigrid.eqns[0][26].init(1, 1.0);
     atom_tmp.type = multigrid.atom_type::poly;
     atom_tmp.u_id = 0;
     atom_tmp.value = 0;
-    multigrid.eqns[0][34].add_atom(atom_tmp);
+    multigrid.eqns[0][26].add_atom(atom_tmp);
     
     // start adding momentum constraints
     multigrid.eqns[1][0].init(1, 1.0);
@@ -1664,9 +1654,6 @@ void bssn_ic_kerr_BHL_CTT(
     atom_tmp.u_id = 3;
     multigrid.eqns[1][3].add_atom(atom_tmp);
 
-    
-    //    atom_tmp.type = multigrid.atom_type::const_f;
-    //multigrid.eqns[1][4].add_atom(atom_tmp);
     atom_tmp.type = multigrid.atom_type::poly;
     atom_tmp.u_id = 0;
     atom_tmp.value = 6;
@@ -1696,11 +1683,6 @@ void bssn_ic_kerr_BHL_CTT(
     atom_tmp.u_id = 3;
     multigrid.eqns[2][3].add_atom(atom_tmp);
 
-    //    atom_tmp.type = multigrid.atom_type::const_f;
-    //multigrid.eqns[2][4].add_atom(atom_tmp);
-
-
-    
     atom_tmp.type = multigrid.atom_type::poly;
     atom_tmp.u_id = 0;
     atom_tmp.value = 6;
@@ -1735,9 +1717,6 @@ void bssn_ic_kerr_BHL_CTT(
     atom_tmp.value = 0;
     multigrid.eqns[3][5].add_atom(atom_tmp);
 
-    
-    //    atom_tmp.type = multigrid.atom_type::const_f;
-    //multigrid.eqns[3][4].add_atom(atom_tmp);
     atom_tmp.type = multigrid.atom_type::poly;
     atom_tmp.u_id = 0;
     atom_tmp.value = 6;
@@ -1817,6 +1796,8 @@ void bssn_ic_kerr_BHL_CTT(
       }
       else
         W = 1;
+      
+
       real_t K = K_c * W;
 
 
@@ -1828,26 +1809,27 @@ void bssn_ic_kerr_BHL_CTT(
       X[3][INDEX(i,j,k)] = 0;
       
       // set coeficient of \Psi^5
-      multigrid.setPolySrcAtPt(0, 33, i, j, k, -K*K / 12.0);
-      multigrid.setPolySrcAtPt(0, 34, i, j, k, -M * lap_Wr);
+      multigrid.setPolySrcAtPt(0, 25, i, j, k, -K*K / 12.0);
+      
+      multigrid.setPolySrcAtPt(0, 26, i, j, k, -M * lap_Wr);
       real_t const_f_of_psi7;
       const_f_of_psi7 = 
         + (2.0 * (d1S1*d1S1 + d2S2*d2S2 + d3S3*d3S3)
         + d1S2*d1S2 + d2S1*d2S1 + d1S3*d1S3 + d3S1*d3S1 + d2S3*d2S3 + d3S2*d3S2
         + d1S2*d2S1 + d2S1*d1S2 + d1S3*d3S1 + d3S1*d1S3 + d2S3*d3S2 + d3S2*d2S3)/4.0;
       
-      multigrid.setPolySrcAtPt(0, 32, i, j, k, const_f_of_psi7); 
+      multigrid.setPolySrcAtPt(0, 24, i, j, k, const_f_of_psi7); 
 
-      multigrid.setPolySrcAtPt(0, 24, i, j, k, d1S1); // coef of d1X1
-      multigrid.setPolySrcAtPt(0, 25, i, j, k, 0.5*(d1S1 + d2S1)); // coef of d1X2
-      multigrid.setPolySrcAtPt(0, 26, i, j, k, 0.5*d3S1); // coef of d1X3
+      multigrid.setPolySrcAtPt(0, 16, i, j, k, d1S1); // coef of d1X1
+      multigrid.setPolySrcAtPt(0, 17, i, j, k, 0.5*(d1S2 + d2S1)); // coef of d1X2
+      multigrid.setPolySrcAtPt(0, 18, i, j, k, 0.5*d3S1); // coef of d1X3
 
-      multigrid.setPolySrcAtPt(0, 27, i, j, k, 0.5*(d2S1 + d1S2)); // coef of d2X1
-      multigrid.setPolySrcAtPt(0, 28, i, j, k, d2S2); // coef of d2X2
-      multigrid.setPolySrcAtPt(0, 29, i, j, k, 0.5*d3S2); // coef of d2X3
+      multigrid.setPolySrcAtPt(0, 19, i, j, k, 0.5*(d2S1 + d1S2)); // coef of d2X1
+      multigrid.setPolySrcAtPt(0, 20, i, j, k, d2S2); // coef of d2X2
+      multigrid.setPolySrcAtPt(0, 21, i, j, k, 0.5*d3S2); // coef of d2X3
 
-      multigrid.setPolySrcAtPt(0, 30, i, j, k, 0.5*d3S1); // coef of d3X1
-      multigrid.setPolySrcAtPt(0, 31, i, j, k, 0.5*d3S2); // coef of d3X2
+      multigrid.setPolySrcAtPt(0, 22, i, j, k, 0.5*d3S1); // coef of d3X1
+      multigrid.setPolySrcAtPt(0, 23, i, j, k, 0.5*d3S2); // coef of d3X2
       
       multigrid.setPolySrcAtPt(1, 4, i, j, k, -2.0 * dx_K / 3.0);
       multigrid.setPolySrcAtPt(2, 4, i, j, k, -2.0 * dy_K / 3.0); 
@@ -1864,7 +1846,6 @@ void bssn_ic_kerr_BHL_CTT(
       multigrid.setShiftSrcAtPt(3, i, j, k, 0);
     }
 
-
     bd_handler->fillBoundary(X[0]._array, X[0].nx, X[0].ny, X[0].nz);
     bd_handler->fillBoundary(X[1]._array, X[1].nx, X[1].ny, X[1].nz);
     bd_handler->fillBoundary(X[2]._array, X[2].nx, X[2].ny, X[2].nz);
@@ -1879,6 +1860,9 @@ void bssn_ic_kerr_BHL_CTT(
 
     mpi.Barrier();
     std::ifstream file(filename);
+    
+    // if file exists, reading from file
+    // run multigrid solver otherwise
     if(file)
     {
       int rank = 0;
@@ -1930,17 +1914,69 @@ void bssn_ic_kerr_BHL_CTT(
       flag = true;
       
     }
+    /**************debuging *************/
+    for(int i = NX/2; i <NX; i++)
+    {
+      int j = NX/2, k = NX/2;
+      real_t x = (dx[0] * ((real_t)i + 0.5)) - L[0] / 2.0 ;
+      real_t y = (dx[1] * ((real_t)j + 0.5)) - L[1] / 2.0 ;
+      real_t z = (dx[2] * ((real_t)k + 0.5)) - L[2] / 2.0 ;
 
-    // for(int i = 32; i < 64; i++)
-    //   tbox::pout<<X[0][INDEX(i, 32, 32)]<<" ";
-    // tbox::pout<<"\n\n\n";
+      real_t r = sqrt(pw2(x ) + pw2(y ) + pw2(z ));
 
-    // for(int i = 32; i < 64; i++)
-    //   tbox::pout<<X[1][INDEX(i, 32, 32)]<<" "<<"\n";
-    // tbox::pout<<"\n";
+      real_t W = 0, lap_Wr = 0;;
 
+      if(r < l) W = 0;
+      else if (r < l + sigma)         W = std::pow(pow((r-l-sigma)/(sigma),6) - 1.0, 6 ), lap_Wr = 90.0 * pow( (l-r+sigma) / sigma, 4.0)
+          * pow(pow((r-l-sigma)/(sigma), 6) - 1.0, 4.0)
+          * (-1.0+ 7 * pow( (l-r+sigma) / sigma, 6.0)) / (r * pw2(sigma));
+      else W = 1;
 
-    /**********start converting fields back*************/
+      // std::cout<<multigrid.laplacian(i, j, k, NX, NY, NZ, X[0]) - M * lap_Wr
+      //          <<" "<<-pw2(K_c*W) * pow(X[0][INDEX(i, j, k)] + M / (2.0 * r) * (1 - W),5.0) /12.0
+      //          <<" "<<i<<" "<<r<<"\n";
+      tbox::pout<<(X[0][INDEX(i, NX/2, NX/2)] + X[0][INDEX(i, NX/2-1, NX/2)] +
+                   X[0][INDEX(i, NX/2, NX/2-1)] + X[0][INDEX(i, NX/2-1, NX/2-1)]) / 4.0<<", ";
+
+      
+    }
+    tbox::pout<<"\n\n\n";
+
+    for(int i = NX/2; i < NX; i++)
+      tbox::pout<<(X[1][INDEX(i, NX/2, NX/2)] + X[1][INDEX(i, NX/2-1, NX/2)] +
+                   X[1][INDEX(i, NX/2, NX/2-1)] + X[1][INDEX(i, NX/2-1, NX/2-1)]) / 4.0<<", ";
+
+    tbox::pout<<"\n\n\n";
+    for(int i = NX/2; i <NX; i++)
+    {
+      int j = NX/2, k = NX/2;
+      real_t x = (dx[0] * ((real_t)i + 0.5)) - L[0] / 2.0 ;
+      real_t y = (dx[1] * ((real_t)j + 0.5)) - L[1] / 2.0 ;
+      real_t z = (dx[2] * ((real_t)k + 0.5)) - L[2] / 2.0 ;
+
+      real_t r = sqrt(pw2(x ) + pw2(y ) + pw2(z ));
+
+      real_t W = 0;
+
+      if(r < l) W = 0;
+      else if (r < l + sigma)         W = std::pow(pow((r-l-sigma)/(sigma),6) - 1.0, 6 );
+      else W = 1;
+      double shift = - x * a * (1-W) /pw3(r) ;
+      tbox::pout<<(X[2][INDEX(i, NX/2, NX/2)] + shift+ X[2][INDEX(i, NX/2-1, NX/2)] + shift+
+                   X[2][INDEX(i, NX/2, NX/2-1) + shift] + X[2][INDEX(i, NX/2-1, NX/2-1)] + shift) / 4.0<<", ";
+
+    }
+    tbox::pout<<"\n\n\n";
+
+    
+    for(int i = NX/2; i <NX; i++)
+      tbox::pout<<(X[3][INDEX(i, NX/2, NX/2)] + X[3][INDEX(i, NX/2-1, NX/2)] +
+                   X[3][INDEX(i, NX/2, NX/2-1)] + X[3][INDEX(i, NX/2-1, NX/2-1)]) / 4.0<<", ";
+    tbox::pout<<"\n\n\n";
+
+    /*********ending debuging part*************/
+
+    /**********start converting fields back to BSSN fields*************/
     for( hier::PatchLevel::iterator pit(level->begin());
          pit != level->end(); ++pit)
   {
@@ -2074,6 +2110,7 @@ void bssn_ic_kerr_BHL_CTT(
 
           real_t W = 0;
           real_t sA11 = 0, sA12 = 0, sA13 = 0, sA22 = 0, sA33 = 0, sA23 = 0;
+
           if(r < l)
           {
             W = 0;
@@ -2095,7 +2132,6 @@ void bssn_ic_kerr_BHL_CTT(
             sA22 =              
               -6*a*x*y*pow(r,-5)*(-1 - 12*r*pow(sigma,-6)*pow(l - r + sigma,5)*pow(1 - pow(sigma,-6)*pow(l - r + sigma,6),5) + pow(1 - pow(sigma,-6)*pow(l - r + sigma,6),6));
             sA23 = -3*a*x*z*pow(r,-5)*(-1 - 12*r*pow(sigma,-6)*pow(l - r + sigma,5)*pow(1 - pow(sigma,-6)*pow(l - r + sigma,6),5) + pow(1 - pow(sigma,-6)*pow(l - r + sigma,6),6));
-
           }
           else
             W = 1;
@@ -2115,67 +2151,41 @@ void bssn_ic_kerr_BHL_CTT(
           A11_a(i, j, k) = std::pow(X[0][INDEX(i, j, k)] + M / (2.0 * r) * (1 - W), -6.0)
             * (multigrid.derivative(i, j, k, NX, NY, NZ, 1, X[1])
                + multigrid.derivative(i, j, k, NX, NY, NZ, 1, X[1])
-               +sA11
-               // + 6.0 * a * x * y *
-               // (-1.0 - 12.0 * r / sigma * pow(ds, 5.0) * pow(1 - pow(ds, 6) , 5.0)
-               //  + pow(1 - pow(ds, 6.0), 6.0)) / pow(r, 5)
                - 2.0 * temp / 3.0);
 
+          
           A12_a(i, j, k) = std::pow(X[0][INDEX(i, j, k)] + M / (2.0 * r) * (1 - W), -6.0)
             * (multigrid.derivative(i, j, k, NX, NY, NZ, 1, X[2])
-               + multigrid.derivative(i, j, k, NX, NY, NZ, 2, X[1])
-               +sA12
-            );
+               + multigrid.derivative(i, j, k, NX, NY, NZ, 2, X[1]));
 
-          // if(i == 33 && j == 32 && k == 32)
-          //   tbox::pout<<"!!!! r = "<<x<<" "<<y<<" "<<r<<" "<<sA12<<" "
-          //             <<(multigrid.derivative(i, j, k, NX, NY, NZ, 1, X[2])
-          //      + multigrid.derivative(i, j, k, NX, NY, NZ, 2, X[1])
-          //      +sA12
-          //   )<<" "<<std::pow(X[0][INDEX(i, j, k)] + M / (2.0 * r) * (1 - W), -6.0)<<" "
-          //             <<" "<<A12_a(i, j, k)<<" ";
           
           A13_a(i, j, k) = std::pow(X[0][INDEX(i, j, k)] + M / (2.0 * r) * (1 - W), -6.0) *
             (multigrid.derivative(i, j, k, NX, NY, NZ, 1, X[3])
-             + multigrid.derivative(i, j, k, NX, NY, NZ, 3, X[1])
-             +sA13
-            );
+             + multigrid.derivative(i, j, k, NX, NY, NZ, 3, X[1]));
 
+          
           A22_a(i, j, k) = std::pow(X[0][INDEX(i, j, k)] + M / (2.0 * r) * (1 - W), -6.0) *
             (multigrid.derivative(i, j, k, NX, NY, NZ, 2, X[2])
              + multigrid.derivative(i, j, k, NX, NY, NZ, 2, X[2])
-             +sA22
              - 2.0 * temp / 3.0);
-    
+          
           A23_a(i, j, k) = std::pow(X[0][INDEX(i, j, k)] + M / (2.0 * r) * (1 - W), -6.0) *
             (multigrid.derivative(i, j, k, NX, NY, NZ, 2, X[3])
-             + multigrid.derivative(i, j, k, NX, NY, NZ, 3, X[2])
-             +sA23
-);
-
+             + multigrid.derivative(i, j, k, NX, NY, NZ, 3, X[2]));
+          
           A33_a(i, j, k) = std::pow(X[0][INDEX(i, j, k)] + M / (2.0 * r) * (1 - W), -6.0) *
             (multigrid.derivative(i, j, k, NX, NY, NZ, 3, X[3])
              + multigrid.derivative(i, j, k, NX, NY, NZ, 3, X[3])
              - 2.0 * temp / 3.0);
+
+          A11_a(i, j, k) += std::pow(X[0][INDEX(i, j, k)] + M / (2.0 * r) * (1 - W), -6.0) * sA11;
+          A12_a(i, j, k) += std::pow(X[0][INDEX(i, j, k)] + M / (2.0 * r) * (1 - W), -6.0) * sA12;
+          A13_a(i, j, k) += std::pow(X[0][INDEX(i, j, k)] + M / (2.0 * r) * (1 - W), -6.0) * sA13;
+          A22_a(i, j, k) += std::pow(X[0][INDEX(i, j, k)] + M / (2.0 * r) * (1 - W), -6.0) * sA22;
+          A23_a(i, j, k) += std::pow(X[0][INDEX(i, j, k)] + M / (2.0 * r) * (1 - W), -6.0) * sA23;
         }
       }
     }
-    // tbox::pout<<"\n";
-    // for(int i = 32; i < 64; i++)
-    // {
-    //   int j = 32, k = 32;
-    //   real_t x = (dx[0] * ((real_t)i + 0.5)) - L[0] / 2.0 ;
-    //   real_t y = (dx[1] * ((real_t)j + 0.5)) - L[1] / 2.0 ;
-    //   real_t z = (dx[2] * ((real_t)k + 0.5)) - L[2] / 2.0 ;
-
-    //   real_t r = sqrt(pw2(x ) + pw2(y ) + pw2(z ));
-
-    //   tbox::pout<<DIFFK_a(i, 32, 32)<<" "<<A11_a(i, 32, 32)<<" "
-    //             <<A22_a(i, 32, 32)<<" "<<A33_a(i, 32, 32)<<" "<<A12_a(i, 32, 32)
-    //             <<A13_a(i, 32, 32)<<A23_a(i, 32, 32)<<"\n";
-
-    // }
-    // tbox::pout<<"\n";
 
   }
 

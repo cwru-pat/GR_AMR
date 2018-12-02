@@ -131,7 +131,7 @@ void VacuumSim::setICs(
   {
     hierarchy->initializeHierarchy();
   }
-  
+ 
   // set initial condition by calling function initializeLevelData()
   gridding_algorithm->makeCoarsestLevel(cur_t);
 
@@ -141,6 +141,7 @@ void VacuumSim::setICs(
     for (idx_t ln = 0; ln < static_cast<int>(tag_buffer.size()); ++ln) {
       tag_buffer[ln] = 1;
     }
+    
     gridding_algorithm->regridAllFinerLevels(
       0,
       tag_buffer,
@@ -527,6 +528,9 @@ void VacuumSim::applyGradientDetector(
    const bool initial_time,
    const bool uses_richardson_extrapolation)
 {
+  // do not tag new grid when restarting
+  if(tbox::RestartManager::getManager()->isFromRestart() && step == starting_step)
+    return;
    NULL_USE(uses_richardson_extrapolation);
    NULL_USE(error_data_time);
    NULL_USE(initial_time);
@@ -627,7 +631,10 @@ void VacuumSim::outputVacuumStep(
  
   cosmo_io->registerVariablesWithPlotter(*visit_writer, step);
   cosmo_io->dumpData(hierarchy, *visit_writer, step, cur_t);
-  
+
+  cosmo_statistic->output_expansion_info(
+      hierarchy,
+      bssnSim, weight_idx, step, cur_t);
 }
 
 /**

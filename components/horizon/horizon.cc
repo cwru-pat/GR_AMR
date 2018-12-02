@@ -336,6 +336,38 @@ void HorizonStatistics::set_kd_values(
   real_t sp = sin(phi);
   real_t cp = cos(phi);
 
+  double dphi = 2.0 * PI / (double) n_phi / 2.0;
+  double dtheta = PI / (double) n_theta / 2.0;
+  
+  double dtheta_dh = (ah_radius[theta_i + 1][phi_i] - ah_radius[theta_i][phi_i]) / (dtheta);
+  double dphi_dh = (ah_radius[theta_i][(phi_i+1)%(2*n_phi)]
+                    - ah_radius[theta_i][(phi_i)%(2*n_phi)]) / (dphi);
+
+
+  double l[3];
+  l[0] = x / r, l[1] = y / r, l[2] = z/r;
+
+  double Theta[3], Phi[3];
+
+  double d1h = (x*z/(pw3(r)*sqrt(1-pw2(z/r))))*dtheta_dh - (y/(pw2(x)+pw2(y)))*dphi_dh;
+  double d2h = (y*z/(pw3(r)*sqrt(1-pw2(z/r))))*dtheta_dh + (x/(pw2(x)+pw2(y)))*dphi_dh;
+  double d3h = sqrt(pw2(x)+pw2(y)) / pw2(r) * dtheta_dh;
+  
+  Theta[0] = l[0] * l[2] * (1 + l[0] * d1h + l[1] * d2h) / sqrt(1 - pw2(l[2]))
+    - l[0] * sqrt(1 - l[2] * l[2]) * d3h;
+
+  Theta[1] = l[1] * l[2] * (1 + l[0] * d1h + l[1] * d2h) / sqrt(1 - pw2(l[2]))
+    - l[1] * sqrt(1 - l[2] * l[2]) * d3h;
+
+  Theta[2] = l[2] * l[2] * (l[0] * d1h + l[1] * d2h) / sqrt(1 - pw2(l[2]))
+    - sqrt(1 - l[2] * l[2]) * (1 + l[2] * d3h);
+
+  Phi[0] = (l[0] * (l[0]*d2h - l[1] * d1h) - l[1]) / sqrt(1 - l[2] * l[2]);
+
+  Phi[1] = (l[1] * (l[0]*d2h - l[1] * d1h) + l[0]) / sqrt(1 - l[2] * l[2]);
+
+  Phi[2] = l[2] * (l[0] * d2h - l[1] * d1h)  / sqrt(1 - l[2] * l[2]);
+  
   for (ln = ln_num - 1; ln >= 0; ln--)
   {
     boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
@@ -413,19 +445,42 @@ void HorizonStatistics::set_kd_values(
           HORIZON_INTERPOLATE_CHI_3;
         }
 
-  
-        kd->q11 = pw2(r)*(ct*(pw2(cp)*ct*kd->m11
-                              + ct*sin(2*phi)*kd->m12
-                              + ct*pw2(sp)*kd->m22
-                              - 2*st*(cp*kd->m13 + sp*kd->m23)) + pw2(st)*kd->m33);
+        kd->q11 = pw2(r) * (
+          kd->m11 * Theta[0] * Theta[0] + 2.0 * kd->m12 * Theta[0] * Theta[1]
+          + 2.0 * kd->m13 * Theta[0] * Theta[2] + kd->m22 * Theta[1] * Theta[1]
+          + 2.0 * kd->m23 * Theta[1] * Theta[2] + kd->m33 * Theta[2] * Theta[2]);
+
+        kd->q12 = 2.0 * st * pw2(r) * (
+          kd->m11 * Theta[0] * Phi[0] + kd->m12 * Theta[0] * Phi[1]
+          + kd->m12 * Theta[1] * Phi[0] + kd->m13 * Theta[0] * Phi[2]
+          + kd->m13 * Theta[2] * Phi[0] + kd->m22 * Theta[1] * Phi[1]
+          + kd->m23 * Theta[1] * Phi[2] + kd->m23 * Theta[2] * Phi[1]
+          +  kd->m33 * Theta[2] * Phi[2]);
+
+        kd->q22 = pw2(r * st) * (
+          kd->m11 * Phi[0] * Phi[0] + 2.0 * kd->m12 * Phi[0] * Phi[1]
+          + 2.0 * kd->m13 * Phi[0] * Phi[2] + kd->m22 * Phi[1] * Phi[1]
+          + 2.0 * kd->m23 * Phi[1] * Phi[2] + kd->m33 * Phi[2] * Phi[2]);
+
+        
+        // kd->q11 = pw2(r)*(ct*(pw2(cp)*ct*kd->m11
+        //                       + ct*sin(2*phi)*kd->m12
+        //                       + ct*pw2(sp)*kd->m22
+        //                       - 2*st*(cp*kd->m13 + sp*kd->m23)) + pw2(st)*kd->m33);
 
   
-        kd->q12 = pw2(r)*st*(ct*cos(2*phi)*kd->m12
-                             + sp*st*kd->m13
-                             + cp*ct*sp*(-kd->m11 + kd->m22) - cp*st*kd->m23);
+        // kd->q12 = pw2(r)*st*(ct*cos(2*phi)*kd->m12
+        //                      + sp*st*kd->m13
+        //                      + cp*ct*sp*(-kd->m11 + kd->m22) - cp*st*kd->m23);
 
-        kd->q22 = pw2(r)*pw2(st)*(pw2(sp)*kd->m11 + cp*(-2*sp*kd->m12 + cp*kd->m22));
+        // kd->q22 = pw2(r)*pw2(st)*(pw2(sp)*kd->m11 + cp*(-2*sp*kd->m12 + cp*kd->m22));
 
+        // std::cout<<ct*cos(2*phi)*kd->m12<<" "<<
+        //   sp*st*kd->m13<<" "<<cp*ct*sp*(-kd->m11 + kd->m22)<<" "
+        //          <<- cp*st*kd->m23<<"\n";
+        //        std::cout<<fabs(kd->q11 - q11) / q11<<" "<<q12<<" "<<kd->q12
+        //       <<" "<<fabs(kd->q22 - q22) / q22<<"\n";
+        
         kd->Gs111 = ((pw2(x) + pw2(y))*z*(5*(pw2(x) + pw2(y)) - 
                                           pw2(z))*cos(2*theta) + 
                      (pw2(x) + pw2(y))*(-(z*(3*(pw2(x) + pw2(y)) + 
@@ -1191,6 +1246,10 @@ void HorizonStatistics::initGridding(
 
   n_phi = 2.0 * PI * max_r / dx * 2;
 
+  if(n_theta % 2 == 1) n_theta += 1;
+
+  if(n_phi % 2 == 1) n_phi += 1;
+  
   tbox::pout<<"Dividing the space into n_theta = "<<n_theta
             <<" and n_phi = "<<n_phi<<"\n";
 
@@ -1256,8 +1315,8 @@ void HorizonStatistics::findM(
 
 
 
-  //  tbox::pout<<"\n";
-  //tbox::pout << "Here is the matrix m:\n" << M << "\n";
+   tbox::pout<<"\n";
+  tbox::pout << "Here is the matrix m:\n" << M << "\n";
 
   // solve the eigenvalue equation to get 3 eigenvalues;
 
@@ -1269,7 +1328,7 @@ void HorizonStatistics::findM(
   Eigen::EigenSolver< Eigen::Matrix3d >::EigenvalueType e_val = eigensolver.eigenvalues();
   Eigen::EigenSolver< Eigen::Matrix3d >::EigenvectorsType e_vec = eigensolver.eigenvectors();
 
-  //  tbox::pout<<"\n Eigenvalues are "<<e_val<<"\n";
+   tbox::pout<<"\n Eigenvalues are "<<e_val<<"\n";
   
   double dis_to_I = INF;
   int identity_idx=-1;
@@ -1285,8 +1344,8 @@ void HorizonStatistics::findM(
   x[2] = e_vec(2, identity_idx).real();
   
 
-  //  tbox::pout<<"Solution with identity eigenvalue is ("
-  //        << x[0]<<" "<<x[1]<<" "<<x[2]<<")\n";
+   tbox::pout<<"Solution with identity eigenvalue is ("
+         << x[0]<<" "<<x[1]<<" "<<x[2]<<")\n";
   
   
 }
@@ -1542,7 +1601,7 @@ void HorizonStatistics::normKilling()
 {
   double c = getNormFactor();
 
-  //  tbox::pout<<"Norm factor "<<c<<"\n";
+   tbox::pout<<"Norm factor "<<c<<"\n";
   for(int i = 0 ; i < n_theta; i++)
     for(int j = 0; j < n_phi; j ++)
     {
@@ -1566,18 +1625,20 @@ real_t HorizonStatistics::getNormFactor()
   
   real_t dt = 0.01 * dtheta / max_abs;
 
-  // tbox::pout<<"Time interval for process of getting norm factor is "
-  //           <<dt<<"\n";
+  tbox::pout<<"Time interval for process of getting norm factor is "
+            <<dt<<"\n";
 
   
   real_t t = 0;
+  int cnt = 0;
   // advance theta and phi
   while( (SIGN(pre_phi) * SIGN(phi) >= 0)
          && (SIGN(2.0 * PI - pre_phi) * SIGN(2.0 * PI - phi) >= 0 )
          &&(SIGN(-2.0 * PI - pre_phi) * SIGN(-2.0 * PI - phi) >= 0 )) 
   {
     pre_phi = phi;
-
+    //    tbox::pout<<"phi "<<phi<<" theta "<<theta<<" "
+    //        <<"k_phi "<<interp_k_phi(theta, phi)<<" k_theta "<<interp_k_theta(theta, phi)<<"\n";
     double theta_0 = theta;
     double phi_0 = phi;
     
@@ -1599,6 +1660,12 @@ real_t HorizonStatistics::getNormFactor()
     theta = theta_0 + dt * (k1_theta + 2.0 * k2_theta + 2.0 * k3_theta + k4_theta) / 6.0;
     phi = phi_0 + dt * (k1_phi + 2.0 * k2_phi + 2.0 * k3_phi + k4_phi) / 6.0;
     t += dt;
+    cnt++;
+    if(cnt >= 1000000)
+    {
+      tbox::pout<<"Warning!!! Cannot find suitable normalize factor\n";
+      break;
+    }
   }
 
   //  tbox::pout<<"When \phi gets back, the corresponding theta is "<<theta<<"\n";
@@ -1699,14 +1766,15 @@ void HorizonStatistics::convertToVector(
       
       k_theta[theta_i][phi_i] = kd.qi11 * k_theta0 + kd.qi12 * k_phi0;
       k_phi[theta_i][phi_i] = kd.qi12 * k_theta0 + kd.qi22 * k_phi0;
-
+      
       mpi.Barrier();
       if (mpi.getSize() > 1 ) {
         mpi.Bcast(&k_theta[theta_i][phi_i], 1, MPI_DOUBLE, cur_mpi_rank);
         mpi.Bcast(&k_phi[theta_i][phi_i], 1, MPI_DOUBLE, cur_mpi_rank);
       }
       mpi.Barrier();
-
+      // if(theta_i == n_theta/2)
+      //   tbox::pout<<k_theta[theta_i][phi_i]<<" "<<k_phi[theta_i][phi_i]<<"\n";
     }
   }
 
@@ -1791,7 +1859,6 @@ void HorizonStatistics::findKilling(
     convertToVector(hierarchy, bssn);
 
     normKilling();
-
     angular_m = angularMomentum(hierarchy, bssn);
     tbox::pout<<"Angular momentum is "<<angular_m<<"\n";
   }

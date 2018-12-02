@@ -15,6 +15,7 @@ CosmoStatistic::CosmoStatistic(
   is_empty(true)
 {
   conformal_avg_interval = cosmo_statistic_db->getIntegerWithDefault("conformal_avg_interval",0);
+  expansion_info_interval = cosmo_statistic_db->getIntegerWithDefault("expansion_info_interval",0);
 
   if(conformal_avg_interval > 0)
     conformal_avg_list = cosmo_statistic_db->getStringVector("conformal_avg_list");
@@ -132,6 +133,191 @@ real_t CosmoStatistic::calculate_conformal_avg(
   
 }
 
+void CosmoStatistic::output_expansion_info(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    BSSN *bssn,
+    idx_t weight_idx,
+    idx_t step_num,
+    real_t time)
+{
+  if( expansion_info_interval == 0 || step_num % expansion_info_interval != 0)
+    return;
+  
+  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+      hierarchy->getGridGeometry()));
+  TBOX_ASSERT(grid_geometry_);
+  geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
+  const double * dx = &grid_geometry.getDx()[0];
+
+  const double * domain_lower = &grid_geometry.getXLower()[0];
+  const double * domain_upper = &grid_geometry.getXUpper()[0];
+
+  int coarsest_boxes[3];
+
+  for(int i = 0; i < 3; i++)
+    coarsest_boxes[i] = round((domain_upper[i] - domain_lower[i]) / dx[i] );
+  
+  double tot_vol = 0;
+  double face_area[6] = {0}; //(0, y, z), (L, y, z), (x, 0, z), (x, L, z), (x, y, 0), (x, y, L)
+
+  //(0, 0, z), (0, L, z), (L, 0, z), (L, L, z)
+  //(0, y, 0), (0, y, L), (L, 0, z), (L, y, L)
+  //(x, 0, 0), (x, 0, L), (x, L, 0), (x, L, L)
+  double edge_length[12] = {0}; 
+
+  for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln ++)
+  {
+    boost::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+
+    
+    for( hier::PatchLevel::iterator pit(level->begin());
+         pit != level->end(); ++pit)
+    {
+      const boost::shared_ptr<hier::Patch> & patch = *pit;
+
+      const hier::Box& box = patch->getBox();
+
+      const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+          patch->getPatchGeometry()));
+
+      bssn->initPData(patch);
+
+      bssn->initMDA(patch);
+
+
+      boost::shared_ptr<pdat::CellData<double> > weight(
+        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+          patch->getPatchData(weight_idx)));
+      
+      arr_t weight_array =
+        pdat::ArrayDataAccess::access<DIM, double>(
+          weight->getArrayData());
+
+      arr_t DIFFchi = bssn->DIFFchi_a;
+      arr_t gamma11 = bssn->DIFFgamma11_a;
+      arr_t gamma12 = bssn->DIFFgamma12_a;
+      arr_t gamma13 = bssn->DIFFgamma13_a;
+      arr_t gamma22 = bssn->DIFFgamma22_a;
+      arr_t gamma23 = bssn->DIFFgamma23_a;
+      arr_t gamma33 = bssn->DIFFgamma33_a;
+
+      const int * lower = &box.lower()[0];
+      const int * upper = &box.upper()[0];
+      
+      const double *dx = &patch_geom->getDx()[0];
+
+      
+
+      //#pragma omp parallel for collapse(2) reduction(+:tot_vol)
+      for(int k = lower[2]; k <= upper[2]; k++)
+      {
+        for(int j = lower[1]; j <= upper[1]; j++)
+        {
+          for(int i = lower[0]; i <= upper[0]; i++)
+          {           
+            if(weight_array(i,j,k) > 0)
+            {
+              tot_vol += weight_array(i, j, k) * 1.0 / pw3(DIFFchi(i, j, k) + 1.0);
+
+              if(i == 0)
+              {
+                double sq_det2 = ((gamma22(i, j, k) + 1.0) * (gamma33(i, j, k) + 1.0)
+                                  - pw2(gamma23(i, j, k))) / pw2(DIFFchi(i, j, k) + 1.0);
+                face_area[0] += dx[1] * dx[2] * sq_det2; 
+              }
+              else if(i == (coarsest_boxes[0] << ln) - 1)
+              {
+                double sq_det2 = ( (gamma22(i, j, k) + 1.0)* (gamma33(i, j, k)  + 1.0)
+                                   - pw2(gamma23(i, j, k))) / pw2(DIFFchi(i, j, k) + 1.0);
+                face_area[1] += dx[1] * dx[2] * sq_det2;
+              }
+              if(j == 0)
+              {
+                double sq_det2 = ( (gamma11(i, j, k) + 1.0)* (gamma33(i, j, k) + 1.0)
+                                   - pw2(gamma13(i, j, k))) / pw2(DIFFchi(i, j, k) + 1.0);
+                face_area[2] += dx[0] * dx[2] * sq_det2;
+              }
+              else if(j == (coarsest_boxes[1] << ln) - 1)
+              {
+                double sq_det2 = ((gamma11(i, j, k) + 1.0) * (gamma33(i, j, k) + 1.0)
+                                  - pw2(gamma13(i, j, k))) / pw2(DIFFchi(i, j, k) + 1.0);
+                face_area[3] += dx[0] * dx[2] * sq_det2;
+              }
+              if(k == 0)
+              {
+                double sq_det2 = ((gamma11(i, j, k) + 1.0) * (gamma22(i, j, k) + 1.0)
+                                  - pw2(gamma12(i, j, k))) / pw2(DIFFchi(i, j, k) + 1.0);
+                face_area[4] += dx[0] * dx[1] * sq_det2;
+              }
+              else if(k == (coarsest_boxes[2] << ln) - 1)
+              {
+                double sq_det2 = ((gamma11(i, j, k) + 1.0) * (gamma22(i, j, k) + 1.0)
+                                  - pw2(gamma12(i, j, k))) / pw2(DIFFchi(i, j, k) + 1.0);
+                face_area[5] += dx[0] * dx[1] * sq_det2;
+              }
+
+              if(i == 0 && j == 0)
+                edge_length[0] +=  dx[2] * (gamma33(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);
+              else if(i == 0 && j == (coarsest_boxes[1] << ln) - 1)
+                edge_length[1] += dx[2] * (gamma33(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);
+              else if(j == 0 && i == (coarsest_boxes[0] << ln) - 1)
+                edge_length[2] += dx[2] * (gamma33(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);
+              else if(i == (coarsest_boxes[0] << ln) - 1 && j == (coarsest_boxes[1] << ln) - 1)
+                edge_length[3] += dx[2] * (gamma33(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);
+
+              if(i == 0 && k == 0)
+                edge_length[4] +=  dx[1] * (gamma22(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);
+              else if(i == 0 && k == (coarsest_boxes[2] << ln) - 1)
+                edge_length[5] += dx[1] * (gamma22(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);
+              else if(k == 0 && i == (coarsest_boxes[0] << ln) - 1)
+                edge_length[6] += dx[1] * (gamma22(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);
+              else if(i == (coarsest_boxes[0] << ln) - 1 && k == (coarsest_boxes[2] << ln) - 1)
+                edge_length[7] += dx[1] * (gamma22(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);
+                            
+              if(k == 0 && j == 0)
+                edge_length[8] +=  dx[0] * (gamma11(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);
+              else if(j == 0 && k == (coarsest_boxes[2] << ln) - 1)
+                edge_length[9] += dx[0] * (gamma11(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);
+              else if(k == 0 && j == (coarsest_boxes[1] << ln) - 1)
+                edge_length[10] += dx[0] * (gamma11(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);
+              else if(j == (coarsest_boxes[1] << ln) - 1 && k == (coarsest_boxes[2] << ln) - 1)
+                edge_length[11] += dx[0] * (gamma11(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);
+              
+            }
+          }
+        }
+      }
+
+    }
+  }
+  const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
+  mpi.Barrier();
+  if (mpi.getSize() > 1) {
+    mpi.AllReduce(&tot_vol, 1, MPI_SUM);
+    mpi.AllReduce(&face_area[0], 6, MPI_SUM);
+    mpi.AllReduce(&edge_length[0], 12, MPI_SUM);
+  }
+
+  (*lstream)<<"**********Start outputing expansion info****** " <<"\n";
+
+  (*lstream)<<"Total vol is " <<tot_vol<<"\n";
+
+  (*lstream)<<"6 faces areas are ";
+  for(int i = 0; i < 6; i++)
+    (*lstream)<<face_area[i]<<" ";
+  (*lstream)<<"\n";
+
+  (*lstream)<<"12 edges lengthes are ";
+  for(int i = 0; i < 12; i++)
+    (*lstream)<<edge_length[i]<<" ";
+  (*lstream)<<"\n";
+
+  
+  (*lstream)<<"**********Finish outputing expansion info****** " <<"\n";
+  
+}
   
 void CosmoStatistic::output_conformal_avg(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
