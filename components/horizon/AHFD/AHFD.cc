@@ -6010,7 +6010,7 @@ int Horizon::CCTK_InterpGridArrays(
               //                           "input_array_offsets") < 0)
               //   CCTK_WARN(-1, "can’t set operand_indices array in parameter table!");
 
-              const double origin[DIM] = {0,0,0};
+              const double origin[DIM] = {dx[0]/2,dx[1]/2,dx[2]/2};
               const double delta[DIM] = {dx[0], dx[1], dx[2]} ;
 
 

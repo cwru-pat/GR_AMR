@@ -5,13 +5,13 @@ Main{
   print_precision = 9
   restart = FALSE
   restart_basename = "vacuum"
-  restart_step = 2
-  restart_nodes = 4
+  restart_step = 89
+  restart_nodes = 10
   omp_num_threads = 1
 }
 
 CartesianGridGeometry {
-  domain_boxes = [(0,0,0), (127,127,127)]
+  domain_boxes = [(0,0,0), (63,63,63)]
   x_lo         = 0, 0, 0
   x_up         = 10, 10, 10
   periodic_dimension = 1, 1, 1
@@ -76,8 +76,8 @@ CosmoSim{
   steps = 1000
   save_steps = 1000000
   do_plot = TRUE
-  dt_frac = 0.05
-  regridding_interval = 100000
+  dt_frac = 0.1
+  regridding_interval = 40
   adaption_threshold = 0.018
   KO_damping_coefficient = 0.05
   refine_op_type = "QUADRATIC_REFINE"
@@ -88,16 +88,17 @@ CosmoSim{
   AHFinder_dt_frac = 0.02
   gradient_indicator = "DIFFK"
   regridding_step_lower_bound = 0
-  regridding_step_upper_bound = 20
+  regridding_step_upper_bound = 300
   surface_move_shreshold = 0
   use_anguler_momentum_finder = TRUE
   stop_after_found_horizon = FALSE
+  calculate_K_avg = TRUE
   comments = ""
 }
 
 CosmoStatistic
 {
-
+  expansion_info_interval = 10
 }
 
 
@@ -107,12 +108,12 @@ VacuumSim{
   M = 1
   spin = 0.6
   K_c = -0.21
-  relaxation_tolerance = 1e-7
-  num_vcycles = 80
+  relaxation_tolerance = 1e-8
+  num_vcycles = 280
 }
 
 BSSN{
-  lapse = "OnePlusLog"
+  lapse = "RelativeAverageOnePlusLog"
   Shift = "GammaDriver"
   gd_eta = 1
   normalize_Aij = TRUE
@@ -125,7 +126,7 @@ BSSN{
 }
 
 AHFD{
-  find_every = 5
+  find_every = 10
   N_horizons = 2
   origin_x = 5, 5
   origin_y = 5, 5
@@ -133,10 +134,12 @@ AHFD{
   sphere_x_center = 5, 5
   sphere_y_center = 5, 5
   sphere_z_center = 5, 5
-  sphere_radius = 0.6, 0.7
+  sphere_radius = 0.4, 0.55
   find_after_individual = 0, 0 // will only find horizon after this step (inclusive)
   Theta_norm_for_convergence = 1e-9
   max_Newton_iterations__initial = 50
+  N_zones_per_right_angle = 8, 8
+  n_phi = 36
 }
 
 IO{
