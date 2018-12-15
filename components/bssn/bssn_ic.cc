@@ -1333,11 +1333,11 @@ void bssn_ic_static_BHL_CTT(
     const int * inner_upper = &inner_box.upper()[0];
 
     
-    for(int k = lower[2]; k <= upper[2]; k++)
+    for(int k = inner_lower[2]; k <= inner_upper[2]; k++)
     {
-      for(int j = lower[1]; j <= upper[1]; j++)
+      for(int j = inner_lower[1]; j <= inner_upper[1]; j++)
       {
-        for(int i = lower[0]; i <= upper[0]; i++)
+        for(int i = inner_lower[0]; i <= inner_upper[0]; i++)
         {
 
           real_t x = (dx[0] * ((real_t)i + 0.5)) - L[0] / 2.0 ;
@@ -1408,6 +1408,9 @@ void bssn_ic_kerr_BHL_CTT(
   idx_t DIFFchi_a_idx =
     variable_db->mapVariableAndContextToIndex(
       variable_db->getVariable("DIFFchi"), variable_db->getContext("ACTIVE"));
+  idx_t DIFFalpha_a_idx =
+    variable_db->mapVariableAndContextToIndex(
+      variable_db->getVariable("DIFFalpha"), variable_db->getContext("ACTIVE"));
 
   idx_t DIFFgamma11_a_idx =
     variable_db->mapVariableAndContextToIndex(
@@ -1895,6 +1898,7 @@ void bssn_ic_kerr_BHL_CTT(
         mpi.Barrier();
         rank ++;
       }
+      //      multigrid.VCycles(num_vcycles);
     }
     else
     {
@@ -1915,64 +1919,22 @@ void bssn_ic_kerr_BHL_CTT(
       
     }
     /**************debuging *************/
-    for(int i = NX/2; i <NX; i++)
-    {
-      int j = NX/2, k = NX/2;
-      real_t x = (dx[0] * ((real_t)i + 0.5)) - L[0] / 2.0 ;
-      real_t y = (dx[1] * ((real_t)j + 0.5)) - L[1] / 2.0 ;
-      real_t z = (dx[2] * ((real_t)k + 0.5)) - L[2] / 2.0 ;
+    
 
-      real_t r = sqrt(pw2(x ) + pw2(y ) + pw2(z ));
+    // for(int i = NX/2; i < NX; i++)
+    //   tbox::pout<<(X[1][INDEX(i, NX/2, NX/2)] + X[1][INDEX(i, NX/2-1, NX/2)] +
+    //                X[1][INDEX(i, NX/2, NX/2-1)] + X[1][INDEX(i, NX/2-1, NX/2-1)]) / 4.0<<", ";
 
-      real_t W = 0, lap_Wr = 0;;
+    // tbox::pout<<"\n\n\n";
 
-      if(r < l) W = 0;
-      else if (r < l + sigma)         W = std::pow(pow((r-l-sigma)/(sigma),6) - 1.0, 6 ), lap_Wr = 90.0 * pow( (l-r+sigma) / sigma, 4.0)
-          * pow(pow((r-l-sigma)/(sigma), 6) - 1.0, 4.0)
-          * (-1.0+ 7 * pow( (l-r+sigma) / sigma, 6.0)) / (r * pw2(sigma));
-      else W = 1;
+    //    tbox::pout<<"\n\n\n";
 
-      // std::cout<<multigrid.laplacian(i, j, k, NX, NY, NZ, X[0]) - M * lap_Wr
-      //          <<" "<<-pw2(K_c*W) * pow(X[0][INDEX(i, j, k)] + M / (2.0 * r) * (1 - W),5.0) /12.0
-      //          <<" "<<i<<" "<<r<<"\n";
-      tbox::pout<<(X[0][INDEX(i, NX/2, NX/2)] + X[0][INDEX(i, NX/2-1, NX/2)] +
-                   X[0][INDEX(i, NX/2, NX/2-1)] + X[0][INDEX(i, NX/2-1, NX/2-1)]) / 4.0<<", ";
-
-      
-    }
-    tbox::pout<<"\n\n\n";
-
-    for(int i = NX/2; i < NX; i++)
-      tbox::pout<<(X[1][INDEX(i, NX/2, NX/2)] + X[1][INDEX(i, NX/2-1, NX/2)] +
-                   X[1][INDEX(i, NX/2, NX/2-1)] + X[1][INDEX(i, NX/2-1, NX/2-1)]) / 4.0<<", ";
-
-    tbox::pout<<"\n\n\n";
-    for(int i = NX/2; i <NX; i++)
-    {
-      int j = NX/2, k = NX/2;
-      real_t x = (dx[0] * ((real_t)i + 0.5)) - L[0] / 2.0 ;
-      real_t y = (dx[1] * ((real_t)j + 0.5)) - L[1] / 2.0 ;
-      real_t z = (dx[2] * ((real_t)k + 0.5)) - L[2] / 2.0 ;
-
-      real_t r = sqrt(pw2(x ) + pw2(y ) + pw2(z ));
-
-      real_t W = 0;
-
-      if(r < l) W = 0;
-      else if (r < l + sigma)         W = std::pow(pow((r-l-sigma)/(sigma),6) - 1.0, 6 );
-      else W = 1;
-      double shift = - x * a * (1-W) /pw3(r) ;
-      tbox::pout<<(X[2][INDEX(i, NX/2, NX/2)] + shift+ X[2][INDEX(i, NX/2-1, NX/2)] + shift+
-                   X[2][INDEX(i, NX/2, NX/2-1) + shift] + X[2][INDEX(i, NX/2-1, NX/2-1)] + shift) / 4.0<<", ";
-
-    }
-    tbox::pout<<"\n\n\n";
 
     
-    for(int i = NX/2; i <NX; i++)
-      tbox::pout<<(X[3][INDEX(i, NX/2, NX/2)] + X[3][INDEX(i, NX/2-1, NX/2)] +
-                   X[3][INDEX(i, NX/2, NX/2-1)] + X[3][INDEX(i, NX/2-1, NX/2-1)]) / 4.0<<", ";
-    tbox::pout<<"\n\n\n";
+    // for(int i = NX/2; i <NX; i++)
+    //   tbox::pout<<(X[3][INDEX(i, NX/2, NX/2)] + X[3][INDEX(i, NX/2-1, NX/2)] +
+    //                X[3][INDEX(i, NX/2, NX/2-1)] + X[3][INDEX(i, NX/2-1, NX/2-1)]) / 4.0<<", ";
+    // tbox::pout<<"\n\n\n";
 
     /*********ending debuging part*************/
 
@@ -1989,7 +1951,11 @@ void bssn_ic_kerr_BHL_CTT(
     boost::shared_ptr<pdat::CellData<real_t> > chi_a_pdata(
        BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(DIFFchi_a_idx)));
-    
+
+    boost::shared_ptr<pdat::CellData<real_t> > DIFFalpha_a_pdata(
+      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+        patch->getPatchData(DIFFalpha_a_idx)));
+
 
     const hier::Box& box = chi_a_pdata->getGhostBox();
     
@@ -2041,7 +2007,11 @@ void bssn_ic_kerr_BHL_CTT(
     arr_t DIFFchi_a =
       pdat::ArrayDataAccess::access<DIM, real_t>(
         chi_a_pdata->getArrayData());
+    arr_t DIFFalpha_a =
+      pdat::ArrayDataAccess::access<DIM, real_t>(
+        DIFFalpha_a_pdata->getArrayData());
 
+    
     arr_t DIFFgamma11_a =
       pdat::ArrayDataAccess::access<DIM, real_t>(
         DIFFgamma11_a_pdata->getArrayData());
@@ -2093,11 +2063,11 @@ void bssn_ic_kerr_BHL_CTT(
     const int * inner_upper = &inner_box.upper()[0];
 
     
-    for(int k = lower[2]; k <= upper[2]; k++)
+    for(int k = inner_lower[2]; k <= inner_upper[2]; k++)
     {
-      for(int j = lower[1]; j <= upper[1]; j++)
+      for(int j = inner_lower[1]; j <= inner_upper[1]; j++)
       {
-        for(int i = lower[0]; i <= upper[0]; i++)
+        for(int i = inner_lower[0]; i <= inner_upper[0]; i++)
         {
 
           real_t x = (dx[0] * ((real_t)i + 0.5)) - L[0] / 2.0 ;
@@ -2141,7 +2111,9 @@ void bssn_ic_kerr_BHL_CTT(
           
           DIFFK_a(i, j, k) = K;
           DIFFchi_a(i,j,k) = 1.0 / pw2(X[0][INDEX(i, j, k)] + M / (2.0 * r) * (1 - W)) - 1.0;
-
+          //          DIFFalpha_a(i, j, k) = DIFFchi_a(i, j, k);
+          
+          
           real_t temp = 0.0;
 
           for(idx_t kk = 1; kk <=3; kk++)
@@ -2186,6 +2158,82 @@ void bssn_ic_kerr_BHL_CTT(
         }
       }
     }
+
+    
+    // for(int i = (inner_upper[0]+1)/2; i <= inner_upper[0]; i++)
+    // {
+    //   int j = (inner_upper[1] + 1) / 2, k = (inner_upper[2] +1)/ 2;
+    //   std::cout<<(DIFFchi_a(i, j, k) + DIFFchi_a(i, j-1, k)
+    //               + DIFFchi_a(i, j, k-1) + DIFFchi_a(i, j-1, k-1) ) /4.0
+    //            <<",";
+    // }
+    // std::cout<<"\n\n\n";
+
+    
+    // for(int i = (inner_upper[0]+1)/2; i <= inner_upper[0]; i++)
+    // {
+    //   int j = (inner_upper[1] + 1) / 2, k = (inner_upper[2] +1)/ 2;
+    //   std::cout<<(A11_a(i, j, k) + A11_a(i, j-1, k)
+    //               + A11_a(i, j, k-1) + A11_a(i, j-1, k-1) ) /4.0
+    //            <<",";
+    // }
+    // std::cout<<"\n\n\n";
+
+    // for(int i = (inner_upper[0]+1)/2; i <= inner_upper[0]; i++)
+    // {
+    //   int j = (inner_upper[1] + 1) / 2, k = (inner_upper[2] +1)/ 2;
+    //   std::cout<<(A22_a(i, j, k) + A22_a(i, j-1, k)
+    //               + A22_a(i, j, k-1) + A22_a(i, j-1, k-1) ) /4.0
+    //            <<",";
+    // }
+    // std::cout<<"\n\n\n";
+
+
+    // for(int i = (inner_upper[0]+1)/2; i <= inner_upper[0]; i++)
+    // {
+    //   int j = (inner_upper[1] + 1) / 2, k = (inner_upper[2] +1)/ 2;
+    //   std::cout<<(A33_a(i, j, k) + A33_a(i, j-1, k)
+    //               + A33_a(i, j, k-1) + A33_a(i, j-1, k-1) ) /4.0
+    //            <<",";
+    // }
+    // std::cout<<"\n\n\n";
+
+    // for(int i = (inner_upper[0]+1)/2; i <= inner_upper[0]; i++)
+    // {
+    //   int j = (inner_upper[1] + 1) / 2, k = (inner_upper[2] +1)/ 2;
+    //   std::cout<<(A12_a(i, j, k) + A12_a(i, j-1, k)
+    //               + A12_a(i, j, k-1) + A12_a(i, j-1, k-1) ) /4.0
+    //            <<",";
+    // }
+    // std::cout<<"\n\n\n";
+
+    // for(int i = (inner_upper[0]+1)/2; i <= inner_upper[0]; i++)
+    // {
+    //   //      int j = (inner_upper[1] + 5) / 2, k = (inner_upper[2] +5)/ 2;
+    //   std::cout<<(A13_a(i, i, i)) /4.0
+    //            <<",";
+    // }
+    // std::cout<<"\n\n\n";
+
+    // for(int i = (inner_upper[0]+1)/2; i <= inner_upper[0]; i++)
+    // {
+    //   //      int j = (inner_upper[1] + 5) / 2, k = (inner_upper[2] +5)/ 2;
+    //   std::cout<<(A23_a(i, i, i)) /4.0
+    //            <<",";
+    // }
+    // std::cout<<"\n\n\n";
+
+    // for(int i = (inner_upper[0]+1)/2; i <= inner_upper[0]; i++)
+    // {
+    //   int j = (inner_upper[1] + 5) / 2, k = (inner_upper[2] +5)/ 2;
+    //   std::cout<<(A23_a(i, j, k) + A23_a(i, j-1, k)
+    //               + A23_a(i, j, k-1) + A23_a(i, j-1, k-1) ) /4.0
+    //            <<",";
+    // }
+    // std::cout<<"\n\n\n";
+
+
+
 
   }
 

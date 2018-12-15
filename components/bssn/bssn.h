@@ -70,6 +70,9 @@ public:
   void set_norm(
     const boost::shared_ptr<hier::Patch>& patch, bool need_init_arr);
 
+  void rescale_lapse(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, int weight_idx);
+
   
 
   void RKEvolvePatch(
@@ -270,6 +273,10 @@ public:
   void output_max_H_constaint(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
     idx_t weight_idx);
+
+  void output_L2_H_constaint(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    idx_t weight_idx, CosmoPatchStrategy * cosmoPS, double exclude_radius);
 
   void output_L2_H_constaint(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,

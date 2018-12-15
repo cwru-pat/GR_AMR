@@ -69,6 +69,7 @@ CosmoSim::CosmoSim(
   stop_after_found_horizon(cosmo_sim_db->getBoolWithDefault("stop_after_found_horizon",false)),
   stop_regridding_after_found_horizon(cosmo_sim_db->getBoolWithDefault("stop_regridding_after_found_horizon",false)),
   calculate_K_avg(cosmo_sim_db->getBoolWithDefault("calculate_K_avg",false)),
+  rescale_lapse(cosmo_sim_db->getBoolWithDefault("rescale_lapse",false)),
   K_avg(0)
 {
   t_loop = tbox::TimerManager::getManager()->
@@ -188,10 +189,24 @@ void CosmoSim::calculateKAvg(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   K_avg = cosmo_statistic->calculate_conformal_avg(
-    hierarchy, bssnSim, weight_idx, bssnSim->DIFFK_a_idx);
+    hierarchy, bssnSim, weight_idx, bssnSim->DIFFK_a_idx, true);
   // not a very good implementation, may consider it later
   bssnSim->K_avg = K_avg;
 }
+
+// warning !!!!!!!! have not been fully tested
+// do not use without brain!!!
+void CosmoSim::rescaleLapse(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+{
+  bssnSim->rescale_lapse(hierarchy, weight_idx);
+  for(int ln = 0; ln < hierarchy->getNumberOfLevels()-1; ln ++)
+  {
+    coarsen_schedules[ln]->coarsenData();
+    post_refine_schedules[ln]->fillData(cur_t);
+  }
+}
+
   
 /**
  * @brief regrid when necessary and detect NaNs.
@@ -227,12 +242,31 @@ void CosmoSim::runCommonStepTasks(
     }
     
   }
-
+  // since horizon does not disapear usually
+  // it must because numerical order
+  if(has_found_horizon == true && found_horizon == false
+     && step % horizon->find_every == 0)
+  {
+    (*lstream)<<"Horizon was found but no horizon is found right now, outputing mock data!\n";
+    for(int i = 1; i <= horizon->N_horizons; i++)
+    {
+      (*lstream)<<"r=-999999 at (0, 0, 0)\n"
+                <<" m_irreducible=-999999\n"
+                <<"Angular momentum is -999999\n"
+                <<"Mass is -999999 irreducible mass (areal) is -999999\n\n";
+    }
+  }
   if(calculate_K_avg)
     calculateKAvg(hierarchy);
+  
   if(found_horizon)
     has_found_horizon = true;
 
+  // not fully tested!!!!
+  // do not use!!!!
+  if(rescale_lapse)
+    rescaleLapse(hierarchy);
+  
   // saving checkpoint
   if(step > starting_step &&
     ((step %save_interval == 0) ||

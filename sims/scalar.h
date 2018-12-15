@@ -114,11 +114,11 @@ public:
  private:
   boost::shared_ptr<tbox::Database> cosmo_scalar_db;
   bool stop_after_setting_init;
-  std::vector<boost::shared_ptr<xfer::RefineSchedule>>
-    pre_refine_schedules, post_refine_schedules;
+  /* std::vector<boost::shared_ptr<xfer::RefineSchedule>> */
+  /*   pre_refine_schedules, post_refine_schedules; */
   bool approaching_horizon_emerge_step;
-  std::vector<boost::shared_ptr<xfer::CoarsenSchedule>>
-    coarsen_schedules;
+  /* std::vector<boost::shared_ptr<xfer::CoarsenSchedule>> */
+  /*   coarsen_schedules; */
 
 };
 

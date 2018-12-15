@@ -29,7 +29,8 @@ class CosmoStatistic
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
     BSSN *bssn,
     idx_t weight_idx,
-    idx_t field_idx);
+    idx_t field_idx,
+    bool only_on_bd);
   
   void output_conformal_avg(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,

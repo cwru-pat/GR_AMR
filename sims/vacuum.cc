@@ -232,6 +232,7 @@ bool VacuumSim::initLevel(
   }
   else if(ic_type == "static_BHL_CTT")
   {
+    if(ln > 0) return false;
     double M = cosmo_vacuum_db->getDoubleWithDefault("M", 1);
     double K_c = cosmo_vacuum_db->getDoubleWithDefault("K_c", 1);
     double relaxation_tolerance = cosmo_vacuum_db->getDoubleWithDefault("relaxation_tolerance", 1e-8);
@@ -626,8 +627,10 @@ void VacuumSim::outputVacuumStep(
     dim, "VisIt Writer", vis_filename + ".visit"));
 
   tbox::pout<<"step: "<<step<<"/"<<num_steps<<"\n";
-  
-  bssnSim->output_L2_H_constaint(hierarchy, weight_idx, cosmoPS);
+
+  bssnSim->output_L2_H_constaint(
+    hierarchy, weight_idx, cosmoPS, 0.5);
+  //  bssnSim->output_max_H_constaint(hierarchy, weight_idx);
  
   cosmo_io->registerVariablesWithPlotter(*visit_writer, step);
   cosmo_io->dumpData(hierarchy, *visit_writer, step, cur_t);
@@ -759,7 +762,8 @@ void VacuumSim::RKEvolveLevel(
     addBSSNExtras(patch);
   }
   bssnSim->set_norm(level);
-
+  
+  
   /**************Starting K2 *********************************/
   bssnSim->prepareForK2(coarser_level, to_t);
   
@@ -848,6 +852,7 @@ void VacuumSim::RKEvolveLevel(
   }
 
   bssnSim->set_norm(level);
+
 }
 
 /**

@@ -106,11 +106,11 @@ public:
  private:
   boost::shared_ptr<tbox::Database> cosmo_dust_db;
 
-  std::vector<boost::shared_ptr<xfer::RefineSchedule>>
-    pre_refine_schedules, post_refine_schedules;
+  /* std::vector<boost::shared_ptr<xfer::RefineSchedule>> */
+  /*   pre_refine_schedules, post_refine_schedules; */
 
-  std::vector<boost::shared_ptr<xfer::CoarsenSchedule>>
-    coarsen_schedules;
+  /* std::vector<boost::shared_ptr<xfer::CoarsenSchedule>> */
+  /*   coarsen_schedules; */
 
 };
 

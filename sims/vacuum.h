@@ -108,11 +108,11 @@ public:
     double from_t,
     double to_t);
 
-  std::vector<boost::shared_ptr<xfer::RefineSchedule>>
-    pre_refine_schedules, post_refine_schedules;
+  /* std::vector<boost::shared_ptr<xfer::RefineSchedule>> */
+  /*   pre_refine_schedules, post_refine_schedules; */
 
-  std::vector<boost::shared_ptr<xfer::CoarsenSchedule>>
-    coarsen_schedules;
+  /* std::vector<boost::shared_ptr<xfer::CoarsenSchedule>> */
+  /*   coarsen_schedules; */
 };
 
 } /* namespace cosmo */

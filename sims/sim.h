@@ -95,6 +95,8 @@ public:
 
   void calculateKAvg(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
+  void rescaleLapse(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
 
   
   bool isValid(
@@ -178,9 +180,16 @@ public:
   bool stop_after_found_horizon;
   bool has_found_horizon;
 
-  bool calculate_K_avg;
+  bool calculate_K_avg, rescale_lapse;
 
   real_t K_avg;
+
+  std::vector<boost::shared_ptr<xfer::RefineSchedule>>
+    pre_refine_schedules, post_refine_schedules;
+
+  std::vector<boost::shared_ptr<xfer::CoarsenSchedule>>
+    coarsen_schedules;
+
 };
 
 } /* namespace cosmo */

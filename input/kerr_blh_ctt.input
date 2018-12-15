@@ -5,7 +5,7 @@ Main{
   print_precision = 9
   restart = FALSE
   restart_basename = "vacuum"
-  restart_step = 89
+  restart_step = 29
   restart_nodes = 10
   omp_num_threads = 1
 }
@@ -41,7 +41,7 @@ TimerManager{
 
 
 PatchHierarchy {
-   max_levels = 1
+   max_levels = 4
    proper_nesting_buffer = 3, 3, 3, 3, 3, 3   
    largest_patch_size {
       level_0 = -1, -1, -1
@@ -73,12 +73,12 @@ GriddingAlgorithm {
 }
 
 CosmoSim{
-  steps = 1000
-  save_steps = 1000000
+  steps = 3000
+  save_steps = 300000
   do_plot = TRUE
   dt_frac = 0.1
   regridding_interval = 40
-  adaption_threshold = 0.018
+  adaption_threshold = 0.015
   KO_damping_coefficient = 0.05
   refine_op_type = "QUADRATIC_REFINE"
   coarsen_op_typ = "CONSERVATIVE_COARSEN"
@@ -88,7 +88,7 @@ CosmoSim{
   AHFinder_dt_frac = 0.02
   gradient_indicator = "DIFFK"
   regridding_step_lower_bound = 0
-  regridding_step_upper_bound = 300
+  regridding_step_upper_bound = 30000
   surface_move_shreshold = 0
   use_anguler_momentum_finder = TRUE
   stop_after_found_horizon = FALSE
@@ -123,6 +123,7 @@ BSSN{
   alpha_lower_bd_for_L2 = 0.3
   chi_lower_bd_type = "static_blackhole"
   chi_lower_bd = 1e-9
+  K0 = -0.21
 }
 
 AHFD{
@@ -134,16 +135,16 @@ AHFD{
   sphere_x_center = 5, 5
   sphere_y_center = 5, 5
   sphere_z_center = 5, 5
-  sphere_radius = 0.4, 0.55
-  find_after_individual = 0, 0 // will only find horizon after this step (inclusive)
+  sphere_radius = 0.44, 0.43
+  find_after_individual = 10, 10 // will only find horizon after this step (inclusive)
   Theta_norm_for_convergence = 1e-9
   max_Newton_iterations__initial = 50
-  N_zones_per_right_angle = 8, 8
+  N_zones_per_right_angle = 18, 18
   n_phi = 36
 }
 
 IO{
   output_list = "DIFFchi","DIFFK", "DIFFalpha"
-  output_interval = 10, 10, 10
+  output_interval = 1, 1, 1
   gd_c = 1
 }

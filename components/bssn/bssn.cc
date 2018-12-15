@@ -29,7 +29,7 @@ BSSN::BSSN(
   Z4c_K2_DAMPING_AMPLITUDE(cosmo_bssn_db->getDoubleWithDefault("z4c_k2", 0.0)),
   chi_lower_bd(cosmo_bssn_db->getDoubleWithDefault("chi_lower_bd", 0)),
   alpha_lower_bd_for_L2(cosmo_bssn_db->getDoubleWithDefault("alpha_lower_bd_for_L2", 0.3)),
-  K0(0)
+  K0(cosmo_bssn_db->getDoubleWithDefault("K0", 0))
 {
   if(!USE_Z4C)
     Z4c_K1_DAMPING_AMPLITUDE = Z4c_K2_DAMPING_AMPLITUDE = 0;
@@ -191,6 +191,99 @@ void BSSN::set_norm(
 
 }
 
+
+
+void BSSN::rescale_lapse(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, int weight_idx)
+{
+  double max_alpha = -1.0;
+  for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln ++)
+  {
+    boost::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+
+    
+    for( hier::PatchLevel::iterator pit(level->begin());
+         pit != level->end(); ++pit)
+    {
+      const boost::shared_ptr<hier::Patch> & patch = *pit;
+
+      initPData(patch);
+      initMDA(patch);
+
+      
+      const hier::Box& box = DIFFchi_a_pdata->getGhostBox();
+  
+      const int * lower = &box.lower()[0];
+      const int * upper = &box.upper()[0];
+
+      boost::shared_ptr<pdat::CellData<double> > weight(
+        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+          patch->getPatchData(weight_idx)));
+      
+
+      arr_t weight_array =
+        pdat::ArrayDataAccess::access<DIM, double>(
+          weight->getArrayData());
+
+      
+#pragma omp parallel for collapse(2) reduction(max : max_alpha)        
+      for(int k = lower[2]; k <= upper[2]; k++)
+      {
+        for(int j = lower[1]; j <= upper[1]; j++)
+        {
+          for(int i = lower[0]; i <= upper[0]; i++)
+          {
+            if(weight_array(i, j, k) > 0)
+              max_alpha = tbox::MathUtilities<double>::Max(max_alpha, DIFFalpha_a(i, j, k));
+          }
+        }
+      }
+
+    }
+  }
+  
+  const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
+  mpi.Barrier();
+  if (mpi.getSize() > 1) {
+    mpi.AllReduce(&max_alpha, 1, MPI_MAX);
+  }
+
+  for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln ++)
+  {
+    boost::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+
+    
+    for( hier::PatchLevel::iterator pit(level->begin());
+         pit != level->end(); ++pit)
+    {
+      const boost::shared_ptr<hier::Patch> & patch = *pit;
+
+      initPData(patch);
+      initMDA(patch);
+      
+      const hier::Box& box = DIFFchi_a_pdata->getBox();
+  
+      const int * lower = &box.lower()[0];
+      const int * upper = &box.upper()[0];
+
+#pragma omp parallel for collapse(2)   
+      for(int k = lower[2]; k <= upper[2]; k++)
+      {
+        for(int j = lower[1]; j <= upper[1]; j++)
+        {
+          for(int i = lower[0]; i <= upper[0]; i++)
+          {
+             DIFFalpha_a(i, j, k) = (DIFFalpha_a(i, j, k) + 1.0)/ (max_alpha + 1.0) - 1.0;
+          }
+        }
+      }
+
+    }
+  }
+
+  
+}
+  
 /**
  * @brief  setting length of physical domain and chi lower bound
  * 
@@ -1971,6 +2064,10 @@ void BSSN::output_max_H_constaint(
       
       const double *dx = &patch_geom->getDx()[0];
 
+      idx_t NX = round(L[0] / dx[0]);
+      idx_t NY = round(L[1] / dx[1]); 
+      idx_t NZ = round(L[2] / dx[2]);
+
       
 #pragma omp parallel for collapse(2) reduction(max : max_H, max_M, max_H_scaled, max_M_scaled)
       for(int k = lower[2]; k <= upper[2]; k++)
@@ -1982,7 +2079,12 @@ void BSSN::output_max_H_constaint(
             BSSNData bd = {0};
 
             set_bd_values(i,j,k,&bd,dx);
-            if(weight_array(i,j,k) > 0)
+            double xx = (dx[0] * ((real_t)i + 0.5)) - L[0] / 2.0 ;
+            double yy = (dx[1] * ((real_t)j + 0.5)) - L[1] / 2.0 ;
+            double zz = (dx[2] * ((real_t)k + 0.5)) - L[2] / 2.0 ;
+            double r = sqrt(pw2(xx) + pw2(yy) + pw2(zz));
+
+            if(weight_array(i,j,k) > 0 )
             {
               max_H = tbox::MathUtilities<double>::Max(
                 max_H, tbox::MathUtilities<double>::Abs(
@@ -2006,6 +2108,7 @@ void BSSN::output_max_H_constaint(
       }
      }
   }
+
   const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
   mpi.Barrier();
   if (mpi.getSize() > 1) {
@@ -2022,6 +2125,110 @@ void BSSN::output_max_H_constaint(
             <<max_M<<"\n";
   return;
 }
+
+void BSSN::output_L2_H_constaint(
+  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  idx_t weight_idx,   CosmoPatchStrategy * cosmoPS, double exclude_radius)
+{
+  double H_L2=0;
+
+  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+      hierarchy->getGridGeometry()));
+  TBOX_ASSERT(grid_geometry_);
+  geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
+  const double * dx = &grid_geometry.getDx()[0];
+
+  const int base_nx = round(L[0] / dx[0]);
+  const int base_ny = round(L[1] / dx[1]);
+  const int base_nz = round(L[2] / dx[2]);
+  
+  for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln ++)
+  {
+    boost::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+
+    
+    for( hier::PatchLevel::iterator pit(level->begin());
+         pit != level->end(); ++pit)
+    {
+      const boost::shared_ptr<hier::Patch> & patch = *pit;
+
+      const hier::Box& box = patch->getBox();
+
+      const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+          patch->getPatchGeometry()));
+
+      initPData(patch);
+
+      initMDA(patch);
+
+
+      boost::shared_ptr<pdat::CellData<double> > weight(
+        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+          patch->getPatchData(weight_idx)));
+      
+
+      arr_t weight_array =
+        pdat::ArrayDataAccess::access<DIM, double>(
+          weight->getArrayData());
+
+
+      
+      const int * lower = &box.lower()[0];
+      const int * upper = &box.upper()[0];
+      
+      const double *dx = &patch_geom->getDx()[0];
+
+      
+
+#pragma omp parallel for collapse(2) reduction(+:H_L2)
+      for(int k = lower[2]; k <= upper[2]; k++)
+      {
+        for(int j = lower[1]; j <= upper[1]; j++)
+        {
+          for(int i = lower[0]; i <= upper[0]; i++)
+          {
+            if(cosmoPS->is_time_dependent &&
+               (i < STENCIL_ORDER || i >= base_nx - STENCIL_ORDER ||
+                j < STENCIL_ORDER || j >= base_ny - STENCIL_ORDER ||
+                k < STENCIL_ORDER || k >= base_nz - STENCIL_ORDER))
+              continue;
+            
+            BSSNData bd = {0};
+
+            set_bd_values(i,j,k,&bd,dx);
+
+            double xx = (dx[0] * ((real_t)i + 0.5)) - L[0] / 2.0 ;
+            double yy = (dx[1] * ((real_t)j + 0.5)) - L[1] / 2.0 ;
+            double zz = (dx[2] * ((real_t)k + 0.5)) - L[2] / 2.0 ;
+            double r = sqrt(pw2(xx) + pw2(yy) + pw2(zz));
+
+            if(weight_array(i,j,k) > 0 && DIFFalpha_a(i,j,k) > alpha_lower_bd_for_L2 - 1.0
+            && r > exclude_radius)
+            {
+              real_t h = hamiltonianConstraintCalc(&bd, dx);
+              H_L2 += pw2(h) * weight_array(i,j,k) / (L[0] * L[1] * L[2]);
+            }
+          }
+        }
+      }
+     }
+  }
+  const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
+  mpi.Barrier();
+  if (mpi.getSize() > 1) {
+    mpi.AllReduce(&H_L2, 1, MPI_SUM);
+  }
+
+  H_L2 = sqrt(H_L2);
+  
+  tbox::pout<<"L2 norm of Hamiltonian constraint is "<<H_L2<<"\n";
+
+  
+  return;
+}
+
 
 void BSSN::output_L2_H_constaint(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
@@ -2095,6 +2302,7 @@ void BSSN::output_L2_H_constaint(
             BSSNData bd = {0};
 
             set_bd_values(i,j,k,&bd,dx);
+
             if(weight_array(i,j,k) > 0 && DIFFalpha_a(i,j,k) > alpha_lower_bd_for_L2 - 1.0)
             {
               real_t h = hamiltonianConstraintCalc(&bd, dx);
@@ -2132,7 +2340,7 @@ Constraint violtion calculations
 real_t BSSN::hamiltonianConstraintCalc(BSSNData *bd, const real_t dx[])
 {
   return -pow(bd->chi, -2.5)/8.0*(
-      bd->ricci + 2.0/3.0*pw2(bd->K + 2.0 * bd->theta) - bd->AijAij - 16.0*PI*bd->r
+    bd->ricci + 2.0/3.0*pw2(bd->K + 2.0 * bd->theta) - bd->AijAij - 16.0*PI*bd->r
     );
 }
 

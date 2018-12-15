@@ -1500,7 +1500,7 @@ real_t HorizonStatistics::interp_k_theta(
   }
 
   double res = 0;
-  for(int theta_i = theta_i0; theta_i <= (theta_i0+1)%n_theta; theta_i = (theta_i +1 )%n_theta)
+  for(int theta_i = theta_i0; theta_i != (theta_i0+2)%n_theta; theta_i = (theta_i +1 )%n_theta)
   {
     double theta0 = PI * ((double) theta_i +0.5) / (double)n_theta;
 
@@ -1548,7 +1548,7 @@ real_t HorizonStatistics::interp_k_phi(
   }
   double res = 0;
 
-  for(int theta_i = theta_i0; theta_i <= (theta_i0+1)%n_theta;  theta_i = (theta_i +1 )%n_theta)
+  for(int theta_i = theta_i0; theta_i != (theta_i0+2)%n_theta;  theta_i = (theta_i +1 )%n_theta)
   {
     double theta0 = PI * ((double) theta_i +0.5) / (double)n_theta;
 
