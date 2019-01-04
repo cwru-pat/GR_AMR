@@ -5,8 +5,13 @@
 #include "sims/scalar.h"
 #include "utils/CartesianCellDoubleQuadraticRefine.h"
 #include "utils/CartesianCellDoubleHermiteRefine.h"
+#include "utils/CartesianCellDoubleCRSplinesRefine.h"
+#include "utils/CartesianCellDoubleCubicRefine.h"
 #include "utils/CartesianCellDoubleHermiteCoarsen.h"
-
+#include "utils/CartesianCellDoubleLinearCoarsen.h"
+#include "utils/CartesianCellDoubleQuadraticCoarsen.h"
+#include "utils/CartesianCellDoubleCRSplinesCoarsen.h"
+#include "utils/CartesianCellDoubleCubicCoarsen.h"
 
 using namespace SAMRAI;
 using namespace cosmo;
@@ -50,9 +55,34 @@ void add_extra_operators(
     typeid(pdat::CellVariable<double>).name(),
     boost::make_shared<geom::CartesianCellDoubleHermiteRefine>());
 
+  grid_geometry->addRefineOperator(
+    typeid(pdat::CellVariable<double>).name(),
+    boost::make_shared<geom::CartesianCellDoubleCRSplinesRefine>());
+
+  grid_geometry->addRefineOperator(
+    typeid(pdat::CellVariable<double>).name(),
+    boost::make_shared<geom::CartesianCellDoubleCubicRefine>());
+
+  
   grid_geometry->addCoarsenOperator(
     typeid(pdat::CellVariable<double>).name(),
     boost::make_shared<geom::CartesianCellDoubleHermiteCoarsen>());
+
+  grid_geometry->addCoarsenOperator(
+    typeid(pdat::CellVariable<double>).name(),
+    boost::make_shared<geom::CartesianCellDoubleLinearCoarsen>());
+
+  grid_geometry->addCoarsenOperator(
+    typeid(pdat::CellVariable<double>).name(),
+    boost::make_shared<geom::CartesianCellDoubleQuadraticCoarsen>());
+
+  grid_geometry->addCoarsenOperator(
+    typeid(pdat::CellVariable<double>).name(),
+    boost::make_shared<geom::CartesianCellDoubleCRSplinesCoarsen>());
+
+  grid_geometry->addCoarsenOperator(
+    typeid(pdat::CellVariable<double>).name(),
+    boost::make_shared<geom::CartesianCellDoubleCubicCoarsen>());
 
 }
 

@@ -69,6 +69,7 @@ CosmoSim::CosmoSim(
   stop_after_found_horizon(cosmo_sim_db->getBoolWithDefault("stop_after_found_horizon",false)),
   stop_regridding_after_found_horizon(cosmo_sim_db->getBoolWithDefault("stop_regridding_after_found_horizon",false)),
   calculate_K_avg(cosmo_sim_db->getBoolWithDefault("calculate_K_avg",false)),
+  calculate_Weyl_scalars(cosmo_sim_db->getBoolWithDefault("calculate_Weyl_scalars",false)),
   rescale_lapse(cosmo_sim_db->getBoolWithDefault("rescale_lapse",false)),
   K_avg(0)
 {
@@ -121,7 +122,10 @@ CosmoSim::CosmoSim(
 
   if(cosmo_sim_db->keyExists("save_steps"))
     save_steps = cosmo_sim_db->getIntegerVector("save_steps");
-  
+  #if !CAL_WEYL_SCALS
+  if(calculate_Weyl_scalars == true)
+    TBOX_ERROR("Calculate Weyl scalars is turned on, but NOT corresponding macros!");
+  #endif
 }
 
 CosmoSim::~CosmoSim()

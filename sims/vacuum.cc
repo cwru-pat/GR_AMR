@@ -628,6 +628,9 @@ void VacuumSim::outputVacuumStep(
 
   tbox::pout<<"step: "<<step<<"/"<<num_steps<<"\n";
 
+  if(calculate_Weyl_scalars)
+    bssnSim->cal_Weyl_scalars(hierarchy, weight_idx);
+  
   bssnSim->output_L2_H_constaint(
     hierarchy, weight_idx, cosmoPS, 0.5);
   //  bssnSim->output_max_H_constaint(hierarchy, weight_idx);

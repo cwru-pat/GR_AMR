@@ -191,7 +191,7 @@ CartesianCellDoubleHermiteCoarsen::coarsen(
    
    if ((dim == tbox::Dimension(3)))
    {
-     #pragma omp parallel for
+     #pragma omp parallel for collapse(2)
      for(int k = ifirstc[2]; k <= ilastc[2]; k++)
      {
        for(int j = ifirstc[1]; j <= ilastc[1]; j++)

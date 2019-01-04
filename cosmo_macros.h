@@ -95,6 +95,10 @@
   #define USE_Z4C false
 #endif
 
+// whether calculating Weyl scalars for GWs
+#ifndef CAL_WEYL_SCALS
+  #define CAL_WEYL_SCALS false
+#endif
 
 #define STENCIL_CONCATENATOR(function, order) function ## order
 #define STENCIL_EVALUATOR(function, order) STENCIL_CONCATENATOR(function, order)
@@ -530,6 +534,50 @@
   function(2, 2);                        \
   function(2, 3);                        \
   function(3, 3);
+
+// only for storing dIdJgammaMN
+// so I and J commute and
+// M and N commute
+#define COSMO_APPLY_TO_IJMN_PERMS(function)   \
+  function(1, 1, 1, 1);                          \
+  function(1, 1, 1, 2);                          \
+  function(1, 1, 1, 3);                          \
+  function(1, 1, 2, 2);                          \
+  function(1, 1, 2, 3);                          \
+  function(1, 1, 3, 3);                          \
+  function(1, 2, 1, 1);                          \
+  function(1, 2, 1, 2);                          \
+  function(1, 2, 1, 3);                          \
+  function(1, 2, 2, 2);                          \
+  function(1, 2, 2, 3);                          \
+  function(1, 2, 3, 3);                          \
+  function(1, 3, 1, 1);                          \
+  function(1, 3, 1, 2);                          \
+  function(1, 3, 1, 3);                          \
+  function(1, 3, 2, 2);                          \
+  function(1, 3, 2, 3);                          \
+  function(1, 3, 3, 3);                          \
+  ;                                              \
+  function(2, 2, 1, 1);                          \
+  function(2, 2, 1, 2);                          \
+  function(2, 2, 1, 3);                          \
+  function(2, 2, 2, 2);                          \
+  function(2, 2, 2, 3);                          \
+  function(2, 2, 3, 3);                          \
+  function(2, 3, 1, 1);                          \
+  function(2, 3, 1, 2);                          \
+  function(2, 3, 1, 3);                          \
+  function(2, 3, 2, 2);                          \
+  function(2, 3, 2, 3);                          \
+  function(2, 3, 3, 3);                          \
+  ;                                              \
+  function(3, 3, 1, 1);                          \
+  function(3, 3, 1, 2);                          \
+  function(3, 3, 1, 3);                          \
+  function(3, 3, 2, 2);                          \
+  function(3, 3, 2, 3);                          \
+  function(3, 3, 3, 3);                          
+
 
 
 #endif

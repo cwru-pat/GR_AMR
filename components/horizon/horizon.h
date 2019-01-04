@@ -40,58 +40,6 @@ using namespace SAMRAI;
 #define mi32 mi23
 
 #define R21 R12
-
-#define HORIZON_SPHERE_DISJ(I, J) \
-  (- hd->s##I * hd->s##J / r + (double)(I == J) / r)
-
-#define HORIZON_SPHERE_DITGKL(I, K, L) \
-  (- bd->G##K##1##I * bd->gammai##1##L - bd->G##K##2##I * bd->gammai##2##L - bd->G##K##3##I * bd->gammai##3##L \
-   - bd->G##L##I##1 * bd->gammai##K##1 - bd->G##L##I##2 * bd->gammai##K##2 - bd->G##L##I##3 * bd->gammai##K##3)
-
-#define HORIZON_SPHERE_DIGKL(I, K, L) \
-  (2.0 * bd->chi * bd->d##I##chi * bd->gammai##K##L + \
-   pw2(bd->chi) * HORIZON_SPHERE_DITGKL(I, K, L) )
-
-#define HORIZON_SPHERE_US(I) \
-  (pw2(bd->chi) * \
-   (bd->gammai##I##1 * hd->s1 + bd->gammai##I##2 * hd->s2 + bd->gammai##I##3 * hd->s3))
-  
-#define HORIZON_SPHERE_A1(I, J) \
-  (- pw2(pw2(bd->chi))                                                 \
-  * (bd->gammai##I##1 * hd->s1 + bd->gammai##I##2 * hd->s2 + bd->gammai##I##3 * hd->s3) \
-  * (bd->gammai##J##1 * hd->s1 + bd->gammai##J##2 * hd->s2 + bd->gammai##J##3 * hd->s3) \
-  * (HORIZON_SPHERE_DISJ(I,J)) )
-
-#define HORIZON_SPHERE_A2(I, J) \
-  (- 0.5 * pw2(bd->chi)                                                \
-   * (bd->gammai##I##J * hd->s##J)                                       \
-   * (hd->s1 * hd->s1 * HORIZON_SPHERE_DIGKL(I, 1, 1)                   \
-      + hd->s2 * hd->s2 * HORIZON_SPHERE_DIGKL(I, 2, 2)                 \
-      + hd->s3 * hd->s3 * HORIZON_SPHERE_DIGKL(I, 3, 3)                 \
-      + hd->s1 * hd->s2 * HORIZON_SPHERE_DIGKL(I, 1, 2)                   \
-      + hd->s1 * hd->s3 * HORIZON_SPHERE_DIGKL(I, 1, 3)                   \
-      + hd->s2 * hd->s3 * HORIZON_SPHERE_DIGKL(I, 2, 3)                   \
-      + hd->s2 * hd->s1 * HORIZON_SPHERE_DIGKL(I, 2, 1)                   \
-      + hd->s3 * hd->s1 * HORIZON_SPHERE_DIGKL(I, 3, 1)                   \
-      + hd->s3 * hd->s2 * HORIZON_SPHERE_DIGKL(I, 3, 2)))
-
-#define HORIZON_SPHERE_B1(I, J)                   \
-  ((2.0 * bd->chi * bd->d##I##chi * bd->gammai##I##J   \
-    + pw2(bd->chi) * (HORIZON_SPHERE_DITGKL(I, I, J) ) )* hd->s##J)
-
-#define HORIZON_SPHERE_B2(I, J)                   \
-  (pw2(bd->chi) * bd->gammai##I##J * HORIZON_SPHERE_DISJ(I,J))
-
-#define HORIZON_SPHERE_B3(I, J)                   \
-  (pw2(bd->chi) * bd->gammai##I##J * hd->s##J                           \
-   * (-3.0 * bd->d##I##chi / bd->chi + bd->G11##I + bd->G22##I + bd->G33##I))
-
-#define HORIZON_SPHERE_C1(I, J)                   \
-  (1.0 / pw2(bd->chi) * (                                            \
-    (bd->A##I##J + bd->K * bd->gamma##I##J / 3.0) * HORIZON_SPHERE_US(I) * HORIZON_SPHERE_US(J) ) )
-
-#define HORIZON_SPHERE_D1(I, J)                   \
-  (pw2(bd->chi) * bd->gammai##I##J * hd->s##I * hd->s##J)
  
 #define HORIZON_CALCULATE_DS_TERM1(J, L, I, K) \
   (bd->gammai##I##J * hd->d##J##F * bd->gammai##K##L * hd->d##L##F)
@@ -176,6 +124,18 @@ using namespace SAMRAI;
 #define HORIZON_DEFINE_TEMP_CHIJ                  \
   double tempChij = 0;
 
+#define HORIZON_DEFINE_CRSPLINES_G(I, J, K)     \
+  double a_G##I##J##K[64], f_G##I##J##K[64];
+
+#define HORIZON_DEFINE_CRSPLINES_M(I, J)     \
+  double a_m##I##J[64], f_m##I##J[64];
+
+#define HORIZON_DEFINE_CRSPLINES_K(I, J)     \
+  double a_K##I##J[64], f_K##I##J[64];
+
+#define HORIZON_DEFINE_CRSPLINES_DCHI(I)        \
+  double a_d##I##chi[64], f_d##I##chi[64];
+
 
 #define HORIZON_CALCULATE_D1G(I, J, K)          \
   ((G##I##J##K[(theta_i+1)%(2*n_theta)][phi_i] - G##I##J##K[(theta_i + (2*n_theta))% (2*n_theta)][phi_i]) / (PI / n_theta / 2.0)) 
@@ -196,8 +156,26 @@ using namespace SAMRAI;
   kd->Gc##I##J##K += tempGj##I##J##K * \
     ((dx[2] - (z0 - z ) * (2.0 * (k - k0) -1.0)) / dx[2])
 
+#define HORIZON_CRSPLINES_SET_F_G(I, J, K)        \
+  f_G##I##J##K[i*16 + j*4 + k] = bd.G##I##J##K
+
+#define HORIZON_CRSPLINES_CAL_COEF_G(I, J, K)     \
+  compute_tricubic_coeffs(a_G##I##J##K, f_G##I##J##K)
+
+#define HORIZON_CRSPLINES_EVAL_G(I, J, K)       \
+  kd->Gc##I##J##K = evaluate_interpolation(a_G##I##J##K, xd, yd, zd)
+
+#define HORIZON_CRSPLINES_CAL_G(I, J, K)       \
+  kd->Gc##I##J##K = (kd->Gc##I##J##K - 1.0 / kd->chi * (        \
+                       (double)(I == K) * d##J##chi             \
+                       + (double)(I == J) * d##K##chi           \
+                       - (kd->mi##I##1 * d1chi                  \
+                          + kd->mi##I##2 * d2chi                \
+                          + kd->mi##I##3 * d3chi) * kd->m##J##K))
+
+
 #define HORIZON_INTERPOLATE_M_1(I, J)  \
-  tempmi##I##J += 1.0 / PW2(bd.chi) * bd.gamma##I##J *        \
+  tempmi##I##J += 1.0 / PW2(bd.chi) * bd.gamma##I##J      \
     ( (dx[0] - (x0 - x ) * (2.0 * (i - i0) -1.0)) / dx[0])
 
 #define HORIZON_INTERPOLATE_M_2(I, J)  \
@@ -207,6 +185,19 @@ using namespace SAMRAI;
 #define HORIZON_INTERPOLATE_M_3(I, J)  \
   kd->m##I##J += tempmj##I##J * \
     ((dx[2] - (z0 - z ) * (2.0 * (k - k0) -1.0)) / dx[2])
+
+#define HORIZON_CRSPLINES_SET_F_M(I, J)        \
+  f_m##I##J[i*16 + j*4 + k] =  bd.gamma##I##J
+
+#define HORIZON_CRSPLINES_CAL_COEF_M(I, J)     \
+  compute_tricubic_coeffs(a_m##I##J, f_m##I##J)
+
+#define HORIZON_CRSPLINES_EVAL_M(I, J)       \
+  kd->m##I##J = evaluate_interpolation(a_m##I##J, xd, yd, zd)
+
+#define HORIZON_CRSPLINES_CAL_M(I, J)       \
+  kd->m##I##J = kd->m##I##J / pw2(kd->chi)
+
 
 #define HORIZON_INTERPOLATE_K_1(I, J)  \
   tempKi##I##J += 1.0 / PW2(bd.chi) * (bd.A##I##J +  bd.gamma##I##J * bd.K / 3.0) * \
@@ -221,7 +212,27 @@ using namespace SAMRAI;
   kd->K##I##J += tempKj##I##J * \
     ((dx[2] - (z0 - z ) * (2.0 * (k - k0) -1.0)) / dx[2])
 
+#define HORIZON_CRSPLINES_SET_F_K(I, J)        \
+  f_K##I##J[i*16 + j*4 + k] = bd.A##I##J
 
+#define HORIZON_CRSPLINES_CAL_COEF_K(I, J)     \
+  compute_tricubic_coeffs(a_K##I##J, f_K##I##J)
+
+#define HORIZON_CRSPLINES_EVAL_K(I, J)       \
+  kd->K##I##J = evaluate_interpolation(a_K##I##J, xd, yd, zd)
+
+#define HORIZON_CRSPLINES_CAL_K(I, J)       \
+  kd->K##I##J = (kd->K##I##J + kd->m##I##J * kd->K / 3.0) / PW2(kd->chi)
+
+
+#define HORIZON_CRSPLINES_SET_F_DCHI(I)       \
+  f_d##I##chi[i*16 + j * 4 + k] = bd.d##I##chi
+
+#define HORIZON_CRSPLINES_CAL_COEF_DCHI(I)    \
+  compute_tricubic_coeffs(a_d##I##chi, f_d##I##chi)
+
+#define HORIZON_CRSPLINES_EVAL_DCHI(I)          \
+  d##I##chi = evaluate_interpolation(a_d##I##chi, xd, yd, zd)
 
 #define HORIZON_INTERPOLATE_DF_1(I)  \
   tempDFi##I += hd.d##I##F * \
@@ -359,7 +370,9 @@ public:
   real_t interp_k_theta(
     double theta, double phi);
 
-
+  void compute_tricubic_coeffs(double *a, double *f);
+  double evaluate_interpolation(
+  double * a, double x, double y, double z);
 
 
 

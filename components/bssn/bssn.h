@@ -291,7 +291,11 @@ public:
   real_t momentumConstraintScale(BSSNData *bd, const real_t dx[]);
 
   void setExtraFieldData();
-  
+
+  void cal_Weyl_scalars(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    int weight_idx);
+
   // Domain size
   real_t L[DIM];
 

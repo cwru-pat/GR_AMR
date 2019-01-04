@@ -125,14 +125,45 @@
   function(STF33, __VA_ARGS__);
 
 
+#if CAL_WEYL_SCALS
+#define BSSN_APPLY_TO_GEN1_EXTRAS(function) \
+  function(ricci);                          \
+  function(AijAij);                         \
+  function(Psi0r);                          \
+  function(Psi0i);                          \
+  function(Psi1r);                          \
+  function(Psi1i);                          \
+  function(Psi2r);                          \
+  function(Psi2i);                          \
+  function(Psi3r);                          \
+  function(Psi3i);                          \
+  function(Psi4r);                          \
+  function(Psi4i);                          
+#else
 #define BSSN_APPLY_TO_GEN1_EXTRAS(function) \
   function(ricci);                          \
   function(AijAij);                         
+#endif
 
+#if CAL_WEYL_SCALS
+#define BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(function, ...)    \
+  function(ricci,  __VA_ARGS__);                          \
+  function(AijAij, __VA_ARGS__);                         \
+  function(Psi0r,  __VA_ARGS__);                                       \
+  function(Psi0i,  __VA_ARGS__);                                       \
+  function(Psi1r,  __VA_ARGS__);                                       \
+  function(Psi1i,  __VA_ARGS__);                                       \
+  function(Psi2r,  __VA_ARGS__);                                       \
+  function(Psi2i,  __VA_ARGS__);                                       \
+  function(Psi3r,  __VA_ARGS__);                                       \
+  function(Psi3i,  __VA_ARGS__);                                       \
+  function(Psi4r,  __VA_ARGS__);                                       \
+  function(Psi4i,  __VA_ARGS__);                          
+#else
 #define BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(function, ...)    \
   function(ricci, __VA_ARGS__);                          \
   function(AijAij, __VA_ARGS__);                         
-
+#endif
 
 #define BSSN_APPLY_TO_IJ_PERMS(function) \
   function(1, 1);                        \

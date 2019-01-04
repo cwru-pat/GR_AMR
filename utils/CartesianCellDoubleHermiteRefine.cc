@@ -238,7 +238,7 @@ CartesianCellDoubleHermiteRefine::refine(
    
    if ((dim == tbox::Dimension(3)))
    {
-     #pragma omp parallel for
+     #pragma omp parallel for collapse(2)
      for(int k = ifirstf[2]; k <= ilastf[2]; k++)
      {
        for(int j = ifirstf[1]; j <= ilastf[1]; j++)

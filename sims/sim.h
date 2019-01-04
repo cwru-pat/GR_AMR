@@ -182,6 +182,8 @@ public:
 
   bool calculate_K_avg, rescale_lapse;
 
+  bool calculate_Weyl_scalars;
+  
   real_t K_avg;
 
   std::vector<boost::shared_ptr<xfer::RefineSchedule>>
