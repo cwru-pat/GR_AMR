@@ -22,7 +22,7 @@ void BSSN::cal_Weyl_scalars(
   for(int i = 0; i < DIM; i ++)
     for(int j = 0; j < DIM; j ++)
       for(int k = 0; k < DIM; k++)
-        leviCvt[i][j][k] = (i-j)*(j-k)*(k-i)/2;
+        leviCvt[i][j][k] = (double)(i-j)*(double)(j-k)*(double)(k-i)/2.0;
   
   for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln ++)
   {
@@ -200,17 +200,22 @@ void BSSN::cal_Weyl_scalars(
             COSMO_APPLY_TO_IJMN_PERMS(BSSN_WAVE_CALCULATE_GAMMADD_dDD);
 
             for(int a = 0; a < DIM; a++)
-              for(int b = a+1; b < DIM; b ++)
+              for(int b = 0; b < DIM; b ++)
               {
                 for(int c = 0; c < DIM; c++)
                   for(int d = 0; d < DIM; d++)
                   {
-                    gammaDD_dDD[b][a][c][d] = gammaDD_dDD[a][b][c][d];
-                    gammaDD_dDD[c][d][b][a] = gammaDD_dDD[c][d][a][b];
+                    int aa = a, bb = b, cc = c, dd = d;                   
+                    if(b < a)
+                      std::swap(aa, bb);
+                    if(d < c)
+                      std::swap(dd, cc);
+                    gammaDD_dDD[a][b][c][d] = gammaDD_dDD[aa][bb][cc][dd];
                   }
                    
               }
 
+            
             for(int a = 0; a < DIM; a++)
               for(int b = 0; b < DIM; b++)
                 for(int c = 0; c < DIM; c++)

@@ -71,7 +71,8 @@ CosmoSim::CosmoSim(
   calculate_K_avg(cosmo_sim_db->getBoolWithDefault("calculate_K_avg",false)),
   calculate_Weyl_scalars(cosmo_sim_db->getBoolWithDefault("calculate_Weyl_scalars",false)),
   rescale_lapse(cosmo_sim_db->getBoolWithDefault("rescale_lapse",false)),
-  K_avg(0)
+  K_avg(0),
+  max_horizon_radius(0)
 {
   t_loop = tbox::TimerManager::getManager()->
     getTimer("loop");
@@ -265,7 +266,16 @@ void CosmoSim::runCommonStepTasks(
   
   if(found_horizon)
     has_found_horizon = true;
+  
+  if(found_horizon)
+  {
+    max_horizon_radius = 0;
+    for(int i = 1; i <= horizon->N_horizons; i ++)
+      if(horizon->state.AH_data_array[i]->BH_diagnostics.mean_radius > max_horizon_radius)
+        max_horizon_radius = horizon->state.AH_data_array[i]->BH_diagnostics.mean_radius;
+  }
 
+  
   // not fully tested!!!!
   // do not use!!!!
   if(rescale_lapse)

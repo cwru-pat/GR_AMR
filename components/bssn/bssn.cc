@@ -1793,6 +1793,14 @@ real_t BSSN::ev_auxB3(BSSNData *bd, const real_t dx[])
 }
 #endif
 
+#if USE_PROPER_TIME
+real_t BSSN::ev_tau(BSSNData *bd, const real_t dx[])
+{
+  return bd->alpha;
+}
+
+#endif
+
 /*
 ******************************************************************************
 Evolution equation calculations at boundary
@@ -2016,6 +2024,12 @@ real_t BSSN::ev_auxB3_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t cod
 }
 #endif
 
+#if USE_PROPER_TIME
+real_t BSSN::ev_tau_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim)
+{
+  return bd->alpha;
+}
+#endif
 
 void BSSN::output_max_H_constaint(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,

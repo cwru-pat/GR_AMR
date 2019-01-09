@@ -231,6 +231,11 @@ public:
   real_t ev_auxB3(BSSNData *bd, const real_t dx[]);
 #   endif
 
+#   if USE_PROPER_TIME
+  real_t ev_tau(BSSNData *bd, const real_t dx[]);
+#   endif
+
+  
   real_t ev_DIFFgamma11_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim);
   real_t ev_DIFFgamma12_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim);
   real_t ev_DIFFgamma13_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim);
@@ -267,6 +272,10 @@ public:
   real_t ev_auxB1_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim);
   real_t ev_auxB2_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim);
   real_t ev_auxB3_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim);
+#   endif
+
+#   if USE_PROPER_TIME
+  real_t ev_tau_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim);
 #   endif
 
   

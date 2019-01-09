@@ -49,6 +49,18 @@
   #define BSSN_APPLY_TO_AUX_B_ARGS(function, ...)
 #endif
 
+#if USE_PROPER_TIME
+  #define BSSN_APPLY_TO_TAU(function)            \
+    function(tau);
+  #define BSSN_APPLY_TO_TAU_ARGS(function, ...)        \
+   function(tau, __VA_ARGS__);
+#else
+  #define BSSN_APPLY_TO_TAU(function)
+  #define BSSN_APPLY_TO_TAU_ARGS(function, ...)
+#endif
+
+  
+
 
 #define BSSN_APPLY_TO_FIELDS_ARGS(function, ...)   \
   function(DIFFgamma11, __VA_ARGS__);              \
@@ -69,10 +81,11 @@
   function(Gamma2, __VA_ARGS__);                   \
   function(Gamma3, __VA_ARGS__);                   \
   function(DIFFalpha, __VA_ARGS__);                \
-  Z4C_APPLY_TO_FIELDS_ARGS(function, __VA_ARGS__) \
+  Z4C_APPLY_TO_FIELDS_ARGS(function, __VA_ARGS__)  \
   BSSN_APPLY_TO_SHIFT_ARGS(function, __VA_ARGS__)  \
   BSSN_APPLY_TO_AUX_B_ARGS(function, __VA_ARGS__)  \
-  BSSN_APPLY_TO_EXP_N_ARGS(function, __VA_ARGS__)
+  BSSN_APPLY_TO_EXP_N_ARGS(function, __VA_ARGS__)  \
+  BSSN_APPLY_TO_TAU_ARGS(function, __VA_ARGS__)
 
 #define BSSN_APPLY_TO_FIELDS(function) \
   function(DIFFgamma11);               \
@@ -96,7 +109,8 @@
   Z4C_APPLY_TO_FIELDS(function)        \
   BSSN_APPLY_TO_SHIFT(function)        \
   BSSN_APPLY_TO_AUX_B(function)        \
-  BSSN_APPLY_TO_EXP_N(function)
+  BSSN_APPLY_TO_EXP_N(function)        \
+  BSSN_APPLY_TO_TAU(function)
 
 #define BSSN_APPLY_TO_SOURCES(function) \
   function(DIFFr);                      \

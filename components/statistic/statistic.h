@@ -39,6 +39,15 @@ class CosmoStatistic
     idx_t step_num,
     real_t time);
 
+  void output_conformal_avg(
+    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    BSSN *bssn,
+    idx_t weight_idx,
+    idx_t step_num,
+    real_t time,
+    real_t min_radius);
+
+  
   void output_expansion_info(
     const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
     BSSN *bssn,

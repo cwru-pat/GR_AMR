@@ -100,6 +100,10 @@
   #define CAL_WEYL_SCALS false
 #endif
 
+#ifndef USE_PROPER_TIME
+  #define USE_PROPER_TIME false
+#endif
+
 #define STENCIL_CONCATENATOR(function, order) function ## order
 #define STENCIL_EVALUATOR(function, order) STENCIL_CONCATENATOR(function, order)
 #define STENCIL_ORDER_FUNCTION(function) STENCIL_EVALUATOR(function, STENCIL_ORDER)

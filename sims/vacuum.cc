@@ -223,11 +223,14 @@ bool VacuumSim::initLevel(
     int num_vcycles = cosmo_vacuum_db->getIntegerWithDefault("num_vcycles", 4);
     int max_depth = cosmo_vacuum_db->getIntegerWithDefault("max_depth", 4);
 
+    double l = cosmo_vacuum_db->getDoubleWithDefault("l", 1);
+    double sigma = cosmo_vacuum_db->getDoubleWithDefault("sigma", 3.5);
+
     if(!USE_BSSN_SHIFT)
       TBOX_ERROR("Must enable shift for blackhole simulation!\n");
     
     bssn_ic_kerr_BHL_CTT(hierarchy,ln, M, a, K_c, relaxation_tolerance
-                         , num_vcycles, max_depth);
+                         , num_vcycles, max_depth, l, sigma);
     return true;
   }
   else if(ic_type == "static_BHL_CTT")
@@ -628,8 +631,10 @@ void VacuumSim::outputVacuumStep(
 
   tbox::pout<<"step: "<<step<<"/"<<num_steps<<"\n";
 
+#if CAL_WEYL_SCALS
   if(calculate_Weyl_scalars)
     bssnSim->cal_Weyl_scalars(hierarchy, weight_idx);
+#endif
   
   bssnSim->output_L2_H_constaint(
     hierarchy, weight_idx, cosmoPS, 0.5);
@@ -641,6 +646,11 @@ void VacuumSim::outputVacuumStep(
   cosmo_statistic->output_expansion_info(
       hierarchy,
       bssnSim, weight_idx, step, cur_t);
+
+  cosmo_statistic->output_conformal_avg(
+    hierarchy,
+    bssnSim, weight_idx, step, cur_t, max_horizon_radius);
+
 }
 
 /**

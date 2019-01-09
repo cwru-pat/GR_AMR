@@ -33,6 +33,32 @@ bool CosmoIO::packDerivedDataIntoDoubleBuffer(
   NULL_USE(depth_id);
   NULL_USE(simulation_time);
 
+  const int * lower = &region.lower()[0];
+  const int * upper = &region.upper()[0];
+
+  if(variable_name == "example")
+  {
+  
+#pragma omp parallel for collapse(2)
+    for(int k = lower[2]; k <= upper[2]; k++)
+    {
+      for(int j = lower[1]; j <= upper[1]; j++)
+      {
+        for(int i = lower[0]; i <= upper[0]; i++)
+        {
+          int idx = (i-lower[0]) + (j - lower[1]) * (upper[0] - lower[0] + 1) +
+            (k-lower[2]) * (upper[0] - lower[0] + 1) * (upper[1] - lower[1] + 1);
+          double value = 0;
+
+          buffer[idx] = idx;
+
+        }
+      }
+    }
+  }
+  else
+    TBOX_ERROR("The derived variable "<<variable_name<<" does not exist!\n");
+  
   return true;
 }
 
@@ -46,12 +72,25 @@ void CosmoIO::registerVariablesWithPlotter(
   {
     if(step % output_interval[i] != 0 ) continue;
     is_empty = 0;
+
+    if(variable_db->getVariable(output_list[i]) == NULL)
+    {
+      tbox::plog<<"Cannot find variable" <<output_list[i]<<" in theoutput list!"
+                <<" Registed as derived variable!\n";
+
+      visit_writer.registerDerivedPlotQuantity(
+        output_list[i],
+        "SCALAR",
+        (appu::VisDerivedDataStrategy *)this
+      );
+      
+      continue;
+    }
+
+    
     idx_t idx =
       variable_db->mapVariableAndContextToIndex(
-        variable_db->getVariable(output_list[i]), variable_db->getContext("ACTIVE"));
-    
-    if(idx < 0)
-      TBOX_ERROR("Cannot find variable" <<output_list[i]<<" in output list!\n");
+        variable_db->getVariable(output_list[i]), variable_db->getContext("ACTIVE"));    
       
     visit_writer.registerPlotQuantity(
       output_list[i],

@@ -186,6 +186,8 @@ public:
   
   real_t K_avg;
 
+  double max_horizon_radius;
+  
   std::vector<boost::shared_ptr<xfer::RefineSchedule>>
     pre_refine_schedules, post_refine_schedules;
 

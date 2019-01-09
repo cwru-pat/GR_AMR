@@ -51,7 +51,9 @@ void bssn_ic_kerr_BHL_CTT(
   real_t K_c,
   real_t relaxation_tolerance,
   idx_t num_vcycles,
-  idx_t max_depth);
+  idx_t max_depth,
+  double l,
+  double sigma);
 
 void bssn_ic_static_BHL_CTT(
   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,

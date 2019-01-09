@@ -1401,7 +1401,9 @@ void bssn_ic_kerr_BHL_CTT(
   real_t K_c,
   real_t relaxation_tolerance,
   idx_t num_vcycles,
-  idx_t max_depth)
+  idx_t max_depth,
+  double l,
+  double sigma)
 {
   const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
   hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
@@ -1481,8 +1483,6 @@ void bssn_ic_kerr_BHL_CTT(
    for(int i = 0 ; i < 3; i++)
      L[i] = domain_upper[i] - domain_lower[i];
 
-   double l = L[0]/2 - 4.0* M;
-   double sigma = 3.5 * M;
 
    std::string boundary_type = "periodic";
    multigridBdHandler * bd_handler = new multigridBdHandler(boundary_type, L, 10);
@@ -2125,6 +2125,8 @@ void bssn_ic_kerr_BHL_CTT(
                + multigrid.derivative(i, j, k, NX, NY, NZ, 1, X[1])
                - 2.0 * temp / 3.0);
 
+          // if(i == (inner_upper[1] + 1)/2 && j == (inner_upper[1] + 1)/2 && k ==(inner_upper[1] + 1)/2)
+          //   std::cout<<"!@!!! "<<X[0][INDEX(i, j, k)]<<"\n";
           
           A12_a(i, j, k) = std::pow(X[0][INDEX(i, j, k)] + M / (2.0 * r) * (1 - W), -6.0)
             * (multigrid.derivative(i, j, k, NX, NY, NZ, 1, X[2])
