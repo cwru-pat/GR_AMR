@@ -294,14 +294,14 @@ public:
 
   std::ostream* lstream;
 
-  boost::shared_ptr<tbox::Database>& cosmo_horizon_db;
+  std::shared_ptr<tbox::Database>& cosmo_horizon_db;
 
   const tbox::Dimension& dim;
 
   HorizonStatistics(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
     const tbox::Dimension& dim_in,
-    boost::shared_ptr<tbox::Database> database_in,
+    std::shared_ptr<tbox::Database> database_in,
     int w_idx_in, AHFinderDirect::Horizon *horizon_in);
 
   ~HorizonStatistics();
@@ -309,49 +309,49 @@ public:
 
   real_t dF(int theta_i, int phi_i, int d, double x, double y, double z, double r);
   void findKilling(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn, int horizon_id_in, int step);
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn, int horizon_id_in, int step);
   void initGridding(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy);
   
   void initG(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn);
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn);
 
   real_t findMaxHorizonRadius(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
     double theta_0, double phi_0);
   void findM(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,  double x[], BSSN *bssn);
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy,  double x[], BSSN *bssn);
   void transportKillingPhi(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
     idx_t theta_i, idx_t phi_f, double k_theta_0, double k_phi_0, double k_L_0, BSSN * bssn);
   void transportKillingTheta(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
     idx_t phi_i, double k_theta_0, double k_phi_0, double k_L_0, BSSN * bssn);
 
   real_t findRadius(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
     double theta_0, double phi_0);
   void findPatch(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
     double theta_0, double phi_0);
 
   real_t getRadius(double theta_i, double phi_i);
   
   void set_kd_values(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
     double theta, double phi, int theta_i, int phi_i, double r, KillingData *kd, BSSN * bssn);
 
   void set_G_values(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
     double theta, double phi, int theta_i, int phi_i, double r, KillingData *kd, BSSN * bssn);
 
   void set_norm_values(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
     double theta, double phi, int theta_i, int phi_i, double r, KillingData *kd, BSSN * bssn);
   real_t angularMomentum(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn);
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn);
   real_t area(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn);
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn);
 
   
   real_t ev_k_theta_dtheta(KillingData *kd, int theta_i, int phi_i);
@@ -362,7 +362,7 @@ public:
   real_t ev_k_L_dphi(KillingData *kd, int theta_i, int phi_i);
 
   void convertToVector(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn);
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn);
   real_t getNormFactor();
   void normKilling();
   real_t interp_k_phi(

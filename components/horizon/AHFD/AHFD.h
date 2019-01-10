@@ -234,10 +234,10 @@ class Horizon
 
   struct state state;
   
-  Horizon(const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  Horizon(const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
           BSSN * bssn_in,
           const tbox::Dimension& dim_in,
-          boost::shared_ptr<tbox::Database> database_in,
+          std::shared_ptr<tbox::Database> database_in,
           const char * visit_d_name,
           int w_idx_in);
 
@@ -533,9 +533,9 @@ int CCTK_InterpGridArrays(
   void *const output_arrays[]);
 
 //*****************************************************************************
- boost::shared_ptr<hier::PatchHierarchy> hierarchy;
+ std::shared_ptr<hier::PatchHierarchy> hierarchy;
  BSSN * bssn;
- boost::shared_ptr<tbox::Database>& AHFD_db;
+ std::shared_ptr<tbox::Database>& AHFD_db;
 
  const tbox::Dimension& dim;
  int w_idx;

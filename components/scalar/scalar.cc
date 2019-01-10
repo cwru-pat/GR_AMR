@@ -9,9 +9,9 @@ namespace cosmo
 {
 
 Scalar::Scalar(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   const tbox::Dimension& dim_in,
-  boost::shared_ptr<tbox::Database> database_in,
+  std::shared_ptr<tbox::Database> database_in,
   std::ostream* l_stream_in,
   real_t KO_damping_coefficient_in):
   lstream(l_stream_in),
@@ -24,22 +24,22 @@ Scalar::Scalar(
 
   hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
 
-  boost::shared_ptr<hier::VariableContext> context_scratch(
+  std::shared_ptr<hier::VariableContext> context_scratch(
     variable_db->getContext("SCRATCH"));
-  boost::shared_ptr<hier::VariableContext> context_active(
+  std::shared_ptr<hier::VariableContext> context_active(
     variable_db->getContext("ACTIVE"));
-  boost::shared_ptr<hier::VariableContext> context_previous(
+  std::shared_ptr<hier::VariableContext> context_previous(
     variable_db->getContext("PREVIOUS"));
-  boost::shared_ptr<hier::VariableContext> context_k1(
+  std::shared_ptr<hier::VariableContext> context_k1(
     variable_db->getContext("RK_K1"));
-  boost::shared_ptr<hier::VariableContext> context_k2(
+  std::shared_ptr<hier::VariableContext> context_k2(
     variable_db->getContext("RK_K2"));
-  boost::shared_ptr<hier::VariableContext> context_k3(
+  std::shared_ptr<hier::VariableContext> context_k3(
     variable_db->getContext("RK_K3"));
-  boost::shared_ptr<hier::VariableContext> context_k4(
+  std::shared_ptr<hier::VariableContext> context_k4(
     variable_db->getContext("RK_K4"));
 #if USE_BACKUP_FIELDS
-  boost::shared_ptr<hier::VariableContext> context_b(
+  std::shared_ptr<hier::VariableContext> context_b(
     variable_db->getContext("BACKUP"));
 #endif
 
@@ -66,20 +66,20 @@ Scalar::~Scalar()
  * @brief  setting length of physical domain and chi lower bound
  * 
  */
-void Scalar::init(const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+void Scalar::init(const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   return;
 }
   
 void Scalar::alloc(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln)
 {
-  boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+  std::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
   SCALAR_APPLY_TO_FIELDS(RK4_ARRAY_ALLOC);
 }
 
 void Scalar::clear(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln)
 {
   math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
   SCALAR_APPLY_TO_FIELDS_ARGS(RK4_ARRAY_ZERO, hcellmath);
@@ -95,7 +95,7 @@ void Scalar::addFieldsToList(std::vector<idx_t> &list)
  * 
  */
 void Scalar::stepInit(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
 #if USE_BACKUP_FIELDS
   for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln++)
@@ -113,10 +113,10 @@ void Scalar::stepInit(
  * 
  */
 void Scalar::RKEvolvePatchBD(
-  const boost::shared_ptr<hier::Patch> & patch,
+  const std::shared_ptr<hier::Patch> & patch,
   real_t dt)
 {
-  boost::shared_ptr<hier::PatchGeometry> geom (patch->getPatchGeometry());
+  std::shared_ptr<hier::PatchGeometry> geom (patch->getPatchGeometry());
 
   idx_t codim = 1;
   const std::vector<hier::BoundaryBox> & codim1_boxes =
@@ -136,7 +136,7 @@ void Scalar::RKEvolvePatchBD(
  * @brief RK evolve patch interior
  */
 void Scalar::RKEvolvePatch(
-  const boost::shared_ptr<hier::Patch> & patch, real_t dt)
+  const std::shared_ptr<hier::Patch> & patch, real_t dt)
 {
   // might not need this function
 }
@@ -159,7 +159,7 @@ void Scalar::RKEvolvePtBd(
 
   
 void Scalar::prepareForK1(
-  const boost::shared_ptr<hier::PatchLevel> & level,
+  const std::shared_ptr<hier::PatchLevel> & level,
   real_t to_t)
 {
   if(level == NULL) return;
@@ -167,7 +167,7 @@ void Scalar::prepareForK1(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
     
     initPData(patch);
     initMDA(patch);
@@ -222,7 +222,7 @@ void Scalar::prepareForK1(
  * 
  */
 void Scalar::prepareForK2(
-  const boost::shared_ptr<hier::PatchLevel> & level,
+  const std::shared_ptr<hier::PatchLevel> & level,
   real_t to_t)
 {
   if(level == NULL) return;
@@ -230,7 +230,7 @@ void Scalar::prepareForK2(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
     initPData(patch);
     initMDA(patch);
 
@@ -281,7 +281,7 @@ void Scalar::prepareForK2(
  * 
  */  
 void Scalar::prepareForK3(
-  const boost::shared_ptr<hier::PatchLevel> & level,
+  const std::shared_ptr<hier::PatchLevel> & level,
   real_t to_t)
 {
   if(level == NULL) return;
@@ -289,7 +289,7 @@ void Scalar::prepareForK3(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
     initPData(patch);
     initMDA(patch);
 
@@ -339,7 +339,7 @@ void Scalar::prepareForK3(
  * 
  */
 void Scalar::prepareForK4(
-  const boost::shared_ptr<hier::PatchLevel> & level,
+  const std::shared_ptr<hier::PatchLevel> & level,
   double to_t)
 {
   if(level == NULL) return;
@@ -347,7 +347,7 @@ void Scalar::prepareForK4(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
     initPData(patch);
     initMDA(patch);
 
@@ -405,7 +405,7 @@ void Scalar::prepareForK4(
  */
 void Scalar::registerRKRefinerActive(
   xfer::RefineAlgorithm& refiner,
-  boost::shared_ptr<hier::RefineOperator> &space_refine_op)
+  std::shared_ptr<hier::RefineOperator> &space_refine_op)
 {
   SCALAR_APPLY_TO_FIELDS_ARGS(REGISTER_SPACE_REFINE_A, refiner, space_refine_op);
 }
@@ -419,7 +419,7 @@ void Scalar::registerRKRefinerActive(
  */
 void Scalar::registerRKRefiner(
   xfer::RefineAlgorithm& refiner,
-  boost::shared_ptr<hier::RefineOperator> &space_refine_op)
+  std::shared_ptr<hier::RefineOperator> &space_refine_op)
 {
   SCALAR_APPLY_TO_FIELDS_ARGS(REGISTER_SPACE_REFINE_S, refiner, space_refine_op);
 }
@@ -432,7 +432,7 @@ void Scalar::registerRKRefiner(
  */
 void Scalar::registerCoarsenActive(
   xfer::CoarsenAlgorithm& coarsener,
-  boost::shared_ptr<hier::CoarsenOperator>& coarsen_op)
+  std::shared_ptr<hier::CoarsenOperator>& coarsen_op)
 {
   SCALAR_APPLY_TO_FIELDS_ARGS(REGISTER_COARSEN_A, coarsener, coarsen_op);
 }
@@ -475,7 +475,7 @@ void Scalar::copyBToA(
  * 
  */
 void Scalar::initPData(
-  const boost::shared_ptr<hier::Patch> & patch)
+  const std::shared_ptr<hier::Patch> & patch)
 {
   SCALAR_APPLY_TO_FIELDS(PDATA_ALL_INIT);
 }
@@ -485,7 +485,7 @@ void Scalar::initPData(
  * 
  */
 void Scalar::initMDA(
-  const boost::shared_ptr<hier::Patch> & patch)
+  const std::shared_ptr<hier::Patch> & patch)
 {
   SCALAR_APPLY_TO_FIELDS(MDA_ACCESS_ALL_INIT);
 }
@@ -496,7 +496,7 @@ void Scalar::initMDA(
  * 
  */
 void Scalar::K1FinalizePatch(
-  const boost::shared_ptr<hier::Patch> & patch)
+  const std::shared_ptr<hier::Patch> & patch)
 {
   initPData(patch);
   initMDA(patch);
@@ -520,7 +520,7 @@ void Scalar::K1FinalizePatch(
 }
 
 void Scalar::K2FinalizePatch(
-  const boost::shared_ptr<hier::Patch> & patch)
+  const std::shared_ptr<hier::Patch> & patch)
 {
   initPData(patch);
   initMDA(patch);
@@ -545,7 +545,7 @@ void Scalar::K2FinalizePatch(
 
 
 void Scalar::K3FinalizePatch(
-  const boost::shared_ptr<hier::Patch> & patch)
+  const std::shared_ptr<hier::Patch> & patch)
 {
   initPData(patch);
   initMDA(patch);
@@ -570,7 +570,7 @@ void Scalar::K3FinalizePatch(
 
 
 void Scalar::K4FinalizePatch(
-  const boost::shared_ptr<hier::Patch> & patch)
+  const std::shared_ptr<hier::Patch> & patch)
 {
   initPData(patch);
   initMDA(patch);
@@ -773,11 +773,11 @@ real_t Scalar::ev_psi3_bd(BSSNData *bd, ScalarData *sd, const real_t dx[], int l
 
   
 void Scalar::addBSSNSrc(
-  BSSN * bssn, const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+  BSSN * bssn, const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   for(idx_t ln = 0; ln < hierarchy->getNumberOfLevels(); ln++)
   {
-    const boost::shared_ptr<hier::PatchLevel> level(
+    const std::shared_ptr<hier::PatchLevel> level(
       hierarchy->getPatchLevel(ln));
     addBSSNSrc(bssn, level);
   }
@@ -785,12 +785,12 @@ void Scalar::addBSSNSrc(
 }
 
 void Scalar::addBSSNSrc(
-  BSSN * bssn, const boost::shared_ptr<hier::PatchLevel> & level)
+  BSSN * bssn, const std::shared_ptr<hier::PatchLevel> & level)
 {
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
     addBSSNSrc(bssn, patch, true);
   }  
 }
@@ -800,7 +800,7 @@ void Scalar::addBSSNSrc(
  *        set the time of active components of all BSSN fields as to_t
  */ 
 void Scalar::setLevelTime(
-  const boost::shared_ptr<hier::PatchLevel> & level,
+  const std::shared_ptr<hier::PatchLevel> & level,
   double from_t, double to_t)
 {
   SCALAR_APPLY_TO_FIELDS_ARGS(SET_LEVEL_TIME, from_t, to_t);
@@ -808,7 +808,7 @@ void Scalar::setLevelTime(
 
   
 void Scalar::addBSSNSrc(
-  BSSN * bssn, const boost::shared_ptr<hier::Patch> & patch, bool need_init_arr)
+  BSSN * bssn, const std::shared_ptr<hier::Patch> & patch, bool need_init_arr)
 {
   if(need_init_arr)
   {
@@ -831,8 +831,8 @@ void Scalar::addBSSNSrc(
   arr_t & STF23_a = bssn->STF23_a;
   arr_t & STF33_a = bssn->STF33_a;
 
-  const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom( 
-    BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+  const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom( 
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
       patch->getPatchGeometry()));
 
   const real_t * dx = &(patch_geom->getDx())[0];

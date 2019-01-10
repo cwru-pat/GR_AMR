@@ -124,37 +124,37 @@
 
 
 #define VAR_CREATE(field)                               \
-  boost::shared_ptr<pdat::CellVariable<real_t>> field
+  std::shared_ptr<pdat::CellVariable<real_t>> field
 
 #define VAR_INIT(field)                                         \
-  field = boost::shared_ptr<pdat::CellVariable<real_t>> (       \
+  field = std::shared_ptr<pdat::CellVariable<real_t>> (       \
     new pdat::CellVariable<real_t>(dim, #field, 1))
 
 #define RK4_PDATA_CREATE(field, type)                                   \
-  boost::shared_ptr<pdat::CellData<real_t>> field##_##type##_pdata
+  std::shared_ptr<pdat::CellData<real_t>> field##_##type##_pdata
 
 #define RK4_MDA_ACCESS_CREATE(field,type)       \
   arr_t field##_##type
 
 #if USE_BACKUP_FIELDS
 #define RK4_PDATA_ALL_CREATE(field)                             \
-  boost::shared_ptr<pdat::CellData<real_t>> field##_a_pdata;    \
-  boost::shared_ptr<pdat::CellData<real_t>> field##_s_pdata;    \
-  boost::shared_ptr<pdat::CellData<real_t>> field##_p_pdata;    \
-  boost::shared_ptr<pdat::CellData<real_t>> field##_k1_pdata;   \
-  boost::shared_ptr<pdat::CellData<real_t>> field##_k2_pdata;   \
-  boost::shared_ptr<pdat::CellData<real_t>> field##_k3_pdata;   \
-  boost::shared_ptr<pdat::CellData<real_t>> field##_k4_pdata;   \
-  boost::shared_ptr<pdat::CellData<real_t>> field##_b_pdata
+  std::shared_ptr<pdat::CellData<real_t>> field##_a_pdata;    \
+  std::shared_ptr<pdat::CellData<real_t>> field##_s_pdata;    \
+  std::shared_ptr<pdat::CellData<real_t>> field##_p_pdata;    \
+  std::shared_ptr<pdat::CellData<real_t>> field##_k1_pdata;   \
+  std::shared_ptr<pdat::CellData<real_t>> field##_k2_pdata;   \
+  std::shared_ptr<pdat::CellData<real_t>> field##_k3_pdata;   \
+  std::shared_ptr<pdat::CellData<real_t>> field##_k4_pdata;   \
+  std::shared_ptr<pdat::CellData<real_t>> field##_b_pdata
 #else
 #define RK4_PDATA_ALL_CREATE(field)                             \
-  boost::shared_ptr<pdat::CellData<real_t>> field##_a_pdata;    \
-  boost::shared_ptr<pdat::CellData<real_t>> field##_s_pdata;    \
-  boost::shared_ptr<pdat::CellData<real_t>> field##_p_pdata;    \
-  boost::shared_ptr<pdat::CellData<real_t>> field##_k1_pdata;   \
-  boost::shared_ptr<pdat::CellData<real_t>> field##_k2_pdata;   \
-  boost::shared_ptr<pdat::CellData<real_t>> field##_k3_pdata;   \
-  boost::shared_ptr<pdat::CellData<real_t>> field##_k4_pdata
+  std::shared_ptr<pdat::CellData<real_t>> field##_a_pdata;    \
+  std::shared_ptr<pdat::CellData<real_t>> field##_s_pdata;    \
+  std::shared_ptr<pdat::CellData<real_t>> field##_p_pdata;    \
+  std::shared_ptr<pdat::CellData<real_t>> field##_k1_pdata;   \
+  std::shared_ptr<pdat::CellData<real_t>> field##_k2_pdata;   \
+  std::shared_ptr<pdat::CellData<real_t>> field##_k3_pdata;   \
+  std::shared_ptr<pdat::CellData<real_t>> field##_k4_pdata
 #endif
 
 #if USE_BACKUP_FIELDS
@@ -268,7 +268,7 @@
   idx_t name##_a_idx
 
 #define GEN1_PDATA_CREATE(field)                                \
-  boost::shared_ptr<pdat::CellData<real_t>> field##_a_pdata;    \
+  std::shared_ptr<pdat::CellData<real_t>> field##_a_pdata;    \
 
 #define GEN1_MDA_ACCESS_CREATE(field)           \
   arr_t field##_a;                              \
@@ -362,7 +362,7 @@
 
 #define PDATA_INIT(field, type)   \
   field##_##type##_pdata =  \
-    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+    SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(  \
       patch->getPatchData(field##_##type##_idx))
 
 #define MDA_ACCESS_INIT(field,type)   \
@@ -373,51 +373,51 @@
 #if USE_BACKUP_FIELDS
 #define PDATA_ALL_INIT(field)  \
   field##_p_pdata =  \
-    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+    SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(  \
       patch->getPatchData(field##_p##_idx));  \
   field##_s_pdata =  \
-    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+    SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(  \
       patch->getPatchData(field##_s##_idx));  \
   field##_a_pdata =  \
-    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+    SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(  \
       patch->getPatchData(field##_a##_idx));  \
   field##_k1_pdata =  \
-    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+    SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(  \
       patch->getPatchData(field##_k1##_idx));             \
   field##_k2_pdata =                                      \
-    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(    \
+    SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(    \
       patch->getPatchData(field##_k2##_idx));               \
   field##_k3_pdata =  \
-    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+    SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(  \
       patch->getPatchData(field##_k3##_idx));             \
   field##_k4_pdata =  \
-    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+    SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(  \
       patch->getPatchData(field##_k4##_idx));             \
   field##_b_pdata =                                       \
-    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+    SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(  \
       patch->getPatchData(field##_b##_idx))
 #else
 #define PDATA_ALL_INIT(field)                             \
    field##_p_pdata =                                      \
-    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+    SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(  \
       patch->getPatchData(field##_p##_idx));  \
   field##_s_pdata =  \
-    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+    SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(  \
       patch->getPatchData(field##_s##_idx));  \
   field##_a_pdata =  \
-    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+    SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(  \
       patch->getPatchData(field##_a##_idx));  \
   field##_k1_pdata =  \
-    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+    SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(  \
       patch->getPatchData(field##_k1##_idx));             \
   field##_k2_pdata =                                      \
-    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(    \
+    SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(    \
       patch->getPatchData(field##_k2##_idx));               \
   field##_k3_pdata =  \
-    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+    SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(  \
       patch->getPatchData(field##_k3##_idx));             \
   field##_k4_pdata =  \
-    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(  \
+    SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(  \
       patch->getPatchData(field##_k4##_idx))
 #endif
 

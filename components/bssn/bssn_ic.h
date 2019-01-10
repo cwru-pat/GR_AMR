@@ -21,30 +21,30 @@ namespace cosmo
 {
   
 void bssn_ic_awa_stability(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln, real_t A);
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln, real_t A);
 void bssn_ic_awa_linear_wave(BSSN * bssn);
 void bssn_ic_awa_linear_wave(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln, real_t A, idx_t dir);
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln, real_t A, idx_t dir);
 void bssn_ic_awa_linear_wave_desitter(BSSN * bssn);
 void bssn_ic_awa_gauge_wave(BSSN * bssn);
 void bssn_ic_awa_gauge_wave(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln, idx_t dir);
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln, idx_t dir);
 void bssn_ic_awa_shifted_gauge_wave(BSSN * bssn);
 void bssn_ic_awa_shifted_gauge_wave(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln, idx_t dir);
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln, idx_t dir);
 void bssn_ic_static_blackhole(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
 
 void bssn_ic_kerr_blackhole(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln);
 
 void bssn_ic_ds_blackhole(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln, BSSN * bssn);
 
 void bssn_ic_kerr_BHL_CTT(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln,
   real_t M,
   real_t a,
@@ -56,7 +56,7 @@ void bssn_ic_kerr_BHL_CTT(
   double sigma);
 
 void bssn_ic_static_BHL_CTT(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln,
   real_t M,
   real_t a,

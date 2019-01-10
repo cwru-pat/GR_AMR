@@ -162,11 +162,11 @@ CartesianCellDoubleCRSplinesCoarsen::coarsen(
    const tbox::Dimension& dim(fine.getDim());
    TBOX_ASSERT_DIM_OBJDIM_EQUALITY3(dim, coarse, coarse_box, ratio);
 
-   boost::shared_ptr<pdat::CellData<double> > cdata(
-      BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+   std::shared_ptr<pdat::CellData<double> > cdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(
          coarse.getPatchData(src_component)));
-   boost::shared_ptr<pdat::CellData<double> > fdata(
-      BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+   std::shared_ptr<pdat::CellData<double> > fdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(
          fine.getPatchData(dst_component)));
    
    TBOX_ASSERT(fdata);
@@ -184,11 +184,11 @@ CartesianCellDoubleCRSplinesCoarsen::coarsen(
    
    const hier::Box fgbox(fdata->getGhostBox());
 
-   const boost::shared_ptr<CartesianPatchGeometry> cgeom(
-      BOOST_CAST<CartesianPatchGeometry, hier::PatchGeometry>(
+   const std::shared_ptr<CartesianPatchGeometry> cgeom(
+      SAMRAI_SHARED_PTR_CAST<CartesianPatchGeometry, hier::PatchGeometry>(
          coarse.getPatchGeometry()));
-   const boost::shared_ptr<CartesianPatchGeometry> fgeom(
-      BOOST_CAST<CartesianPatchGeometry, hier::PatchGeometry>(
+   const std::shared_ptr<CartesianPatchGeometry> fgeom(
+      SAMRAI_SHARED_PTR_CAST<CartesianPatchGeometry, hier::PatchGeometry>(
          fine.getPatchGeometry()));
 
    TBOX_ASSERT(cgeom);

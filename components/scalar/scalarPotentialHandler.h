@@ -48,7 +48,7 @@ private:
 
   }
 
-  void _initDefaultParameters(boost::shared_ptr<tbox::Database> database)
+  void _initDefaultParameters(std::shared_ptr<tbox::Database> database)
   {
     Lambda = database->getDoubleWithDefault("Lambda", 0.0);
    
@@ -66,7 +66,7 @@ public:
   /**
    * @brief Initialize with gauge determined by config file (default to a "static", non-evolving gauge)
    */
-  scalarPotentialHandler(boost::shared_ptr<tbox::Database> database)
+  scalarPotentialHandler(std::shared_ptr<tbox::Database> database)
   {
     _initGaugeMaps();
     _initDefaultParameters(database);

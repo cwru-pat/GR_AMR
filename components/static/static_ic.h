@@ -19,8 +19,8 @@ namespace cosmo
 {
   
 void dust_ic_set_random(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
-  idx_t ln, boost::shared_ptr<tbox::Database> cosmo_static_db);
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  idx_t ln, std::shared_ptr<tbox::Database> cosmo_static_db);
 
 }
 

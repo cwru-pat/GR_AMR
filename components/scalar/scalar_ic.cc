@@ -21,16 +21,16 @@ namespace cosmo
 {
 
 void scalar_ic_set_semianalytic_test(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln, BSSN * bssn, Scalar * scalar,
-  boost::shared_ptr<tbox::Database> cosmo_scalar_db)
+  std::shared_ptr<tbox::Database> cosmo_scalar_db)
 {
 
-  boost::shared_ptr<hier::PatchLevel> level(
+  std::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
 
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
       hierarchy->getGridGeometry()));
   TBOX_ASSERT(grid_geometry_);
   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
@@ -113,7 +113,7 @@ void scalar_ic_set_semianalytic_test(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
 
     bssn->initPData(patch);
     bssn->initMDA(patch);
@@ -176,16 +176,16 @@ void scalar_ic_set_semianalytic_test(
     sommerfield boundary condition
   */
 bool scalar_ic_set_scalar_collapse_sommerfield(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln, BSSN * bssn, Scalar * scalar,
-  boost::shared_ptr<tbox::Database> cosmo_scalar_db)
+  std::shared_ptr<tbox::Database> cosmo_scalar_db)
 {
   const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
-  boost::shared_ptr<hier::PatchLevel> level(
+  std::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
 
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
       hierarchy->getGridGeometry()));
   TBOX_ASSERT(grid_geometry_);
   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
@@ -270,7 +270,7 @@ bool scalar_ic_set_scalar_collapse_sommerfield(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
 
     bssn->initPData(patch);
     bssn->initMDA(patch);
@@ -412,17 +412,17 @@ bool scalar_ic_set_scalar_collapse_sommerfield(
 }
 
 bool scalar_ic_set_periodic_fast_collapse_test(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln, BSSN * bssn, Scalar * scalar,
-  boost::shared_ptr<tbox::Database> cosmo_scalar_db)
+  std::shared_ptr<tbox::Database> cosmo_scalar_db)
 {
   const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
 
-  boost::shared_ptr<hier::PatchLevel> level(
+  std::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
 
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
       hierarchy->getGridGeometry()));
   TBOX_ASSERT(grid_geometry_);
   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
@@ -484,7 +484,7 @@ bool scalar_ic_set_periodic_fast_collapse_test(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
 
     bssn->initPData(patch);
     bssn->initMDA(patch);
@@ -549,17 +549,17 @@ bool scalar_ic_set_periodic_fast_collapse_test(
 }
 
 bool scalar_ic_set_scalar_collapse(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln, BSSN * bssn, Scalar * scalar,
-  boost::shared_ptr<tbox::Database> cosmo_scalar_db)
+  std::shared_ptr<tbox::Database> cosmo_scalar_db)
 {
   const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
 
-  boost::shared_ptr<hier::PatchLevel> level(
+  std::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
 
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
       hierarchy->getGridGeometry()));
   TBOX_ASSERT(grid_geometry_);
   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
@@ -701,7 +701,7 @@ bool scalar_ic_set_scalar_collapse(
   K_src = -std::sqrt(24.0 * PI * K_src/NX/NY/NZ);
   
   
-  boost::shared_ptr<tbox::HDFDatabase > hdf (new tbox::HDFDatabase("hdf_db"));
+  std::shared_ptr<tbox::HDFDatabase > hdf (new tbox::HDFDatabase("hdf_db"));
 
   std::string filename = "h5_data_lv_";
 
@@ -848,7 +848,7 @@ bool scalar_ic_set_scalar_collapse(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
 
     bssn->initPData(patch);
     bssn->initMDA(patch);
@@ -937,7 +937,7 @@ bool scalar_ic_set_scalar_collapse(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
 
     bssn->initPData(patch);
     bssn->initMDA(patch);
@@ -991,16 +991,16 @@ bool scalar_ic_set_scalar_collapse(
 }
 
 bool scalar_ic_set_scalar_gaussian_collapse(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln, BSSN * bssn, Scalar * scalar,
-  boost::shared_ptr<tbox::Database> cosmo_scalar_db)
+  std::shared_ptr<tbox::Database> cosmo_scalar_db)
 {
   const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
-  boost::shared_ptr<hier::PatchLevel> level(
+  std::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
 
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
       hierarchy->getGridGeometry()));
   TBOX_ASSERT(grid_geometry_);
   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
@@ -1120,7 +1120,7 @@ bool scalar_ic_set_scalar_gaussian_collapse(
 
   std::cout<<"K0 equals "<<K_src<<"\n";
 
-  boost::shared_ptr<tbox::HDFDatabase > hdf (new tbox::HDFDatabase("hdf_db"));
+  std::shared_ptr<tbox::HDFDatabase > hdf (new tbox::HDFDatabase("hdf_db"));
 
   std::string filename = "h5_data_lv_";
 
@@ -1264,7 +1264,7 @@ bool scalar_ic_set_scalar_gaussian_collapse(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
 
     bssn->initPData(patch);
     bssn->initMDA(patch);

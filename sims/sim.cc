@@ -13,9 +13,9 @@ namespace cosmo
 /*
  * Claming timers 
  */  
-boost::shared_ptr<tbox::Timer> CosmoSim::t_loop;
-boost::shared_ptr<tbox::Timer> CosmoSim::t_init;
-boost::shared_ptr<tbox::Timer> CosmoSim::t_RK_steps;
+std::shared_ptr<tbox::Timer> CosmoSim::t_loop;
+std::shared_ptr<tbox::Timer> CosmoSim::t_init;
+std::shared_ptr<tbox::Timer> CosmoSim::t_RK_steps;
 
 /**
  * @brief Constructing CosmoSim object
@@ -28,9 +28,9 @@ boost::shared_ptr<tbox::Timer> CosmoSim::t_RK_steps;
  * @param name of output file for VisIt
  */
 CosmoSim::CosmoSim(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   const tbox::Dimension& dim_in,
-  boost::shared_ptr<tbox::InputDatabase>& input_db_in,
+  std::shared_ptr<tbox::InputDatabase>& input_db_in,
   std::ostream* l_stream_in = 0,
   std::string simulation_type_in = std::string(),
   std::string vis_filename_in = std::string()):
@@ -95,7 +95,7 @@ CosmoSim::CosmoSim(
   hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
 
   // get context ACTIVE to initilize these two extra fields 
-  boost::shared_ptr<hier::VariableContext> context_active(
+  std::shared_ptr<hier::VariableContext> context_active(
     variable_db->getContext("ACTIVE"));
 
   // weight component stores volume for each cell
@@ -138,7 +138,7 @@ CosmoSim::~CosmoSim()
  * @brief  set regriding algorithm
  */
 void CosmoSim::setGriddingAlgs(
-  boost::shared_ptr<mesh::GriddingAlgorithm>& gridding_algorithm_in)
+  std::shared_ptr<mesh::GriddingAlgorithm>& gridding_algorithm_in)
 {
   gridding_algorithm = gridding_algorithm_in;
 }
@@ -146,11 +146,11 @@ void CosmoSim::setGriddingAlgs(
  * @brief  set refine and coarsen operators
  */
 void CosmoSim::setRefineCoarsenOps(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
 
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
       hierarchy->getGridGeometry()));
 
   TBOX_ASSERT(grid_geometry_);
@@ -174,7 +174,7 @@ void CosmoSim::setRefineCoarsenOps(
  * @brief      Run the simulation.
  */
 void CosmoSim::run(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   tbox::plog<<"Running simulation...";
 
@@ -191,7 +191,7 @@ void CosmoSim::run(
 }
 
 void CosmoSim::calculateKAvg(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   K_avg = cosmo_statistic->calculate_conformal_avg(
     hierarchy, bssnSim, weight_idx, bssnSim->DIFFK_a_idx, true);
@@ -202,7 +202,7 @@ void CosmoSim::calculateKAvg(
 // warning !!!!!!!! have not been fully tested
 // do not use without brain!!!
 void CosmoSim::rescaleLapse(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   bssnSim->rescale_lapse(hierarchy, weight_idx);
   for(int ln = 0; ln < hierarchy->getNumberOfLevels()-1; ln ++)
@@ -217,7 +217,7 @@ void CosmoSim::rescaleLapse(
  * @brief regrid when necessary and detect NaNs.
  */
 void CosmoSim::runCommonStepTasks(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   // detecting NaNs
   isValid(hierarchy);
@@ -321,15 +321,15 @@ void CosmoSim::runCommonStepTasks(
  * @param component id we are looking at 
  */
 bool CosmoSim::hasNaNs(
-  const boost::shared_ptr<hier::Patch>& patch, idx_t data_id)
+  const std::shared_ptr<hier::Patch>& patch, idx_t data_id)
 {
-  boost::shared_ptr<pdat::CellData<double> > d_pdata(
-    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+  std::shared_ptr<pdat::CellData<double> > d_pdata(
+    SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(
       patch->getPatchData(data_id)));
 
   
-  boost::shared_ptr<pdat::CellData<double> > w_pdata(
-    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+  std::shared_ptr<pdat::CellData<double> > w_pdata(
+    SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(
       patch->getPatchData(weight_idx)));
 
   
@@ -367,7 +367,7 @@ bool CosmoSim::hasNaNs(
  * @brief detect NaNs for all fields in the whole hierarchy
  */
 bool CosmoSim::isValid(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy) 
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy) 
 {
   int ln_num = hierarchy->getNumberOfLevels();
 
@@ -377,12 +377,12 @@ bool CosmoSim::isValid(
     /*
      * On every level, first assign cell volume to vector weight.
      */
-    boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+    std::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
     for (hier::PatchLevel::iterator p(level->begin());
          p != level->end(); ++p) {
-      const boost::shared_ptr<hier::Patch>& patch = *p;
-      boost::shared_ptr<geom::CartesianPatchGeometry> patch_geometry(
-        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+      const std::shared_ptr<hier::Patch>& patch = *p;
+      std::shared_ptr<geom::CartesianPatchGeometry> patch_geometry(
+        SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
           patch->getPatchGeometry()));
 
       for(int l = 0; l < static_cast<idx_t>(variable_id_list.size()); l++)

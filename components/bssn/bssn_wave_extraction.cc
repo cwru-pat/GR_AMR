@@ -11,7 +11,7 @@ namespace cosmo
 // following the way in
 // https://github.com/zachetienne/nrpytutorial/blob/a7f1f5778be2a228fcf5bd9c29d602e6f384dd93/Tutorial-WeylScalarsInvariants-Cartesian.ipynb
 void BSSN::cal_Weyl_scalars(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   int weight_idx)
 {
   #if CAL_WEYL_SCALS
@@ -26,21 +26,21 @@ void BSSN::cal_Weyl_scalars(
   
   for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln ++)
   {
-    boost::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+    std::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
     
     for( hier::PatchLevel::iterator pit(level->begin());
          pit != level->end(); ++pit)
     {
-      const boost::shared_ptr<hier::Patch> & patch = *pit;
+      const std::shared_ptr<hier::Patch> & patch = *pit;
 
       const hier::Box& box = patch->getBox();
 
-      const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
-        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+      const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+        SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
           patch->getPatchGeometry()));
       
-      boost::shared_ptr<pdat::CellData<double> > weight(
-        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+      std::shared_ptr<pdat::CellData<double> > weight(
+        SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(
           patch->getPatchData(weight_idx)));
       
 

@@ -12,9 +12,9 @@ namespace cosmo
  * @brief Constructor for BSSN class
  */
 BSSN::BSSN(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   const tbox::Dimension& dim_in,
-  boost::shared_ptr<tbox::Database> database_in,
+  std::shared_ptr<tbox::Database> database_in,
   std::ostream* l_stream_in,
   real_t KO_damping_coefficient_in):
   lstream(l_stream_in),
@@ -42,22 +42,22 @@ BSSN::BSSN(
 
   // creating variable context
   // (if corresponding context doe not exit, it creats one automatically)
-  boost::shared_ptr<hier::VariableContext> context_scratch(
+  std::shared_ptr<hier::VariableContext> context_scratch(
     variable_db->getContext("SCRATCH"));
-  boost::shared_ptr<hier::VariableContext> context_active(
+  std::shared_ptr<hier::VariableContext> context_active(
     variable_db->getContext("ACTIVE"));
-  boost::shared_ptr<hier::VariableContext> context_previous(
+  std::shared_ptr<hier::VariableContext> context_previous(
     variable_db->getContext("PREVIOUS"));
-  boost::shared_ptr<hier::VariableContext> context_k1(
+  std::shared_ptr<hier::VariableContext> context_k1(
     variable_db->getContext("RK_K1"));
-  boost::shared_ptr<hier::VariableContext> context_k2(
+  std::shared_ptr<hier::VariableContext> context_k2(
     variable_db->getContext("RK_K2"));
-  boost::shared_ptr<hier::VariableContext> context_k3(
+  std::shared_ptr<hier::VariableContext> context_k3(
     variable_db->getContext("RK_K3"));
-  boost::shared_ptr<hier::VariableContext> context_k4(
+  std::shared_ptr<hier::VariableContext> context_k4(
     variable_db->getContext("RK_K4"));
 #if USE_BACKUP_FIELDS
-  boost::shared_ptr<hier::VariableContext> context_b(
+  std::shared_ptr<hier::VariableContext> context_b(
     variable_db->getContext("BACKUP"));
 #endif
 
@@ -88,15 +88,15 @@ BSSN::~BSSN()
 }
 
 void BSSN::set_norm(
-  const boost::shared_ptr<hier::Patch>& patch, bool need_init_arr)
+  const std::shared_ptr<hier::Patch>& patch, bool need_init_arr)
 {
   if(need_init_arr)
   {
     initPData(patch);
     initMDA(patch);
   }
-  boost::shared_ptr<geom::CartesianPatchGeometry> patch_geometry(
-    BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+  std::shared_ptr<geom::CartesianPatchGeometry> patch_geometry(
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
       patch->getPatchGeometry()));
 
   const hier::Box& box = DIFFchi_a_pdata->getGhostBox();
@@ -174,13 +174,13 @@ void BSSN::set_norm(
  * @brief  normalize Aij or gammaij or both
  */
 void BSSN::set_norm(
-  const boost::shared_ptr<hier::PatchLevel>& level)
+  const std::shared_ptr<hier::PatchLevel>& level)
 {
   if(normalize_Aij == 0 && normalize_gammaij == 0) return;
   for (hier::PatchLevel::iterator p(level->begin());
        p != level->end(); ++p)
   {
-    const boost::shared_ptr<hier::Patch>& patch = *p;
+    const std::shared_ptr<hier::Patch>& patch = *p;
 
     set_norm(patch, true);
   }
@@ -194,18 +194,18 @@ void BSSN::set_norm(
 
 
 void BSSN::rescale_lapse(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, int weight_idx)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, int weight_idx)
 {
   double max_alpha = -1.0;
   for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln ++)
   {
-    boost::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+    std::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
 
     
     for( hier::PatchLevel::iterator pit(level->begin());
          pit != level->end(); ++pit)
     {
-      const boost::shared_ptr<hier::Patch> & patch = *pit;
+      const std::shared_ptr<hier::Patch> & patch = *pit;
 
       initPData(patch);
       initMDA(patch);
@@ -216,8 +216,8 @@ void BSSN::rescale_lapse(
       const int * lower = &box.lower()[0];
       const int * upper = &box.upper()[0];
 
-      boost::shared_ptr<pdat::CellData<double> > weight(
-        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+      std::shared_ptr<pdat::CellData<double> > weight(
+        SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(
           patch->getPatchData(weight_idx)));
       
 
@@ -250,13 +250,13 @@ void BSSN::rescale_lapse(
 
   for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln ++)
   {
-    boost::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+    std::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
 
     
     for( hier::PatchLevel::iterator pit(level->begin());
          pit != level->end(); ++pit)
     {
-      const boost::shared_ptr<hier::Patch> & patch = *pit;
+      const std::shared_ptr<hier::Patch> & patch = *pit;
 
       initPData(patch);
       initMDA(patch);
@@ -288,10 +288,10 @@ void BSSN::rescale_lapse(
  * @brief  setting length of physical domain and chi lower bound
  * 
  */
-void BSSN::init(const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+void BSSN::init(const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
       hierarchy->getGridGeometry()));
   TBOX_ASSERT(grid_geometry_);
   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
@@ -312,28 +312,28 @@ void BSSN::init(const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
 }
 
 void BSSN::allocField(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln)
 {
-  boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+  std::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
   BSSN_APPLY_TO_FIELDS(RK4_ARRAY_ALLOC);
 }
 
 void BSSN::allocSrc(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln)
 {
-  boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+  std::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
   BSSN_APPLY_TO_SOURCES(EXTRA_ARRAY_ALLOC);
 }
   
 void BSSN::allocGen1(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln) 
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln) 
 {
-  boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+  std::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
   BSSN_APPLY_TO_GEN1_EXTRAS(EXTRA_ARRAY_ALLOC);
 }
 
 void BSSN::clearField(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   for(idx_t ln = 0; ln < hierarchy->getNumberOfLevels(); ln++)
   {
@@ -342,7 +342,7 @@ void BSSN::clearField(
 }
   
 void BSSN::clearField(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln)
 {
   math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
   BSSN_APPLY_TO_FIELDS_ARGS(RK4_ARRAY_ZERO, hcellmath);
@@ -350,7 +350,7 @@ void BSSN::clearField(
 
   
 void BSSN::clearSrc(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   for(idx_t ln = 0; ln < hierarchy->getNumberOfLevels(); ln++)
   {
@@ -359,7 +359,7 @@ void BSSN::clearSrc(
 }
 
 void BSSN::clearSrc(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln)
 {
     
   math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
@@ -367,7 +367,7 @@ void BSSN::clearSrc(
 }
 
 void BSSN::clearGen1(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   for(idx_t ln = 0; ln < hierarchy->getNumberOfLevels(); ln++)
   {
@@ -376,7 +376,7 @@ void BSSN::clearGen1(
 }
   
 void BSSN::clearGen1(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln) 
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln) 
 {
   math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
   BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(EXTRA_ARRAY_ZERO, hcellmath);
@@ -401,7 +401,7 @@ void BSSN::setExtraFieldData()
  * 
  */
 void BSSN::stepInit(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   setExtraFieldData(); // Set extra field information (eg. derived field data for gauge conditions)
   // if enabling backup fields _b, copy _p data to _b data as backup
@@ -419,11 +419,11 @@ void BSSN::stepInit(
  * 
  */
 void BSSN::RKEvolvePatchBD(
-  const boost::shared_ptr<hier::Patch> & patch,
+  const std::shared_ptr<hier::Patch> & patch,
   real_t dt)
 {
   
-  boost::shared_ptr<hier::PatchGeometry> geom (patch->getPatchGeometry());
+  std::shared_ptr<hier::PatchGeometry> geom (patch->getPatchGeometry());
 
   idx_t codim = 1;
 
@@ -439,8 +439,8 @@ void BSSN::RKEvolvePatchBD(
   initPData(patch);
   initMDA(patch);
 
-  const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom( 
-    BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+  const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom( 
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
       patch->getPatchGeometry()));
 
     
@@ -628,7 +628,7 @@ void BSSN::RKEvolvePatchBD(
  * @brief RK evolve patch interior
  */
 void BSSN::RKEvolvePatch(
-  const boost::shared_ptr<hier::Patch> & patch, real_t dt)
+  const std::shared_ptr<hier::Patch> & patch, real_t dt)
 {
   // might not need this function
   initPData(patch);
@@ -640,8 +640,8 @@ void BSSN::RKEvolvePatch(
   const int * upper = &box.upper()[0];
 
   
-  const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(  
-    BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+  const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(  
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
       patch->getPatchGeometry()));
 
   //initialize dx for each patch
@@ -666,7 +666,7 @@ void BSSN::RKEvolvePatch(
   return;
 }
 
-void BSSN::deBug(  const boost::shared_ptr<hier::Patch> & patch)
+void BSSN::deBug(  const std::shared_ptr<hier::Patch> & patch)
 {
   initPData(patch);
   initMDA(patch);
@@ -677,8 +677,8 @@ void BSSN::deBug(  const boost::shared_ptr<hier::Patch> & patch)
 
   BSSNData bd = {0};
   
-  const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(  
-    BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+  const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(  
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
       patch->getPatchGeometry()));
 
   //initialize dx for each patch
@@ -724,7 +724,7 @@ void BSSN::RKEvolvePtBd(
  * 
  */
 void BSSN::prepareForK1(
-  const boost::shared_ptr<hier::PatchLevel> & level,
+  const std::shared_ptr<hier::PatchLevel> & level,
   real_t to_t)
 {
   if(level == NULL) return;
@@ -732,7 +732,7 @@ void BSSN::prepareForK1(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
     
     initPData(patch);
     initMDA(patch);
@@ -787,7 +787,7 @@ void BSSN::prepareForK1(
  * 
  */
 void BSSN::prepareForK2(
-  const boost::shared_ptr<hier::PatchLevel> & level,
+  const std::shared_ptr<hier::PatchLevel> & level,
   real_t to_t)
 {
   if(level == NULL) return;
@@ -795,7 +795,7 @@ void BSSN::prepareForK2(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
     initPData(patch);
     initMDA(patch);
 
@@ -846,7 +846,7 @@ void BSSN::prepareForK2(
  * 
  */  
 void BSSN::prepareForK3(
-  const boost::shared_ptr<hier::PatchLevel> & level,
+  const std::shared_ptr<hier::PatchLevel> & level,
   real_t to_t)
 {
   if(level == NULL) return;
@@ -854,7 +854,7 @@ void BSSN::prepareForK3(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
     initPData(patch);
     initMDA(patch);
 
@@ -904,7 +904,7 @@ void BSSN::prepareForK3(
  * 
  */
 void BSSN::prepareForK4(
-  const boost::shared_ptr<hier::PatchLevel> & level,
+  const std::shared_ptr<hier::PatchLevel> & level,
   double to_t)
 {
   if(level == NULL) return;
@@ -912,7 +912,7 @@ void BSSN::prepareForK4(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
     initPData(patch);
     initMDA(patch);
 
@@ -969,7 +969,7 @@ void BSSN::prepareForK4(
  */
 void BSSN::registerRKRefinerActive(
   xfer::RefineAlgorithm& refiner,
-  boost::shared_ptr<hier::RefineOperator> &space_refine_op)
+  std::shared_ptr<hier::RefineOperator> &space_refine_op)
 {
   BSSN_APPLY_TO_FIELDS_ARGS(REGISTER_SPACE_REFINE_A, refiner, space_refine_op);
 }
@@ -983,7 +983,7 @@ void BSSN::registerRKRefinerActive(
  */
 void BSSN::registerRKRefiner(
   xfer::RefineAlgorithm& refiner,
-  boost::shared_ptr<hier::RefineOperator> &space_refine_op)
+  std::shared_ptr<hier::RefineOperator> &space_refine_op)
 {
   BSSN_APPLY_TO_FIELDS_ARGS(REGISTER_SPACE_REFINE_S, refiner, space_refine_op);
 }
@@ -997,7 +997,7 @@ void BSSN::registerRKRefiner(
  */
 void BSSN::registerCoarsenActive(
   xfer::CoarsenAlgorithm& coarsener,
-  boost::shared_ptr<hier::CoarsenOperator>& coarsen_op)
+  std::shared_ptr<hier::CoarsenOperator>& coarsen_op)
 {
   BSSN_APPLY_TO_FIELDS_ARGS(REGISTER_COARSEN_A, coarsener, coarsen_op);
 }
@@ -1045,7 +1045,7 @@ void BSSN::copyBToA(
  * 
  */
 void BSSN::initPData(
-  const boost::shared_ptr<hier::Patch> & patch)
+  const std::shared_ptr<hier::Patch> & patch)
 {
   BSSN_APPLY_TO_FIELDS(PDATA_ALL_INIT);
   BSSN_APPLY_TO_SOURCES_ARGS(PDATA_INIT, a);
@@ -1058,7 +1058,7 @@ void BSSN::initPData(
  * 
  */
 void BSSN::initMDA(
-  const boost::shared_ptr<hier::Patch> & patch)
+  const std::shared_ptr<hier::Patch> & patch)
 {
   BSSN_APPLY_TO_FIELDS(MDA_ACCESS_ALL_INIT);
 
@@ -1072,7 +1072,7 @@ void BSSN::initMDA(
  *        set the time of active components of all BSSN fields as to_t
  */ 
 void BSSN::setLevelTime(
-  const boost::shared_ptr<hier::PatchLevel> & level,
+  const std::shared_ptr<hier::PatchLevel> & level,
   double from_t, double to_t)
 {
   BSSN_APPLY_TO_FIELDS_ARGS(SET_LEVEL_TIME, from_t, to_t);
@@ -1083,7 +1083,7 @@ void BSSN::setLevelTime(
  * 
  */
 void BSSN::K1FinalizePatch(
-  const boost::shared_ptr<hier::Patch> & patch)
+  const std::shared_ptr<hier::Patch> & patch)
 {
   initPData(patch);
   initMDA(patch);
@@ -1107,7 +1107,7 @@ void BSSN::K1FinalizePatch(
 }
 
 void BSSN::K2FinalizePatch(
-  const boost::shared_ptr<hier::Patch> & patch)
+  const std::shared_ptr<hier::Patch> & patch)
 {
   initPData(patch);
   initMDA(patch);
@@ -1132,7 +1132,7 @@ void BSSN::K2FinalizePatch(
 
 
 void BSSN::K3FinalizePatch(
-  const boost::shared_ptr<hier::Patch> & patch)
+  const std::shared_ptr<hier::Patch> & patch)
 {
   initPData(patch);
   initMDA(patch);
@@ -1158,7 +1158,7 @@ void BSSN::K3FinalizePatch(
 // Only use this when you need to take the changes
 // of some field as stop critieria
 void BSSN::K4FinalizePatch(
-  const boost::shared_ptr<hier::Patch> & patch, int ln, int max_ln)
+  const std::shared_ptr<hier::Patch> & patch, int ln, int max_ln)
 {
   initPData(patch);
   initMDA(patch);
@@ -1169,8 +1169,8 @@ void BSSN::K4FinalizePatch(
   const int * lower = &box.lower()[0];
   const int * upper = &box.upper()[0];
 
-  const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
-    BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+  const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
       patch->getPatchGeometry()));
 
   const double *dx = &patch_geom->getDx()[0];
@@ -1190,7 +1190,7 @@ void BSSN::K4FinalizePatch(
 
 
 void BSSN::K4FinalizePatch(
-  const boost::shared_ptr<hier::Patch> & patch)
+  const std::shared_ptr<hier::Patch> & patch)
 {
   initPData(patch);
   initMDA(patch);
@@ -2032,24 +2032,24 @@ real_t BSSN::ev_tau_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim
 #endif
 
 void BSSN::output_max_H_constaint(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t weight_idx)
 {
   double max_H=0, max_H_scaled = 0;
   double max_M=0, max_M_scaled = 0;
   for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln ++)
   {
-    boost::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+    std::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
     
     for( hier::PatchLevel::iterator pit(level->begin());
          pit != level->end(); ++pit)
     {
-      const boost::shared_ptr<hier::Patch> & patch = *pit;
+      const std::shared_ptr<hier::Patch> & patch = *pit;
 
       const hier::Box& box = patch->getBox();
 
-      const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
-        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+      const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+        SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
           patch->getPatchGeometry()));
 
       initPData(patch);
@@ -2057,8 +2057,8 @@ void BSSN::output_max_H_constaint(
       initMDA(patch);
 
 
-      boost::shared_ptr<pdat::CellData<double> > weight(
-        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+      std::shared_ptr<pdat::CellData<double> > weight(
+        SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(
           patch->getPatchData(weight_idx)));
       
 
@@ -2136,13 +2136,13 @@ void BSSN::output_max_H_constaint(
 }
 
 void BSSN::output_L2_H_constaint(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t weight_idx,   CosmoPatchStrategy * cosmoPS, double exclude_radius)
 {
   double H_L2=0;
 
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
       hierarchy->getGridGeometry()));
   TBOX_ASSERT(grid_geometry_);
   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
@@ -2154,18 +2154,18 @@ void BSSN::output_L2_H_constaint(
   
   for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln ++)
   {
-    boost::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+    std::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
 
     
     for( hier::PatchLevel::iterator pit(level->begin());
          pit != level->end(); ++pit)
     {
-      const boost::shared_ptr<hier::Patch> & patch = *pit;
+      const std::shared_ptr<hier::Patch> & patch = *pit;
 
       const hier::Box& box = patch->getBox();
 
-      const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
-        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+      const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+        SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
           patch->getPatchGeometry()));
 
       initPData(patch);
@@ -2173,8 +2173,8 @@ void BSSN::output_L2_H_constaint(
       initMDA(patch);
 
 
-      boost::shared_ptr<pdat::CellData<double> > weight(
-        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+      std::shared_ptr<pdat::CellData<double> > weight(
+        SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(
           patch->getPatchData(weight_idx)));
       
 
@@ -2240,13 +2240,13 @@ void BSSN::output_L2_H_constaint(
 
 
 void BSSN::output_L2_H_constaint(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t weight_idx,   CosmoPatchStrategy * cosmoPS)
 {
   double H_L2=0;
 
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
       hierarchy->getGridGeometry()));
   TBOX_ASSERT(grid_geometry_);
   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
@@ -2258,18 +2258,18 @@ void BSSN::output_L2_H_constaint(
   
   for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln ++)
   {
-    boost::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+    std::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
 
     
     for( hier::PatchLevel::iterator pit(level->begin());
          pit != level->end(); ++pit)
     {
-      const boost::shared_ptr<hier::Patch> & patch = *pit;
+      const std::shared_ptr<hier::Patch> & patch = *pit;
 
       const hier::Box& box = patch->getBox();
 
-      const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
-        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+      const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+        SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
           patch->getPatchGeometry()));
 
       initPData(patch);
@@ -2277,8 +2277,8 @@ void BSSN::output_L2_H_constaint(
       initMDA(patch);
 
 
-      boost::shared_ptr<pdat::CellData<double> > weight(
-        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+      std::shared_ptr<pdat::CellData<double> > weight(
+        SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(
           patch->getPatchData(weight_idx)));
       
 

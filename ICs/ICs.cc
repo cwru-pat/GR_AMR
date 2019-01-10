@@ -7,7 +7,7 @@ namespace cosmo
 {
 
 ICsData cosmo_get_ICsData(
-  boost::shared_ptr<tbox::Database> cosmo_ICs_db, real_t domain_size)
+  std::shared_ptr<tbox::Database> cosmo_ICs_db, real_t domain_size)
 {
   ICsData icd = {0};
 
@@ -61,15 +61,15 @@ real_t cosmo_power_spectrum(real_t k, ICsData *icd)
 // set a field to an arbitrary gaussian random field
 
 void set_gaussian_random_field(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln, idx_t f_id, ICsData *icd)
 {
   idx_t i, j, k;
   real_t px, py, pz, pmag;
   real_t scale;
 
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
       hierarchy->getGridGeometry()));
   TBOX_ASSERT(grid_geometry_);
   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
@@ -88,7 +88,7 @@ void set_gaussian_random_field(
   idx_t NY = round(L[1] / dx[1]);
   idx_t NZ = round(L[2] / dx[2]);
 
-  boost::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+  std::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
     
   
   // populate "field" with random values
@@ -188,17 +188,17 @@ void set_gaussian_random_field(
        pit != level->end(); ++pit)
   {
 
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
 
 
 
-    const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
-      BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+    const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+      SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
         patch->getPatchGeometry()));
 
 
-    boost::shared_ptr<pdat::CellData<double> > f_pdata(
-      BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<double> > f_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(
         patch->getPatchData(f_id)));
     
     const hier::Box& box = f_pdata->getGhostBox();      

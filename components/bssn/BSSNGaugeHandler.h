@@ -106,7 +106,7 @@ private:
     shift_gauge_map["AwAShiftedWave"]["3"] = &BSSNGaugeHandler::AwAShiftedWaveShift3;
   }
 
-  void _initDefaultParameters(boost::shared_ptr<tbox::Database> database)
+  void _initDefaultParameters(std::shared_ptr<tbox::Database> database)
   {
     AwA_shift_dir = database->getIntegerWithDefault("AwA_shift_dir", 1);
    
@@ -126,7 +126,7 @@ public:
   /**
    * @brief Initialize with gauge determined by config file (default to a "static", non-evolving gauge)
    */
-  BSSNGaugeHandler(boost::shared_ptr<tbox::Database> database)
+  BSSNGaugeHandler(std::shared_ptr<tbox::Database> database)
   {
     _initGaugeMaps();
     _initDefaultParameters(database);

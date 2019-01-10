@@ -26,7 +26,7 @@ public:
   BSSN_APPLY_TO_GEN1_EXTRAS(VAR_CREATE)
 
   std::ostream* lstream;
-  boost::shared_ptr<tbox::Database>& cosmo_bssn_db;
+  std::shared_ptr<tbox::Database>& cosmo_bssn_db;
   const tbox::Dimension& dim;
   real_t KO_damping_coefficient;
   BSSNGaugeHandler * gaugeHandler;
@@ -37,9 +37,9 @@ public:
 
   
   BSSN(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
     const tbox::Dimension& dim_in,
-    boost::shared_ptr<tbox::Database> database_in,
+    std::shared_ptr<tbox::Database> database_in,
     std::ostream* l_stream_in,
     real_t KO_damping_coefficient_in);
 
@@ -59,24 +59,24 @@ public:
   BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(RK4_MDA_ACCESS_CREATE,a)
   
 
-  void init(const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
+  void init(const std::shared_ptr<hier::PatchHierarchy>& hierarchy);
 
   void stepInit(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
-  void RKEvolvePatchBD(const boost::shared_ptr<hier::Patch> & patch, real_t dt);
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy);
+  void RKEvolvePatchBD(const std::shared_ptr<hier::Patch> & patch, real_t dt);
 
   void set_norm(
-    const boost::shared_ptr<hier::PatchLevel>& level);
+    const std::shared_ptr<hier::PatchLevel>& level);
   void set_norm(
-    const boost::shared_ptr<hier::Patch>& patch, bool need_init_arr);
+    const std::shared_ptr<hier::Patch>& patch, bool need_init_arr);
 
   void rescale_lapse(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, int weight_idx);
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy, int weight_idx);
 
   
 
   void RKEvolvePatch(
-    const boost::shared_ptr<hier::Patch> & patch, real_t dt);
+    const std::shared_ptr<hier::Patch> & patch, real_t dt);
   void RKEvolvePt(
     idx_t i, idx_t j, idx_t k, BSSNData &bd, const real_t dx[], real_t dt);
   void RKEvolvePtBd(
@@ -85,40 +85,40 @@ public:
 
   
   void prepareForK1(
-    const boost::shared_ptr<hier::PatchLevel> & level, real_t to_t);
+    const std::shared_ptr<hier::PatchLevel> & level, real_t to_t);
   void prepareForK2(
-    const boost::shared_ptr<hier::PatchLevel> & level, real_t to_t);
+    const std::shared_ptr<hier::PatchLevel> & level, real_t to_t);
   void prepareForK3(
-    const boost::shared_ptr<hier::PatchLevel> & level, real_t to_t);
+    const std::shared_ptr<hier::PatchLevel> & level, real_t to_t);
   void prepareForK4(
-    const boost::shared_ptr<hier::PatchLevel> & level, real_t to_t);
+    const std::shared_ptr<hier::PatchLevel> & level, real_t to_t);
 
-  void allocField(  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
-  void allocSrc(  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
-  void allocGen1(  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
+  void allocField(  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
+  void allocSrc(  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
+  void allocGen1(  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
   
-  void clearSrc(const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
+  void clearSrc(const std::shared_ptr<hier::PatchHierarchy>& hierarchy);
   void clearSrc(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
-  void clearField(const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
+  void clearField(const std::shared_ptr<hier::PatchHierarchy>& hierarchy);
   void clearField(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
-  void clearGen1(const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
+  void clearGen1(const std::shared_ptr<hier::PatchHierarchy>& hierarchy);
   void clearGen1(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
 
   void addFieldsToList(std::vector<idx_t> &list);
   
   void registerRKRefiner(
     xfer::RefineAlgorithm& refiner,
-    boost::shared_ptr<hier::RefineOperator> &space_refine_op);
+    std::shared_ptr<hier::RefineOperator> &space_refine_op);
   void registerRKRefinerActive(
     xfer::RefineAlgorithm& refiner,
-    boost::shared_ptr<hier::RefineOperator> &space_refine_op);
+    std::shared_ptr<hier::RefineOperator> &space_refine_op);
 
   void registerCoarsenActive(
     xfer::CoarsenAlgorithm& coarsener,
-    boost::shared_ptr<hier::CoarsenOperator>& coarsen_op);
+    std::shared_ptr<hier::CoarsenOperator>& coarsen_op);
   void copyAToP(
     math::HierarchyCellDataOpsReal<real_t> & hcellmath);
 #if USE_BACKUP_FIELDS
@@ -130,22 +130,22 @@ public:
     math::HierarchyCellDataOpsReal<real_t> & hcellmath);
 #endif
   void initPData(
-    const boost::shared_ptr<hier::Patch> & patch);
+    const std::shared_ptr<hier::Patch> & patch);
   void initMDA(
-    const boost::shared_ptr<hier::Patch> & patch);
+    const std::shared_ptr<hier::Patch> & patch);
   void setLevelTime(
-    const boost::shared_ptr<hier::PatchLevel> & level,
+    const std::shared_ptr<hier::PatchLevel> & level,
     double from_t, double to_t);
   void K1FinalizePatch(
-    const boost::shared_ptr<hier::Patch> & patch);
+    const std::shared_ptr<hier::Patch> & patch);
   void K2FinalizePatch(
-    const boost::shared_ptr<hier::Patch> & patch);
+    const std::shared_ptr<hier::Patch> & patch);
   void K3FinalizePatch(
-    const boost::shared_ptr<hier::Patch> & patch);
+    const std::shared_ptr<hier::Patch> & patch);
   void K4FinalizePatch(
-    const boost::shared_ptr<hier::Patch> & patch, int ln, int max_ln);
+    const std::shared_ptr<hier::Patch> & patch, int ln, int max_ln);
   void K4FinalizePatch(
-    const boost::shared_ptr<hier::Patch> & patch);
+    const std::shared_ptr<hier::Patch> & patch);
 
   void set_bd_values_bd(
     idx_t i, idx_t j, idx_t k, BSSNData *bd, const real_t dx[]);
@@ -280,15 +280,15 @@ public:
 
   
   void output_max_H_constaint(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
     idx_t weight_idx);
 
   void output_L2_H_constaint(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
     idx_t weight_idx, CosmoPatchStrategy * cosmoPS, double exclude_radius);
 
   void output_L2_H_constaint(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
     idx_t weight_idx, CosmoPatchStrategy * cosmoPS);
 
   /* constraint violation calculations */
@@ -302,7 +302,7 @@ public:
   void setExtraFieldData();
 
   void cal_Weyl_scalars(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
     int weight_idx);
 
   // Domain size
@@ -320,7 +320,7 @@ public:
   double  domain_upper[3];
 
   std::vector<double> origin;
-  void deBug(  const boost::shared_ptr<hier::Patch> & patch);
+  void deBug(  const std::shared_ptr<hier::Patch> & patch);
 
   double K0;
   double K_avg;

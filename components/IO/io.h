@@ -12,11 +12,11 @@ class CosmoIO:public appu::VisDerivedDataStrategy
 
   CosmoIO(
     const tbox::Dimension& dim_in,
-    boost::shared_ptr<tbox::Database> cosmo_io_db_in,
+    std::shared_ptr<tbox::Database> cosmo_io_db_in,
     std::ostream* l_stream_in);
   
   const tbox::Dimension& dim;
-  boost::shared_ptr<tbox::Database> &cosmo_io_db;
+  std::shared_ptr<tbox::Database> &cosmo_io_db;
   std::ostream* lstream;
 
 
@@ -37,12 +37,12 @@ class CosmoIO:public appu::VisDerivedDataStrategy
     idx_t step);
 
   void dumpData(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
     appu::VisItDataWriter& visit_writer,
     idx_t step_num,
     real_t time);
   void printPatch(
-    const boost::shared_ptr<hier::Patch> & patch,
+    const std::shared_ptr<hier::Patch> & patch,
     std::ostream &os,
     idx_t idx);
 

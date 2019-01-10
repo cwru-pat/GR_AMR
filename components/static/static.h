@@ -25,23 +25,23 @@ public:
   RK4_MDA_ACCESS_CREATE(DIFFD,a);
 
   std::ostream* lstream;
-  boost::shared_ptr<tbox::Database>& cosmo_static_db;
+  std::shared_ptr<tbox::Database>& cosmo_static_db;
   const tbox::Dimension& dim;
   
   Static(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
     const tbox::Dimension& dim_in,
-    boost::shared_ptr<tbox::Database> database_in,
+    std::shared_ptr<tbox::Database> database_in,
     std::ostream* l_stream_in);
   
   ~Static();
   
   void addBSSNSrc(
-    BSSN *bssn,   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
+    BSSN *bssn,   const std::shared_ptr<hier::PatchHierarchy>& hierarchy);
   void addBSSNSrc(
-    BSSN *bssn, const boost::shared_ptr<hier::PatchLevel> & level);
+    BSSN *bssn, const std::shared_ptr<hier::PatchLevel> & level);
   void addBSSNSrc(
-    BSSN *bssn, const boost::shared_ptr<hier::Patch> & patch);
+    BSSN *bssn, const std::shared_ptr<hier::Patch> & patch);
 
   
   

@@ -10,17 +10,17 @@ namespace cosmo
 {
 
 void bssn_ic_awa_stability(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln, real_t A)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln, real_t A)
 {
   hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
   std::random_device rd;
   std::mt19937 gen(7.0 /*rd()*/);
   
-  boost::shared_ptr<hier::PatchLevel> level(
+  std::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
 
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-     BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+     SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
        hierarchy->getGridGeometry()));
   TBOX_ASSERT(grid_geometry_);
   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
@@ -92,61 +92,61 @@ void bssn_ic_awa_stability(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
 
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFchi_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFchi_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFchi_a_idx)));
 
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma11_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma11_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFgamma11_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma12_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma12_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFgamma12_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma13_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma13_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFgamma13_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma22_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma22_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFgamma22_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma23_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma23_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFgamma23_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma33_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma33_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFgamma33_a_idx)));
 
-    boost::shared_ptr<pdat::CellData<real_t> > A11_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A11_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(A11_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A12_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A12_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(A12_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A13_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A13_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(A13_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A22_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A22_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(A22_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A23_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A23_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(A23_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A33_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A33_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(A33_a_idx)));
 
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFK_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFK_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFK_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > Gamma1_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > Gamma1_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(Gamma1_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > Gamma2_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > Gamma2_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(Gamma2_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > Gamma3_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > Gamma3_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(Gamma3_a_idx)));
 
     arr_t DIFFchi_a = pdat::ArrayDataAccess::access<DIM, double>(
@@ -186,8 +186,8 @@ void bssn_ic_awa_stability(
       Gamma3_a_pdata->getArrayData());     
 
   
-    const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
-        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+    const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+        SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
           patch->getPatchGeometry()));
 
     
@@ -231,15 +231,15 @@ void bssn_ic_awa_stability(
 }
   
 void bssn_ic_awa_linear_wave(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln, real_t A, idx_t dir)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln, real_t A, idx_t dir)
 {
   hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
 
-  boost::shared_ptr<hier::PatchLevel> level(
+  std::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
 
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
       hierarchy->getGridGeometry()));
   TBOX_ASSERT(grid_geometry_);
   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
@@ -267,26 +267,26 @@ void bssn_ic_awa_linear_wave(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
 
-    boost::shared_ptr<pdat::CellData<real_t> > A11_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A11_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(A11_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A22_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A22_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(A22_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A33_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A33_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(A33_a_idx)));
 
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma11_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma11_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFgamma11_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma22_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma22_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFgamma22_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma33_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma33_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFgamma33_a_idx)));
 
     arr_t DIFFgamma11_a = pdat::ArrayDataAccess::access<DIM, double>(
@@ -353,15 +353,15 @@ void bssn_ic_awa_linear_wave(
  * @brief      AwA Gauge Wave Test, setting wave propagation direction
  */
 void bssn_ic_awa_gauge_wave(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln, idx_t dir)
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln, idx_t dir)
 {
   hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
   real_t A = 0.5;
-  boost::shared_ptr<hier::PatchLevel> level(
+  std::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
 
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
       hierarchy->getGridGeometry()));
   TBOX_ASSERT(grid_geometry_);
   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
@@ -407,46 +407,46 @@ void bssn_ic_awa_gauge_wave(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
 
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFchi_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFchi_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFchi_a_idx)));
 
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma11_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma11_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFgamma11_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma22_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma22_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFgamma22_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma33_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma33_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFgamma33_a_idx)));
     
-    boost::shared_ptr<pdat::CellData<real_t> > A11_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A11_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(A11_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A22_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A22_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(A22_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A33_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A33_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(A33_a_idx)));
 
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFK_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFK_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFK_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > Gamma1_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > Gamma1_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(Gamma1_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > Gamma2_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > Gamma2_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(Gamma2_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > Gamma3_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > Gamma3_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(Gamma3_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFalpha_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFalpha_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFalpha_a_idx)));
 
     arr_t DIFFchi_a = pdat::ArrayDataAccess::access<DIM, double>(
@@ -477,8 +477,8 @@ void bssn_ic_awa_gauge_wave(
       DIFFalpha_a_pdata->getArrayData());     
 
   
-    const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
-      BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+    const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+      SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
         patch->getPatchGeometry()));
 
     
@@ -560,7 +560,7 @@ void bssn_ic_awa_gauge_wave(
  * @brief      AwA Gauge Wave Test, setting wave propagation direction
  */
 void bssn_ic_awa_shifted_gauge_wave(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln, idx_t dir)
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln, idx_t dir)
 {
 # if ! USE_BSSN_SHIFT
   TBOX_ERROR("USE_BSSN_SHIFT must be enabled for shifted gauge wave! (cmake using -DCOSMO_USE_BSSN_SHIFT=1)\n");
@@ -568,11 +568,11 @@ void bssn_ic_awa_shifted_gauge_wave(
   
   hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
   real_t A = 0.5;
-  boost::shared_ptr<hier::PatchLevel> level(
+  std::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
 
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
       hierarchy->getGridGeometry()));
   TBOX_ASSERT(grid_geometry_);
   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
@@ -627,55 +627,55 @@ void bssn_ic_awa_shifted_gauge_wave(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
 
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFchi_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFchi_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFchi_a_idx)));
 
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma11_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma11_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFgamma11_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma22_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma22_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFgamma22_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma33_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma33_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFgamma33_a_idx)));
     
-    boost::shared_ptr<pdat::CellData<real_t> > A11_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A11_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(A11_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A22_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A22_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(A22_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A33_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A33_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(A33_a_idx)));
 
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFK_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFK_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFK_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > Gamma1_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > Gamma1_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(Gamma1_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > Gamma2_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > Gamma2_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(Gamma2_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > Gamma3_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > Gamma3_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(Gamma3_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > beta1_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > beta1_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(beta1_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > beta2_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > beta2_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(beta2_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > beta3_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > beta3_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(beta3_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFalpha_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFalpha_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFalpha_a_idx)));
 
     arr_t DIFFchi_a = pdat::ArrayDataAccess::access<DIM, double>(
@@ -712,8 +712,8 @@ void bssn_ic_awa_shifted_gauge_wave(
       beta3_a_pdata->getArrayData());     
 
   
-    const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
-      BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+    const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+      SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
         patch->getPatchGeometry()));
 
     
@@ -795,7 +795,7 @@ void bssn_ic_awa_shifted_gauge_wave(
 }
 
 void bssn_ic_static_BHL_CTT(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln,
   real_t M,
   real_t a,
@@ -853,11 +853,11 @@ void bssn_ic_static_BHL_CTT(
       variable_db->getVariable("DIFFK"), variable_db->getContext("ACTIVE"));
 
   
-  boost::shared_ptr<hier::PatchLevel> level(
+  std::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
 
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-     BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+     SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
        hierarchy->getGridGeometry()));
    TBOX_ASSERT(grid_geometry_);
    geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
@@ -1149,7 +1149,7 @@ void bssn_ic_static_BHL_CTT(
     multigrid.initializeRhoHeirarchy();
 
       
-    boost::shared_ptr<tbox::HDFDatabase > hdf (new tbox::HDFDatabase("hdf_db"));
+    std::shared_ptr<tbox::HDFDatabase > hdf (new tbox::HDFDatabase("hdf_db"));
 
     std::string filename = "h5_init_data";
 
@@ -1220,14 +1220,14 @@ void bssn_ic_static_BHL_CTT(
     for( hier::PatchLevel::iterator pit(level->begin());
          pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
 
-    const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
-        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+    const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+        SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
           patch->getPatchGeometry()));
 
-    boost::shared_ptr<pdat::CellData<real_t> > chi_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > chi_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(DIFFchi_a_idx)));
     
 
@@ -1235,47 +1235,47 @@ void bssn_ic_static_BHL_CTT(
     
 
 
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma11_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma11_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFgamma11_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma12_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma12_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(DIFFgamma12_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma13_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma13_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(DIFFgamma13_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma22_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma22_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(DIFFgamma22_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma23_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma23_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(DIFFgamma23_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma33_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma33_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(DIFFgamma33_a_idx)));
 
 
-    boost::shared_ptr<pdat::CellData<real_t> > A11_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A11_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(A11_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A12_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A12_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(A12_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A13_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A13_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(A13_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A22_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A22_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(A22_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A23_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A23_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(A23_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A33_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A33_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(A33_a_idx)));
 
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFK_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFK_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFK_a_idx)));
 
     arr_t DIFFchi_a =
@@ -1394,7 +1394,7 @@ void bssn_ic_static_BHL_CTT(
 // constructing kerr blackhole lattice initial data
 // with conformal transverse-traceless decomposition
 void bssn_ic_kerr_BHL_CTT(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln,
   real_t M,
   real_t a,
@@ -1458,11 +1458,11 @@ void bssn_ic_kerr_BHL_CTT(
       variable_db->getVariable("DIFFK"), variable_db->getContext("ACTIVE"));
 
   
-  boost::shared_ptr<hier::PatchLevel> level(
+  std::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
 
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-     BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+     SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
        hierarchy->getGridGeometry()));
    TBOX_ASSERT(grid_geometry_);
    geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
@@ -1857,7 +1857,7 @@ void bssn_ic_kerr_BHL_CTT(
     multigrid.initializeRhoHeirarchy();
 
       
-    boost::shared_ptr<tbox::HDFDatabase > hdf (new tbox::HDFDatabase("hdf_db"));
+    std::shared_ptr<tbox::HDFDatabase > hdf (new tbox::HDFDatabase("hdf_db"));
 
     std::string filename = "h5_init_data";
 
@@ -1942,18 +1942,18 @@ void bssn_ic_kerr_BHL_CTT(
     for( hier::PatchLevel::iterator pit(level->begin());
          pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
 
-    const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
-        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+    const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+        SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
           patch->getPatchGeometry()));
 
-    boost::shared_ptr<pdat::CellData<real_t> > chi_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > chi_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(DIFFchi_a_idx)));
 
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFalpha_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFalpha_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFalpha_a_idx)));
 
 
@@ -1961,47 +1961,47 @@ void bssn_ic_kerr_BHL_CTT(
     
 
 
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma11_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma11_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFgamma11_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma12_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma12_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(DIFFgamma12_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma13_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma13_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(DIFFgamma13_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma22_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma22_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(DIFFgamma22_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma23_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma23_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(DIFFgamma23_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma33_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma33_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(DIFFgamma33_a_idx)));
 
 
-    boost::shared_ptr<pdat::CellData<real_t> > A11_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A11_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(A11_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A12_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A12_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(A12_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A13_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A13_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(A13_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A22_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A22_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(A22_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A23_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A23_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(A23_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A33_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A33_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(A33_a_idx)));
 
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFK_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFK_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFK_a_idx)));
 
     arr_t DIFFchi_a =
@@ -2244,7 +2244,7 @@ void bssn_ic_kerr_BHL_CTT(
 
   //http://arxiv.org/abs/1001.4077v1
 void bssn_ic_kerr_blackhole(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln)
 {
 # if ! USE_BSSN_SHIFT
@@ -2304,11 +2304,11 @@ void bssn_ic_kerr_blackhole(
       variable_db->getVariable("DIFFK"), variable_db->getContext("ACTIVE"));
 
   
-  boost::shared_ptr<hier::PatchLevel> level(
+  std::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
 
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-     BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+     SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
        hierarchy->getGridGeometry()));
    TBOX_ASSERT(grid_geometry_);
    geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
@@ -2316,15 +2316,15 @@ void bssn_ic_kerr_blackhole(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
 
 
-    const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
-        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+    const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+        SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
           patch->getPatchGeometry()));
 
-    boost::shared_ptr<pdat::CellData<real_t> > chi_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > chi_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(DIFFchi_a_idx)));
     
 
@@ -2332,47 +2332,47 @@ void bssn_ic_kerr_blackhole(
     
 
 
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma11_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma11_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFgamma11_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma12_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma12_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(DIFFgamma12_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma13_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma13_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(DIFFgamma13_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma22_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma22_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(DIFFgamma22_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma23_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma23_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(DIFFgamma23_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma33_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma33_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(DIFFgamma33_a_idx)));
 
 
-    boost::shared_ptr<pdat::CellData<real_t> > A11_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A11_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(A11_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A12_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A12_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(A12_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A13_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A13_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(A13_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A22_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A22_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(A22_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A23_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A23_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(A23_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A33_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A33_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(A33_a_idx)));
 
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFK_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFK_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFK_a_idx)));
 
     arr_t chi_a =
@@ -2561,7 +2561,7 @@ void bssn_ic_kerr_blackhole(
 }
 
 void bssn_ic_static_blackhole(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln)
 {
 # if ! USE_BSSN_SHIFT
@@ -2579,11 +2579,11 @@ void bssn_ic_static_blackhole(
     variable_db->mapVariableAndContextToIndex(
       variable_db->getVariable("DIFFchi"), variable_db->getContext("ACTIVE"));
 
-  boost::shared_ptr<hier::PatchLevel> level(
+  std::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
 
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-     BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+     SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
        hierarchy->getGridGeometry()));
    TBOX_ASSERT(grid_geometry_);
    geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
@@ -2591,26 +2591,26 @@ void bssn_ic_static_blackhole(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
 
 
-    const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
-        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+    const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+        SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
           patch->getPatchGeometry()));
 
     
-    boost::shared_ptr<pdat::CellData<real_t> > chi_p_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > chi_p_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFchi_p_idx)));
 
     const hier::Box& box = chi_p_pdata->getGhostBox();
     
-    boost::shared_ptr<pdat::CellData<real_t> > chi_a_pdata(
-       BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > chi_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
          patch->getPatchData(DIFFchi_a_idx)));
 
-    // boost::shared_ptr<pdat::CellData<real_t> > chi_f_pdata(
-    //   BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    // std::shared_ptr<pdat::CellData<real_t> > chi_f_pdata(
+    //   SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
     //     patch->getPatchData(DIFFchi_f_idx)));
 
 
@@ -2660,7 +2660,7 @@ void bssn_ic_static_blackhole(
 }
 
 void bssn_ic_ds_blackhole(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln, BSSN * bssn)
 {
 # if ! USE_BSSN_SHIFT
@@ -2671,11 +2671,11 @@ void bssn_ic_ds_blackhole(
   std::random_device rd;
   std::mt19937 gen(7.0 /*rd()*/);
   
-  boost::shared_ptr<hier::PatchLevel> level(
+  std::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
 
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-     BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+     SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
        hierarchy->getGridGeometry()));
   TBOX_ASSERT(grid_geometry_);
   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
@@ -2749,73 +2749,73 @@ void bssn_ic_ds_blackhole(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
 
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFchi_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFchi_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFchi_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFchi_p_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFchi_p_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFchi_p_idx)));
 
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFalpha_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFalpha_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFalpha_a_idx)));
 
-    const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
-      BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+    const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+      SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
         patch->getPatchGeometry()));
 
     
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma11_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma11_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFgamma11_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma12_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma12_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFgamma12_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma13_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma13_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFgamma13_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma22_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma22_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFgamma22_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma23_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma23_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFgamma23_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFgamma33_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFgamma33_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFgamma33_a_idx)));
 
-    boost::shared_ptr<pdat::CellData<real_t> > A11_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A11_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(A11_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A12_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A12_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(A12_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A13_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A13_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(A13_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A22_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A22_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(A22_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A23_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A23_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(A23_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > A33_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > A33_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(A33_a_idx)));
 
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFK_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFK_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFK_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > Gamma1_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > Gamma1_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(Gamma1_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > Gamma2_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > Gamma2_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(Gamma2_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > Gamma3_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > Gamma3_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(Gamma3_a_idx)));
 
     arr_t DIFFchi_a = pdat::ArrayDataAccess::access<DIM, double>(

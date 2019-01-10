@@ -80,8 +80,8 @@ public:
     * @pre (fine.getDim() == coarse.getDim()) &&
     *      (fine.getDim() == coarse_box.getDim()) &&
     *      (fine.getDim() == ratio.getDim())
-    * @pre fine.getPatchData(src_component) is actually a boost::shared_ptr<pdat::CellData<double> >
-    * @pre coarse.getPatchData(dst_component) is actually a boost::shared_ptr<pdat::CellData<double> >
+    * @pre fine.getPatchData(src_component) is actually a std::shared_ptr<pdat::CellData<double> >
+    * @pre coarse.getPatchData(dst_component) is actually a std::shared_ptr<pdat::CellData<double> >
     * @pre fine.getPatchData(src_component)->getDepth() == coarse.getPatchData(dst_component)->getDepth()
     * @pre (fine.getDim().getValue() == 1) ||
     *      (fine.getDim().getValue() == 2) || (fine.getDim().getValue() == 3)

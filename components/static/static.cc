@@ -9,16 +9,16 @@ namespace cosmo
 {
 
 Static::Static(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   const tbox::Dimension& dim_in,
-  boost::shared_ptr<tbox::Database> database_in,
+  std::shared_ptr<tbox::Database> database_in,
   std::ostream* l_stream_in):
   lstream(l_stream_in),
   cosmo_static_db(database_in),
   dim(dim_in)
 {
   hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
-  boost::shared_ptr<hier::VariableContext> context_active(
+  std::shared_ptr<hier::VariableContext> context_active(
     variable_db->getContext("ACTIVE"));
 
   VAR_INIT(DIFFD);
@@ -37,11 +37,11 @@ Static::~Static()
 }
 
 void Static::addBSSNSrc(
-  BSSN *bssn,   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+  BSSN *bssn,   const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   for(idx_t ln = 0; ln < hierarchy->getNumberOfLevels(); ln++)
   {
-    const boost::shared_ptr<hier::PatchLevel> level(
+    const std::shared_ptr<hier::PatchLevel> level(
       hierarchy->getPatchLevel(ln));
     addBSSNSrc(bssn, level);
   }
@@ -49,25 +49,25 @@ void Static::addBSSNSrc(
 
   
 void Static::addBSSNSrc(
-  BSSN *bssn, const boost::shared_ptr<hier::PatchLevel> & level)
+  BSSN *bssn, const std::shared_ptr<hier::PatchLevel> & level)
 {
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
     addBSSNSrc(bssn, patch);
   }
 }
 
 void Static::addBSSNSrc(
-  BSSN *bssn, const boost::shared_ptr<hier::Patch> & patch)
+  BSSN *bssn, const std::shared_ptr<hier::Patch> & patch)
 {
 
   bssn->initPData(patch);
   bssn->initMDA(patch);
 
   DIFFD_a_pdata =                               
-    BOOST_CAST<pdat::CellData<double>, hier::PatchData>( 
+    SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>( 
       patch->getPatchData(DIFFD_a_idx));
   DIFFD_a = pdat::ArrayDataAccess::access<DIM, double>(  
     DIFFD_a_pdata->getArrayData());
@@ -79,8 +79,8 @@ void Static::addBSSNSrc(
   const int * upper = &box.upper()[0];
 
   
-  const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(  
-    BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+  const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(  
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
       patch->getPatchGeometry()));
 
 #pragma omp parallel for collapse(2)

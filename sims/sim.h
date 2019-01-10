@@ -30,9 +30,9 @@ public:
   HorizonStatistics * horizon_statistics;
   
   CosmoSim(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
     const tbox::Dimension& dim_in,
-    boost::shared_ptr<tbox::InputDatabase>& input_db_in,
+    std::shared_ptr<tbox::InputDatabase>& input_db_in,
     std::ostream* l_stream_in,
     std::string simulation_type_in,
     std::string vis_filename_in);
@@ -44,14 +44,14 @@ public:
   // Each derived class should implement them.
   virtual void init() = 0;
   virtual void runStep(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy) =0;
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy) =0;
   virtual void setICs(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy) = 0;
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy) = 0;
 
   virtual void
     initializeLevelData(
       /*! Hierarchy to initialize */
-      const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+      const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
       /*! Level to initialize */
       const int level_number,
       const double init_data_time,
@@ -59,21 +59,21 @@ public:
       /*! Whether level is being introduced for the first time */
       const bool initial_time,
       /*! Level to copy data from */
-      const boost::shared_ptr<hier::PatchLevel>& old_level =
-      boost::shared_ptr<hier::PatchLevel>(),
+      const std::shared_ptr<hier::PatchLevel>& old_level =
+      std::shared_ptr<hier::PatchLevel>(),
       /*! Whether data on new patch needs to be allocated */
       const bool allocate_data = true) = 0;
 
   virtual void
     resetHierarchyConfiguration(
       /*! New hierarchy */
-      const boost::shared_ptr<hier::PatchHierarchy>& new_hierarchy,
+      const std::shared_ptr<hier::PatchHierarchy>& new_hierarchy,
       /*! Coarsest level */ int coarsest_level,
       /*! Finest level */ int finest_level) = 0;
 
   virtual void
     applyGradientDetector(
-      const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+      const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
       const int level_number,
       const double error_data_time,
       const int tag_index,
@@ -82,35 +82,35 @@ public:
 
   virtual void
    putToRestart(
-      const boost::shared_ptr<tbox::Database>& restart_db) const = 0;
+      const std::shared_ptr<tbox::Database>& restart_db) const = 0;
 
   
   void setRefineCoarsenOps(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
-  void run(  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy);
+  void run(  const std::shared_ptr<hier::PatchHierarchy>& hierarchy);
   void runCommonStepTasks(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy);
   void setGriddingAlgs(
-    boost::shared_ptr<mesh::GriddingAlgorithm>& gridding_algorithm_in);
+    std::shared_ptr<mesh::GriddingAlgorithm>& gridding_algorithm_in);
 
   void calculateKAvg(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy);
   void rescaleLapse(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy);
 
   
   bool isValid(
-      const boost::shared_ptr<hier::PatchHierarchy>& hierarchy);
+      const std::shared_ptr<hier::PatchHierarchy>& hierarchy);
   bool hasNaNs(
-    const boost::shared_ptr<hier::Patch>& patch, idx_t data_id);
+    const std::shared_ptr<hier::Patch>& patch, idx_t data_id);
 
 
   
   
-  boost::shared_ptr<tbox::InputDatabase>& input_db;
-  boost::shared_ptr<tbox::Database> cosmo_sim_db;
+  std::shared_ptr<tbox::InputDatabase>& input_db;
+  std::shared_ptr<tbox::Database> cosmo_sim_db;
   //hier::VariableDatabase* variable_db;
-  boost::shared_ptr<mesh::GriddingAlgorithm> gridding_algorithm;
+  std::shared_ptr<mesh::GriddingAlgorithm> gridding_algorithm;
   std::ostream* lstream;
 
   const tbox::Dimension dim;
@@ -128,9 +128,9 @@ public:
 
   real_t cur_t, starting_t;
 
-  static boost::shared_ptr<tbox::Timer> t_loop;
-  static boost::shared_ptr<tbox::Timer> t_init;
-  static boost::shared_ptr<tbox::Timer> t_RK_steps;
+  static std::shared_ptr<tbox::Timer> t_loop;
+  static std::shared_ptr<tbox::Timer> t_init;
+  static std::shared_ptr<tbox::Timer> t_RK_steps;
   // patch strategy that managers boundary and refine
   // && coarsen strategy
   CosmoPatchStrategy * cosmoPS;
@@ -138,8 +138,8 @@ public:
   CosmoIO *cosmo_io;
   CosmoStatistic *cosmo_statistic;
 
-  boost::shared_ptr<pdat::CellVariable<real_t> > weight;
-  boost::shared_ptr<pdat::CellVariable<real_t> > refine_scratch;
+  std::shared_ptr<pdat::CellVariable<real_t> > weight;
+  std::shared_ptr<pdat::CellVariable<real_t> > refine_scratch;
   idx_t weight_idx;
   idx_t refine_scratch_idx;
 
@@ -147,8 +147,8 @@ public:
   bool regrid_at_beginning;
   real_t KO_damping_coefficient;
   real_t adaption_threshold;
-  boost::shared_ptr<hier::RefineOperator> space_refine_op;
-  boost::shared_ptr<hier::CoarsenOperator> space_coarsen_op;
+  std::shared_ptr<hier::RefineOperator> space_refine_op;
+  std::shared_ptr<hier::CoarsenOperator> space_coarsen_op;
 
   std::vector<int> variable_id_list;
 
@@ -188,10 +188,10 @@ public:
 
   double max_horizon_radius;
   
-  std::vector<boost::shared_ptr<xfer::RefineSchedule>>
+  std::vector<std::shared_ptr<xfer::RefineSchedule>>
     pre_refine_schedules, post_refine_schedules;
 
-  std::vector<boost::shared_ptr<xfer::CoarsenSchedule>>
+  std::vector<std::shared_ptr<xfer::CoarsenSchedule>>
     coarsen_schedules;
 
 };

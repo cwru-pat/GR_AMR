@@ -45,44 +45,44 @@ int get_input_filename(
 }
 
 void add_extra_operators(
-  boost::shared_ptr<geom::CartesianGridGeometry>& grid_geometry)
+  std::shared_ptr<geom::CartesianGridGeometry>& grid_geometry)
 {
   grid_geometry->addRefineOperator(
     typeid(pdat::CellVariable<double>).name(),
-    boost::make_shared<geom::CartesianCellDoubleQuadraticRefine>());
+    std::make_shared<geom::CartesianCellDoubleQuadraticRefine>());
   
   grid_geometry->addRefineOperator(
     typeid(pdat::CellVariable<double>).name(),
-    boost::make_shared<geom::CartesianCellDoubleHermiteRefine>());
+    std::make_shared<geom::CartesianCellDoubleHermiteRefine>());
 
   grid_geometry->addRefineOperator(
     typeid(pdat::CellVariable<double>).name(),
-    boost::make_shared<geom::CartesianCellDoubleCRSplinesRefine>());
+    std::make_shared<geom::CartesianCellDoubleCRSplinesRefine>());
 
   grid_geometry->addRefineOperator(
     typeid(pdat::CellVariable<double>).name(),
-    boost::make_shared<geom::CartesianCellDoubleCubicRefine>());
+    std::make_shared<geom::CartesianCellDoubleCubicRefine>());
 
   
   grid_geometry->addCoarsenOperator(
     typeid(pdat::CellVariable<double>).name(),
-    boost::make_shared<geom::CartesianCellDoubleHermiteCoarsen>());
+    std::make_shared<geom::CartesianCellDoubleHermiteCoarsen>());
 
   grid_geometry->addCoarsenOperator(
     typeid(pdat::CellVariable<double>).name(),
-    boost::make_shared<geom::CartesianCellDoubleLinearCoarsen>());
+    std::make_shared<geom::CartesianCellDoubleLinearCoarsen>());
 
   grid_geometry->addCoarsenOperator(
     typeid(pdat::CellVariable<double>).name(),
-    boost::make_shared<geom::CartesianCellDoubleQuadraticCoarsen>());
+    std::make_shared<geom::CartesianCellDoubleQuadraticCoarsen>());
 
   grid_geometry->addCoarsenOperator(
     typeid(pdat::CellVariable<double>).name(),
-    boost::make_shared<geom::CartesianCellDoubleCRSplinesCoarsen>());
+    std::make_shared<geom::CartesianCellDoubleCRSplinesCoarsen>());
 
   grid_geometry->addCoarsenOperator(
     typeid(pdat::CellVariable<double>).name(),
-    boost::make_shared<geom::CartesianCellDoubleCubicCoarsen>());
+    std::make_shared<geom::CartesianCellDoubleCubicCoarsen>());
 
 }
 
@@ -113,7 +113,7 @@ int main(int argc, char* argv[])
     case_name = argv[1];
   }
 
-  boost::shared_ptr<tbox::InputDatabase> input_db(
+  std::shared_ptr<tbox::InputDatabase> input_db(
     new tbox::InputDatabase("input_db"));
 
   tbox::InputManager::getManager()->parseInputFile(input_filename, input_db);
@@ -123,7 +123,7 @@ int main(int argc, char* argv[])
     tbox::TimerManager::createManager(input_db->getDatabase("TimerManager"));
   }
 
-  boost::shared_ptr<tbox::Database> main_db(input_db->getDatabase("Main"));
+  std::shared_ptr<tbox::Database> main_db(input_db->getDatabase("Main"));
 
   const tbox::Dimension dim(static_cast<unsigned short>(main_db->getInteger("dim")));
 
@@ -184,7 +184,7 @@ int main(int argc, char* argv[])
   /*
    * Building hierarchy
    */
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry(
     new geom::CartesianGridGeometry(
       dim,
       "CartesianGridGeometry",
@@ -197,7 +197,7 @@ int main(int argc, char* argv[])
   
   grid_geometry->printClassData(tbox::plog);
   
-  boost::shared_ptr<hier::PatchHierarchy> patch_hierarchy(
+  std::shared_ptr<hier::PatchHierarchy> patch_hierarchy(
     new hier::PatchHierarchy(
       "Patch Hierarchy",
       grid_geometry,
@@ -230,18 +230,18 @@ int main(int argc, char* argv[])
     TBOX_ERROR("Invalid simulation type specified.");
   }
 
-  boost::shared_ptr<mesh::StandardTagAndInitialize> tag_and_initializer(
+  std::shared_ptr<mesh::StandardTagAndInitialize> tag_and_initializer(
     new mesh::StandardTagAndInitialize(
       "CellTaggingMethod",
       cosmoSim,
       input_db->getDatabase("StandardTagAndInitialize")));
-  boost::shared_ptr<mesh::BergerRigoutsos> box_generator(
+  std::shared_ptr<mesh::BergerRigoutsos> box_generator(
     new mesh::BergerRigoutsos(
       dim,
       (input_db->isDatabase("BergerRigoutsos") ?
        input_db->getDatabase("BergerRigoutsos") :
-       boost::shared_ptr<tbox::Database>())));
-  boost::shared_ptr<mesh::TreeLoadBalancer> load_balancer(
+       std::shared_ptr<tbox::Database>())));
+  std::shared_ptr<mesh::TreeLoadBalancer> load_balancer(
     new mesh::TreeLoadBalancer(
       dim,
       "load balancer",
@@ -253,7 +253,7 @@ int main(int argc, char* argv[])
 
 
 
-  boost::shared_ptr<mesh::GriddingAlgorithm> gridding_algorithm(
+  std::shared_ptr<mesh::GriddingAlgorithm> gridding_algorithm(
     new mesh::GriddingAlgorithm(
       patch_hierarchy,
       "Gridding Algorithm",

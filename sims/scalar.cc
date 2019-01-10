@@ -19,9 +19,9 @@ namespace cosmo
  */
 
 ScalarSim::ScalarSim(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   const tbox::Dimension& dim_in,
-  boost::shared_ptr<tbox::InputDatabase>& input_db_in,
+  std::shared_ptr<tbox::InputDatabase>& input_db_in,
   std::ostream* l_stream_in,
   std::string simulation_type_in,
   std::string vis_filename_in):CosmoSim(
@@ -108,7 +108,7 @@ void ScalarSim::init()
  *
  */
 void ScalarSim::setICs(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   tbox::plog<<"Setting initial conditions (ICs).";
 
@@ -162,7 +162,7 @@ void ScalarSim::setICs(
 }
 
 void ScalarSim::initScalarStep(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   bssnSim->stepInit(hierarchy);
   scalarSim->stepInit(hierarchy);
@@ -180,12 +180,12 @@ void ScalarSim::initScalarStep(
  *
  */
 bool ScalarSim::initLevel(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln)
 {
   std::string ic_type = cosmo_scalar_db->getString("ic_type");
 
-  boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+  std::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
 
   math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
 
@@ -246,7 +246,7 @@ bool ScalarSim::initLevel(
  *
  */  
 void ScalarSim::computeVectorWeights(
-   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+   const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   TBOX_ASSERT(hierarchy);
   TBOX_ASSERT_DIM_OBJDIM_EQUALITY1(dim, *hierarchy);
@@ -263,13 +263,13 @@ void ScalarSim::computeVectorWeights(
      * On every level, first assign cell volume to vector weight.
      */
 
-    boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+    std::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
     for (hier::PatchLevel::iterator p(level->begin());
          p != level->end(); ++p) {
-      const boost::shared_ptr<hier::Patch>& patch = *p;
+      const std::shared_ptr<hier::Patch>& patch = *p;
       
-      boost::shared_ptr<geom::CartesianPatchGeometry> patch_geometry(
-        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+      std::shared_ptr<geom::CartesianPatchGeometry> patch_geometry(
+        SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
           patch->getPatchGeometry()));
 
       TBOX_ASSERT(patch_geometry);
@@ -284,8 +284,8 @@ void ScalarSim::computeVectorWeights(
         cell_vol *= dx[2];
       }
 
-      boost::shared_ptr<pdat::CellData<double> > w(
-        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+      std::shared_ptr<pdat::CellData<double> > w(
+        SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(
           patch->getPatchData(weight_id)));
       TBOX_ASSERT(w);
       w->fillAll(cell_vol);
@@ -304,7 +304,7 @@ void ScalarSim::computeVectorWeights(
        * at this level.
        */
 
-      boost::shared_ptr<hier::PatchLevel> next_finer_level(
+      std::shared_ptr<hier::PatchLevel> next_finer_level(
         hierarchy->getPatchLevel(ln + 1));
       hier::BoxContainer coarsened_boxes = next_finer_level->getBoxes();
       hier::IntVector coarsen_ratio(next_finer_level->getRatioToLevelZero());
@@ -320,14 +320,14 @@ void ScalarSim::computeVectorWeights(
       for (hier::PatchLevel::iterator p(level->begin());
            p != level->end(); ++p) {
 
-        const boost::shared_ptr<hier::Patch>& patch = *p;
+        const std::shared_ptr<hier::Patch>& patch = *p;
         for (hier::BoxContainer::iterator i = coarsened_boxes.begin();
              i != coarsened_boxes.end(); ++i) {
 
           hier::Box intersection = *i * (patch->getBox());
           if (!intersection.empty()) {
-            boost::shared_ptr<pdat::CellData<double> > w(
-              BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+            std::shared_ptr<pdat::CellData<double> > w(
+              SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(
                 patch->getPatchData(weight_id)));
             TBOX_ASSERT(w);
             w->fillAll(0.0, intersection);
@@ -354,7 +354,7 @@ void ScalarSim::computeVectorWeights(
 
 void ScalarSim::initializeLevelData(
    /*! Hierarchy to initialize */
-   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+   const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
    /*! Level to initialize */
    const int ln,
    const double init_data_time,
@@ -362,18 +362,18 @@ void ScalarSim::initializeLevelData(
    /*! Whether level is being introduced for the first time */
    const bool initial_time,
    /*! Level to copy data from */
-   const boost::shared_ptr<hier::PatchLevel>& old_level,
+   const std::shared_ptr<hier::PatchLevel>& old_level,
    const bool allocate_data)
 {
    NULL_USE(can_be_refined);
    NULL_USE(initial_time);
 
-   boost::shared_ptr<hier::PatchHierarchy> patch_hierarchy(hierarchy);
+   std::shared_ptr<hier::PatchHierarchy> patch_hierarchy(hierarchy);
 
    /*
     * Reference the level object with the given index from the hierarchy.
     */
-   boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+   std::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
    
 
    math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
@@ -413,7 +413,7 @@ void ScalarSim::initializeLevelData(
    
    xfer::RefineAlgorithm refiner;
 
-   boost::shared_ptr<hier::RefineOperator> accurate_refine_op =
+   std::shared_ptr<hier::RefineOperator> accurate_refine_op =
      space_refine_op;
      
    TBOX_ASSERT(accurate_refine_op);
@@ -424,7 +424,7 @@ void ScalarSim::initializeLevelData(
    bssnSim->registerRKRefinerActive(refiner, accurate_refine_op);
    scalarSim->registerRKRefinerActive(refiner, accurate_refine_op);
    
-   boost::shared_ptr<xfer::RefineSchedule> refine_schedule;
+   std::shared_ptr<xfer::RefineSchedule> refine_schedule;
 
    level->getBoxLevel()->getMPI().Barrier();
    if (ln > 0 && (!has_initial))
@@ -465,7 +465,7 @@ void ScalarSim::initializeLevelData(
        xfer::CoarsenAlgorithm coarsener(dim);
        bssnSim->registerCoarsenActive(coarsener,space_coarsen_op);
        scalarSim->registerCoarsenActive(coarsener,space_coarsen_op);
-       boost::shared_ptr<xfer::CoarsenSchedule> coarsen_schedules =
+       std::shared_ptr<xfer::CoarsenSchedule> coarsen_schedules =
          coarsener.createSchedule(patch_hierarchy->getPatchLevel(ln-1),level);
        coarsen_schedules->coarsenData();
      }
@@ -500,7 +500,7 @@ void ScalarSim::initializeLevelData(
  *
  */  
 void ScalarSim::applyGradientDetector(
-   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy_,
+   const std::shared_ptr<hier::PatchHierarchy>& hierarchy_,
    const int ln,
    const double error_data_time,
    const int tag_index,
@@ -517,8 +517,8 @@ void ScalarSim::applyGradientDetector(
       << std::endl;
    }
    hier::PatchHierarchy& hierarchy = *hierarchy_;
-   boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-     BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+   std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+     SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
        hierarchy.getGridGeometry()));
    double max_der_norm = 0;
    hier::PatchLevel& level =
@@ -528,22 +528,22 @@ void ScalarSim::applyGradientDetector(
    for (hier::PatchLevel::iterator pi(level.begin());
         pi != level.end(); ++pi)
    {
-      const boost::shared_ptr<hier::Patch> & patch = *pi;
+      const std::shared_ptr<hier::Patch> & patch = *pi;
 
-      const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
-        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+      const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+        SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
           patch->getPatchGeometry()));
 
 
-      boost::shared_ptr<pdat::CellData<real_t> > f_pdata(
-        BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+      std::shared_ptr<pdat::CellData<real_t> > f_pdata(
+        SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
           patch->getPatchData(gradient_indicator_idx)));
 
       arr_t f =
       pdat::ArrayDataAccess::access<DIM, real_t>(
         f_pdata->getArrayData());
-      boost::shared_ptr<pdat::CellData<int> > tag_pdata(
-        BOOST_CAST<pdat::CellData<int>, hier::PatchData>(
+      std::shared_ptr<pdat::CellData<int> > tag_pdata(
+        SAMRAI_SHARED_PTR_CAST<pdat::CellData<int>, hier::PatchData>(
           patch->getPatchData(tag_index)));
       
       MDA_Access<int, DIM, MDA_OrderColMajor<DIM>>  tag =
@@ -595,9 +595,9 @@ void ScalarSim::applyGradientDetector(
 }
   
 void ScalarSim::outputScalarStep(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
-  boost::shared_ptr<appu::VisItDataWriter> visit_writer(
+  std::shared_ptr<appu::VisItDataWriter> visit_writer(
     new appu::VisItDataWriter(
     dim, "VisIt Writer", vis_filename + ".visit"));
 
@@ -621,7 +621,7 @@ void ScalarSim::outputScalarStep(
  * @param ending time
  */  
 void ScalarSim::runScalarStep(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   double from_t, double to_t)
 {
   t_RK_steps->start();
@@ -639,10 +639,10 @@ void ScalarSim::runScalarStep(
  *
  */  
 double ScalarSim::getDt(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
       hierarchy->getGridGeometry()));
   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
 
@@ -659,7 +659,7 @@ double ScalarSim::getDt(
  *
  */  
 void ScalarSim::runStep(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   runCommonStepTasks(hierarchy);
   double dt = getDt(hierarchy);
@@ -743,19 +743,19 @@ void ScalarSim::runStep(
 
 
 void ScalarSim::addBSSNExtras(
-  const boost::shared_ptr<hier::PatchLevel> & level)
+  const std::shared_ptr<hier::PatchLevel> & level)
 {
   return;
 }
 
 void ScalarSim::addBSSNExtras(
-  const boost::shared_ptr<hier::Patch> & patch)
+  const std::shared_ptr<hier::Patch> & patch)
 {
   return;
 }
 
 void ScalarSim::RKEvolve(
-  const boost::shared_ptr<hier::Patch> & patch, real_t dt)
+  const std::shared_ptr<hier::Patch> & patch, real_t dt)
 {
   bssnSim->initPData(patch);
   bssnSim->initMDA(patch);
@@ -767,8 +767,8 @@ void ScalarSim::RKEvolve(
   const int * upper = &box.upper()[0];
 
   
-  const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(  
-    BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+  const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(  
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
       patch->getPatchGeometry()));
 
   //initialize dx for each patch
@@ -792,9 +792,9 @@ void ScalarSim::RKEvolve(
 }
 
 void ScalarSim::RKEvolveBD(
-  const boost::shared_ptr<hier::Patch> & patch, real_t dt)
+  const std::shared_ptr<hier::Patch> & patch, real_t dt)
 {
-    boost::shared_ptr<hier::PatchGeometry> geom (patch->getPatchGeometry());
+    std::shared_ptr<hier::PatchGeometry> geom (patch->getPatchGeometry());
 
   idx_t codim = 1;
 
@@ -812,8 +812,8 @@ void ScalarSim::RKEvolveBD(
   scalarSim->initPData(patch);
   scalarSim->initMDA(patch);
 
-  const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom( 
-    BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+  const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom( 
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
       patch->getPatchGeometry()));
 
     
@@ -1006,17 +1006,17 @@ void ScalarSim::RKEvolveBD(
  * @param ending time
  */  
 void ScalarSim::RKEvolveLevel(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln,
   double from_t,
   double to_t)
 {
-  const boost::shared_ptr<hier::PatchLevel> level(
+  const std::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
 #if BH_FORMATION_CRITIERIA
   int max_ln = hierarchy->getNumberOfLevels();
 #endif 
-  const boost::shared_ptr<hier::PatchLevel> coarser_level(
+  const std::shared_ptr<hier::PatchLevel> coarser_level(
     ((ln>0)?(hierarchy->getPatchLevel(ln-1)):NULL));
   
   
@@ -1026,7 +1026,7 @@ void ScalarSim::RKEvolveLevel(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
 
     //Evolve inner grids
     RKEvolve(patch, to_t - from_t);
@@ -1041,7 +1041,7 @@ void ScalarSim::RKEvolveLevel(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
     bssnSim->K1FinalizePatch(patch);
     scalarSim->K1FinalizePatch(patch);
     scalarSim->addBSSNSrc(bssnSim,patch, false);
@@ -1055,7 +1055,7 @@ void ScalarSim::RKEvolveLevel(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
 
     //Evolve inner grids
     RKEvolve(patch, to_t - from_t);
@@ -1071,7 +1071,7 @@ void ScalarSim::RKEvolveLevel(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
     bssnSim->K2FinalizePatch(patch);
     scalarSim->K2FinalizePatch(patch);
     scalarSim->addBSSNSrc(bssnSim, patch, false);
@@ -1088,7 +1088,7 @@ void ScalarSim::RKEvolveLevel(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
     RKEvolve(patch, to_t - from_t);
     RKEvolveBD(patch, to_t - from_t);
   }
@@ -1101,7 +1101,7 @@ void ScalarSim::RKEvolveLevel(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
     bssnSim->K3FinalizePatch(patch);
     scalarSim->K3FinalizePatch(patch);
     scalarSim->addBSSNSrc(bssnSim,patch, false);
@@ -1116,7 +1116,7 @@ void ScalarSim::RKEvolveLevel(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
     RKEvolve(patch, to_t - from_t);
     RKEvolveBD(patch, to_t - from_t);
   }
@@ -1129,7 +1129,7 @@ void ScalarSim::RKEvolveLevel(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
 #if BH_FORMATION_CRITIERIA
     bssnSim->K4FinalizePatch(patch, ln, max_ln);
 #else
@@ -1149,7 +1149,7 @@ void ScalarSim::RKEvolveLevel(
  *        3. doing coarsen operation
  */ 
 void ScalarSim::advanceLevel(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   int ln,
   double from_t,
   double to_t)
@@ -1158,7 +1158,7 @@ void ScalarSim::advanceLevel(
     return;
   
   //double dt = to_t - from_t;
-  const boost::shared_ptr<hier::PatchLevel> level(
+  const std::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
 
   //updating extra fields before advancing any level
@@ -1210,7 +1210,7 @@ void ScalarSim::advanceLevel(
 
 void ScalarSim::resetHierarchyConfiguration(
   /*! New hierarchy */
-  const boost::shared_ptr<hier::PatchHierarchy>& new_hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& new_hierarchy,
   /*! Coarsest level */ int coarsest_level,
   /*! Finest level */ int finest_level)
 {
@@ -1231,7 +1231,7 @@ void ScalarSim::resetHierarchyConfiguration(
   
   for(int ln = 0; ln <= finest_level; ln++)
   {
-    const boost::shared_ptr<hier::PatchLevel> level(
+    const std::shared_ptr<hier::PatchLevel> level(
       new_hierarchy->getPatchLevel(ln));
 
     // reset pre refine refine schedule
@@ -1264,7 +1264,7 @@ void ScalarSim::resetHierarchyConfiguration(
 }
 
 void ScalarSim::putToRestart(
-    const boost::shared_ptr<tbox::Database>& restart_db) const
+    const std::shared_ptr<tbox::Database>& restart_db) const
 {
   restart_db->putDouble("cur_t", cur_t);
   restart_db->putInteger("step", step);
@@ -1275,7 +1275,7 @@ void ScalarSim::putToRestart(
 
 void ScalarSim::getFromRestart()
 {
-  boost::shared_ptr<tbox::Database> root_db(
+  std::shared_ptr<tbox::Database> root_db(
     tbox::RestartManager::getManager()->getRootDatabase());
 
   if (!root_db->isDatabase(simulation_type)) {
@@ -1283,7 +1283,7 @@ void ScalarSim::getFromRestart()
                << simulation_type << " not found in restart file" << std::endl);
   }
 
-  boost::shared_ptr<tbox::Database> db(root_db->getDatabase(simulation_type));
+  std::shared_ptr<tbox::Database> db(root_db->getDatabase(simulation_type));
   
   cur_t = db->getDouble("cur_t");
 

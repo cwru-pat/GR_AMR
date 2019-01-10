@@ -6,10 +6,10 @@ using namespace cosmo;
 namespace AHFinderDirect
 {
 
-Horizon::Horizon(const boost::shared_ptr<hier::PatchHierarchy>& hierarchy_in,
+Horizon::Horizon(const std::shared_ptr<hier::PatchHierarchy>& hierarchy_in,
                  BSSN * bssn_in,
                  const tbox::Dimension& dim_in,
-                 boost::shared_ptr<tbox::Database> database_in,
+                 std::shared_ptr<tbox::Database> database_in,
                  const char * visit_d_name,
                  int w_idx_in):
   hierarchy(hierarchy_in),
@@ -166,8 +166,8 @@ Horizon::Horizon(const boost::shared_ptr<hier::PatchHierarchy>& hierarchy_in,
   Jacobian_compute_method("symbolic differentiation with finite diff d/dr"),
   Jacobian_store_solve_method("row-oriented sparse matrix/ILUCG")
 {
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
       hierarchy->getGridGeometry()));
 
   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
@@ -5838,18 +5838,18 @@ int Horizon::CCTK_InterpGridArrays(
 
         for (ln = ln_num - 1; ln >= 0; ln--)
         {
-          boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+          std::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
           hier::PatchLevel::iterator p(level->begin());
           for (;p != level->end(); ++p)
           {
-            const boost::shared_ptr<hier::Patch>& patch = *p;
+            const std::shared_ptr<hier::Patch>& patch = *p;
             const hier::Box& box = patch->getBox();
 
             const int * lower = &box.lower()[0];
             const int * upper = &box.upper()[0];
       
-            boost::shared_ptr<geom::CartesianPatchGeometry> patch_geometry(
-              BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+            std::shared_ptr<geom::CartesianPatchGeometry> patch_geometry(
+              SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
                 patch->getPatchGeometry()));
 
 

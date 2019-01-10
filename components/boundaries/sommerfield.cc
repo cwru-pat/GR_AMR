@@ -61,7 +61,7 @@ void SommerfieldBD::preprocessRefine(
   const hier::Box& fine_box,
   const hier::IntVector& ratio)
 {
-  boost::shared_ptr<hier::PatchGeometry> fine_geom (fine.getPatchGeometry());
+  std::shared_ptr<hier::PatchGeometry> fine_geom (fine.getPatchGeometry());
   idx_t codim = 1;
   const std::vector<hier::BoundaryBox> & codim1_boxes =
     fine_geom->getCodimensionBoundaries(codim);
@@ -94,12 +94,12 @@ void SommerfieldBD::preprocessRefine(
     for (std::vector<int>::iterator it = target_id_list.begin() ;
          it != target_id_list.end(); ++it)
     {
-      boost::shared_ptr<pdat::CellData<double>> fine_pdata(
-        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+      std::shared_ptr<pdat::CellData<double>> fine_pdata(
+        SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(
           fine.getPatchData(*it)));
 
-      boost::shared_ptr<pdat::CellData<double>> coarse_pdata(
-        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+      std::shared_ptr<pdat::CellData<double>> coarse_pdata(
+        SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(
           coarse.getPatchData(*it)));
 
       arr_t fine_a(pdat::ArrayDataAccess::access<DIM, double>(
@@ -149,12 +149,12 @@ void SommerfieldBD::preprocessRefine(
     for (std::vector<int>::iterator it = target_id_list.begin() ;
          it != target_id_list.end(); ++it)
     {
-      boost::shared_ptr<pdat::CellData<double>> fine_pdata(
-        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+      std::shared_ptr<pdat::CellData<double>> fine_pdata(
+        SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(
           fine.getPatchData(*it)));
 
-      boost::shared_ptr<pdat::CellData<double>> coarse_pdata(
-        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+      std::shared_ptr<pdat::CellData<double>> coarse_pdata(
+        SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(
           coarse.getPatchData(*it)));
 
       arr_t fine_a(pdat::ArrayDataAccess::access<DIM, double>(
@@ -204,12 +204,12 @@ void SommerfieldBD::preprocessRefine(
     for (std::vector<int>::iterator it = target_id_list.begin() ;
          it != target_id_list.end(); ++it)
     {
-      boost::shared_ptr<pdat::CellData<double>> fine_pdata(
-        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+      std::shared_ptr<pdat::CellData<double>> fine_pdata(
+        SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(
           fine.getPatchData(*it)));
 
-      boost::shared_ptr<pdat::CellData<double>> coarse_pdata(
-        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+      std::shared_ptr<pdat::CellData<double>> coarse_pdata(
+        SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(
           coarse.getPatchData(*it)));
 
       arr_t fine_a(pdat::ArrayDataAccess::access<DIM, double>(

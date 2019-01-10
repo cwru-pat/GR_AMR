@@ -26,29 +26,29 @@ namespace cosmo
 {
   
 void scalar_ic_set_semianalytic_test(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln, BSSN * bssn, Scalar * scalar,
-  boost::shared_ptr<tbox::Database> cosmo_static_db);
+  std::shared_ptr<tbox::Database> cosmo_static_db);
 
  bool scalar_ic_set_scalar_collapse(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln, BSSN * bssn, Scalar * scalar,
-  boost::shared_ptr<tbox::Database> cosmo_scalar_db);
+  std::shared_ptr<tbox::Database> cosmo_scalar_db);
 
  bool scalar_ic_set_scalar_gaussian_collapse(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln, BSSN * bssn, Scalar * scalar,
-  boost::shared_ptr<tbox::Database> cosmo_scalar_db);
+  std::shared_ptr<tbox::Database> cosmo_scalar_db);
 
  
  bool scalar_ic_set_scalar_collapse_sommerfield(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln, BSSN * bssn, Scalar * scalar,
-  boost::shared_ptr<tbox::Database> cosmo_scalar_db);
+  std::shared_ptr<tbox::Database> cosmo_scalar_db);
  bool scalar_ic_set_periodic_fast_collapse_test(
-   const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+   const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
    idx_t ln, BSSN * bssn, Scalar * scalar,
-   boost::shared_ptr<tbox::Database> cosmo_scalar_db);
+   std::shared_ptr<tbox::Database> cosmo_scalar_db);
 
  
  inline bool exist(const std::string& name)

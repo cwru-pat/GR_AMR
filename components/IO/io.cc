@@ -7,7 +7,7 @@ namespace cosmo{
 
 CosmoIO::CosmoIO(
   const tbox::Dimension& dim_in,
-  boost::shared_ptr<tbox::Database> cosmo_io_db_in,
+  std::shared_ptr<tbox::Database> cosmo_io_db_in,
   std::ostream* l_stream_in):
   dim(dim_in),
   cosmo_io_db(cosmo_io_db_in),
@@ -104,7 +104,7 @@ void CosmoIO::registerVariablesWithPlotter(
 }
 
 void CosmoIO::dumpData(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   appu::VisItDataWriter& visit_writer,
   idx_t step_num,
   real_t time)
@@ -126,12 +126,12 @@ void CosmoIO::dumpData(
  * @brief print patch for debuging
  */
 void CosmoIO::printPatch(
-  const boost::shared_ptr<hier::Patch> & patch,
+  const std::shared_ptr<hier::Patch> & patch,
   std::ostream &os,
   idx_t idx)
 {
-  boost::shared_ptr<pdat::CellData<double> > pd(
-    BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+  std::shared_ptr<pdat::CellData<double> > pd(
+    SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(
       patch->getPatchData(idx)));
   const hier::Box& ghost_box = pd->getGhostBox();
   pd->print(ghost_box, 0, os, 9);

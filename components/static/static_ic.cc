@@ -7,18 +7,18 @@ namespace cosmo
 {
 
 void dust_ic_set_random(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
-  idx_t ln, boost::shared_ptr<tbox::Database> cosmo_static_db)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  idx_t ln, std::shared_ptr<tbox::Database> cosmo_static_db)
 {
   hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
   std::random_device rd;
   std::mt19937 gen(7.0 /*rd()*/);
   
-  boost::shared_ptr<hier::PatchLevel> level(
+  std::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
 
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-     BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+     SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
        hierarchy->getGridGeometry()));
   TBOX_ASSERT(grid_geometry_);
   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
@@ -59,19 +59,19 @@ void dust_ic_set_random(
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
-    const boost::shared_ptr<hier::Patch> & patch = *pit;
+    const std::shared_ptr<hier::Patch> & patch = *pit;
 
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFchi_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFchi_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFchi_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFr_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFr_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFr_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFD_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFD_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFD_a_idx)));
-    boost::shared_ptr<pdat::CellData<real_t> > DIFFK_a_pdata(
-      BOOST_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    std::shared_ptr<pdat::CellData<real_t> > DIFFK_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
         patch->getPatchData(DIFFK_a_idx)));
 
 
@@ -85,8 +85,8 @@ void dust_ic_set_random(
       DIFFK_a_pdata->getArrayData());     
 
   
-    const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
-        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+    const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+        SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
           patch->getPatchGeometry()));
 
     

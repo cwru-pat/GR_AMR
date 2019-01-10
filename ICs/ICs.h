@@ -15,11 +15,11 @@ namespace cosmo
 {
 
 ICsData cosmo_get_ICsData(
-  boost::shared_ptr<tbox::Database> cosmo_ICs_db, real_t domain_size);
+  std::shared_ptr<tbox::Database> cosmo_ICs_db, real_t domain_size);
 
 real_t cosmo_power_spectrum(real_t k, ICsData *icd);
 void set_gaussian_random_field(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln, idx_t f_id, ICsData *icd);
  
 

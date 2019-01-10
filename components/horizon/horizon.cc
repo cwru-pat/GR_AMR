@@ -11,9 +11,9 @@ namespace cosmo
 {
   
 HorizonStatistics::HorizonStatistics(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   const tbox::Dimension& dim_in,
-  boost::shared_ptr<tbox::Database> database_in,
+  std::shared_ptr<tbox::Database> database_in,
   int w_idx_in,
   AHFinderDirect::Horizon *horizon_in):
   cosmo_horizon_db(database_in),
@@ -24,8 +24,8 @@ HorizonStatistics::HorizonStatistics(
   non_zero_angular_momentum(cosmo_horizon_db->getBoolWithDefault("non_zero_angular_momentum", true)),
   horizon(horizon_in)
 {
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
       hierarchy->getGridGeometry()));
   TBOX_ASSERT(grid_geometry_);
   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
@@ -172,13 +172,13 @@ real_t HorizonStatistics::dF(int theta_i, int phi_i, int d, double x, double y, 
 }
   
 real_t HorizonStatistics::findRadius(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   double theta_0, double phi_0)
 {
   return getRadius(theta_0, phi_0);
 }
 void HorizonStatistics::set_G_values(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   double theta, double phi, int theta_i, int phi_i, double r, KillingData *kd, BSSN * bssn)
 {
   const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
@@ -198,19 +198,19 @@ void HorizonStatistics::set_G_values(
 
   for (ln = ln_num - 1; ln >= 0; ln--)
   {
-    boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+    std::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
     hier::PatchLevel::iterator p(level->begin());
     for (;p != level->end(); ++p)
     {
-      const boost::shared_ptr<hier::Patch>& patch = *p;
+      const std::shared_ptr<hier::Patch>& patch = *p;
 
       const hier::Box& box = patch->getBox();
 
       const int * lower = &box.lower()[0];
       const int * upper = &box.upper()[0];
       
-      boost::shared_ptr<geom::CartesianPatchGeometry> patch_geometry(
-        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+      std::shared_ptr<geom::CartesianPatchGeometry> patch_geometry(
+        SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
           patch->getPatchGeometry()));
 
 
@@ -450,7 +450,7 @@ void HorizonStatistics::set_G_values(
 
 
 void HorizonStatistics::set_kd_values(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   double theta, double phi, int theta_i, int phi_i, double r, KillingData *kd, BSSN * bssn)
 {
 
@@ -502,18 +502,18 @@ void HorizonStatistics::set_kd_values(
   
   for (ln = ln_num - 1; ln >= 0; ln--)
   {
-    boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+    std::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
     hier::PatchLevel::iterator p(level->begin());
     for (;p != level->end(); ++p)
     {
-      const boost::shared_ptr<hier::Patch>& patch = *p;
+      const std::shared_ptr<hier::Patch>& patch = *p;
       const hier::Box& box = patch->getBox();
 
       const int * lower = &box.lower()[0];
       const int * upper = &box.upper()[0];
       
-      boost::shared_ptr<geom::CartesianPatchGeometry> patch_geometry(
-        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+      std::shared_ptr<geom::CartesianPatchGeometry> patch_geometry(
+        SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
           patch->getPatchGeometry()));
 
 
@@ -860,7 +860,7 @@ real_t HorizonStatistics::getRadius(double theta_i, double phi_i)
 }
   
 void HorizonStatistics::transportKillingTheta(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t phi_i, double k_theta_0, double k_phi_0, double k_L_0, BSSN * bssn)
 {
   // transporting killing vector (or test vector from 0 to 2 \pi)
@@ -1141,7 +1141,7 @@ void HorizonStatistics::transportKillingTheta(
 }
 
 void HorizonStatistics::transportKillingPhi(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t theta_i, idx_t phi_f, double k_theta_0, double k_phi_0, double k_L_0, BSSN * bssn)
 {
   // transporting killing vector (or test vector from 0 to 2 \pi)
@@ -1281,7 +1281,7 @@ void HorizonStatistics::transportKillingPhi(
 }
 
 void HorizonStatistics::initG(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn)
 {
 
   KillingData kd = {0};
@@ -1376,15 +1376,15 @@ void HorizonStatistics::initG(
 
 
 void HorizonStatistics::initGridding(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   min_d = INF;
   //real_t max_r = findMaxHorizonRadius(hierarchy, PI / 2.0, 0);
 
   real_t max_r = findRadius(hierarchy, PI/2.0, 0);
    
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
       hierarchy->getGridGeometry()));
   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
 
@@ -1440,7 +1440,7 @@ void HorizonStatistics::initGridding(
 }
 
 void HorizonStatistics::findM(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, double x[], BSSN *bssn)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, double x[], BSSN *bssn)
 {
   //  using namespace std::literals::complex_literals;
 
@@ -1505,7 +1505,7 @@ void HorizonStatistics::findM(
 }
 
 void HorizonStatistics::set_norm_values(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   double theta, double phi, int theta_i, int phi_i, double r, KillingData *kd, BSSN * bssn)
 {
   const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
@@ -1524,18 +1524,18 @@ void HorizonStatistics::set_norm_values(
 
   for (ln = ln_num - 1; ln >= 0; ln--)
   {
-    boost::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+    std::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
     hier::PatchLevel::iterator p(level->begin());
     for (;p != level->end(); ++p)
     {
-      const boost::shared_ptr<hier::Patch>& patch = *p;
+      const std::shared_ptr<hier::Patch>& patch = *p;
       const hier::Box& box = patch->getBox();
 
       const int * lower = &box.lower()[0];
       const int * upper = &box.upper()[0];
       
-      boost::shared_ptr<geom::CartesianPatchGeometry> patch_geometry(
-        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+      std::shared_ptr<geom::CartesianPatchGeometry> patch_geometry(
+        SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
           patch->getPatchGeometry()));
 
 
@@ -1820,7 +1820,7 @@ real_t HorizonStatistics::getNormFactor()
 
 // here must be killing "vector" (not one form)
 real_t HorizonStatistics::angularMomentum(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn)
 {
   const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
   real_t dtheta = PI / (double)n_theta;
@@ -1893,7 +1893,7 @@ real_t HorizonStatistics::angularMomentum(
 }
 
 void HorizonStatistics::convertToVector(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn)
 {
   const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
   for(int theta_i = 0; theta_i < n_theta; theta_i++)
@@ -1926,7 +1926,7 @@ void HorizonStatistics::convertToVector(
 }
 
 real_t HorizonStatistics::area(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn)
 {
   const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
 
@@ -1964,7 +1964,7 @@ real_t HorizonStatistics::area(
 
 
 void HorizonStatistics::findKilling(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn, int horizon_id_in, int step)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN * bssn, int horizon_id_in, int step)
 {
   if(step % horizon->find_every != 0)
     return;

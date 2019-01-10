@@ -7,7 +7,7 @@ namespace cosmo{
 
 CosmoStatistic::CosmoStatistic(
   const tbox::Dimension& dim_in,
-  boost::shared_ptr<tbox::Database> cosmo_statistic_db_in,
+  std::shared_ptr<tbox::Database> cosmo_statistic_db_in,
   std::ostream* l_stream_in):
   dim(dim_in),
   cosmo_statistic_db(cosmo_statistic_db_in),
@@ -38,15 +38,15 @@ CosmoStatistic::CosmoStatistic(
 }
 
 real_t CosmoStatistic::calculate_conformal_avg(
-  const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   BSSN *bssn,
   idx_t weight_idx,
   idx_t field_idx,
   //calculating conformal avg only on boundary
   bool only_on_bd)
 {
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
       hierarchy->getGridGeometry()));
   TBOX_ASSERT(grid_geometry_);
   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
@@ -68,18 +68,18 @@ real_t CosmoStatistic::calculate_conformal_avg(
 
   for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln ++)
   {
-    boost::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+    std::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
 
     
     for( hier::PatchLevel::iterator pit(level->begin());
          pit != level->end(); ++pit)
     {
-      const boost::shared_ptr<hier::Patch> & patch = *pit;
+      const std::shared_ptr<hier::Patch> & patch = *pit;
 
       const hier::Box& box = patch->getBox();
 
-      const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
-        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+      const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+        SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
           patch->getPatchGeometry()));
 
       bssn->initPData(patch);
@@ -87,8 +87,8 @@ real_t CosmoStatistic::calculate_conformal_avg(
       bssn->initMDA(patch);
 
 
-      boost::shared_ptr<pdat::CellData<double> > weight(
-        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+      std::shared_ptr<pdat::CellData<double> > weight(
+        SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(
           patch->getPatchData(weight_idx)));
       
       arr_t weight_array =
@@ -105,8 +105,8 @@ real_t CosmoStatistic::calculate_conformal_avg(
       arr_t gamma33 = bssn->DIFFgamma33_a;
 
       
-      boost::shared_ptr<pdat::CellData<double> > var_cell_data(
-        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+      std::shared_ptr<pdat::CellData<double> > var_cell_data(
+        SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(
           patch->getPatchData(field_idx)));
 
       arr_t array = pdat::ArrayDataAccess::access<DIM, double>(
@@ -229,7 +229,7 @@ real_t CosmoStatistic::calculate_conformal_avg(
 }
 
 void CosmoStatistic::output_expansion_info(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
     BSSN *bssn,
     idx_t weight_idx,
     idx_t step_num,
@@ -238,8 +238,8 @@ void CosmoStatistic::output_expansion_info(
   if( expansion_info_interval == 0 || step_num % expansion_info_interval != 0)
     return;
   
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
       hierarchy->getGridGeometry()));
   TBOX_ASSERT(grid_geometry_);
   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
@@ -276,18 +276,18 @@ void CosmoStatistic::output_expansion_info(
   
   for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln ++)
   {
-    boost::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+    std::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
 
     
     for( hier::PatchLevel::iterator pit(level->begin());
          pit != level->end(); ++pit)
     {
-      const boost::shared_ptr<hier::Patch> & patch = *pit;
+      const std::shared_ptr<hier::Patch> & patch = *pit;
 
       const hier::Box& box = patch->getBox();
 
-      const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
-        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+      const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+        SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
           patch->getPatchGeometry()));
 
       bssn->initPData(patch);
@@ -295,8 +295,8 @@ void CosmoStatistic::output_expansion_info(
       bssn->initMDA(patch);
 
 
-      boost::shared_ptr<pdat::CellData<double> > weight(
-        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+      std::shared_ptr<pdat::CellData<double> > weight(
+        SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(
           patch->getPatchData(weight_idx)));
       
       arr_t weight_array =
@@ -622,7 +622,7 @@ void CosmoStatistic::output_expansion_info(
 }
   
 void CosmoStatistic::output_conformal_avg(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
     BSSN *bssn,
     idx_t weight_idx,
     idx_t step_num,
@@ -630,8 +630,8 @@ void CosmoStatistic::output_conformal_avg(
 {
   if(conformal_avg_interval == 0 || step_num % conformal_avg_interval != 0)
     return;
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
       hierarchy->getGridGeometry()));
   TBOX_ASSERT(grid_geometry_);
   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
@@ -648,18 +648,18 @@ void CosmoStatistic::output_conformal_avg(
   
   for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln ++)
   {
-    boost::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+    std::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
 
     
     for( hier::PatchLevel::iterator pit(level->begin());
          pit != level->end(); ++pit)
     {
-      const boost::shared_ptr<hier::Patch> & patch = *pit;
+      const std::shared_ptr<hier::Patch> & patch = *pit;
 
       const hier::Box& box = patch->getBox();
 
-      const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
-        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+      const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+        SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
           patch->getPatchGeometry()));
 
       bssn->initPData(patch);
@@ -667,8 +667,8 @@ void CosmoStatistic::output_conformal_avg(
       bssn->initMDA(patch);
 
 
-      boost::shared_ptr<pdat::CellData<double> > weight(
-        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+      std::shared_ptr<pdat::CellData<double> > weight(
+        SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(
           patch->getPatchData(weight_idx)));
       
       arr_t weight_array =
@@ -679,8 +679,8 @@ void CosmoStatistic::output_conformal_avg(
 
       for(int i = 0; i < output_num; i ++)
       {
-        boost::shared_ptr<pdat::CellData<double> > var_cell_data(
-          BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+        std::shared_ptr<pdat::CellData<double> > var_cell_data(
+          SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(
             patch->getPatchData(conformal_avg_idx[i])));
 
         arrays[i] = pdat::ArrayDataAccess::access<DIM, double>(
@@ -738,7 +738,7 @@ void CosmoStatistic::output_conformal_avg(
 
 // only do statistics on the sphere larger than min_radius
 void CosmoStatistic::output_conformal_avg(
-    const boost::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
     BSSN *bssn,
     idx_t weight_idx,
     idx_t step_num,
@@ -748,8 +748,8 @@ void CosmoStatistic::output_conformal_avg(
   if(conformal_avg_interval == 0 || step_num % conformal_avg_interval != 0)
     return;
 
-  boost::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
-    BOOST_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
       hierarchy->getGridGeometry()));
   TBOX_ASSERT(grid_geometry_);
   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
@@ -774,18 +774,18 @@ void CosmoStatistic::output_conformal_avg(
   
   for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln ++)
   {
-    boost::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+    std::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
 
     
     for( hier::PatchLevel::iterator pit(level->begin());
          pit != level->end(); ++pit)
     {
-      const boost::shared_ptr<hier::Patch> & patch = *pit;
+      const std::shared_ptr<hier::Patch> & patch = *pit;
 
       const hier::Box& box = patch->getBox();
 
-      const boost::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
-        BOOST_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+      const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+        SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
           patch->getPatchGeometry()));
 
       bssn->initPData(patch);
@@ -793,8 +793,8 @@ void CosmoStatistic::output_conformal_avg(
       bssn->initMDA(patch);
 
 
-      boost::shared_ptr<pdat::CellData<double> > weight(
-        BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+      std::shared_ptr<pdat::CellData<double> > weight(
+        SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(
           patch->getPatchData(weight_idx)));
       
       arr_t weight_array =
@@ -805,8 +805,8 @@ void CosmoStatistic::output_conformal_avg(
 
       for(int i = 0; i < output_num; i ++)
       {
-        boost::shared_ptr<pdat::CellData<double> > var_cell_data(
-          BOOST_CAST<pdat::CellData<double>, hier::PatchData>(
+        std::shared_ptr<pdat::CellData<double> > var_cell_data(
+          SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(
             patch->getPatchData(conformal_avg_idx[i])));
 
         arrays[i] = pdat::ArrayDataAccess::access<DIM, double>(
