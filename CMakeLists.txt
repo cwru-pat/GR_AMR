@@ -34,9 +34,32 @@ include(cmake/fftw.cmake)
 # check openmp
 include(cmake/openmp.cmake)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+if(EXISTS "/home/chris/.chris_pc_rec_file")
 
-set(SAMRAI_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib)
+ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+ set(SAMRAI_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib)
+
+ message("Detacting chris's pc, setting corresponding SAMRAI lib.")
+
+elseif(EXISTS "/home/cxt282/.case_cluster_rec_file")
+
+ include_directories(/home/cxt282/SAMRAI/obj/include)
+
+ set(SAMRAI_LIB_DIR /home/cxt282/SAMRAI/obj/lib)
+
+ message("Detacting Case cluster, setting corresponding SAMRAI lib.")
+
+else()
+
+ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+ set(SAMRAI_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib)
+
+ message("NOT detacting any pre-set platform, setting SAMRAI lib to current directory!")
+
+endif(EXISTS "/home/chris/.chris_pc_rec_file")
+
 
 message(STATUS " SAMRAI_LIBRARIES: ${SAMRAI_LIB_DIR}")
 unset(COSMO_SOURCES CACHE)
