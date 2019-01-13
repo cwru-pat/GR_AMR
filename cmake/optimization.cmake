@@ -16,15 +16,18 @@ else()
   set(OPT_LEVEL     "-O3")
   set(C_OPT_LEVEL     "-O3")
   set(F_OPT_LEVEL     "-O3")  
+
   # try to use some GNU compiler special options
   if(CMAKE_COMPILER_IS_GNUCXX)
-    set(OPT_LEVEL     "${OPT_LEVEL} -ffast-math -flto -march=native -fext-numeric-literals -Wno-reorder")
-    set(C_OPT_LEVEL     "${C_OPT_LEVEL} -ffast-math -flto -march=native")
-    set(F_OPT_LEVEL     "${F_OPT_LEVEL} -ffast-math -flto -march=native")   
-  endif()
+    set(OPT_LEVEL     "${OPT_LEVEL} -ffast-math -march=native -fext-numeric-literals -Wno-reorder")
+    set(C_OPT_LEVEL     "${C_OPT_LEVEL} -ffast-math -march=native")
+    set(F_OPT_LEVEL     "${F_OPT_LEVEL} -ffast-math -march=native")   
   # try to use some Intel compiler special options
-  if(${CMAKE_CXX_COMPILER} MATCHES "icpc.*$") 
-    set(OPT_LEVEL     "${OPT_LEVEL} -fast -march=native")
+  # must be using intel here, where else is can be?
+  else()
+    set(OPT_LEVEL     "${OPT_LEVEL} -march=native -no-prec-div -xhost -qopenmp -parallel -qopenmp-simd")
+    set(F_OPT_LEVEL     "${F_OPT_LEVEL} -march=native -no-prec-div -xhost -qopenmp -parallel -qopenmp-simd")
+    set(C_OPT_LEVEL     "${C_OPT_LEVEL} -march=native -no-prec-div -xhost -qopenmp -parallel -qopenmp-simd")
   endif()
 endif()
 

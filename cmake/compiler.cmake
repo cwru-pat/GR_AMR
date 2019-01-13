@@ -19,4 +19,4 @@ endif()
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
 
 enable_language (Fortran)
-SET (CMAKE_Fortran_COMPILER  gfortran)
+#SET (CMAKE_Fortran_COMPILER  gfortran)

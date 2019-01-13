@@ -46,8 +46,6 @@
 
 #include "SAMRAI/appu/VisItDataWriter.h"
 
-#include "boost/shared_ptr.hpp"
-
 #include "cosmo_macros.h"
 #include "cosmo_types.h"
 

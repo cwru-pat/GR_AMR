@@ -1,6 +1,6 @@
 
 project(COSMO)
-cmake_minimum_required(VERSION 2.6.0)
+cmake_minimum_required(VERSION 2.8.3)
 
 # coloring for messages
 if(NOT WIN32)
@@ -44,9 +44,9 @@ if(EXISTS "/home/chris/.chris_pc_rec_file")
 
 elseif(EXISTS "/home/cxt282/.case_cluster_rec_file")
 
- include_directories(/home/cxt282/SAMRAI/obj/include)
+ include_directories(/home/cxt282/SAMRAI/include)
 
- set(SAMRAI_LIB_DIR /home/cxt282/SAMRAI/obj/lib)
+ set(SAMRAI_LIB_DIR /home/cxt282/SAMRAI/lib)
 
  message("Detacting Case cluster, setting corresponding SAMRAI lib.")
 
