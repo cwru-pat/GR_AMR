@@ -645,7 +645,7 @@ void VacuumSim::outputVacuumStep(
 
   cosmo_statistic->output_expansion_info(
       hierarchy,
-      bssnSim, weight_idx, step, cur_t);
+      bssnSim, weight_idx, step, cur_t, max_horizon_radius);
 
   cosmo_statistic->output_conformal_avg(
     hierarchy,

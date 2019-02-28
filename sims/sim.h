@@ -180,7 +180,7 @@ public:
   bool stop_after_found_horizon;
   bool has_found_horizon;
 
-  bool calculate_K_avg, rescale_lapse;
+  bool calculate_K_avg, rescale_lapse, K_avg_on_the_edge;
 
   bool calculate_Weyl_scalars;
   

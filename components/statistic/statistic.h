@@ -53,7 +53,8 @@ class CosmoStatistic
     BSSN *bssn,
     idx_t weight_idx,
     idx_t step_num,
-    real_t time);
+    real_t time,
+    real_t min_radius);
   
   bool is_empty;
 };

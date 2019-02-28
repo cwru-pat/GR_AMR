@@ -35,7 +35,11 @@ private:
   // 
   real_t der_quadratic(BSSNData *bd, ScalarData *sd);
 
-  real_t Lambda, q_coef; 
+  real_t exp_p(BSSNData *bd, ScalarData *sd);
+  
+  real_t der_exp_p(BSSNData *bd, ScalarData *sd);
+
+  real_t Lambda, q_coef, mass_sqr, q_exp; 
 
   // Map of strings to functions
   void _initGaugeMaps()
@@ -43,9 +47,10 @@ private:
     // Lapse functions
     scalar_potential_map["Constant"] = &scalarPotentialHandler::constant;
     scalar_potential_map["Quadratic"] = &scalarPotentialHandler::quadratic;
+    scalar_potential_map["Exp_p"] = &scalarPotentialHandler::exp_p;
     scalar_der_potential_map["Constant"] = &scalarPotentialHandler::der_constant;
     scalar_der_potential_map["Quadratic"] = &scalarPotentialHandler::der_quadratic;
-
+    scalar_der_potential_map["Exp_p"] = &scalarPotentialHandler::der_exp_p;
   }
 
   void _initDefaultParameters(std::shared_ptr<tbox::Database> database)
@@ -54,6 +59,9 @@ private:
    
     q_coef = database->getDoubleWithDefault("q_coef", 0.0);
 
+    mass_sqr = database->getDoubleWithDefault("mass_sqr", 0.0);
+
+    q_exp = database->getDoubleWithDefault("q_exp", 0.0);
   }
 
 public:

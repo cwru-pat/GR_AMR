@@ -324,7 +324,7 @@ real_t FASMultigrid::_evaluateEllipticEquationPt(idx_t eqn_id, idx_t depth_idx,
   {
     // value will end up being the value of a particular term in an equation
     real_t val = eqns[eqn_id][mol_id].const_coef;
-    real_t pos_idx = B_INDEX(i, j, k,
+    idx_t pos_idx = B_INDEX(i, j, k,
        nx_h[depth_idx], ny_h[depth_idx], nz_h[depth_idx]);
 
     if(rho_h[eqn_id][mol_id][depth_idx].pts > 0) // constant
@@ -391,7 +391,7 @@ void FASMultigrid::_evaluateIterationForJacEquation(idx_t eqn_id,
   {
     real_t mol_to_a = 0.0, mol_to_b = 0.0;
     real_t non_der_val = eqns[eqn_id][mol_id].const_coef;
-    real_t pos_idx = B_INDEX(i,j,k,nx_h[depth_idx],ny_h[depth_idx],nz_h[depth_idx]);
+    idx_t pos_idx = B_INDEX(i,j,k,nx_h[depth_idx],ny_h[depth_idx],nz_h[depth_idx]);
 
     if(rho_h[eqn_id][mol_id][depth_idx].pts > 0) // constant
      non_der_val *= rho_h[eqn_id][mol_id][depth_idx][pos_idx];
@@ -510,7 +510,7 @@ real_t FASMultigrid::_evaluateDerEllipticEquation(idx_t eqn_id, idx_t depth_idx,
     real_t non_der_val = eqns[eqn_id][mol_id].const_coef, der_val = 0.0;
     // pre_val to help keep track of the result of terms with only one derivative
 
-    real_t pos_idx = B_INDEX(i,j,k,nx_h[depth_idx],ny_h[depth_idx],nz_h[depth_idx]);
+    idx_t pos_idx = B_INDEX(i,j,k,nx_h[depth_idx],ny_h[depth_idx],nz_h[depth_idx]);
 
     if(rho_h[eqn_id][mol_id][depth_idx].pts > 0) // constant
       non_der_val *= rho_h[eqn_id][mol_id][depth_idx][pos_idx];

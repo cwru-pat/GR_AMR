@@ -20,6 +20,8 @@ using namespace SAMRAI;
   for(int i=0; i<NX; ++i) \
     for(int j=0; j<NY; ++j) \
       for(int k=0; k<NZ; ++k)
+#define NP_INDEX(i,j,k) ((NZ)*(NY)*(i) + (NZ)*(j) + (k))
+#define FFT_NP_INDEX(i,j,k) ((NZ/2+1)*NY*(i) + (NZ/2+1)*(j) + (k))
 
 
 namespace cosmo
@@ -35,6 +37,11 @@ void scalar_ic_set_semianalytic_test(
   idx_t ln, BSSN * bssn, Scalar * scalar,
   std::shared_ptr<tbox::Database> cosmo_scalar_db);
 
+ bool scalar_ic_set_oscillon(
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  idx_t ln, BSSN * bssn, Scalar * scalar,
+  std::shared_ptr<tbox::Database> cosmo_scalar_db);
+ 
  bool scalar_ic_set_scalar_gaussian_collapse(
   const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln, BSSN * bssn, Scalar * scalar,
@@ -49,6 +56,10 @@ void scalar_ic_set_semianalytic_test(
    const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
    idx_t ln, BSSN * bssn, Scalar * scalar,
    std::shared_ptr<tbox::Database> cosmo_scalar_db);
+bool scalar_ic_set_scalar_gaussian_random(
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  idx_t ln, BSSN * bssn, Scalar * scalar,
+  std::shared_ptr<tbox::Database> cosmo_scalar_db);
 
  
  inline bool exist(const std::string& name)

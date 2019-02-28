@@ -193,6 +193,6 @@ else:
   # add all iterations to h5 file
   for h in hs:
     ah = AH("AH_%d" % (h))
-    for it in ah_align_fns[h].keys():
+    for it in ah_align_its[h]:
       ah.append(ah_align_fns[h][it], it)
 

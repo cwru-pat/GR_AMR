@@ -233,7 +233,8 @@ void CosmoStatistic::output_expansion_info(
     BSSN *bssn,
     idx_t weight_idx,
     idx_t step_num,
-    real_t time)
+    real_t time,
+    real_t min_radius)
 {
   if( expansion_info_interval == 0 || step_num % expansion_info_interval != 0)
     return;
@@ -250,13 +251,19 @@ void CosmoStatistic::output_expansion_info(
 
   int coarsest_boxes[3];
 
+  double L[DIM];
+  for(int i = 0 ; i < DIM; i++)
+    L[i] = domain_upper[i] - domain_lower[i];
+
+  
   for(int i = 0; i < 3; i++)
     coarsest_boxes[i] = round((domain_upper[i] - domain_lower[i]) / dx[i] );
   
   double tot_vol = 0;
   double face_area[6] = {0}; //(0, y, z), (L, y, z), (x, 0, z), (x, L, z), (x, y, 0), (x, y, L)
   double K_face[6] = {0};
-  
+
+  double Ksq_vol = 0;
   //(0, 0, z), (0, L, z), (L, 0, z), (L, L, z)
   //(0, y, 0), (0, y, L), (L, 0, z), (L, y, L)
   //(x, 0, 0), (x, 0, L), (x, L, 0), (x, L, L)
@@ -329,17 +336,24 @@ void CosmoStatistic::output_expansion_info(
         for(int j = lower[1]; j <= upper[1]; j++)
         {
           for(int i = lower[0]; i <= upper[0]; i++)
-          {           
-            if(weight_array(i,j,k) > 0)
+          {
+            double xx = (dx[0] * ((real_t)i + 0.5)) - L[0] / 2.0 ;
+            double yy = (dx[1] * ((real_t)j + 0.5)) - L[1] / 2.0 ;
+            double zz = (dx[2] * ((real_t)k + 0.5)) - L[2] / 2.0 ;
+            double r = sqrt(pw2(xx) + pw2(yy) + pw2(zz));
+
+            if(weight_array(i,j,k) > 0 && r > min_radius)
             {
               tot_vol += weight_array(i, j, k) * 1.0 / pw3(DIFFchi(i, j, k) + 1.0);
 
+              Ksq_vol += weight_array(i, j, k) * 1.0 / pw3(DIFFchi(i, j, k) + 1.0) * pw2(K(i , j, k)); 
+              
               if(i == 0)
               {
                 double sq_det2 = ((gamma22(i, j, k) + 1.0) * (gamma33(i, j, k) + 1.0)
                                   - pw2(gamma23(i, j, k))) / pw2(DIFFchi(i, j, k) + 1.0);
                 face_area[0] += dx[1] * dx[2] * sq_det2;
-                K_face[0] += dx[1] * dx[2] * sq_det2 * K(i, j, k);
+                K_face[0] += dx[1] * dx[2] * sq_det2 * pw2(K(i, j, k));
                 #if USE_PROPER_TIME
                 tau_face[0] += dx[1] * dx[2] * sq_det2 * tau(i, j, k);
                 #endif
@@ -351,7 +365,7 @@ void CosmoStatistic::output_expansion_info(
                 double sq_det2 = ( (gamma22(i, j, k) + 1.0)* (gamma33(i, j, k)  + 1.0)
                                    - pw2(gamma23(i, j, k))) / pw2(DIFFchi(i, j, k) + 1.0);
                 face_area[1] += dx[1] * dx[2] * sq_det2;
-                K_face[1] += dx[1] * dx[2] * sq_det2 * K(i, j, k);
+                K_face[1] += dx[1] * dx[2] * sq_det2 * pw2(K(i, j, k));
                 #if USE_PROPER_TIME
                 tau_face[1] += dx[1] * dx[2] * sq_det2 * tau(i, j, k);
                 #endif
@@ -363,7 +377,7 @@ void CosmoStatistic::output_expansion_info(
                 double sq_det2 = ( (gamma11(i, j, k) + 1.0)* (gamma33(i, j, k) + 1.0)
                                    - pw2(gamma13(i, j, k))) / pw2(DIFFchi(i, j, k) + 1.0);
                 face_area[2] += dx[0] * dx[2] * sq_det2;
-                K_face[2] += dx[0] * dx[2] * sq_det2 * K(i, j, k);
+                K_face[2] += dx[0] * dx[2] * sq_det2 * pw2(K(i, j, k));
                 #if USE_PROPER_TIME
                 tau_face[2] += dx[0] * dx[2] * sq_det2 * tau(i, j, k);
                 #endif
@@ -375,7 +389,7 @@ void CosmoStatistic::output_expansion_info(
                 double sq_det2 = ((gamma11(i, j, k) + 1.0) * (gamma33(i, j, k) + 1.0)
                                   - pw2(gamma13(i, j, k))) / pw2(DIFFchi(i, j, k) + 1.0);
                 face_area[3] += dx[0] * dx[2] * sq_det2;
-                K_face[3] += dx[0] * dx[2] * sq_det2 * K(i, j, k);
+                K_face[3] += dx[0] * dx[2] * sq_det2 * pw2(K(i, j, k));
                 #if USE_PROPER_TIME
                 tau_face[3] += dx[0] * dx[2] * sq_det2 * tau(i, j, k);
                 #endif
@@ -387,7 +401,7 @@ void CosmoStatistic::output_expansion_info(
                 double sq_det2 = ((gamma11(i, j, k) + 1.0) * (gamma22(i, j, k) + 1.0)
                                   - pw2(gamma12(i, j, k))) / pw2(DIFFchi(i, j, k) + 1.0);
                 face_area[4] += dx[0] * dx[1] * sq_det2;
-                K_face[4] += dx[1] * dx[0] * sq_det2 * K(i, j, k);
+                K_face[4] += dx[1] * dx[0] * sq_det2 * pw2(K(i, j, k));
                 #if USE_PROPER_TIME
                 tau_face[4] += dx[1] * dx[0] * sq_det2 * tau(i, j, k);
                 #endif
@@ -399,7 +413,7 @@ void CosmoStatistic::output_expansion_info(
                 double sq_det2 = ((gamma11(i, j, k) + 1.0) * (gamma22(i, j, k) + 1.0)
                                   - pw2(gamma12(i, j, k))) / pw2(DIFFchi(i, j, k) + 1.0);
                 face_area[5] += dx[0] * dx[1] * sq_det2;
-                K_face[5] += dx[1] * dx[0] * sq_det2 * K(i, j, k);
+                K_face[5] += dx[1] * dx[0] * sq_det2 * pw2(K(i, j, k));
                 #if USE_PROPER_TIME
                 tau_face[5] += dx[1] * dx[0] * sq_det2 * tau(i, j, k);
                 #endif
@@ -410,7 +424,7 @@ void CosmoStatistic::output_expansion_info(
               if(i == 0 && j == 0)
               {
                 edge_length[0] +=  dx[2] * (gamma33(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);
-                K_edge[0] += K(i, j, k) * dx[2] * (gamma33(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);
+                K_edge[0] += pw2(K(i, j, k)) * dx[2] * (gamma33(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);
                 #if USE_PROPER_TIME
                 tau_edge[0] += tau(i, j, k) * dx[2] * (gamma33(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);                
                 #endif
@@ -420,7 +434,7 @@ void CosmoStatistic::output_expansion_info(
               else if(i == 0 && j == (coarsest_boxes[1] << ln) - 1)
               {
                 edge_length[1] += dx[2] * (gamma33(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);
-                K_edge[1] += K(i, j, k) * dx[2] * (gamma33(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);
+                K_edge[1] += pw2(K(i, j, k)) * dx[2] * (gamma33(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);
                 #if USE_PROPER_TIME
                 tau_edge[1] += tau(i, j, k) * dx[2] * (gamma33(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);
                 #endif
@@ -430,7 +444,7 @@ void CosmoStatistic::output_expansion_info(
               else if(j == 0 && i == (coarsest_boxes[0] << ln) - 1)
               {
                 edge_length[2] += dx[2] * (gamma33(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);
-                K_edge[2] += K(i, j, k) * dx[2] * (gamma33(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);
+                K_edge[2] += pw2(K(i, j, k)) * dx[2] * (gamma33(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);
                 #if USE_PROPER_TIME
                 tau_edge[2] += tau(i, j, k) * dx[2] * (gamma33(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);
                 #endif
@@ -440,7 +454,7 @@ void CosmoStatistic::output_expansion_info(
               else if(i == (coarsest_boxes[0] << ln) - 1 && j == (coarsest_boxes[1] << ln) - 1)
               {
                 edge_length[3] += dx[2] * (gamma33(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);
-                K_edge[3] += K(i, j, k) * dx[2] * (gamma33(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);
+                K_edge[3] += pw2(K(i, j, k)) * dx[2] * (gamma33(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);
                 #if USE_PROPER_TIME
                 tau_edge[3] += tau(i, j, k) * dx[2] * (gamma33(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);
                 #endif
@@ -451,7 +465,7 @@ void CosmoStatistic::output_expansion_info(
               if(i == 0 && k == 0)
               {
                 edge_length[4] +=  dx[1] * (gamma22(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);
-                K_edge[4] += K(i, j, k) * dx[1] * (gamma22(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);
+                K_edge[4] += pw2(K(i, j, k)) * dx[1] * (gamma22(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);
                 #if USE_PROPER_TIME
                 tau_edge[4] += tau(i, j, k) * dx[1] * (gamma22(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);                
                 #endif
@@ -461,7 +475,7 @@ void CosmoStatistic::output_expansion_info(
               else if(i == 0 && k == (coarsest_boxes[2] << ln) - 1)
               {
                 edge_length[5] += dx[1] * (gamma22(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);
-                K_edge[5] += K(i, j, k) * dx[1] * (gamma22(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);
+                K_edge[5] += pw2(K(i, j, k)) * dx[1] * (gamma22(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);
                 #if USE_PROPER_TIME
                 tau_edge[5] += tau(i, j, k) * dx[1] * (gamma22(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);                
                 #endif
@@ -471,7 +485,7 @@ void CosmoStatistic::output_expansion_info(
               else if(k == 0 && i == (coarsest_boxes[0] << ln) - 1)
               {
                 edge_length[6] += dx[1] * (gamma22(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);
-                K_edge[6] += K(i, j, k) * dx[1] * (gamma22(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);
+                K_edge[6] += pw2(K(i, j, k)) * dx[1] * (gamma22(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);
                 #if USE_PROPER_TIME
                 tau_edge[6] += tau(i, j, k) * dx[1] * (gamma22(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);                
                 #endif
@@ -481,7 +495,7 @@ void CosmoStatistic::output_expansion_info(
               else if(i == (coarsest_boxes[0] << ln) - 1 && k == (coarsest_boxes[2] << ln) - 1)
               {
                 edge_length[7] += dx[1] * (gamma22(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);
-                K_edge[7] += K(i, j, k) * dx[1] * (gamma22(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);
+                K_edge[7] += pw2(K(i, j, k)) * dx[1] * (gamma22(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);
                 #if USE_PROPER_TIME
                 tau_edge[7] += tau(i, j, k) * dx[1] * (gamma22(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);                
                 #endif
@@ -492,7 +506,7 @@ void CosmoStatistic::output_expansion_info(
               if(k == 0 && j == 0)
               {
                 edge_length[8] +=  dx[0] * (gamma11(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);
-                K_edge[8] += K(i, j, k) * dx[0] * (gamma11(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);
+                K_edge[8] += pw2(K(i, j, k)) * dx[0] * (gamma11(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);
                 #if USE_PROPER_TIME
                 tau_edge[8] += tau(i, j, k) * dx[0] * (gamma11(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);                
                 #endif
@@ -502,7 +516,7 @@ void CosmoStatistic::output_expansion_info(
               else if(j == 0 && k == (coarsest_boxes[2] << ln) - 1)
               {
                 edge_length[9] += dx[0] * (gamma11(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);
-                K_edge[9] += K(i, j, k) * dx[0] * (gamma11(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);
+                K_edge[9] += pw2(K(i, j, k)) * dx[0] * (gamma11(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);
                 #if USE_PROPER_TIME
                 tau_edge[9] += tau(i, j, k) * dx[0] * (gamma11(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);                
                 #endif
@@ -512,7 +526,7 @@ void CosmoStatistic::output_expansion_info(
               else if(k == 0 && j == (coarsest_boxes[1] << ln) - 1)
               {
                 edge_length[10] += dx[0] * (gamma11(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);
-                K_edge[10] += K(i, j, k) * dx[0] * (gamma11(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);
+                K_edge[10] += pw2(K(i, j, k)) * dx[0] * (gamma11(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);
                 #if USE_PROPER_TIME
                 tau_edge[10] += tau(i, j, k) * dx[0] * (gamma11(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);                
                 #endif
@@ -522,7 +536,7 @@ void CosmoStatistic::output_expansion_info(
               else if(j == (coarsest_boxes[1] << ln) - 1 && k == (coarsest_boxes[2] << ln) - 1)
               {
                 edge_length[11] += dx[0] * (gamma11(i, j, k) + 1.0) / (DIFFchi(i, j, k) + 1.0);
-                K_edge[11] += K(i, j, k) * dx[0] * (gamma11(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);
+                K_edge[11] += pw2(K(i, j, k)) * dx[0] * (gamma11(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);
                 #if USE_PROPER_TIME
                 tau_edge[11] += tau(i, j, k) * dx[0] * (gamma11(i, j, k) + 1.0)  / (DIFFchi(i, j, k) + 1.0);                
                 #endif
@@ -552,6 +566,7 @@ void CosmoStatistic::output_expansion_info(
     mpi.AllReduce(&tau_face[0], 6, MPI_SUM);
     mpi.AllReduce(&tau_edge[0], 12, MPI_SUM);
 #endif
+    mpi.AllReduce(&Ksq_vol, 1, MPI_SUM);
   }
 
   (*lstream).precision(7);
@@ -564,7 +579,7 @@ void CosmoStatistic::output_expansion_info(
     (*lstream)<<face_area[i]<<" ";
   (*lstream)<<"\n";
 
-  (*lstream)<<"K on 6 faces areas are ";
+  (*lstream)<<"Ksq on 6 faces areas are ";
   for(int i = 0; i < 6; i++)
     (*lstream)<<K_face[i] / face_area[i]<<" ";
   (*lstream)<<"\n";
@@ -594,7 +609,7 @@ void CosmoStatistic::output_expansion_info(
     (*lstream)<<edge_length[i]<<" ";
   (*lstream)<<"\n";
 
-  (*lstream)<<"K on 12 edges lengthes are ";
+  (*lstream)<<"Ksq on 12 edges lengthes are ";
   for(int i = 0; i < 12; i++)
     (*lstream)<<K_edge[i] / edge_length[i]<<" ";
   (*lstream)<<"\n";
@@ -616,6 +631,11 @@ void CosmoStatistic::output_expansion_info(
     (*lstream)<<tau_edge[i] / edge_length[i]<<" ";
   (*lstream)<<"\n";  
 #endif
+
+  (*lstream)<<"Ksq inside the volume is ";
+  (*lstream)<<Ksq_vol / tot_vol<<" ";
+  (*lstream)<<"\n";
+  
   
   (*lstream)<<"**********Finish outputing expansion info****** " <<"\n";
   
