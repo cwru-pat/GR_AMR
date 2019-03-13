@@ -1431,7 +1431,7 @@ bool scalar_ic_set_scalar_gaussian_random(
 
   real_t ic_spec_cut = cosmo_scalar_db->getDoubleWithDefault("ic_spec_cut", 0.0);
 
-  real_t peak_k = (1.0/0.07) * L[0];
+  real_t peak_k = 100;
 
   real_t phi_0 = cosmo_scalar_db->getDoubleWithDefault("phi_0", 1.0);
 
@@ -1518,7 +1518,6 @@ bool scalar_ic_set_scalar_gaussian_random(
             + pw2(py * ( (real_t) NX / (real_t) NY ))
             + pw2(pz * ( (real_t) NX / (real_t) NZ ))
           );
-
           // Scale by power spectrum
           // don't want much power on scales smaller than ~3 pixels
           // Or scales p > 1/(3*dx)
@@ -1526,7 +1525,9 @@ bool scalar_ic_set_scalar_gaussian_random(
             1.0 + exp(10.0*(pmag - ic_spec_cut))
           );
           real_t pre = peak_amplitude;
-          real_t cosmo_power_spectrum =  pre/(1.0 + pow(fabs(pmag)/peak_k, 4.0)/3.0)/pow(fabs(pmag)/peak_k, 3.0);
+                    real_t cosmo_power_spectrum =  pre/pow(fabs(pmag)/peak_k, 3.0);
+          //real_t cosmo_power_spectrum =  pre/(1.0 + pow(fabs(pmag)/peak_k, 4.0)/3.0)/pow(fabs(pmag)/peak_k, 3.0);
+          //real_t cosmo_power_spectrum =  pre;
 
           scale = cutoff*sqrt(cosmo_power_spectrum);
 
@@ -1545,12 +1546,12 @@ bool scalar_ic_set_scalar_gaussian_random(
   
   fftw_execute_dft_c2r(p_c2r, f_field, r_field);
 
-  for(int i = 0; i < NX;i ++)
-  {
-    idx_t fft_index = NP_INDEX(i,0,0);
-    std::cout<<r_field[fft_index]<<" ";
-  }
-  std::cout<<"\n";
+  // for(int i = 0; i < NX;i ++)
+  // {
+  //   idx_t fft_index = NP_INDEX(i,0,0);
+  //   std::cout<<r_field[fft_index]<<" ";
+  // }
+  // std::cout<<"\n";
 
 
   /************Finishing generating GRF in ***************/
@@ -1724,6 +1725,9 @@ bool scalar_ic_set_scalar_gaussian_random(
     }
   }
 
+  double tot_r = 0, tot_v = 0.0;
+  real_t rho_sigma = 0.0;
+  
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
@@ -1778,12 +1782,84 @@ bool scalar_ic_set_scalar_gaussian_random(
           psi1_a(i, j, k) = derivative(i, j, k, 1, phi_a, dx);
           psi2_a(i, j, k) = derivative(i, j, k, 2, phi_a, dx);
           psi3_a(i, j, k) = derivative(i, j, k, 3, phi_a, dx);
+
+          BSSNData bd = {0};
+          ScalarData sd = {0};
           
+          sd.phi = phi[INDEX(i,j,k)];
+          tot_v += 1.0 / pw3(DIFFchi_a(i, j, k) + 1.0);
+          tot_r += 1.0 / pw3(DIFFchi_a(i, j, k) + 1.0) *
+            (0.5 * pw2(DIFFchi_a(i,j,k) + 1.0) * (
+              (pw2((1.0/12.0*phi[INDEX(i-2,j,k)] - 2.0/3.0*phi[INDEX(i-1,j,k)] + 2.0/3.0*phi[INDEX(i+1,j,k)]- 1.0/12.0*phi[INDEX(i+2,j,k)])/dx[0])
+               + pw2((1.0/12.0*phi[INDEX(i,j-2,k)] - 2.0/3.0*phi[INDEX(i,j-1,k)] + 2.0/3.0*phi[INDEX(i,j+1,k)]- 1.0/12.0*phi[INDEX(i,j+2,k)])/dx[1])
+               +pw2((1.0/12.0*phi[INDEX(i,j,k-2)] - 2.0/3.0*phi[INDEX(i,j,k-1)] + 2.0/3.0*phi[INDEX(i,j,k+1)]- 1.0/12.0*phi[INDEX(i,j,k+2)])/dx[2]))
+            )
+             + scalar->potentialHandler->ev_potential(&bd, &sd));
         }
       }
     }   
   }
+   
+  mpi.AllReduce(&tot_v,1,MPI_SUM);
+  mpi.AllReduce(&tot_r,1,MPI_SUM);
 
+  double avg_r = tot_r / tot_v;
+  
+  bssn->K0 = K_src;
+  
+  for( hier::PatchLevel::iterator pit(level->begin());
+       pit != level->end(); ++pit)
+  {
+    const std::shared_ptr<hier::Patch> & patch = *pit;
+ 
+    bssn->initPData(patch);
+    bssn->initMDA(patch);
+ 
+    scalar->initPData(patch);
+    scalar->initMDA(patch);
+     
+    arr_t & DIFFchi_a = bssn->DIFFchi_a;
+    arr_t & phi_a = scalar->phi_a; // field
+     
+    const hier::Box& box = bssn->DIFFchi_a_pdata->getGhostBox();
+    const hier::Box& inner_box = patch->getBox();
+ 
+    const int * lower = &box.lower()[0];
+    const int * upper = &box.upper()[0];
+ 
+    const int * inner_lower = &inner_box.lower()[0];
+    const int * inner_upper = &inner_box.upper()[0];
+ 
+     
+    for(int k = inner_lower[2]; k <= inner_upper[2]; k++)
+    {
+      for(int j = inner_lower[1]; j <= inner_upper[1]; j++)
+      {
+        for(int i = inner_lower[0]; i <= inner_upper[0]; i++)
+        {
+          BSSNData bd = {0};
+          ScalarData sd = {0};
+ 
+          sd.phi = phi[INDEX(i,j,k)];
+ 
+          rho_sigma += (1.0 / pw3(DIFFchi_a(i, j, k) + 1.0)) *
+            pw2((0.5 * pw2(DIFFchi_a(i,j,k) + 1.0) * (
+                   (pw2((1.0/12.0*phi[INDEX(i-2,j,k)] - 2.0/3.0*phi[INDEX(i-1,j,k)] + 2.0/3.0*phi[INDEX(i+1,j,k)]- 1.0/12.0*phi[INDEX(i+2,j,k)])/dx[0])
+                    + pw2((1.0/12.0*phi[INDEX(i,j-2,k)] - 2.0/3.0*phi[INDEX(i,j-1,k)] + 2.0/3.0*phi[INDEX(i,j+1,k)]- 1.0/12.0*phi[INDEX(i,j+2,k)])/dx[1])
+                    +pw2((1.0/12.0*phi[INDEX(i,j,k-2)] - 2.0/3.0*phi[INDEX(i,j,k-1)] + 2.0/3.0*phi[INDEX(i,j,k+1)]- 1.0/12.0*phi[INDEX(i,j,k+2)])/dx[2]))
+                 )
+                 + scalar->potentialHandler->ev_potential(&bd, &sd)) - avg_r);
+        }
+      }
+    }   
+  }
+ 
+  mpi.AllReduce(&rho_sigma,1,MPI_SUM);
+  tbox::pout<<"sigma rho is "
+            <<sqrt(pw3(NX) / (pw3(NX)-1) * rho_sigma / tot_v)<<
+    " sigma rho / rho is "<<sqrt(pw3(NX) / (pw3(NX)-1) * rho_sigma / tot_v) /
+    ( avg_r)<<"\n";
+   
   
   return true;
 }
