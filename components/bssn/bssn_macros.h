@@ -63,81 +63,24 @@
 
 
 #define BSSN_APPLY_TO_FIELDS_ARGS(function, ...)   \
-  function(DIFFgamma11, __VA_ARGS__);              \
-  function(DIFFgamma12, __VA_ARGS__);              \
-  function(DIFFgamma13, __VA_ARGS__);              \
-  function(DIFFgamma22, __VA_ARGS__);              \
-  function(DIFFgamma23, __VA_ARGS__);              \
-  function(DIFFgamma33, __VA_ARGS__);              \
   function(DIFFchi, __VA_ARGS__);                  \
-  function(A11, __VA_ARGS__);                      \
-  function(A12, __VA_ARGS__);                      \
-  function(A13, __VA_ARGS__);                      \
-  function(A22, __VA_ARGS__);                      \
-  function(A23, __VA_ARGS__);                      \
-  function(A33, __VA_ARGS__);                      \
-  function(DIFFK, __VA_ARGS__);                    \
-  function(Gamma1, __VA_ARGS__);                   \
-  function(Gamma2, __VA_ARGS__);                   \
-  function(Gamma3, __VA_ARGS__);                   \
-  function(DIFFalpha, __VA_ARGS__);                \
-  Z4C_APPLY_TO_FIELDS_ARGS(function, __VA_ARGS__)  \
-  BSSN_APPLY_TO_SHIFT_ARGS(function, __VA_ARGS__)  \
-  BSSN_APPLY_TO_AUX_B_ARGS(function, __VA_ARGS__)  \
-  BSSN_APPLY_TO_EXP_N_ARGS(function, __VA_ARGS__)  \
-  BSSN_APPLY_TO_TAU_ARGS(function, __VA_ARGS__)
+  function(H, __VA_ARGS__);                    \
+  function(a, __VA_ARGS__);                    
 
 #define BSSN_APPLY_TO_FIELDS(function) \
-  function(DIFFgamma11);               \
-  function(DIFFgamma12);               \
-  function(DIFFgamma13);               \
-  function(DIFFgamma22);               \
-  function(DIFFgamma23);               \
-  function(DIFFgamma33);               \
   function(DIFFchi);                   \
-  function(A11);                       \
-  function(A12);                       \
-  function(A13);                       \
-  function(A22);                       \
-  function(A23);                       \
-  function(A33);                       \
-  function(DIFFK);                     \
-  function(Gamma1);                    \
-  function(Gamma2);                    \
-  function(Gamma3);                    \
-  function(DIFFalpha);                 \
-  Z4C_APPLY_TO_FIELDS(function)        \
-  BSSN_APPLY_TO_SHIFT(function)        \
-  BSSN_APPLY_TO_AUX_B(function)        \
-  BSSN_APPLY_TO_EXP_N(function)        \
-  BSSN_APPLY_TO_TAU(function)
+  function(H);                       \
+  function(a);                         
+
 
 #define BSSN_APPLY_TO_SOURCES(function) \
   function(DIFFr);                      \
-  function(DIFFS);                      \
-  function(S1);                         \
-  function(S2);                         \
-  function(S3);                         \
-  function(STF11);                      \
-  function(STF12);                      \
-  function(STF13);                      \
-  function(STF22);                      \
-  function(STF23);                      \
-  function(STF33);
+  function(DIFFS);                      
+
 
 #define BSSN_APPLY_TO_SOURCES_ARGS(function, ...)    \
   function(DIFFr, __VA_ARGS__);                      \
-  function(DIFFS, __VA_ARGS__);                      \
-  function(S1, __VA_ARGS__);                         \
-  function(S2, __VA_ARGS__);                         \
-  function(S3, __VA_ARGS__);                         \
-  function(STF11, __VA_ARGS__);                      \
-  function(STF12, __VA_ARGS__);                      \
-  function(STF13, __VA_ARGS__);                      \
-  function(STF22, __VA_ARGS__);                      \
-  function(STF23, __VA_ARGS__);                      \
-  function(STF33, __VA_ARGS__);
-
+  function(DIFFS, __VA_ARGS__);                      
 
 #if CAL_WEYL_SCALS
 #define BSSN_APPLY_TO_GEN1_EXTRAS(function) \
@@ -155,8 +98,7 @@
   function(Psi4i);                          
 #else
 #define BSSN_APPLY_TO_GEN1_EXTRAS(function) \
-  function(ricci);                          \
-  function(AijAij);                         
+
 #endif
 
 #if CAL_WEYL_SCALS
@@ -175,8 +117,7 @@
   function(Psi4i,  __VA_ARGS__);                          
 #else
 #define BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(function, ...)    \
-  function(ricci, __VA_ARGS__);                          \
-  function(AijAij, __VA_ARGS__);                         
+
 #endif
 
 #define BSSN_APPLY_TO_IJ_PERMS(function) \

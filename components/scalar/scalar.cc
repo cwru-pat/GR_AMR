@@ -600,30 +600,10 @@ void Scalar::getScalarData(
 {
   sd->phi = phi_a(i, j, k);
   sd->Pi = Pi_a(i, j, k);
-  sd->psi1 = psi1_a(i, j, k);
-  sd->psi2 = psi2_a(i, j, k);
-  sd->psi3 = psi3_a(i, j, k);
 
   sd->d1phi = derivative(i, j, k, 1, phi_a, dx);
   sd->d2phi = derivative(i, j, k, 2, phi_a, dx);
   sd->d3phi = derivative(i, j, k, 3, phi_a, dx);
-
-  sd->d1Pi = derivative(i, j, k, 1, Pi_a, dx);
-  sd->d2Pi = derivative(i, j, k, 2, Pi_a, dx);
-  sd->d3Pi = derivative(i, j, k, 3, Pi_a, dx);
-
-  sd->d1psi1 = derivative(i, j, k, 1, psi1_a, dx);
-  sd->d2psi1 = derivative(i, j, k, 2, psi1_a, dx);
-  sd->d3psi1 = derivative(i, j, k, 3, psi1_a, dx);
-
-  sd->d1psi2 = derivative(i, j, k, 1, psi2_a, dx);
-  sd->d2psi2 = derivative(i, j, k, 2, psi2_a, dx);
-  sd->d3psi2 = derivative(i, j, k, 3, psi2_a, dx);
-
-  sd->d1psi3 = derivative(i, j, k, 1, psi3_a, dx);
-  sd->d2psi3 = derivative(i, j, k, 2, psi3_a, dx);
-  sd->d3psi3 = derivative(i, j, k, 3, psi3_a, dx);
-
 }
 
 void Scalar::getScalarDataBd(
@@ -632,9 +612,6 @@ void Scalar::getScalarDataBd(
 #if USE_SOMMERFIELD_BOUNDARY
   sd->phi = phi_a(i, j, k);
   sd->Pi = Pi_a(i, j, k);
-  sd->psi1 = psi1_a(i, j, k);
-  sd->psi2 = psi2_a(i, j, k);
-  sd->psi3 = psi3_a(i, j, k);
 #endif
 }
 
@@ -642,12 +619,7 @@ void Scalar::getScalarDataBd(
 real_t Scalar::ev_phi(BSSNData *bd, ScalarData *sd, const real_t dx[])
 {
   return (
-    #if(USE_BSSN_SHIFT)
-      + upwind_derivative(bd->i, bd->j, bd->k, 1, phi_a, dx, bd->beta1)
-      + upwind_derivative(bd->i, bd->j, bd->k, 2, phi_a, dx, bd->beta2)
-      + upwind_derivative(bd->i, bd->j, bd->k, 3, phi_a, dx, bd->beta3)
-    #endif
-    - bd->alpha*sd->Pi
+    sd->Pi
   )
     - KO_dissipation_Q(bd->i, bd->j, bd->k, phi_a, dx, KO_damping_coefficient);
 }
@@ -655,79 +627,13 @@ real_t Scalar::ev_phi(BSSNData *bd, ScalarData *sd, const real_t dx[])
 real_t Scalar::ev_Pi(BSSNData *bd, ScalarData *sd, const real_t dx[])
 {
   return (
-    #if(USE_BSSN_SHIFT)
-      upwind_derivative(bd->i, bd->j, bd->k, 1, Pi_a, dx, bd->beta1)
-    + upwind_derivative(bd->i, bd->j, bd->k, 2, Pi_a, dx, bd->beta2)
-    + upwind_derivative(bd->i, bd->j, bd->k, 3, Pi_a, dx, bd->beta3)
-    #endif
-    -pw2(bd->chi)*(
-      bd->gammai11*(bd->alpha*sd->d1psi1 + sd->psi1*bd->d1a)
-      + bd->gammai12*(bd->alpha*sd->d1psi2 + sd->psi1*bd->d2a)
-      + bd->gammai13*(bd->alpha*sd->d1psi3 + sd->psi1*bd->d3a)
-      + bd->gammai21*(bd->alpha*sd->d2psi1 + sd->psi2*bd->d1a)
-      + bd->gammai22*(bd->alpha*sd->d2psi2 + sd->psi2*bd->d2a)
-      + bd->gammai23*(bd->alpha*sd->d2psi3 + sd->psi2*bd->d3a)
-      + bd->gammai31*(bd->alpha*sd->d3psi1 + sd->psi3*bd->d1a)
-      + bd->gammai32*(bd->alpha*sd->d3psi2 + sd->psi3*bd->d2a)
-      + bd->gammai33*(bd->alpha*sd->d3psi3 + sd->psi3*bd->d3a))
-     + bd->alpha*( (
-        bd->Gammad1 * bd->chi + 1.0*(bd->gammai11*bd->d1chi + bd->gammai12*bd->d2chi + bd->gammai13*bd->d3chi)
-      )*sd->psi1* bd->chi + (
-        bd->Gammad2 * bd->chi + 1.0*(bd->gammai21*bd->d1chi + bd->gammai22*bd->d2chi + bd->gammai23*bd->d3chi)
-      )*sd->psi2* bd->chi + (
-        bd->Gammad3 * bd->chi + 1.0*(bd->gammai31*bd->d1chi + bd->gammai32*bd->d2chi + bd->gammai33*bd->d3chi)
-      )*sd->psi3* bd->chi
-      + bd->K*sd->Pi
-      + potentialHandler->ev_der_potential(bd, sd)
-     )
+    -3.0 * bd->H * sd->Pi +
+    laplacian(bd->i, bd->j, bd->k, phi_a, dx) / pw2(bd->a)
+    - potentialHandler->ev_der_potential(bd, sd)
   )
     - KO_dissipation_Q(bd->i, bd->j, bd->k, Pi_a, dx, KO_damping_coefficient);
 }
 
-real_t Scalar::ev_psi1(BSSNData *bd, ScalarData *sd, const real_t dx[])
-{
-  return (
-    #if(USE_BSSN_SHIFT)
-    upwind_derivative(bd->i, bd->j, bd->k, 1, psi1_a, dx, bd->beta1)
-    + upwind_derivative(bd->i, bd->j, bd->k, 2, psi1_a, dx, bd->beta2)
-    + upwind_derivative(bd->i, bd->j, bd->k, 3, psi1_a, dx, bd->beta3)
-    + sd->psi1*bd->d1beta1 + sd->psi2*bd->d1beta2 + sd->psi3*bd->d1beta3
-    #endif
-    - bd->alpha*sd->d1Pi
-    - sd->Pi*bd->d1a
-  )
-    - KO_dissipation_Q(bd->i, bd->j, bd->k, psi1_a, dx, KO_damping_coefficient);
-}
-
-real_t Scalar::ev_psi2(BSSNData *bd, ScalarData *sd, const real_t dx[])
-{
-  return (
-    #if(USE_BSSN_SHIFT)
-    upwind_derivative(bd->i, bd->j, bd->k, 1, psi2_a, dx, bd->beta1)
-    + upwind_derivative(bd->i, bd->j, bd->k, 2, psi2_a, dx, bd->beta2)
-    + upwind_derivative(bd->i, bd->j, bd->k, 3, psi2_a, dx, bd->beta3)
-    + sd->psi1*bd->d2beta1 + sd->psi2*bd->d2beta2 + sd->psi3*bd->d2beta3
-    #endif
-    - bd->alpha*sd->d2Pi
-    - sd->Pi*bd->d2a
-  )
-    - KO_dissipation_Q(bd->i, bd->j, bd->k, psi2_a, dx, KO_damping_coefficient);
-}
-
-real_t Scalar::ev_psi3(BSSNData *bd, ScalarData *sd, const real_t dx[])
-{
-  return (
-    #if(USE_BSSN_SHIFT)
-    upwind_derivative(bd->i, bd->j, bd->k, 1, psi3_a, dx, bd->beta1)
-    + upwind_derivative(bd->i, bd->j, bd->k, 2, psi3_a, dx, bd->beta2)
-    + upwind_derivative(bd->i, bd->j, bd->k, 3, psi3_a, dx, bd->beta3)
-    + sd->psi1*bd->d3beta1 + sd->psi2*bd->d3beta2 + sd->psi3*bd->d3beta3
-    #endif
-    - bd->alpha*sd->d3Pi
-    - sd->Pi*bd->d3a
-  )
-    - KO_dissipation_Q(bd->i, bd->j, bd->k, psi3_a, dx, KO_damping_coefficient);
-}
 
 real_t Scalar::ev_phi_bd(BSSNData *bd, ScalarData *sd, const real_t dx[], int l_idx, int codim)
 {
@@ -745,32 +651,6 @@ real_t Scalar::ev_Pi_bd(BSSNData *bd, ScalarData *sd, const real_t dx[], int l_i
                         + bd_derivative(bd->i, bd->j, bd->k, 3, Pi_a, dx, l_idx, codim) * bd->z 
                         + sd->Pi           );
 }
-
-real_t Scalar::ev_psi1_bd(BSSNData *bd, ScalarData *sd, const real_t dx[], int l_idx, int codim)
-{
-    return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, psi1_a, dx, l_idx, codim) * bd->x
-                        + bd_derivative(bd->i, bd->j, bd->k, 2, psi1_a, dx, l_idx, codim) * bd->y
-                        + bd_derivative(bd->i, bd->j, bd->k, 3, psi1_a, dx, l_idx, codim) * bd->z 
-                        + sd->psi1           );
-}
-
-real_t Scalar::ev_psi2_bd(BSSNData *bd, ScalarData *sd, const real_t dx[], int l_idx, int codim)
-{
-    return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, psi2_a, dx, l_idx, codim) * bd->x
-                        + bd_derivative(bd->i, bd->j, bd->k, 2, psi2_a, dx, l_idx, codim) * bd->y
-                        + bd_derivative(bd->i, bd->j, bd->k, 3, psi2_a, dx, l_idx, codim) * bd->z 
-                        + sd->psi2           );
-}
-
-real_t Scalar::ev_psi3_bd(BSSNData *bd, ScalarData *sd, const real_t dx[], int l_idx, int codim)
-{
-    return -1.0/bd->norm*(bd_derivative(bd->i, bd->j, bd->k, 1, psi3_a, dx, l_idx, codim) * bd->x
-                        + bd_derivative(bd->i, bd->j, bd->k, 2, psi3_a, dx, l_idx, codim) * bd->y
-                        + bd_derivative(bd->i, bd->j, bd->k, 3, psi3_a, dx, l_idx, codim) * bd->z 
-                        + sd->psi3           );
-
-}
-
   
 void Scalar::addBSSNSrc(
   BSSN * bssn, const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
@@ -821,15 +701,6 @@ void Scalar::addBSSNSrc(
   
   arr_t & DIFFr_a = bssn->DIFFr_a;
   arr_t & DIFFS_a = bssn->DIFFS_a;
-  arr_t & S1_a = bssn->S1_a;
-  arr_t & S2_a = bssn->S2_a;
-  arr_t & S3_a = bssn->S3_a;
-  arr_t & STF11_a = bssn->STF11_a;
-  arr_t & STF12_a = bssn->STF12_a;
-  arr_t & STF13_a = bssn->STF13_a;
-  arr_t & STF22_a = bssn->STF22_a;
-  arr_t & STF23_a = bssn->STF23_a;
-  arr_t & STF33_a = bssn->STF33_a;
 
   const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom( 
     SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
@@ -855,34 +726,13 @@ void Scalar::addBSSNSrc(
         bssn->set_bd_values(i, j, k, &bd, dx);
         getScalarData(i, j, k, &bd, &sd, dx);
 
-        // n^mu d_mu phi
-        //                real_t nmudmuphi = - sd.Pi;
-         real_t nmudmuphi = (ev_phi(&bd, &sd, dx) -
-             upwind_derivative(bd.i, bd.j, bd.k, 1, phi_a, dx, bd.beta1)
-           - upwind_derivative(bd.i, bd.j, bd.k, 2, phi_a, dx, bd.beta2)
-           - upwind_derivative(bd.i, bd.j, bd.k, 3, phi_a, dx, bd.beta3) ) / bd.alpha;
-        // gammai^ij d_j phi d_i phi
-        real_t diphidiphi = (
-          bd.gammai11*sd.d1phi*sd.d1phi + bd.gammai22*sd.d2phi*sd.d2phi + bd.gammai33*sd.d3phi*sd.d3phi
-          + 2.0*(bd.gammai12*sd.d1phi*sd.d2phi + bd.gammai13*sd.d1phi*sd.d3phi + bd.gammai23*sd.d2phi*sd.d3phi)
-        );
 
-        DIFFr_a(i,j,k) += 0.5*nmudmuphi*nmudmuphi
-          + 0.5*pw2(bd.chi)*diphidiphi + potentialHandler->ev_potential(&bd, &sd);
+        DIFFr_a(i,j,k) += 0.5*pw2(ev_phi(&bd, &sd, dx))
+          + 0.5*(pw2(sd.d1phi)+pw2(sd.d2phi) + pw2(sd.d3phi)) / pw2(bd.a) + potentialHandler->ev_potential(&bd, &sd);
 
-        DIFFS_a(i,j,k) += 3.0/2.0*nmudmuphi*nmudmuphi
-          - 0.5*pw2(bd.chi)*diphidiphi - 3.0* potentialHandler->ev_potential(&bd, &sd);
+        DIFFS_a(i,j,k) += 0.5*pw2(ev_phi(&bd, &sd, dx))
+          - (pw2(sd.d1phi)+pw2(sd.d2phi) + pw2(sd.d3phi)) / pw2(bd.a)/6.0 - potentialHandler->ev_potential(&bd, &sd);
 
-        S1_a(i,j,k) += -nmudmuphi*sd.d1phi;
-        S2_a(i,j,k) += -nmudmuphi*sd.d2phi;
-        S3_a(i,j,k) += -nmudmuphi*sd.d3phi;
-
-        STF11_a(i,j,k) += sd.d1phi*sd.d1phi - bd.gamma11/3.0*diphidiphi;
-        STF12_a(i,j,k) += sd.d1phi*sd.d2phi - bd.gamma12/3.0*diphidiphi;
-        STF13_a(i,j,k) += sd.d1phi*sd.d3phi - bd.gamma13/3.0*diphidiphi;
-        STF22_a(i,j,k) += sd.d2phi*sd.d2phi - bd.gamma22/3.0*diphidiphi;
-        STF23_a(i,j,k) += sd.d2phi*sd.d3phi - bd.gamma23/3.0*diphidiphi;
-        STF33_a(i,j,k) += sd.d3phi*sd.d3phi - bd.gamma33/3.0*diphidiphi;
       }
     }
   }

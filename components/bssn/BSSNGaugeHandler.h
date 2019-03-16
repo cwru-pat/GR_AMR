@@ -153,22 +153,6 @@ public:
    */
   void setShiftFn(std::string name)
   {
-    // Shift needs to be enabled for non-trivial evolution
-    if(name != "Static" && !USE_BSSN_SHIFT)
-    {
-      TBOX_ERROR("Code must be compiled with shift enabled to use non-Static shift!");
-    }
-
-    // Gamma driver needs an extra field compiled in
-    if(name == "gammadriver" && !USE_GAMMA_DRIVER)
-    {
-      TBOX_ERROR("Code must be compiled with gamma driver enabled to use the gamma driver gauge.");
-    }
-
-    if ( shift_gauge_map.find(name) == shift_gauge_map.end() )
-    {
-      TBOX_ERROR("Error: Shift gauge not found: `" << name << "`!\n");
-    }
 
     tbox::plog<<"Setting shift function with "<<name<<"\n";
     shift_fn1 = shift_gauge_map[name]["1"];

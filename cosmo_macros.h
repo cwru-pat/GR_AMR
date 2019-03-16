@@ -42,12 +42,12 @@
 
 // evolve shift as well? (if not, assumed to be zero)
 #ifndef USE_BSSN_SHIFT
-  #define USE_BSSN_SHIFT true
+  #define USE_BSSN_SHIFT false
 #endif
 
 // Gamma-driver gauge settings (must turn on bssn_shift as well)
 #ifndef USE_GAMMA_DRIVER
-  #define USE_GAMMA_DRIVER true
+  #define USE_GAMMA_DRIVER false
 #endif
 
 // creat backup fields from _f fiels

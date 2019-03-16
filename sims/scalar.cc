@@ -29,6 +29,7 @@ ScalarSim::ScalarSim(
     dim_in, input_db_in, l_stream_in, simulation_type_in, vis_filename_in),
   cosmo_scalar_db(input_db_in->getDatabase("ScalarSim"))
 {
+
   stop_after_setting_init =
     cosmo_scalar_db->getBoolWithDefault("stop_after_setting_init", false);
 
@@ -68,13 +69,11 @@ ScalarSim::ScalarSim(
   //variable_id_list.push_back(staticSim->DIFFD_a_idx);
 
   scalarSim->addFieldsToList(variable_id_list);
-  
   variable_id_list.push_back(weight_idx);
 
   gradient_indicator_idx =
     variable_db->mapVariableAndContextToIndex(
       variable_db->getVariable(gradient_indicator), variable_db->getContext("ACTIVE"));
-
   
   hier::VariableDatabase::getDatabase()->printClassData(tbox::plog);
 
@@ -674,6 +673,7 @@ void ScalarSim::runStep(
   const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   runCommonStepTasks(hierarchy);
+
   double dt = getDt(hierarchy);
 
   if(has_found_horizon && stop_after_found_horizon)

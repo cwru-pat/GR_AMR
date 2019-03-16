@@ -224,8 +224,6 @@ typedef struct {
          d3d3g33; ///< Second partial derivative of the conformal metric, \f$\partial_3 \partial_3 \bar{\gamma}_{33}\f$
 
 
-  // H constraint calc.
-  real_t H; ///< Hamiltonian constraint violation
   // Misc. debugging calc
   real_t db; ///< Misc. re-usable debugging variable
 
@@ -272,6 +270,8 @@ typedef struct {
 
   real_t K0;
   real_t K_avg;
+
+  real_t rho_P_avg;
   
   real_t D1Z1, D2Z2, D3Z3, D1Z2, D1Z3, D2Z3, D2Z1, D3Z1, D3Z2;
   real_t D1Z1TF, D2Z2TF, D3Z3TF, D1Z2TF,

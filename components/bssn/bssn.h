@@ -214,6 +214,8 @@ public:
   real_t ev_DIFFalpha(BSSNData *bd, const real_t dx[]);
 
   real_t ev_theta(BSSNData *bd, const real_t dx[]);
+  real_t ev_H(BSSNData *bd, const real_t dx[]);
+  real_t ev_a(BSSNData *bd, const real_t dx[]);
 
 #   if USE_BSSN_SHIFT
   real_t ev_beta1(BSSNData *bd, const real_t dx[]);
@@ -257,6 +259,8 @@ public:
   real_t ev_DIFFalpha_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim);
 
   real_t ev_theta_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim);
+  real_t ev_H_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim);
+  real_t ev_a_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim);
 
 #   if USE_BSSN_SHIFT
   real_t ev_beta1_bd(BSSNData *bd, const real_t dx[], idx_t l_idx, idx_t codim);
@@ -323,7 +327,7 @@ public:
   void deBug(  const std::shared_ptr<hier::Patch> & patch);
 
   double K0;
-  double K_avg;
+  double K_avg, rho_P_avg;
 };
 
 }

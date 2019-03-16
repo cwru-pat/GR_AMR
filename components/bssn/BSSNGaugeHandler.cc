@@ -181,7 +181,7 @@ real_t BSSNGaugeHandler::DampedWaveShift3(BSSNData *bd)
  */
 real_t BSSNGaugeHandler::AwAGaugeWaveLapse(BSSNData *bd)
 {
-  return -1.0*pw2(bd->alpha)*bd->DIFFK;
+  return 0;
 }
 
 /**
@@ -189,7 +189,7 @@ real_t BSSNGaugeHandler::AwAGaugeWaveLapse(BSSNData *bd)
  */
 real_t BSSNGaugeHandler::AwAShiftedWaveLapse(BSSNData *bd)
 {
-  return -1.0*bd->DIFFK;
+  return 0;
 }
 
 /**

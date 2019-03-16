@@ -186,6 +186,8 @@ public:
   
   real_t K_avg;
 
+  real_t rho_P_avg;
+  
   double max_horizon_radius;
   
   std::vector<std::shared_ptr<xfer::RefineSchedule>>

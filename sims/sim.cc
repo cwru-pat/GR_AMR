@@ -73,6 +73,7 @@ CosmoSim::CosmoSim(
   calculate_Weyl_scalars(cosmo_sim_db->getBoolWithDefault("calculate_Weyl_scalars",false)),
   rescale_lapse(cosmo_sim_db->getBoolWithDefault("rescale_lapse",false)),
   K_avg(0),
+  rho_P_avg(0),
   max_horizon_radius(0)
 {
   t_loop = tbox::TimerManager::getManager()->
@@ -194,10 +195,16 @@ void CosmoSim::run(
 void CosmoSim::calculateKAvg(
   const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
-  K_avg = cosmo_statistic->calculate_conformal_avg(
-    hierarchy, bssnSim, weight_idx, bssnSim->DIFFK_a_idx, K_avg_on_the_edge);
-  // not a very good implementation, may consider it later
-  bssnSim->K_avg = K_avg;
+
+  rho_P_avg = 0;
+  
+  rho_P_avg += cosmo_statistic->calculate_conformal_avg(
+    hierarchy, bssnSim, weight_idx, bssnSim->DIFFr_a_idx, 0);
+
+  rho_P_avg += cosmo_statistic->calculate_conformal_avg(
+    hierarchy, bssnSim, weight_idx, bssnSim->DIFFS_a_idx, 0);
+
+  bssnSim->rho_P_avg = rho_P_avg;
 }
 
 // warning !!!!!!!! have not been fully tested
