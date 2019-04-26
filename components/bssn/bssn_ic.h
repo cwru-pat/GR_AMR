@@ -35,6 +35,11 @@ void bssn_ic_awa_shifted_gauge_wave(
 void bssn_ic_static_blackhole(
   const std::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
 
+ void bssn_ic_static_blackhole_non_const_lapse(
+   const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
+   idx_t ln);
+
+ 
 void bssn_ic_kerr_blackhole(
   const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln);

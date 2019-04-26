@@ -119,7 +119,9 @@ public:
   bool approaching_horizon_emerge_step;
   /* std::vector<std::shared_ptr<xfer::CoarsenSchedule>> */
   /*   coarsen_schedules; */
+  bool scale_gradient;
 
+  
 };
 
 } /* namespace cosmo */

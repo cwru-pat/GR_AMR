@@ -62,22 +62,22 @@ BSSN::BSSN(
 #endif
 
   // creating BSSN fields with contexts 
-  BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_scratch, s, STENCIL_ORDER);
-  BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_previous, p, STENCIL_ORDER);
-  BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_active, a, STENCIL_ORDER);
-  BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_k1, k1, STENCIL_ORDER);
-  BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_k2, k2, STENCIL_ORDER);
-  BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_k3, k3, STENCIL_ORDER);
-  BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_k4, k4, STENCIL_ORDER);
+  BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_scratch, s, GHOST_WIDTH);
+  BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_previous, p, GHOST_WIDTH);
+  BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_active, a, GHOST_WIDTH);
+  BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_k1, k1, GHOST_WIDTH);
+  BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_k2, k2, GHOST_WIDTH);
+  BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_k3, k3, GHOST_WIDTH);
+  BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_k4, k4, GHOST_WIDTH);
 #if USE_BACKUP_FIELDS
-  BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_b, b, STENCIL_ORDER);
+  BSSN_APPLY_TO_FIELDS_ARGS(REG_TO_CONTEXT, context_b, b, GHOST_WIDTH);
 #endif
 
   // creating source fields only with ACTIVE context
-  BSSN_APPLY_TO_SOURCES_ARGS(REG_TO_CONTEXT, context_active, a, STENCIL_ORDER);
+  BSSN_APPLY_TO_SOURCES_ARGS(REG_TO_CONTEXT, context_active, a, GHOST_WIDTH);
 
   // creating extra fields with with ACTIVE context
-  BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(REG_TO_CONTEXT, context_active, a, STENCIL_ORDER);
+  BSSN_APPLY_TO_GEN1_EXTRAS_ARGS(REG_TO_CONTEXT, context_active, a, GHOST_WIDTH);
 
   init(hierarchy);  
 }
@@ -461,7 +461,7 @@ void BSSN::RKEvolvePatchBD(
 
     boundary_fill_box.shift(
       (hier::Box::dir_t)l_idx/2,
-      (l_idx%2)?(-STENCIL_ORDER_WIDTH):STENCIL_ORDER_WIDTH);
+      (l_idx%2)?(-GHOST_WIDTH):GHOST_WIDTH);
 
 
     boundary_fill_box *= patch_box;
@@ -512,23 +512,23 @@ void BSSN::RKEvolvePatchBD(
 
     std::vector<idx_t> shift_vec;
     if(l_idx == 0 || l_idx == 2 || l_idx == 4 || l_idx == 6)
-      shift_vec.push_back(STENCIL_ORDER_WIDTH);
+      shift_vec.push_back(GHOST_WIDTH);
     else if(l_idx == 1 || l_idx == 3 || l_idx == 5 || l_idx == 7)
-      shift_vec.push_back(-STENCIL_ORDER_WIDTH);
+      shift_vec.push_back(-GHOST_WIDTH);
     else
       shift_vec.push_back(0);
     
     if(l_idx == 0 || l_idx == 1 || l_idx == 8 || l_idx == 10)
-      shift_vec.push_back(STENCIL_ORDER_WIDTH);
+      shift_vec.push_back(GHOST_WIDTH);
     else if(l_idx == 2 || l_idx == 3 || l_idx ==9 || l_idx == 11)
-     shift_vec.push_back(-STENCIL_ORDER_WIDTH);
+     shift_vec.push_back(-GHOST_WIDTH);
     else
       shift_vec.push_back(0);
 
     if( l_idx == 4 || l_idx == 5 || l_idx == 8 || l_idx == 9)
-      shift_vec.push_back(STENCIL_ORDER_WIDTH);
+      shift_vec.push_back(GHOST_WIDTH);
     else if(l_idx == 6 || l_idx == 7 || l_idx == 10 || l_idx == 11)
-      shift_vec.push_back(-STENCIL_ORDER_WIDTH);
+      shift_vec.push_back(-GHOST_WIDTH);
     else
       shift_vec.push_back(0);
 
@@ -581,19 +581,19 @@ void BSSN::RKEvolvePatchBD(
     std::vector<idx_t> shift_vec;
     
     if(l_idx == 0 || l_idx == 2 || l_idx == 4 || l_idx == 6)
-      shift_vec.push_back(STENCIL_ORDER_WIDTH);
+      shift_vec.push_back(GHOST_WIDTH);
     else
-      shift_vec.push_back(-STENCIL_ORDER_WIDTH);
+      shift_vec.push_back(-GHOST_WIDTH);
     
     if(l_idx == 0 || l_idx == 1 || l_idx == 4 || l_idx == 5)
-      shift_vec.push_back(STENCIL_ORDER_WIDTH);
+      shift_vec.push_back(GHOST_WIDTH);
     else
-      shift_vec.push_back(-STENCIL_ORDER_WIDTH);
+      shift_vec.push_back(-GHOST_WIDTH);
 
     if( l_idx == 0 || l_idx == 1 || l_idx == 2 || l_idx == 3)
-      shift_vec.push_back(STENCIL_ORDER_WIDTH);
+      shift_vec.push_back(GHOST_WIDTH);
     else
-      shift_vec.push_back(-STENCIL_ORDER_WIDTH);
+      shift_vec.push_back(-GHOST_WIDTH);
 
     boundary_fill_box.shift(hier::IntVector(shift_vec));
 
@@ -1267,6 +1267,37 @@ void BSSN::set_bd_values_bd(
   
   if(bd->chi < chi_lower_bd) bd->chi = chi_lower_bd;
 }
+
+#if USE_COSMOTRACE
+void BSSN::set_bd_values_for_ray_tracing(idx_t i, idx_t j, idx_t k, BSSNData *bd, const real_t dx[])
+{
+  bd->i = i;
+  bd->j = j;
+  bd->k = k;
+
+  set_local_vals(bd);
+  // non-DIFF quantities
+  bd->chi      =   bd->DIFFchi + 1.0;
+  bd->K        =   bd->DIFFK + bd->K_FRW;
+  bd->gamma11  =   bd->DIFFgamma11 + 1.0;
+  bd->gamma12  =   bd->DIFFgamma12;
+  bd->gamma13  =   bd->DIFFgamma13;
+  bd->gamma22  =   bd->DIFFgamma22 + 1.0;
+  bd->gamma23  =   bd->DIFFgamma23;
+  bd->gamma33  =   bd->DIFFgamma33 + 1.0;
+  bd->r        =   bd->DIFFr + bd->rho_FRW;
+  bd->S        =   bd->DIFFS + bd->S_FRW;
+  bd->alpha    =   bd->DIFFalpha + 1.0;
+
+  calculate_dgamma(bd,dx);
+  calculate_dalpha_dchi(bd,dx);
+# if USE_BSSN_SHIFT
+  calculate_dbeta(bd,dx);
+# endif
+  
+}
+
+#endif
 
 /**
  * @brief Populate values in a BSSNData struct
@@ -2199,9 +2230,9 @@ void BSSN::output_L2_H_constaint(
           for(int i = lower[0]; i <= upper[0]; i++)
           {
             if(cosmoPS->is_time_dependent &&
-               (i < STENCIL_ORDER || i >= base_nx - STENCIL_ORDER ||
-                j < STENCIL_ORDER || j >= base_ny - STENCIL_ORDER ||
-                k < STENCIL_ORDER || k >= base_nz - STENCIL_ORDER))
+               (i < GHOST_WIDTH || i >= base_nx - GHOST_WIDTH ||
+                j < GHOST_WIDTH || j >= base_ny - GHOST_WIDTH ||
+                k < GHOST_WIDTH || k >= base_nz - GHOST_WIDTH))
               continue;
             
             BSSNData bd = {0};
@@ -2303,9 +2334,9 @@ void BSSN::output_L2_H_constaint(
           for(int i = lower[0]; i <= upper[0]; i++)
           {
             if(cosmoPS->is_time_dependent &&
-               (i < STENCIL_ORDER || i >= base_nx - STENCIL_ORDER ||
-                j < STENCIL_ORDER || j >= base_ny - STENCIL_ORDER ||
-                k < STENCIL_ORDER || k >= base_nz - STENCIL_ORDER))
+               (i < GHOST_WIDTH || i >= base_nx - GHOST_WIDTH ||
+                j < GHOST_WIDTH || j >= base_ny - GHOST_WIDTH ||
+                k < GHOST_WIDTH || k >= base_nz - GHOST_WIDTH))
               continue;
             
             BSSNData bd = {0};

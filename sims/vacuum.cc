@@ -119,6 +119,7 @@ void VacuumSim::init()
 void VacuumSim::setICs(
   const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
+
   tbox::plog<<"Setting initial conditions (ICs).";
 
   TBOX_ASSERT(gridding_algorithm);
@@ -157,11 +158,18 @@ void VacuumSim::setICs(
     for (idx_t ln = 0; ln < static_cast<int>(tag_buffer.size()); ++ln) {
       tag_buffer[ln] = 1;
     }
+#if USE_COSMOTRACE
+    ray->regridPreProcessing(hierarchy, particle_coarsen_op);
+#endif
     gridding_algorithm->regridAllFinerLevels(
       0,
       tag_buffer,
       0,
       cur_t);
+
+#if USE_COSMOTRACE
+    ray->regridPostProcessing(hierarchy);
+#endif
     int post_level_num = hierarchy->getNumberOfLevels();
     // no new level is created
     if(post_level_num == pre_level_num) break;
@@ -198,12 +206,20 @@ bool VacuumSim::initLevel(
   bssnSim->clearField(hierarchy, ln);
   bssnSim->clearGen1(hierarchy, ln);
 
+#if USE_COSMOTRACE
+  ray->initAll(hierarchy);
+#endif
   
   if(ic_type == "static_blackhole")
   {
     if(!USE_BSSN_SHIFT)
       TBOX_ERROR("Must enable shift for blackhole simulation!\n");
     bssn_ic_static_blackhole(hierarchy,ln);
+    return true;
+  }
+  else if(ic_type == "static_blackhole_non_const_lapse")
+  {
+    bssn_ic_static_blackhole_non_const_lapse(hierarchy, ln);
     return true;
   }
   else if(ic_type == "kerr_blackhole")
@@ -424,6 +440,9 @@ void VacuumSim::initializeLevelData(
      bssnSim->allocSrc(patch_hierarchy, ln);
      bssnSim->allocGen1(patch_hierarchy, ln);
      level->allocatePatchData(weight_idx);
+#if USE_COSMOTRACE
+     ray->allocParticles(patch_hierarchy, ln);
+#endif
      // if(use_AHFinder)
      //   horizon->alloc(patch_hierarchy, ln);
    }
@@ -458,7 +477,11 @@ void VacuumSim::initializeLevelData(
 
    //registering refine variables
    bssnSim->registerRKRefinerActive(refiner, accurate_refine_op);
-                             
+
+#if USE_COSMOTRACE
+   ray->registerRKRefiner(refiner, particle_refine_op);
+#endif
+   
    std::shared_ptr<xfer::RefineSchedule> refine_schedule;
 
    level->getBoxLevel()->getMPI().Barrier();
@@ -635,14 +658,22 @@ void VacuumSim::outputVacuumStep(
   if(calculate_Weyl_scalars)
     bssnSim->cal_Weyl_scalars(hierarchy, weight_idx);
 #endif
-  
+#if USE_COSMOTRACE
+  ray->printAll(hierarchy, ray->pc_idx);
+#endif
+#if USE_COSMOTRACE
+    if(freeze_time_evolution == false)
+#endif
   bssnSim->output_L2_H_constaint(
     hierarchy, weight_idx, cosmoPS, 0.5);
   //  bssnSim->output_max_H_constaint(hierarchy, weight_idx);
  
   cosmo_io->registerVariablesWithPlotter(*visit_writer, step);
+#if !USE_COSMOTRACE  
   cosmo_io->dumpData(hierarchy, *visit_writer, step, cur_t);
-
+#else
+  cosmo_io->dumpData(hierarchy, *visit_writer, step, cur_t, ray, vis_filename);
+#endif
   cosmo_statistic->output_expansion_info(
       hierarchy,
       bssnSim, weight_idx, step, cur_t, max_horizon_radius);
@@ -746,7 +777,9 @@ void VacuumSim::RKEvolveLevel(
     ((ln>0)?(hierarchy->getPatchLevel(ln-1)):NULL));
   
   
-
+#if USE_COSMOTRACE
+    if(freeze_time_evolution == false)
+#endif
   bssnSim->prepareForK1(coarser_level, to_t);
   
   for( hier::PatchLevel::iterator pit(level->begin());
@@ -755,29 +788,53 @@ void VacuumSim::RKEvolveLevel(
     const std::shared_ptr<hier::Patch> & patch = *pit;
 
     //Evolve inner grids
+#if USE_COSMOTRACE
+    if(freeze_time_evolution == false)
+#endif
     bssnSim->RKEvolvePatch(patch, to_t - from_t);
+
     // Evolve physical boundary
     // would not do anything if boundary is time independent
 
+#if USE_COSMOTRACE
+    ray->RKEvolvePatch(patch, bssnSim,to_t - from_t);
+#endif
+
+#if USE_COSMOTRACE
+    if(freeze_time_evolution == false)
+#endif
     bssnSim->RKEvolvePatchBD(patch, to_t - from_t);
   }
 
-  
   // fill ghost cells 
   level->getBoxLevel()->getMPI().Barrier();
+  #if USE_COSMOTRACE
+    if(freeze_time_evolution == false)
+#endif
   pre_refine_schedules[ln]->fillData(to_t);
 
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
     const std::shared_ptr<hier::Patch> & patch = *pit;
+#if USE_COSMOTRACE
+    if(freeze_time_evolution == false)
+#endif
     bssnSim->K1FinalizePatch(patch);    
     addBSSNExtras(patch);
+    //    ray->printAll(hierarchy, ray->pc_idx);
+#if USE_COSMOTRACE
+    ray->K1FinalizePatch(patch);
+#endif
+    //     ray->printAll(hierarchy, ray->pc_idx);
   }
   bssnSim->set_norm(level);
   
   
   /**************Starting K2 *********************************/
+  #if USE_COSMOTRACE
+    if(freeze_time_evolution == false)
+#endif
   bssnSim->prepareForK2(coarser_level, to_t);
   
   for( hier::PatchLevel::iterator pit(level->begin());
@@ -786,28 +843,50 @@ void VacuumSim::RKEvolveLevel(
     const std::shared_ptr<hier::Patch> & patch = *pit;
 
     //Evolve inner grids
+    #if USE_COSMOTRACE
+    if(freeze_time_evolution == false)
+#endif
     bssnSim->RKEvolvePatch(patch, to_t - from_t);
     //Evolve physical boundary
     // would not do anything if boundary is time dependent
-    bssnSim->RKEvolvePatchBD(patch, to_t - from_t);  
+#if USE_COSMOTRACE
+    if(freeze_time_evolution == false)
+#endif
+    bssnSim->RKEvolvePatchBD(patch, to_t - from_t);
+
+#if USE_COSMOTRACE
+    ray->RKEvolvePatch(patch, bssnSim,to_t - from_t);
+#endif
+
   }
 
   // fill ghost cells 
   level->getBoxLevel()->getMPI().Barrier();
+  #if USE_COSMOTRACE
+    if(freeze_time_evolution == false)
+#endif
   pre_refine_schedules[ln]->fillData(to_t);
 
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
     const std::shared_ptr<hier::Patch> & patch = *pit;
+    #if USE_COSMOTRACE
+    if(freeze_time_evolution == false)
+#endif
     bssnSim->K2FinalizePatch(patch);
     addBSSNExtras(patch);
+#if USE_COSMOTRACE
+    ray->K2FinalizePatch(patch);
+#endif
   }
 
   bssnSim->set_norm(level);
 
   /**************Starting K3 *********************************/
-
+#if USE_COSMOTRACE
+    if(freeze_time_evolution == false)
+#endif
   bssnSim->prepareForK3(coarser_level, to_t);
     
 
@@ -817,51 +896,90 @@ void VacuumSim::RKEvolveLevel(
   {
     const std::shared_ptr<hier::Patch> & patch = *pit;
 
+    #if USE_COSMOTRACE
+    if(freeze_time_evolution == false)
+#endif
     bssnSim->RKEvolvePatch(patch, to_t - from_t);
     //Evolve physical boundary
     // would not do anything if boundary is time dependent
-    bssnSim->RKEvolvePatchBD(patch, to_t - from_t);  
+#if USE_COSMOTRACE
+    if(freeze_time_evolution == false)
+#endif
+    bssnSim->RKEvolvePatchBD(patch, to_t - from_t);
+#if USE_COSMOTRACE
+    ray->RKEvolvePatch(patch, bssnSim,to_t - from_t);
+#endif
+
   }
 
   // fill ghost cells 
   level->getBoxLevel()->getMPI().Barrier();
+  #if USE_COSMOTRACE
+    if(freeze_time_evolution == false)
+#endif
   pre_refine_schedules[ln]->fillData(to_t);
 
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
     const std::shared_ptr<hier::Patch> & patch = *pit;
+    #if USE_COSMOTRACE
+    if(freeze_time_evolution == false)
+#endif
     bssnSim->K3FinalizePatch(patch);
     addBSSNExtras(patch);
+#if USE_COSMOTRACE
+    ray->K3FinalizePatch(patch);
+#endif
   }
 
   bssnSim->set_norm(level);
 
   /**************Starting K4 *********************************/
-
+#if USE_COSMOTRACE
+    if(freeze_time_evolution == false)
+#endif
   bssnSim->prepareForK4(coarser_level, to_t);
 
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
     const std::shared_ptr<hier::Patch> & patch = *pit;
-
+#if USE_COSMOTRACE
+    if(freeze_time_evolution == false)
+#endif
     bssnSim->RKEvolvePatch(patch, to_t - from_t);
     //Evolve physical boundary
     // would not do anything if boundary is time dependent
-    bssnSim->RKEvolvePatchBD(patch, to_t - from_t);  
+#if USE_COSMOTRACE
+    if(freeze_time_evolution == false)
+#endif
+    bssnSim->RKEvolvePatchBD(patch, to_t - from_t);
+#if USE_COSMOTRACE
+    ray->RKEvolvePatch(patch, bssnSim,to_t - from_t);
+#endif
+
   }
 
   // fill ghost cells 
   level->getBoxLevel()->getMPI().Barrier();
+  #if USE_COSMOTRACE
+    if(freeze_time_evolution == false)
+#endif
   pre_refine_schedules[ln]->fillData(to_t);
 
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
     const std::shared_ptr<hier::Patch> & patch = *pit;
+#if USE_COSMOTRACE
+    if(freeze_time_evolution == false)
+#endif
     bssnSim->K4FinalizePatch(patch);
     addBSSNExtras(patch);
+#if USE_COSMOTRACE
+    ray->K4FinalizePatch(patch);
+#endif
   }
 
   bssnSim->set_norm(level);
@@ -893,9 +1011,11 @@ void VacuumSim::advanceLevel(
   bssnSim->setLevelTime(level, from_t, to_t);
   //RK advance interior(including innner ghost cells) of level
 
+#if USE_COSMOTRACE
+  ray->preAdvance(hierarchy, ln);
+#endif
 
   RKEvolveLevel(hierarchy, ln, from_t, to_t);
-
 
   level->getBoxLevel()->getMPI().Barrier();
 
@@ -905,7 +1025,12 @@ void VacuumSim::advanceLevel(
   level->getBoxLevel()->getMPI().Barrier();
   
   advanceLevel(hierarchy, ln+1, from_t + (to_t - from_t)/2.0, to_t);
-   
+  //  TBOX_ERROR("here\n");
+
+#if USE_COSMOTRACE
+  ray->particleRedistribution(hierarchy, ln, true);
+#endif
+  
   // do some coarsening and
   // then update ghost cells through doing refinement if it has finer level
   if(ln < hierarchy->getNumberOfLevels() -1 )
@@ -928,6 +1053,7 @@ void VacuumSim::advanceLevel(
   bssnSim->setLevelTime(level, to_t, to_t);
 
   level->getBoxLevel()->getMPI().Barrier();
+
 }
 
 

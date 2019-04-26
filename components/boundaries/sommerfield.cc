@@ -77,7 +77,7 @@ void SommerfieldBD::preprocessRefine(
   {
     const hier::Box & boundary_fill_box(
       fine_geom->getBoundaryFillBox(
-        codim1_boxes[bn], fine_box * coarse_box, hier::IntVector(dim,STENCIL_ORDER)));
+        codim1_boxes[bn], fine_box * coarse_box, hier::IntVector(dim,GHOST_WIDTH)));
 
     if(boundary_fill_box.empty()) continue;
     
@@ -133,7 +133,7 @@ void SommerfieldBD::preprocessRefine(
   {
     const hier::Box & boundary_fill_box(
       fine_geom->getBoundaryFillBox(
-        codim2_boxes[bn], fine_box * coarse_box, hier::IntVector(dim,STENCIL_ORDER)));
+        codim2_boxes[bn], fine_box * coarse_box, hier::IntVector(dim,GHOST_WIDTH)));
     if(boundary_fill_box.empty()) continue;
     
     const idx_t * lower = &boundary_fill_box.lower()[0];
@@ -187,7 +187,7 @@ void SommerfieldBD::preprocessRefine(
   {
     const hier::Box & boundary_fill_box( 
       fine_geom->getBoundaryFillBox(
-        codim3_boxes[bn], fine_box * coarse_box, hier::IntVector(dim,STENCIL_ORDER)));
+        codim3_boxes[bn], fine_box * coarse_box, hier::IntVector(dim,GHOST_WIDTH)));
 
     if(boundary_fill_box.empty()) continue;
     

@@ -1081,9 +1081,13 @@ bool scalar_ic_set_oscillon(
         random_phase.close();
 	*/
 	//given real number
-	real_t x_phase = 0.546719;
-        real_t y_phase = 0.726476;
-        real_t z_phase = 1.89999;
+	// real_t x_phase = 0.546719;
+        // real_t y_phase = 0.726476;
+        // real_t z_phase = 1.89999;
+        real_t x_phase = PI;
+        real_t y_phase = PI;
+        real_t z_phase = PI;
+
         if(cosmo_scalar_db->keyExists("delta_phi"))
         {
           LOOP3()
@@ -1303,7 +1307,8 @@ bool scalar_ic_set_oscillon(
     flag = true;
   }
 
-  double tot_r = 0;
+  double tot_r = 0, tot_v = 0.0;
+  real_t rho_sigma = 0;
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
@@ -1363,13 +1368,14 @@ bool scalar_ic_set_oscillon(
           ScalarData sd = {0};
 
           sd.phi = phi[INDEX(i,j,k)];
+          tot_v += 1.0 / pw3(DIFFchi_a(i, j, k) + 1.0);
           tot_r += 1.0 / pw3(DIFFchi_a(i, j, k) + 1.0) *
             (0.5 * pw2(DIFFchi_a(i,j,k) + 1.0) * (
               (pw2((1.0/12.0*phi[INDEX(i-2,j,k)] - 2.0/3.0*phi[INDEX(i-1,j,k)] + 2.0/3.0*phi[INDEX(i+1,j,k)]- 1.0/12.0*phi[INDEX(i+2,j,k)])/dx[0])
                + pw2((1.0/12.0*phi[INDEX(i,j-2,k)] - 2.0/3.0*phi[INDEX(i,j-1,k)] + 2.0/3.0*phi[INDEX(i,j+1,k)]- 1.0/12.0*phi[INDEX(i,j+2,k)])/dx[1])
                +pw2((1.0/12.0*phi[INDEX(i,j,k-2)] - 2.0/3.0*phi[INDEX(i,j,k-1)] + 2.0/3.0*phi[INDEX(i,j,k+1)]- 1.0/12.0*phi[INDEX(i,j,k+2)])/dx[2]))
             )
-             + scalar->potentialHandler->ev_potential(&bd, &sd)) / NX / NY / NZ;
+             + scalar->potentialHandler->ev_potential(&bd, &sd));
 
         }
       }
@@ -1377,11 +1383,65 @@ bool scalar_ic_set_oscillon(
   }
 
   mpi.AllReduce(&tot_r,1,MPI_SUM);
+  mpi.AllReduce(&tot_v,1,MPI_SUM);
 
-  tbox::pout<<"Total energy (conformal) is "<<tot_r * pw3(0.01)<<"\n";
-
+  double avg_r = tot_r / tot_v;
   
   bssn->K0 = K_src;
+
+  for( hier::PatchLevel::iterator pit(level->begin());
+       pit != level->end(); ++pit)
+  {
+    const std::shared_ptr<hier::Patch> & patch = *pit;
+ 
+    bssn->initPData(patch);
+    bssn->initMDA(patch);
+ 
+    scalar->initPData(patch);
+    scalar->initMDA(patch);
+     
+    arr_t & DIFFchi_a = bssn->DIFFchi_a;
+    arr_t & phi_a = scalar->phi_a; // field
+     
+    const hier::Box& box = bssn->DIFFchi_a_pdata->getGhostBox();
+    const hier::Box& inner_box = patch->getBox();
+ 
+    const int * lower = &box.lower()[0];
+    const int * upper = &box.upper()[0];
+ 
+    const int * inner_lower = &inner_box.lower()[0];
+    const int * inner_upper = &inner_box.upper()[0];
+ 
+     
+    for(int k = inner_lower[2]; k <= inner_upper[2]; k++)
+    {
+      for(int j = inner_lower[1]; j <= inner_upper[1]; j++)
+      {
+        for(int i = inner_lower[0]; i <= inner_upper[0]; i++)
+        {
+          BSSNData bd = {0};
+          ScalarData sd = {0};
+ 
+          sd.phi = phi[INDEX(i,j,k)];
+ 
+          rho_sigma += (1.0 / pw3(DIFFchi_a(i, j, k) + 1.0)) *
+            pw2((0.5 * pw2(DIFFchi_a(i,j,k) + 1.0) * (
+                   (pw2((1.0/12.0*phi[INDEX(i-2,j,k)] - 2.0/3.0*phi[INDEX(i-1,j,k)] + 2.0/3.0*phi[INDEX(i+1,j,k)]- 1.0/12.0*phi[INDEX(i+2,j,k)])/dx[0])
+                    + pw2((1.0/12.0*phi[INDEX(i,j-2,k)] - 2.0/3.0*phi[INDEX(i,j-1,k)] + 2.0/3.0*phi[INDEX(i,j+1,k)]- 1.0/12.0*phi[INDEX(i,j+2,k)])/dx[1])
+                    +pw2((1.0/12.0*phi[INDEX(i,j,k-2)] - 2.0/3.0*phi[INDEX(i,j,k-1)] + 2.0/3.0*phi[INDEX(i,j,k+1)]- 1.0/12.0*phi[INDEX(i,j,k+2)])/dx[2]))
+                 )
+                 + scalar->potentialHandler->ev_potential(&bd, &sd)) - avg_r);
+        }
+      }
+    }   
+  }
+ 
+  mpi.AllReduce(&rho_sigma,1,MPI_SUM);
+  tbox::pout<<"sigma rho is "
+            <<sqrt(pw3(NX) / (pw3(NX)-1) * rho_sigma / tot_v)<<
+    " sigma rho / rho is "<<sqrt(pw3(NX) / (pw3(NX)-1) * rho_sigma / tot_v) /
+    ( avg_r)<<"\n";
+
   
   return flag;
 

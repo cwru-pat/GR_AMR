@@ -2,6 +2,10 @@
 #define COSMO_IO_H
 
 #include "../../cosmo_includes.h"
+#include "stdio.h"
+#if USE_COSMOTRACE
+#include "../geodesic/geodesic.h"
+#endif
 
 using namespace SAMRAI;
 
@@ -47,6 +51,22 @@ class CosmoIO:public appu::VisDerivedDataStrategy
     idx_t idx);
 
   bool is_empty;
+
+  bool output_null_geodesic;
+  int output_null_geodesic_interval;
+
+
+#if USE_COSMOTRACE
+  Geodesic *ray;
+
+  void dumpData(
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  appu::VisItDataWriter& visit_writer,
+  idx_t step_num,
+  real_t time,
+  Geodesic *ray, std::string hdf_filename_in);
+
+#endif
 };
 
 }

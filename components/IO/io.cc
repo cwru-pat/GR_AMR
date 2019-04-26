@@ -16,6 +16,10 @@ CosmoIO::CosmoIO(
 {
   output_list = cosmo_io_db->getStringVector("output_list");
   output_interval = cosmo_io_db->getIntegerVector("output_interval");
+#if !USE_COSMOTRACE
+  output_null_geodesic = false;
+  output_null_geodesic_interval = 0;
+#endif
   TBOX_ASSERT(output_list.size() == output_interval.size());
 }
 
@@ -71,7 +75,19 @@ void CosmoIO::registerVariablesWithPlotter(
   for(idx_t i = 0; i < static_cast<idx_t>(output_list.size()); i ++)
   {
     if(step % output_interval[i] != 0 ) continue;
+        if(output_list[i] == "null_particles")
+    {
+#if !USE_COSMOTRACE
+      TBOX_ERROR("Setting to output ray particle without turn on USE_COSMOTRACE!");
+#else
+      output_null_geodesic = true;
+      output_null_geodesic_interval = output_interval[i];
+#endif
+      continue;
+    }
+
     is_empty = 0;
+
 
     if(variable_db->getVariable(output_list[i]) == NULL)
     {
@@ -86,7 +102,6 @@ void CosmoIO::registerVariablesWithPlotter(
       
       continue;
     }
-
     
     idx_t idx =
       variable_db->mapVariableAndContextToIndex(
@@ -122,6 +137,123 @@ void CosmoIO::dumpData(
              << step_num << '\n';
 }
 
+#if USE_COSMOTRACE
+void CosmoIO::dumpData(
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  appu::VisItDataWriter& visit_writer,
+  idx_t step_num,
+  real_t time,
+  Geodesic *ray,
+  std::string hdf_filename_in)
+{
+  //TBOX_ASSERT(visit_writer);
+  if(!is_empty)
+  {
+  
+    visit_writer.writePlotData(
+      hierarchy,
+      step_num,
+      time);
+
+    tbox::plog << "Wrote viz file for grid number "
+               << step_num << '\n';
+  }
+
+  const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
+
+  if(step_num % output_null_geodesic_interval != 0)
+    return;
+
+  std::string dump_dirname = hdf_filename_in;
+  dump_dirname += ".hdf/hdf_dump." + tbox::Utilities::intToString(step_num, 5);
+
+  tbox::Utilities::recursiveMkdir(dump_dirname);
+  
+  std::string filename = dump_dirname + "/null_geodesic_proc_";
+  filename += tbox::Utilities::intToString(mpi.getRank(), 5);
+  filename += ".hdf";
+  std::shared_ptr<tbox::HDFDatabase > hdf (new tbox::HDFDatabase("null_geodesic"));
+
+  std::ifstream file(filename);
+
+  // if(file)
+  //   if(!remove(filename.c_str()))
+  //     TBOX_ERROR("Failed to remove file "<<filename<<"\n");
+  hdf->create(filename);
+    
+  if(!hdf->open(filename, true))
+    TBOX_ERROR("Failed to open file "<<filename<<"\n");
+
+  // int my_proc = mpi.getRank();
+  // char temp_buf[20];
+  // sprintf(temp_buf, "processor.%05d", my_proc);
+  // std::shared_ptr<tbox::Database> processor_HDFGroup(
+  //   hdf->putDatabase(std::string(temp_buf)));
+
+  
+  int particle_cnt = 0;
+
+  std::vector<double> all_info;
+  
+  for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln++)
+  {
+    std::shared_ptr<hier::PatchLevel> level(
+      hierarchy->getPatchLevel(ln));
+    // put all particles to correct cell after advancing it
+    for (hier::PatchLevel::iterator ip(level->begin());
+         ip != level->end(); ++ip)
+    {
+      std::shared_ptr<hier::Patch> patch(*ip);
+      ray->initPData(patch);
+      const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+        SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+          patch->getPatchGeometry()));
+
+      const double *dx = &patch_geom->getDx()[0];
+
+      const hier::Box& box = patch->getBox();
+
+      pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iter(*ray->pc_pdata, true);
+      pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iterend(*ray->pc_pdata, false);
+
+      for(;iter != iterend; iter++)
+      {
+        ParticleContainer &id = *iter;
+
+        if(!box.contains(id.idx))
+          continue;
+        
+        //        double p_info[PARTICLE_NUMBER_OF_STATES + PARTICLE_INT_PROPERTIES];
+        
+        for(std::list<RKParticle>::iterator it=id.p_list.begin();
+            it != id.p_list.end(); it++)
+        {
+          for(int i = 0; i < PARTICLE_NUMBER_OF_STATES; i ++)
+            all_info.push_back((*it).x_a[i]);
+          for(int i = 0; i < PARTICLE_REAL_PROPERTIES; i ++)
+            all_info.push_back((*it).rp[i]);                    
+          for(int i = 0; i < PARTICLE_INT_PROPERTIES; i ++)
+            all_info.push_back((*it).ip[i]);
+          
+          particle_cnt++;
+        }
+      }
+    }
+  }
+  for(int i = 0; i < all_info.size(); i++)
+    std::cout<<all_info[i]<<" ";
+  std::cout<<"\n";
+
+  if(all_info.size() > 0)
+  {
+    hdf->putDoubleArray("null_geodesic", &all_info[0], all_info.size());
+   
+    hdf->putInteger("num_of_particels", particle_cnt);
+  }
+  hdf->close();
+}
+#endif
+  
 /**
  * @brief print patch for debuging
  */

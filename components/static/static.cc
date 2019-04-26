@@ -27,7 +27,7 @@ Static::Static(
     variable_db->registerVariableAndContext(
       DIFFD,
       context_active, 
-      hier::IntVector(dim, STENCIL_ORDER));
+      hier::IntVector(dim, GHOST_WIDTH));
 
   
 }

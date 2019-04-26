@@ -26,7 +26,7 @@ public:
   BSSN_APPLY_TO_GEN1_EXTRAS(VAR_CREATE)
 
   std::ostream* lstream;
-  std::shared_ptr<tbox::Database>& cosmo_bssn_db;
+  const std::shared_ptr<tbox::Database> cosmo_bssn_db;
   const tbox::Dimension& dim;
   real_t KO_damping_coefficient;
   BSSNGaugeHandler * gaugeHandler;
@@ -152,6 +152,10 @@ public:
   void set_bd_values(
     idx_t i, idx_t j, idx_t k, BSSNData *bd, const real_t dx[]);
 
+#if USE_COSMOTRACE
+  void set_bd_values_for_ray_tracing(idx_t i, idx_t j, idx_t k, BSSNData *bd, const real_t dx[]);
+#endif
+  
   void set_local_vals(BSSNData *bd);
 
   void set_gammai_values(idx_t i, idx_t j, idx_t k, BSSNData *bd);

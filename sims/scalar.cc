@@ -90,6 +90,7 @@ ScalarSim::ScalarSim(
   if(tbox::RestartManager::getManager()->isFromRestart())
     getFromRestart();
 
+  gradient_scale_factor = 1.0;
   
   t_init->stop();  
 }
@@ -529,6 +530,7 @@ void ScalarSim::applyGradientDetector(
       << std::endl;
    }
    hier::PatchHierarchy& hierarchy = *hierarchy_;
+
    std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
      SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
        hierarchy.getGridGeometry()));
@@ -576,16 +578,27 @@ void ScalarSim::applyGradientDetector(
           for(int i = lower[0]; i <= upper[0]; i++)
           {
             tag(i, j, k) = 0;
-            max_der_norm = tbox::MathUtilities<double>::Max(
-              max_der_norm,
-              derivative_norm(i, j, k, f));
 
-            if(derivative_norm(i, j, k, f) > adaption_threshold )
+            if(use_absolute_tag_factor)
             {
-              tag(i, j, k) = 1;
-              ++ntag;
+              if(f(i, j, k) / gradient_scale_factor / (ln+1) > adaption_threshold )
+              {
+                tag(i, j, k) = 1;
+                ++ntag;
+              }
             }
-            
+            else
+            {
+              max_der_norm = tbox::MathUtilities<double>::Max(
+                max_der_norm,
+                derivative_norm(i, j, k, f));
+              if(derivative_norm(i, j, k, f) / gradient_scale_factor > adaption_threshold )
+              {
+                tag(i, j, k) = 1;
+                ++ntag;
+              }
+
+            }
           }
         }
       }

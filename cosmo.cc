@@ -13,6 +13,11 @@
 #include "utils/CartesianCellDoubleCRSplinesCoarsen.h"
 #include "utils/CartesianCellDoubleCubicCoarsen.h"
 
+#if USE_COSMOTRACE
+#include "utils/CartesianCellParticleRefine.h"
+#include "utils/CartesianCellParticleCoarsen.h"
+#endif
+
 using namespace SAMRAI;
 using namespace cosmo;
 
@@ -84,6 +89,16 @@ void add_extra_operators(
     typeid(pdat::CellVariable<double>).name(),
     std::make_shared<geom::CartesianCellDoubleCubicCoarsen>());
 
+#if USE_COSMOTRACE
+  grid_geometry->addRefineOperator(
+    typeid(pdat::IndexVariable<ParticleContainer,
+    pdat::CellGeometry>).name(),
+    std::make_shared<geom::CartesianCellParticleRefine>());
+  grid_geometry->addCoarsenOperator(
+    typeid(pdat::IndexVariable<ParticleContainer,
+    pdat::CellGeometry>).name(),
+    std::make_shared<geom::CartesianCellParticleCoarsen>());
+#endif
 }
 
 int main(int argc, char* argv[])
@@ -229,12 +244,14 @@ int main(int argc, char* argv[])
   {
     TBOX_ERROR("Invalid simulation type specified.");
   }
+  
 
   std::shared_ptr<mesh::StandardTagAndInitialize> tag_and_initializer(
     new mesh::StandardTagAndInitialize(
       "CellTaggingMethod",
       cosmoSim,
       input_db->getDatabase("StandardTagAndInitialize")));
+
   std::shared_ptr<mesh::BergerRigoutsos> box_generator(
     new mesh::BergerRigoutsos(
       dim,

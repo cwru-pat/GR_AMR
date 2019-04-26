@@ -73,7 +73,10 @@ CosmoSim::CosmoSim(
   calculate_Weyl_scalars(cosmo_sim_db->getBoolWithDefault("calculate_Weyl_scalars",false)),
   rescale_lapse(cosmo_sim_db->getBoolWithDefault("rescale_lapse",false)),
   K_avg(0),
-  max_horizon_radius(0)
+  max_horizon_radius(0),
+  freeze_time_evolution(cosmo_sim_db->getBoolWithDefault("freeze_time_evolution",false)),
+  scale_gradient_factor(cosmo_sim_db->getBoolWithDefault("scale_gradient_factor",false)),
+  use_absolute_tag_factor(cosmo_sim_db->getBoolWithDefault("use_absolute_tag_factor",false))
 {
   t_loop = tbox::TimerManager::getManager()->
     getTimer("loop");
@@ -103,7 +106,7 @@ CosmoSim::CosmoSim(
   weight_idx = variable_db->registerVariableAndContext( 
       weight, 
       context_active,
-      hier::IntVector(dim, STENCIL_ORDER));
+      hier::IntVector(dim, GHOST_WIDTH));
 
   horizon = new AHFinderDirect::Horizon(
     hierarchy, bssnSim, dim,input_db->getDatabase("AHFD"), vis_filename.c_str(),weight_idx);
@@ -122,6 +125,12 @@ CosmoSim::CosmoSim(
 
   has_found_horizon = false;
 
+#if USE_COSMOTRACE
+  ray = new Geodesic(
+    hierarchy, dim, input_db->getDatabase("Ray"), lstream, KO_damping_coefficient,weight_idx);
+#endif
+  
+  
   if(cosmo_sim_db->keyExists("save_steps"))
     save_steps = cosmo_sim_db->getIntegerVector("save_steps");
   #if !CAL_WEYL_SCALS
@@ -167,7 +176,15 @@ void CosmoSim::setRefineCoarsenOps(
   space_coarsen_op =
     grid_geometry.
     lookupCoarsenOperator(bssnSim->DIFFchi, coarsen_op_type);
-
+  
+#if USE_COSMOTRACE
+    particle_refine_op
+      = grid_geometry.
+      lookupRefineOperator(ray->pc, "PARTICLE_REFINE");
+    particle_coarsen_op
+      = grid_geometry.
+      lookupCoarsenOperator(ray->pc, "PARTICLE_COARSEN");
+#endif
   TBOX_ASSERT(space_coarsen_op);
 }
 
@@ -310,6 +327,11 @@ void CosmoSim::runCommonStepTasks(
     tbox::plog << "Newly adapted hierarchy\n";
     hierarchy->recursivePrint(tbox::plog, "    ", 1);
   }
+
+  if(scale_gradient_factor)
+    gradient_scale_factor =
+      cosmo_statistic->calculate_conformal_avg(
+        hierarchy, bssnSim, weight_idx, gradient_indicator_idx, 0);
 
 }
 

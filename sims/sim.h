@@ -12,6 +12,10 @@
 #include "../components/horizon/AHFD/AHFD.h"
 #include "SAMRAI/tbox/Serializable.h"
 
+#if USE_COSMOTRACE
+#include "../components/geodesic/geodesic.h"
+#endif
+
 using namespace SAMRAI;
 
 namespace cosmo
@@ -28,6 +32,10 @@ public:
   AHFinderDirect::Horizon * horizon;
 
   HorizonStatistics * horizon_statistics;
+
+#if USE_COSMOTRACE
+  Geodesic *ray;
+#endif
   
   CosmoSim(
     const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
@@ -150,6 +158,10 @@ public:
   std::shared_ptr<hier::RefineOperator> space_refine_op;
   std::shared_ptr<hier::CoarsenOperator> space_coarsen_op;
 
+  std::shared_ptr<hier::RefineOperator> particle_refine_op;
+  std::shared_ptr<hier::CoarsenOperator> particle_coarsen_op;
+    
+
   std::vector<int> variable_id_list;
 
   std::string refine_op_type;
@@ -187,6 +199,13 @@ public:
   real_t K_avg;
 
   double max_horizon_radius;
+
+  bool freeze_time_evolution, scale_gradient_factor;
+
+  bool use_absolute_tag_factor;
+
+  double gradient_scale_factor;
+
   
   std::vector<std::shared_ptr<xfer::RefineSchedule>>
     pre_refine_schedules, post_refine_schedules;

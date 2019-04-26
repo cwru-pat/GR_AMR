@@ -24,6 +24,11 @@
   #define STENCIL_ORDER_WIDTH STENCIL_ORDER
 #endif
 
+#ifndef GHOST_WIDTH
+  #define GHOST_WIDTH 4
+#endif
+
+
 #ifndef STEP_NUM_WIDTH
   #define STEP_NUM_WIDTH 8
 #endif
@@ -71,7 +76,11 @@
   #define USE_MULTIGRID true
 #endif
 #ifndef USE_COSMOTRACE
-  #define USE_COSMOTRACE true
+  #define USE_COSMOTRACE false
+#endif
+
+#if USE_COSMOTRACE
+  #define EVOLVE_LAMBDA false
 #endif
 
 //Potential types

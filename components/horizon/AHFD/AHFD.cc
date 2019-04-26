@@ -5897,9 +5897,9 @@ int Horizon::CCTK_InterpGridArrays(
               local_interp_coords[2] = (const void *) &local_z;
               
               const int input_array_dims[DIM] =
-                {upper[0] - lower[0] + 1 + 2 * STENCIL_ORDER,
-                 upper[1] - lower[1] + 1 + 2 * STENCIL_ORDER,
-                 upper[2] - lower[2] + 1 + 2 * STENCIL_ORDER};
+                {upper[0] - lower[0] + 1 + 2 * GHOST_WIDTH,
+                 upper[1] - lower[1] + 1 + 2 * GHOST_WIDTH,
+                 upper[2] - lower[2] + 1 + 2 * GHOST_WIDTH};
 
               const void * input_arrays[14];
 
@@ -5970,20 +5970,20 @@ int Horizon::CCTK_InterpGridArrays(
               // const int input_array_strides[DIM] =
               //   {1, input_array_dims[0], input_array_dims[0] * input_array_dims[1]};
               // const int input_array_min_subscripts[DIM] =
-              //   {lower[0] - STENCIL_ORDER, lower[1] - STENCIL_ORDER, lower[2] - STENCIL_ORDER};
+              //   {lower[0] - GHOST_WIDTH, lower[1] - GHOST_WIDTH, lower[2] - GHOST_WIDTH};
 
               // const int input_array_max_subscripts[DIM] =
-              //   {upper[0] + STENCIL_ORDER, upper[1] + STENCIL_ORDER, upper[2] + STENCIL_ORDER};
+              //   {upper[0] + GHOST_WIDTH, upper[1] + GHOST_WIDTH, upper[2] + GHOST_WIDTH};
 
-              // int offset = (lower[0] - STENCIL_ORDER) +
-              //   input_array_strides[1]* (lower[1] - STENCIL_ORDER)
-              //   + input_array_strides[2] * (lower[2] - STENCIL_ORDER);
+              // int offset = (lower[0] - GHOST_WIDTH) +
+              //   input_array_strides[1]* (lower[1] - GHOST_WIDTH)
+              //   + input_array_strides[2] * (lower[2] - GHOST_WIDTH);
 
 
               // shift the point coordinate to match the index
-              local_x-= (lower[0] - STENCIL_ORDER ) * dx[0];
-              local_y-= (lower[1] - STENCIL_ORDER ) * dx[1];
-              local_z-= (lower[2] - STENCIL_ORDER ) * dx[2];
+              local_x-= (lower[0] - GHOST_WIDTH ) * dx[0];
+              local_y-= (lower[1] - GHOST_WIDTH ) * dx[1];
+              local_z-= (lower[2] - GHOST_WIDTH ) * dx[2];
               
               // const CCTK_INT input_array_offsets[14] =
               //   {-offset, -offset, -offset, -offset, -offset,
