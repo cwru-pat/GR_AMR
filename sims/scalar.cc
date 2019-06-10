@@ -90,6 +90,7 @@ ScalarSim::ScalarSim(
   if(tbox::RestartManager::getManager()->isFromRestart())
     getFromRestart();
 
+  gradient_scale_factor = 1.0;
   
   t_init->stop();  
 }
@@ -529,6 +530,10 @@ void ScalarSim::applyGradientDetector(
       << std::endl;
    }
    hier::PatchHierarchy& hierarchy = *hierarchy_;
+   gradient_scale_factor =
+     cosmo_statistic->calculate_conformal_avg(
+       hierarchy_, bssnSim, weight_idx, bssnSim->DIFFr_a_idx, 0);
+
    std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
      SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
        hierarchy.getGridGeometry()));
@@ -580,7 +585,7 @@ void ScalarSim::applyGradientDetector(
               max_der_norm,
               derivative_norm(i, j, k, f));
 
-            if(derivative_norm(i, j, k, f) > adaption_threshold )
+            if(f(i, j, k) / gradient_scale_factor / (ln+1)> adaption_threshold )
             {
               tag(i, j, k) = 1;
               ++ntag;
@@ -623,6 +628,10 @@ void ScalarSim::outputScalarStep(
   cosmo_statistic->output_conformal_avg(
     hierarchy,
     bssnSim, weight_idx, step, cur_t);
+  
+  cosmo_statistic->output_oscillon_fraction(
+    hierarchy,
+    bssnSim, weight_idx, step, 2);
 }
 
 /**

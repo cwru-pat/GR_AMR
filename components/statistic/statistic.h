@@ -25,6 +25,8 @@ class CosmoStatistic
   idx_t conformal_avg_interval, expansion_info_interval;
   std::vector<idx_t> conformal_avg_idx;
 
+  double *conformal_avg;
+  
   real_t calculate_conformal_avg(
     const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
     BSSN *bssn,
@@ -55,6 +57,14 @@ class CosmoStatistic
     idx_t step_num,
     real_t time,
     real_t min_radius);
+
+  void output_oscillon_fraction(
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    BSSN *bssn,
+    idx_t weight_idx,
+    idx_t step_num,
+    real_t oscillon_frac_threshold);
+
   
   bool is_empty;
 };

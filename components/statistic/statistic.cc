@@ -20,6 +20,9 @@ CosmoStatistic::CosmoStatistic(
   if(conformal_avg_interval > 0)
     conformal_avg_list = cosmo_statistic_db->getStringVector("conformal_avg_list");
 
+  int output_num = conformal_avg_list.size();
+  conformal_avg = new double[output_num];
+
   hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
 
   for(idx_t i = 0; i < static_cast<idx_t>(conformal_avg_list.size()); i ++)
@@ -226,6 +229,103 @@ real_t CosmoStatistic::calculate_conformal_avg(
 
   return conformal_avg / tot_vol;
   
+}
+
+// must be called after calling output_conformal_avg
+// because the array of conformal_avg needs to be updated
+void CosmoStatistic::output_oscillon_fraction(
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    BSSN *bssn,
+    idx_t weight_idx,
+    idx_t step_num,
+    real_t oscillon_frac_threshold)
+{
+  // temperarily use conformal average interval
+  if(conformal_avg_interval == 0 || step_num % conformal_avg_interval != 0)
+    return;
+
+  double DIFFr_avg= -1;
+  double oscillon_rho = 0;
+  double tot_vol = 0;
+  for(idx_t i = 0; i < static_cast<idx_t>(conformal_avg_list.size()); i ++)
+  {
+    if(conformal_avg_list[i] == "DIFFr")
+      DIFFr_avg = conformal_avg[i];
+  }
+
+  
+  if(DIFFr_avg < 0)
+    TBOX_ERROR("Cannot output oscillon fraction info unless conformal average of rho is calculated!");
+    for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln ++)
+  {
+    std::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+
+    
+    for( hier::PatchLevel::iterator pit(level->begin());
+         pit != level->end(); ++pit)
+    {
+      const std::shared_ptr<hier::Patch> & patch = *pit;
+
+      const hier::Box& box = patch->getBox();
+
+      const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+        SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+          patch->getPatchGeometry()));
+
+      bssn->initPData(patch);
+
+      bssn->initMDA(patch);
+
+
+      std::shared_ptr<pdat::CellData<double> > weight(
+        SAMRAI_SHARED_PTR_CAST<pdat::CellData<double>, hier::PatchData>(
+          patch->getPatchData(weight_idx)));
+      
+      arr_t weight_array =
+        pdat::ArrayDataAccess::access<DIM, double>(
+          weight->getArrayData());
+
+      arr_t DIFFchi_array = bssn->DIFFchi_a;
+      arr_t DIFFr_array = bssn->DIFFr_a;
+
+      const int * lower = &box.lower()[0];
+      const int * upper = &box.upper()[0];
+      
+      const double *dx = &patch_geom->getDx()[0];
+
+      
+#pragma omp parallel for collapse(2) reduction(+:tot_vol, oscillon_rho)
+      for(int k = lower[2]; k <= upper[2]; k++)
+      {
+        for(int j = lower[1]; j <= upper[1]; j++)
+        {
+          for(int i = lower[0]; i <= upper[0]; i++)
+          {
+            tot_vol += weight_array(i, j, k) * 1.0 / pw3(DIFFchi_array(i, j, k) + 1.0);
+            if(weight_array(i,j,k) > 0
+               && DIFFr_array(i, j, k) > oscillon_frac_threshold * DIFFr_avg)
+            {
+              {
+                oscillon_rho +=
+                  1.0 / pw3(DIFFchi_array(i, j, k) + 1.0) * DIFFr_array(i, j, k)
+                  * weight_array(i, j, k);
+              }
+            }
+          }
+        }
+      }
+
+    }
+  }
+
+    const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
+    mpi.Barrier();
+    if (mpi.getSize() > 1) {
+      mpi.AllReduce(&oscillon_rho, 1, MPI_SUM);
+      mpi.AllReduce(&tot_vol, 1, MPI_SUM);
+    }
+    (*lstream)<<"Fraction of oscillon is " << oscillon_rho / (DIFFr_avg*tot_vol)<<"\n";
+    
 }
 
 void CosmoStatistic::output_expansion_info(
@@ -658,12 +758,13 @@ void CosmoStatistic::output_conformal_avg(
   const double * dx = &grid_geometry.getDx()[0];
 
   int output_num = static_cast<idx_t>(conformal_avg_list.size());
-  double *conformal_avg = new double[output_num];
+  //  double *conformal_avg = new double[output_num];
 
   arr_t * arrays = new arr_t[output_num];
 
   double tot_vol = 0;
 
+  // clear array of conformal_avg
   for(int i = 0; i < output_num; i++) conformal_avg[i] = 0;
   
   for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln ++)
@@ -752,6 +853,7 @@ void CosmoStatistic::output_conformal_avg(
     (*lstream)<<"Conformal Avg for "<<conformal_avg_list[var_id]
             <<" is "
             <<std::setprecision(12)<<conformal_avg[var_id] / tot_vol<<"\n";
+    conformal_avg[var_id] /= tot_vol;
   }
 
 }

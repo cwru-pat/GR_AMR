@@ -39,7 +39,12 @@ private:
   
   real_t der_exp_p(BSSNData *bd, ScalarData *sd);
 
-  real_t Lambda, q_coef, mass_sqr, q_exp; 
+  real_t oscillon_origin(BSSNData *bd, ScalarData *sd);
+  
+  real_t der_oscillon_origin(BSSNData *bd, ScalarData *sd);
+
+  
+  real_t Lambda, q_coef, mass_sqr, q_exp, lambda, g; 
 
   // Map of strings to functions
   void _initGaugeMaps()
@@ -48,9 +53,11 @@ private:
     scalar_potential_map["Constant"] = &scalarPotentialHandler::constant;
     scalar_potential_map["Quadratic"] = &scalarPotentialHandler::quadratic;
     scalar_potential_map["Exp_p"] = &scalarPotentialHandler::exp_p;
+    scalar_potential_map["Oscillon_origin"] = &scalarPotentialHandler::oscillon_origin;
     scalar_der_potential_map["Constant"] = &scalarPotentialHandler::der_constant;
     scalar_der_potential_map["Quadratic"] = &scalarPotentialHandler::der_quadratic;
     scalar_der_potential_map["Exp_p"] = &scalarPotentialHandler::der_exp_p;
+    scalar_der_potential_map["Oscillon_origin"] = &scalarPotentialHandler::der_oscillon_origin;
   }
 
   void _initDefaultParameters(std::shared_ptr<tbox::Database> database)
@@ -62,6 +69,10 @@ private:
     mass_sqr = database->getDoubleWithDefault("mass_sqr", 0.0);
 
     q_exp = database->getDoubleWithDefault("q_exp", 0.0);
+
+    lambda = database->getDoubleWithDefault("lambda", 0.0);
+
+    g = database->getDoubleWithDefault("g", 0.0);   
   }
 
 public:
