@@ -161,6 +161,7 @@ void VacuumSim::setICs(
 #if USE_COSMOTRACE
     ray->regridPreProcessing(hierarchy, particle_coarsen_op);
 #endif
+
     gridding_algorithm->regridAllFinerLevels(
       0,
       tag_buffer,
@@ -174,7 +175,10 @@ void VacuumSim::setICs(
     // no new level is created
     if(post_level_num == pre_level_num) break;
   }
-  
+#if USE_COSMOTRACE
+  ray->initAll(hierarchy);
+#endif
+
   tbox::plog<<"Finished setting ICs. with hierarchy has "
             <<hierarchy->getNumberOfLevels()<<" levels\n";
 }
@@ -183,6 +187,12 @@ void VacuumSim::initVacuumStep(
   const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   bssnSim->stepInit(hierarchy);
+  //  if(step == 54) std::cout<<"here7\n"<<std::flush;  
+    
+#if USE_COSMOTRACE
+   ray->clearParticlesLivingInGhostCells(hierarchy);
+#endif
+
 }
 
 /**
@@ -206,9 +216,6 @@ bool VacuumSim::initLevel(
   bssnSim->clearField(hierarchy, ln);
   bssnSim->clearGen1(hierarchy, ln);
 
-#if USE_COSMOTRACE
-  ray->initAll(hierarchy);
-#endif
   
   if(ic_type == "static_blackhole")
   {
@@ -228,6 +235,12 @@ bool VacuumSim::initLevel(
       TBOX_ERROR("Must enable shift for blackhole simulation!\n");
     bssn_ic_kerr_blackhole(hierarchy,ln);
     return true;
+  }
+  else if(ic_type == "EdS")
+  {
+    if(ln > 0) return false;
+    double a0 = cosmo_vacuum_db->getDoubleWithDefault("a0", 1);
+    bssn_ic_FLRW(hierarchy, ln, a0);
   }
   else if(ic_type == "kerr_BHL_CTT")
   {
@@ -701,6 +714,7 @@ void VacuumSim::runVacuumStep(
                0,
                from_t,
                to_t);
+  //  if(step == 53) std::cout<<"here5\n"<<std::flush;
 
   t_RK_steps->stop();
 }
@@ -734,10 +748,9 @@ void VacuumSim::runStep(
 {
   //  std::cout<<cur_t<<" ";
   runCommonStepTasks(hierarchy);
-
+  //  if(step == 54) std::cout<<"here6\n"<<std::flush;
   double dt = getDt(hierarchy);
   initVacuumStep(hierarchy);
-  
   outputVacuumStep(hierarchy);
   runVacuumStep(hierarchy, cur_t, cur_t + dt);
   cur_t += dt;
@@ -786,6 +799,8 @@ void VacuumSim::RKEvolveLevel(
        pit != level->end(); ++pit)
   {
     const std::shared_ptr<hier::Patch> & patch = *pit;
+    bssnSim->initPData(patch);
+    bssnSim->initMDA(patch);
 
     //Evolve inner grids
 #if USE_COSMOTRACE
@@ -805,6 +820,7 @@ void VacuumSim::RKEvolveLevel(
 #endif
     bssnSim->RKEvolvePatchBD(patch, to_t - from_t);
   }
+  bssnSim->set_norm(level);
 
   // fill ghost cells 
   level->getBoxLevel()->getMPI().Barrier();
@@ -828,9 +844,7 @@ void VacuumSim::RKEvolveLevel(
 #endif
     //     ray->printAll(hierarchy, ray->pc_idx);
   }
-  bssnSim->set_norm(level);
-  
-  
+
   /**************Starting K2 *********************************/
   #if USE_COSMOTRACE
     if(freeze_time_evolution == false)
@@ -841,6 +855,8 @@ void VacuumSim::RKEvolveLevel(
        pit != level->end(); ++pit)
   {
     const std::shared_ptr<hier::Patch> & patch = *pit;
+    bssnSim->initPData(patch);
+    bssnSim->initMDA(patch);
 
     //Evolve inner grids
     #if USE_COSMOTRACE
@@ -980,6 +996,9 @@ void VacuumSim::RKEvolveLevel(
 #if USE_COSMOTRACE
     ray->K4FinalizePatch(patch);
 #endif
+        bssnSim->initPData(patch);
+    bssnSim->initMDA(patch);
+
   }
 
   bssnSim->set_norm(level);
@@ -1014,23 +1033,24 @@ void VacuumSim::advanceLevel(
 #if USE_COSMOTRACE
   ray->preAdvance(hierarchy, ln);
 #endif
+  //  if(step == 54) TBOX_ERROR("HERE0");
 
   RKEvolveLevel(hierarchy, ln, from_t, to_t);
 
   level->getBoxLevel()->getMPI().Barrier();
-
+  //if(step == 54) TBOX_ERROR("HERE1");
   // recursively advancing children levels
   advanceLevel(hierarchy, ln+1, from_t, from_t + (to_t - from_t)/2.0);
-
+  //  if(step == 54) TBOX_ERROR("HERE2");
   level->getBoxLevel()->getMPI().Barrier();
   
   advanceLevel(hierarchy, ln+1, from_t + (to_t - from_t)/2.0, to_t);
+  //  if(step == 54) TBOX_ERROR("HERE3");
   //  TBOX_ERROR("here\n");
 
 #if USE_COSMOTRACE
-  ray->particleRedistribution(hierarchy, ln, true);
+  ray->particleRedistribution(hierarchy, ln, true, step);
 #endif
-  
   // do some coarsening and
   // then update ghost cells through doing refinement if it has finer level
   if(ln < hierarchy->getNumberOfLevels() -1 )
@@ -1041,7 +1061,13 @@ void VacuumSim::advanceLevel(
     level->getBoxLevel()->getMPI().Barrier();
     post_refine_schedules[ln]->fillData(to_t);
   }
+  //  if(step == 53) std::cout<<"here4\n"<<std::flush;
 
+#if USE_COSMOTRACE
+  if(freeze_time_evolution == true && time_dependent_fields == true)
+      bssnSim->set_time_dependent_fields(hierarchy, to_t);
+#endif
+  
   // copy _a to _p and set _p time to next timestamp
 
   math::HierarchyCellDataOpsReal<real_t> hcellmath(hierarchy,ln,ln);
@@ -1053,7 +1079,6 @@ void VacuumSim::advanceLevel(
   bssnSim->setLevelTime(level, to_t, to_t);
 
   level->getBoxLevel()->getMPI().Barrier();
-
 }
 
 

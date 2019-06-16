@@ -75,6 +75,7 @@ CosmoSim::CosmoSim(
   K_avg(0),
   max_horizon_radius(0),
   freeze_time_evolution(cosmo_sim_db->getBoolWithDefault("freeze_time_evolution",false)),
+  time_dependent_fields(cosmo_sim_db->getBoolWithDefault("time_dependent_fields",false)),
   scale_gradient_factor(cosmo_sim_db->getBoolWithDefault("scale_gradient_factor",false)),
   use_absolute_tag_factor(cosmo_sim_db->getBoolWithDefault("use_absolute_tag_factor",false))
 {

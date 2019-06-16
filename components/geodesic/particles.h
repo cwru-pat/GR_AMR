@@ -43,7 +43,7 @@ using namespace SAMRAI::tbox;
 #define PARTICLE_NUMBER_OF_STATES 7
 
 #define PARTICLE_INT_PROPERTIES 1
-#define PARTICLE_REAL_PROPERTIES 1
+#define PARTICLE_REAL_PROPERTIES 7
 
 class RKParticle
 {
@@ -261,6 +261,7 @@ public:
    // print info in this list
    void print()
    {
+     std::cout.precision(10);
      //     int p_num = p_list.size();
      for (std::list<RKParticle>::iterator it=p_list.begin(); it != p_list.end(); ++it)
      {

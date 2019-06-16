@@ -50,7 +50,7 @@ CartesianCellParticleRefine::getOperatorPriority() const
 hier::IntVector
 CartesianCellParticleRefine::getStencilWidth(const tbox::Dimension& dim) const
 {
-   return hier::IntVector::getOne(dim);
+   return hier::IntVector::getZero(dim);
 }
 
 void

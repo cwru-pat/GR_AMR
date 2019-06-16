@@ -69,6 +69,10 @@ void bssn_ic_static_BHL_CTT(
   real_t relaxation_tolerance,
   idx_t num_vcycles);
 
+ void bssn_ic_FLRW(
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  idx_t ln, double a0);
+
  
 }
 

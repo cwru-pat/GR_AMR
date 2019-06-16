@@ -305,6 +305,10 @@ public:
 
   void setExtraFieldData();
 
+  void set_time_dependent_fields(
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy, double cur_t);
+
+  
   void cal_Weyl_scalars(
     const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
     int weight_idx);

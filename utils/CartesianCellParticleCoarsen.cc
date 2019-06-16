@@ -51,7 +51,7 @@ CartesianCellParticleCoarsen::getOperatorPriority() const
 hier::IntVector
 CartesianCellParticleCoarsen::getStencilWidth(const tbox::Dimension& dim) const
 {
-  return hier::IntVector::getOne(dim);
+  return hier::IntVector::getZero(dim);
 }
 
 void
@@ -125,13 +125,14 @@ CartesianCellParticleCoarsen::coarsen(
          it != p->p_list.end(); ++it)
      {
        ParticleContainer *cp = cdata->getItem(c_idx);
-       
+
        if(cp)
        {
          cp->addParticle(*it);
        }
        else
        {
+         //std::cout<<"hhhhh"<<c_idx<<" "<<coarse.getBox()<<" "<<coarse_box<<"\n"<<std::flush;       
          cp = new ParticleContainer(c_idx);
          cp->addParticle(*it);
          cdata->appendItem(c_idx, *cp);

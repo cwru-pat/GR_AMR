@@ -200,7 +200,7 @@ public:
 
   double max_horizon_radius;
 
-  bool freeze_time_evolution, scale_gradient_factor;
+  bool freeze_time_evolution, scale_gradient_factor, time_dependent_fields;
 
   bool use_absolute_tag_factor;
 

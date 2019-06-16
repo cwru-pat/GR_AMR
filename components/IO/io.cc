@@ -240,9 +240,9 @@ void CosmoIO::dumpData(
       }
     }
   }
-  for(int i = 0; i < all_info.size(); i++)
-    std::cout<<all_info[i]<<" ";
-  std::cout<<"\n";
+  // for(int i = 0; i < all_info.size(); i++)
+  //   std::cout<<all_info[i]<<" ";
+  // std::cout<<"\n";
 
   if(all_info.size() > 0)
   {

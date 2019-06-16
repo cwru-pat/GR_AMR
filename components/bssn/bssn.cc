@@ -191,6 +191,46 @@ void BSSN::set_norm(
 
 }
 
+void BSSN::set_time_dependent_fields(
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, double cur_t)
+{
+  for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln ++)
+  {
+    std::shared_ptr <hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+
+    
+    for( hier::PatchLevel::iterator pit(level->begin());
+         pit != level->end(); ++pit)
+    {
+      const std::shared_ptr<hier::Patch> & patch = *pit;
+
+      initPData(patch);
+      initMDA(patch);
+
+      
+      const hier::Box& box = DIFFchi_a_pdata->getGhostBox();
+  
+      const int * lower = &box.lower()[0];
+      const int * upper = &box.upper()[0];
+
+
+      
+      for(int k = lower[2]; k <= upper[2]; k++)
+      {
+        for(int j = lower[1]; j <= upper[1]; j++)
+        {
+          for(int i = lower[0]; i <= upper[0]; i++)
+          {
+            //DIFFgamma11_a(i, j, k) = DIFFgamma22_a(i, j, k) = DIFFgamma33_a(i, j, k)
+            DIFFchi_a(i, j, k) = pow(1.5*cur_t + 2.0 * sqrt(2.0), -2.0/3.0) - 1.0;
+          }
+        }
+      }
+
+    }
+  }
+
+}
 
 
 void BSSN::rescale_lapse(
@@ -1271,11 +1311,20 @@ void BSSN::set_bd_values_bd(
 #if USE_COSMOTRACE
 void BSSN::set_bd_values_for_ray_tracing(idx_t i, idx_t j, idx_t k, BSSNData *bd, const real_t dx[])
 {
+  for(int si = -2; si <= 2; si++)
+    for(int sj = -2; sj <= 2; sj++)
+      for(int sk = -2; sk <= 2; sk++)
+      {
+        hier::Index temp_idx(i+si, j+sj, k+sk);
+        if(DIFFchi_a_pdata->getGhostBox().contains(temp_idx) == false)
+          TBOX_ERROR("EEEEEEEEEEEEEEEEEEEE\n");
+      }
   bd->i = i;
   bd->j = j;
   bd->k = k;
 
   set_local_vals(bd);
+
   // non-DIFF quantities
   bd->chi      =   bd->DIFFchi + 1.0;
   bd->K        =   bd->DIFFK + bd->K_FRW;
@@ -2169,7 +2218,7 @@ void BSSN::output_max_H_constaint(
 void BSSN::output_L2_H_constaint(
   const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t weight_idx,   CosmoPatchStrategy * cosmoPS, double exclude_radius)
-{
+{ 
   double H_L2=0;
 
   std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(

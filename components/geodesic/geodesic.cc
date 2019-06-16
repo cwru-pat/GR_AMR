@@ -18,7 +18,7 @@ Geodesic::Geodesic(
   lstream(l_stream_in),
   dim(dim_in),
   weight_idx(weight_idx_in),
-  ghost_width(cosmo_geodesic_db->getIntegerWithDefault("ghost_width", 1)),
+  ghost_width(cosmo_geodesic_db->getIntegerWithDefault("ghost_width", 2)),
   p0(cosmo_geodesic_db->getDoubleWithDefault("p0", 1)),
   save_metric(cosmo_geodesic_db->getBoolWithDefault("save_metric", false)),
   pc(new pdat::IndexVariable<ParticleContainer, pdat::CellGeometry>(
@@ -80,7 +80,7 @@ Geodesic::Geodesic(
   if(save_metric && PARTICLE_REAL_PROPERTIES < 7)
     TBOX_ERROR("Need store metric into particle state but no enough space!");
 
-  if(ghost_width + 4 > GHOST_WIDTH)
+  if(ghost_width + 3 > GHOST_WIDTH)
     TBOX_ERROR("There is NO enough ghost with for fields to do splines interpolation for particles!");
 }
 
@@ -244,29 +244,36 @@ void Geodesic::insertPatchParticles(
 
   const hier::Box box = src_pdata->getGhostBox();
 
-  pdat::CellIterator icend(pdat::CellGeometry::end(box));
-  for (pdat::CellIterator ic(pdat::CellGeometry::begin(box));
-       ic != icend; ++ic)
+  pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iter(*src_pdata, true);
+  pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iterend(*src_pdata, false);
+
+  for(; iter != iterend; iter++)
   {
     // get pointer to this particle at Index
-    ParticleContainer * src_p = src_pdata->getItem(*ic);
-
-    if(src_p == NULL ) continue;
-
-    ParticleContainer *dst_p = dst_pdata->getItem(*ic);
+    ParticleContainer & src_p = *iter;
+    hier::Index ic (iter.getIndex());
+    ParticleContainer *dst_p = dst_pdata->getItem(ic);
 
     if(dst_p == NULL)
     {
-      ParticleContainer *p = new ParticleContainer(src_p->idx);
-      dst_pdata->appendItem((*ic), *p);
-      dst_p = dst_pdata->getItem(*ic);
+      ParticleContainer *p = new ParticleContainer(ic);
+      dst_pdata->appendItem(ic, *p);
+      dst_p = dst_pdata->getItem(ic);
     }
-    dst_p->p_list.insert(dst_p->p_list.end(), src_p->p_list.begin(), src_p->p_list.end());
+    dst_p->p_list.insert(dst_p->p_list.end(), src_p.p_list.begin(), src_p.p_list.end());
     
   }
 
   
 }
+
+void Geodesic::clearParticlesLivingInGhostCells(
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
+{
+  for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln++)
+    clearParticlesLivingInGhostCells(hierarchy, ln);
+}
+
 
 void Geodesic::clearParticlesLivingInGhostCells(
   const std::shared_ptr<hier::PatchHierarchy>& hierarchy, int ln)
@@ -309,7 +316,7 @@ void Geodesic::clearParticles(
 {
   for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln++)
   {
-    clearParticles(hierarchy, ln);
+    clearParticles(hierarchy, ln, idx);
   }
 
 }
@@ -318,11 +325,14 @@ void Geodesic::clearParticles(
 void Geodesic::clearParticles(
   const std::shared_ptr<hier::PatchHierarchy>& hierarchy, int ln, int idx)
 {
+  
   std::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
     const std::shared_ptr<hier::Patch> & patch = *pit;
+    //              std::cout<<ln<<" "<<patch->getBox()<<"\n"<<std::flush;
+
     clearParticles(patch, idx);
   }  
 
@@ -333,14 +343,13 @@ void Geodesic::clearParticles(
   const std::shared_ptr<hier::Patch> & patch, int idx)
 {
   std::shared_ptr<pdat::IndexData<ParticleContainer,
-                                    pdat::CellGeometry> > pdata(
-                                      SAMRAI_SHARED_PTR_CAST<pdat::IndexData<ParticleContainer, pdat::CellGeometry>,
-                                      hier::PatchData>(
-                                        patch->getPatchData(idx)));
-
+                                  pdat::CellGeometry> > pdata(
+                                    SAMRAI_SHARED_PTR_CAST<pdat::IndexData<ParticleContainer, pdat::CellGeometry>,
+                                    hier::PatchData>(
+                                      patch->getPatchData(idx)));
+  
   // delete all items in this patch data
   pdata->removeAllItems();
-
 }
 
 
@@ -405,8 +414,11 @@ void Geodesic::RKEvolvePatch(
   const real_t * dx = &(patch_geom->getDx())[0];
 
   hier::Box ghost_box = pc_pdata->getGhostBox();
+  // do not need ghost box to be that wide
+  hier::Box effective_ghost_box = ghost_box;
+  if(ghost_width > 1)
+    effective_ghost_box.grow(hier::Index (1-ghost_width, 1-ghost_width, 1-ghost_width));
   hier::Box fields_ghost_box = bssn->DIFFchi_a_pdata->getGhostBox();
-  
   pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iter(*pc_pdata, true);
   pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iterend(*pc_pdata, false);
 
@@ -414,8 +426,8 @@ void Geodesic::RKEvolvePatch(
 
   for(int i = 0; i < 3; i ++)
   {
-    ghost_box_phys_lower[i] = (ghost_box.lower()[i] * dx[i]);
-    ghost_box_phys_upper[i] = ( (ghost_box.upper()[i] + 1.0) * dx[i]);
+    ghost_box_phys_lower[i] = (effective_ghost_box.lower()[i] * dx[i]);
+    ghost_box_phys_upper[i] = ( (effective_ghost_box.upper()[i] + 1.0) * dx[i]);
   }
     
   // pdat::CellIterator icend(pdat::CellGeometry::end(ghost_box));
@@ -424,29 +436,15 @@ void Geodesic::RKEvolvePatch(
   for(;iter != iterend; iter++)
   {
     //    hier::Index idx(*ic);
-
     ParticleContainer & id = *iter;
 
     double shift[3] = {0};
     
-    for(int i = 0 ; i < 3;i ++)
-    {
-      // if(id.idx[i] < 0)  shift[i] = -1;
-      // if(id.idx[i] > round(L[i] / dx[i]) - 1) shift[i] = 1;
-      // if(ghost_box.lower()[i] > id.idx[i]) shift[i] = 1;
-      // if(ghost_box.upper()[i] < id.idx[i]) shift[i] = -1;
-      // if(ghost_box.lower()[i] > id.idx[i]) 
-      //   shift[i] = ceil( (double)(ghost_box.lower()[i] - id.idx[i]) / round(L[i]/dx[i]));
-      // if(ghost_box.upper()[i] < id.idx[i]) 
-      //   shift[i] = - ceil((double)(id.idx[i] - ghost_box.upper()[i]) / round(L[i]/dx[i]));
-
-    }
 
     for(std::list<RKParticle>::iterator it=id.p_list.begin();
         it != id.p_list.end(); it++)
     {
       GeodesicData gd = {0};
-      //      std::cout<<"Flag "<<patch->getBox()<<" "<<(*it).x_a[0]<<" "<<(*it).x_a[1]<<" "<<(*it).x_a[2]<<"\n";
 
       for(int i = 0 ; i < 3; i ++)
       {
@@ -459,15 +457,17 @@ void Geodesic::RKEvolvePatch(
       int i0 = floor(((*it).x_a[0] + shift[0] * L[0] - domain_lower[0] ) / dx[0] );
       int j0 = floor(((*it).x_a[1] + shift[1] * L[1] - domain_lower[1] ) / dx[1] );
       int k0 = floor(((*it).x_a[2] + shift[2] * L[2] - domain_lower[2] ) / dx[2] );
-      //      std::cout<<"ID "<<id.idx<<" "<<ghost_box<<" "<<shift[0]<<" "<<shift[1]<<" "<<shift[2]<<" "
-      //       <<i0<<" "<<j0<<" "<<k0<<" "<<(*it).x_a[0]<<" "<<(*it).x_a[1]<<" "<<(*it).x_a[2]<<"\n";
-      
 
       // if particle is outside the ghost box anytime
       // during the RK advance, do not advance it
       hier::Index temp_idx(i0, j0, k0);
-      if(!ghost_box.contains(temp_idx))
+
+      if(!effective_ghost_box.contains(temp_idx))
+      {
+        for(int i = 0; i < PARTICLE_NUMBER_OF_STATES; i++)
+          (*it).x_c[i] = 0;
         continue;
+      }
       
       for(int i = 0; i < 8; i++)
         for(int j = 0; j < 8; j++)
@@ -483,9 +483,9 @@ void Geodesic::RKEvolvePatch(
               TBOX_ERROR("Particle at "<<hier::Index(i0, j0, k0)
                          <<"is not contained in the ghostbox "<<fields_ghost_box<<"\n");
           }
-      
       set_gd_values(patch, (*it).x_a, &gd, bssn, dx, shift);
       RKEvolveParticle((*it), gd, dt);
+
       if(PARTICLE_REAL_PROPERTIES > 0)
       {
         (*it).rp[0] = gd.p0;
@@ -537,9 +537,6 @@ void Geodesic::RKEvolveParticle(
        + 2.0*gd.qi1 * gd.qi2 * gd.d3m12 + 2.0*gd.qi1 * gd.qi3 * gd.d3m13 + 2.0*gd.qi2 * gd.qi3 * gd.d3m23)/2.0/gd.p0);
 
   
-  // std::cout<<gd.qi1<<" "<<gd.qi2<<" "<<gd.d1m11<<" "<<
-  //   (gd.qi1 * gd.qi1 * gd.d1m11 + gd.qi2 * gd.qi2 * gd.d1m22 + gd.qi3 * gd.qi3 * gd.d1m33
-  //    + 2.0*gd.qi1 * gd.qi2 * gd.d1m12 + 2.0*gd.qi1 * gd.qi3 * gd.d1m13 + 2.0*gd.qi2 * gd.qi3 * gd.d1m23)/2.0<<"\n";
 #if EVOLVE_LAMBDA
   p.x_c[6] = dt / gd.p0;
 #endif
@@ -622,10 +619,8 @@ void Geodesic::set_gd_values(
       for(int k = 0; k < 4; k++)
       {
 #if USE_COSMOTRACE
-        bssn->set_bd_values_for_ray_tracing(i0-1+i, j0-1+j, k0-1+k, &bd, dx);
+       bssn->set_bd_values_for_ray_tracing(i0-1+i, j0-1+j, k0-1+k, &bd, dx);
 #endif
-        // std::cout<<"!!! "<<i0<<" "<<j0<<" "<<k0<<" "<<bd.chi<<"\n";
-        
         GEODESIC_CRSPLINES_SET_F_CHI;
         GEODESIC_CRSPLINES_SET_F_DCHI(1);
         GEODESIC_CRSPLINES_SET_F_DCHI(2);
@@ -746,8 +741,9 @@ void Geodesic::set_gd_values(
     + gd->q1 * gd->q1 * gd->mi11 + 2.0*gd->q1 * gd->q2 * gd->mi12
     + gd->q2 * gd->q2 * gd->mi22 + 2.0*gd->q1 * gd->q3 * gd->mi13
     + gd->q3 * gd->q3 * gd->mi33 + 2.0*gd->q2 * gd->q3 * gd->mi23)/ gd->alpha;
+
   //  std::cout<<"!!! p0 "<<gd->p0<<" "<<gd->mi11<<" "<<gd->mi22<<" "<<gd->m11<<" "<<gd->chi<<"\n";
- 
+  
 }
 
 void Geodesic::K1FinalizePatch(
@@ -780,7 +776,11 @@ void Geodesic::K1FinalizePatch(
         (*it).x_a[i] = (*it).x_p[i] + (*it).x_c[i] / 2.0;
         (*it).x_f[i] = (*it).x_p[i] + (*it).x_c[i] / 6.0;
       }
-      
+      // if(patch->getBox().getBoxId().getOwnerRank() ==7)
+      //   std::cout<<"haha "<<(*it).x_p[0]<<" "<<(*it).x_p[1]<<" "<<(*it).x_p[2]
+      //            <<" "<<(*it).x_a[0]<<" "<<(*it).x_a[1]<<" "<<(*it).x_a[2]
+      //            <<" "<<(*it).x_c[0]<<" "<<(*it).x_c[1]<<" "<<(*it).x_c[2]<<"\n"<<std::flush;
+
     }
     
   }
@@ -962,7 +962,9 @@ void Geodesic::regridPreProcessing(
   const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   std::shared_ptr<hier::CoarsenOperator> &particle_coarsen_op)
 {
+
   clearParticles(hierarchy, pc_s_idx);
+
   // coarsen to virtual particle containers
   xfer::CoarsenAlgorithm coarsener(dim);
     coarsener.registerCoarsen(pc_idx,                  
@@ -1047,17 +1049,25 @@ void Geodesic::regridPostProcessing(
 // particle redistribution, see the notes for more detail
 void Geodesic::particleRedistribution(
   const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
-  int ln, bool do_update_buffer)
+  int ln, bool do_update_buffer, int step)
 {
+  //  if(step == 54) clearParticles(hierarchy, ln, pc_d_buffer_idx);
+
+  cur_step = step;
   const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
   std::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
   // put all particles to correct cell after advancing it
+
+  // first, step: clear scratch particles
+  clearParticles(hierarchy, ln, pc_s_idx);
+  
   for (hier::PatchLevel::iterator ip(level->begin());
        ip != level->end(); ++ip)
   {
     std::shared_ptr<hier::Patch> patch(*ip);
     initPData(patch);
+
     const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
       SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
         patch->getPatchGeometry()));
@@ -1067,59 +1077,51 @@ void Geodesic::particleRedistribution(
     const hier::Box& box = patch->getBox();
     hier::Box ghost_box = pc_pdata->getGhostBox();
 
-    //   pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iter(*pc_pdata, true);
-    // pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iterend(*pc_pdata, false);
+      pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iter(*pc_pdata, true);
+    pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iterend(*pc_pdata, false);
     
-    pdat::CellIterator icend(pdat::CellGeometry::end(ghost_box));
-    for (pdat::CellIterator ic(pdat::CellGeometry::begin(ghost_box));
-         ic != icend; ++ic)
-
+    // pdat::CellIterator icend(pdat::CellGeometry::end(ghost_box));
+    // for (pdat::CellIterator ic(pdat::CellGeometry::begin(ghost_box));
+    //      ic != icend; ++ic)
+    for(; iter != iterend; iter++)
     {
-      hier::Index old_idx(*ic);
+      hier::Index old_idx(iter.getIndex());
 
-      ParticleContainer * id = pc_pdata->getItem(*ic);
-
-      if(id == NULL ) continue;
-      
+      ParticleContainer & id = *iter;
 
 
       // go through all particles
-      for(std::list<RKParticle>::iterator it=id->p_list.begin();
-          it != id->p_list.end();)
+      for(std::list<RKParticle>::iterator it=id.p_list.begin();
+          it != id.p_list.end();)
       {
-        hier::Index temp_new_idx(floor((*it).x_a[0] / dx[0] ),
-                            floor((*it).x_a[1] / dx[1] ),
-                            floor((*it).x_a[2] / dx[2] ));
-        //        std::cout<<mpi.getRank()<<" "<<temp_new_idx<<" "<<old_idx<<" "<<(*it).x_a[2]<<"\n";
-        for(int i = 0; i < 3 ; i++)
-        {
-          if(temp_new_idx[i] > old_idx[i] + 1)
-            temp_new_idx[i] -= 
-              round((double)(temp_new_idx[i] - old_idx[i]) / round(L[i] / dx[i]))
-              * round(L[i] / dx[i]);
-          else if(temp_new_idx[i] < old_idx[i] - 1)
-            temp_new_idx[i] += 
-              round((double)(old_idx[i] - temp_new_idx[i]) / round(L[i] / dx[i]))
-              * round(L[i] / dx[i]);
-          if( abs(temp_new_idx[i] - old_idx[i]) > 1 )
-            TBOX_ERROR("The difference between old and new idx is larger than 1 "
-<<temp_new_idx<<" "<<old_idx<<"\n");
-        }
-//        std::cout<<mpi.getRank()<<" "<<temp_new_idx<<" "<<old_idx<<" "<<(*it).x_a[2]<<"\n";
-        // still at the same position, nothing needs to be done
-        if(old_idx == temp_new_idx)
-        {
-          ++it;
-          continue;
-        }
+//         hier::Index temp_new_idx(floor((*it).x_a[0] / dx[0] ),
+//                             floor((*it).x_a[1] / dx[1] ),
+//                             floor((*it).x_a[2] / dx[2] ));
+
+//         for(int i = 0; i < 3 ; i++)
+//         {
+//           if(temp_new_idx[i] > old_idx[i] + 1)
+//             temp_new_idx[i] -= 
+//               round((double)(temp_new_idx[i] - old_idx[i]) / round(L[i] / dx[i]))
+//               * round(L[i] / dx[i]);
+//           else if(temp_new_idx[i] < old_idx[i] - 1)
+//             temp_new_idx[i] += 
+//               round((double)(old_idx[i] - temp_new_idx[i]) / round(L[i] / dx[i]))
+//               * round(L[i] / dx[i]);
+//           if( abs(temp_new_idx[i] - old_idx[i]) > 1 )
+//             TBOX_ERROR("The difference between old and new idx is larger than 1 "
+// <<temp_new_idx<<" "<<old_idx<<"\n");
+//         }
+
+//         // still at the same position, nothing needs to be done
+//         if(old_idx == temp_new_idx)
+//         {
+//           ++it;
+//           continue;
+//         }
 
         double shift[3] = {0};
         // shift new_idx for periodic boundary, VERY IMPORTANT!
-        for(int i = 0 ; i < 3;i ++)
-        {
-          //if(old_idx[i] < 0)  (*it).x_a[i] -= L[i], (*it).x_p[i] -= L[i];
-          //if(old_idx[i] > round(L[i] / dx[i]) - 1) (*it).x_a[i] += L[i], (*it).x_p[i] += L[i];
-        }
 
         // calculating new cell index, should be very careful on periodic boundary
         // see following shift precedure 
@@ -1144,16 +1146,16 @@ void Geodesic::particleRedistribution(
 
         //std::cout<<mpi.getRank()<<" "<<new_idx<<" "<<old_idx<<" "<<(*it).x_a[2]<<"\n";
         // still at the same position, nothing needs to be done
-        if(old_idx == new_idx)
-        {
-          ++it;
+        // if(old_idx == new_idx)
+        // {
+        //   ++it;
            
-          continue;
-        }
+        //   continue;
+        // }
 
         if(ghost_box.contains(new_idx))
         {
-          ParticleContainer *fp = pc_pdata->getItem(new_idx);
+          ParticleContainer *fp = pc_s_pdata->getItem(new_idx);
           if(fp)
           {
             fp->addParticle(*it);
@@ -1162,7 +1164,7 @@ void Geodesic::particleRedistribution(
           {
             fp = new ParticleContainer(new_idx);
             fp->addParticle(*it);
-            pc_pdata->appendItem(new_idx, *fp);
+            pc_s_pdata->appendItem(new_idx, *fp);
           }
 
         }
@@ -1178,22 +1180,21 @@ void Geodesic::particleRedistribution(
         }
                 
         // std::cout<<"!!!!!\n";
-        // std::cout<<(it==id->p_list.begin())<<" "<<(it_bak==id->p_list.begin())<<" "<<(id->p_list.size())<<"\n";
-        // id->print();
+        // std::cout<<(it==id.p_list.begin())<<" "<<(it_bak==id.p_list.begin())<<" "<<(id.p_list.size())<<"\n";
+        // id.print();
         // erase and advance
-        it = id->p_list.erase(it);
-        // if(new_idx[0] == 67 && new_idx[1] == -1 && new_idx[2] == 63)
-        //   std::cout<<"JJJJJ "<<id->p_list.empty();
-        //        it++;
-        //        std::cout<<(it==id->p_list.begin())<<" "<<(it_bak==id->p_list.begin())<<"\n";
+        it = id.p_list.erase(it);
         
       }
 
-      if(id->p_list.empty())
-        pc_pdata->removeItem(*ic);
+      // if(id.p_list.empty())
+      //   pc_pdata->removeItem(*ic);
     }
+    pc_pdata->removeAllItems();
+    insertPatchParticles(patch, pc_s_idx, pc_idx);
+    pc_s_pdata->removeAllItems();
   }
-  
+
   // updating upstream buffer
   if(ln < hierarchy->getNumberOfLevels() - 1)
   {
@@ -1286,7 +1287,7 @@ void Geodesic::particleRedistribution(
 
     insertLevelParticles(hierarchy, ln, pc_s_idx, pc_idx);
 
-    coarsen_schedules->printClassData(tbox::plog);
+    //    coarsen_schedules->printClassData(tbox::plog);
     
     // clear scatch particles
     clearParticles(hierarchy, ln, pc_s_idx);
@@ -1295,14 +1296,16 @@ void Geodesic::particleRedistribution(
   // updating downstream buffer
   if(ln > 0 && do_update_buffer)
   {
-    int p_in_buffer_num = 0;
+
+        int p_in_buffer_num = 0;
     std::shared_ptr<hier::PatchLevel> level(
       hierarchy->getPatchLevel(ln));
+    //    if(step == 54) std::cout<<"Flag2.0000 "<<pc_d_buffer_idx<<"\n"<<std::flush;      
 
     clearParticles(hierarchy, ln, pc_d_buffer_idx);
 
 
-    
+    //  if(step == 54) std::cout<<"Flag2.0!"<<std::flush;      
     // the CoarseFineBoundary type deals with coarse-fine boundary boxes on certain level
     hier::CoarseFineBoundary cfb(*hierarchy, ln, hier::IntVector(dim, ghost_width));       
     // cfb.printClassData(tbox::pout);
@@ -1317,13 +1320,13 @@ void Geodesic::particleRedistribution(
 
 
       initPData(patch);
-      
+
       // enumerating boudary boxes with different co-dimension as coarse-fine boundaries
       
       const std::vector<hier::BoundaryBox> & codim1_boxes =
         cfb.getBoundaries(patch->getGlobalId(), 1, patch->getBox().getBlockId());
 
-
+      //  if(step == 54) std::cout<<"Flag2.1!"<<std::flush;  
       const int n_codim1_boxes = static_cast<int>(codim1_boxes.size());
 
       for(int l = 0 ; l < n_codim1_boxes; l++)
@@ -1337,12 +1340,13 @@ void Geodesic::particleRedistribution(
              ic != icend; ++ic)
         {
           ParticleContainer *pc = pc_pdata->getItem(*ic);
+          if(pc != NULL){
+            pc_d_buffer_pdata->replaceAddItem(*ic, *pc);
 
-          if(pc != NULL)
-            pc_d_buffer_pdata->replaceAddItemPointer(*ic, pc);
+          }
         }
       }
-
+      //  if(step == 54) std::cout<<"Flag2.2!"<<std::flush;  
       const std::vector<hier::BoundaryBox> & codim2_boxes =
         cfb.getBoundaries(patch->getGlobalId(), 2, patch->getBox().getBlockId());
 
@@ -1361,15 +1365,18 @@ void Geodesic::particleRedistribution(
              ic != icend; ++ic)
         {
           ParticleContainer *pc = pc_pdata->getItem(*ic);
-
           if(pc != NULL)
-            pc_d_buffer_pdata->replaceAddItemPointer(*ic, pc);
+          {
+            //            std::cout<<"Inserting "<<step<<" "<<(*ic)<<"\n"<<std::flush;
+
+            pc_d_buffer_pdata->replaceAddItem(*ic, *pc);
+          }
         }
         
         
       }
 
-
+      //  if(step == 54) std::cout<<"Flag2.3!"<<std::flush;  
       const std::vector<hier::BoundaryBox> & codim3_boxes =
         cfb.getBoundaries(patch->getGlobalId(), 3, patch->getBox().getBlockId());
 
@@ -1388,8 +1395,9 @@ void Geodesic::particleRedistribution(
         {
           ParticleContainer *pc = pc_pdata->getItem(*ic);
 
-          if(pc != NULL)
-            pc_d_buffer_pdata->replaceAddItemPointer(*ic, pc);
+          if(pc != NULL){
+            pc_d_buffer_pdata->replaceAddItem(*ic, *pc);
+          }
         }
 
                 
@@ -1401,8 +1409,10 @@ void Geodesic::particleRedistribution(
     if(mpi.getSize() > 1)
       mpi.AllReduce(&p_in_buffer_num, 1, MPI_SUM);
 
-    //    std::cout<<"Number of particles in buffer is "<<p_in_buffer_num<<"\n";
+    //    std::cout<<"Number of particles in buffer is "<<p_in_buffer_num<<"\n"<<std::flush;
+
   }
+
 }
 
 // print particles info with certain id 
@@ -1421,12 +1431,6 @@ void Geodesic::printAll(
     std::shared_ptr<hier::PatchLevel> level(
       hierarchy->getPatchLevel(ln));
 
-    for (hier::PatchLevel::iterator ip(level->begin());
-         ip != level->end(); ++ip)
-    {
-      std::shared_ptr<hier::Patch> patch(*ip);
-      tbox::plog<<patch->getBox()<<"\n";
-    }
     
     // loop over patches on level
     for (hier::PatchLevel::iterator ip(level->begin());
@@ -1446,17 +1450,20 @@ void Geodesic::printAll(
       // iterate over the index data stored on the patch
       // and dump the particles stored on it.
 
-      pdat::CellIterator icend(pdat::CellGeometry::end(sample->getGhostBox()));
-      for (pdat::CellIterator ic(pdat::CellGeometry::begin(sample->getGhostBox()));
-           ic != icend; ++ic) {
-        ParticleContainer * p = sample->getItem(*ic);
-        if(p!=NULL)
+      pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iter(*sample, true);
+      pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iterend(*sample, false);
+
+      // pdat::CellIterator icend(pdat::CellGeometry::end(sample->getGhostBox()));
+      // for (pdat::CellIterator ic(pdat::CellGeometry::begin(sample->getGhostBox()));
+      //      ic != icend; ++ic) {
+      for(; iter != iterend; iter++){
+        ParticleContainer & p = *iter;
         {
-          std::cout<<"\nThere are "<<p->p_list.size()<<" particles at cell "
-                   <<(*ic)<<". Node "<<mpi.getRank()<<", box "<<patch->getBox()
+          std::cout<<"\nThere are "<<p.p_list.size()<<" particles at cell "
+                   <<iter.getIndex()<<". Node "<<mpi.getRank()<<", box "<<patch->getBox()
                    <<". Their location and velocity are \n";
-          cnt += p->p_list.size();
-          p->print();
+          cnt += p.p_list.size();
+          p.print();
         }
       }
     }

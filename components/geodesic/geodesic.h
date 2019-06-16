@@ -158,6 +158,9 @@ class Geodesic
     const std::shared_ptr<hier::Patch> & patch, int src_id, int dst_id);
 
   void clearParticlesLivingInGhostCells(
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy);
+
+  void clearParticlesLivingInGhostCells(
     const std::shared_ptr<hier::PatchHierarchy>& hierarchy, int ln);
 
   void clearParticles(
@@ -204,7 +207,7 @@ class Geodesic
 
   void particleRedistribution(
     const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
-    int ln, bool do_update_buffer);
+    int ln, bool do_update_buffer, int step);
 
   void printAll(
     const std::shared_ptr<hier::PatchHierarchy>& hierarchy, int idx);
@@ -267,7 +270,7 @@ class Geodesic
   
   double p0;
   bool save_metric;
-  
+  int cur_step;
 };
 }
 #endif

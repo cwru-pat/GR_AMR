@@ -26,6 +26,7 @@ namespace cosmo
     const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
     std::shared_ptr<tbox::Database> cosmo_geodesic_db)
   {
+    const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
     std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
       SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
         hierarchy->getGridGeometry()));
@@ -50,10 +51,9 @@ namespace cosmo
 #endif
     
     
-    
+    int has_inserted = 0;
     for(int ln = hierarchy->getNumberOfLevels() - 1; ln>=0; ln --)
     {
-
       std::shared_ptr<hier::PatchLevel> level(
         hierarchy->getPatchLevel(ln));
       hier::PatchLevel::iterator ip(level->begin());
@@ -85,12 +85,13 @@ namespace cosmo
         int j0 = floor((p_info[1] - domain_lower[1] ) / dx[1] );
         int k0 = floor((p_info[2] - domain_lower[2] ) / dx[2] );
 
-        std::cout<<i0<<" "<<j0<<" "<<k0<<"\n";
         // have found the patch that covers the starting point
         if( i0 >= lower[0] && i0 <= upper[0]
             && j0 >= lower[1] && j0 <= upper[1]
             && k0 >= lower[2] && k0 <= upper[2])
             {
+              std::cout<<i0<<" "<<j0<<" "<<k0<<"\n";
+
               pdat::CellIterator icend(pdat::CellGeometry::end(patch->getBox()));
               //              for (pdat::CellIterator ic(pdat::CellGeometry::begin(patch->getBox()));
               //   ic != icend; ++ic) {
@@ -99,15 +100,20 @@ namespace cosmo
               int id[1] = {0};
               RKParticle *temp_p = new RKParticle(p_info, id);
               pc->addParticle(*temp_p);
-              //     pc->addParticle(*temp_p);
+              pc->addParticle(*temp_p);
               pc_pdata->appendItem(*ic,*pc);
               delete  pc;
-              
+              has_inserted = 1;
               break;
             }
         }
-      if(ip != level->end()) break;
+      //      if(ip != level->end()) break;
+      if (mpi.getSize() > 1) {
+        mpi.AllReduce(&has_inserted, 1, MPI_MAX);
+      }
 
+      if(has_inserted > 0)
+        break;
       }
       
 
@@ -185,7 +191,6 @@ void Geodesic::geodesic_ic_face_null_test(
         for (;ip != level->end(); ++ip)
         {
           std::shared_ptr<hier::Patch> patch(*ip);
-
           initPData(patch);
           const hier::Box& box = patch->getBox();
         
@@ -236,6 +241,7 @@ void Geodesic::geodesic_ic_face_null_test(
       
 
     }
+
   }
 }
 

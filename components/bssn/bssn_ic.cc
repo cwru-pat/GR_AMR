@@ -2690,6 +2690,129 @@ void bssn_ic_static_blackhole_non_const_lapse(
   
 }
 
+void bssn_ic_FLRW(
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
+  idx_t ln, double a0)
+{
+# if ! USE_BSSN_SHIFT
+  std::cerr << "Waning! USE_BSSN_SHIFT is suggested to be enabled in blackhole test " << std::endl;
+# endif
+
+
+  hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
+
+  idx_t DIFFchi_p_idx =
+    variable_db->mapVariableAndContextToIndex(
+      variable_db->getVariable("DIFFchi"), variable_db->getContext("PREVIOUS"));
+
+  idx_t DIFFchi_a_idx =
+    variable_db->mapVariableAndContextToIndex(
+      variable_db->getVariable("DIFFchi"), variable_db->getContext("ACTIVE"));
+
+  idx_t DIFFalpha_p_idx =
+    variable_db->mapVariableAndContextToIndex(
+      variable_db->getVariable("DIFFalpha"), variable_db->getContext("PREVIOUS"));
+
+  idx_t DIFFalpha_a_idx =
+    variable_db->mapVariableAndContextToIndex(
+      variable_db->getVariable("DIFFalpha"), variable_db->getContext("ACTIVE"));
+
+  
+  std::shared_ptr<hier::PatchLevel> level(
+    hierarchy->getPatchLevel(ln));
+
+  std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
+     SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
+       hierarchy->getGridGeometry()));
+   TBOX_ASSERT(grid_geometry_);
+   geom::CartesianGridGeometry& grid_geometry = *grid_geometry_;
+  
+  for( hier::PatchLevel::iterator pit(level->begin());
+       pit != level->end(); ++pit)
+  {
+    const std::shared_ptr<hier::Patch> & patch = *pit;
+
+
+    const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(
+        SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+          patch->getPatchGeometry()));
+
+    
+    std::shared_ptr<pdat::CellData<real_t> > DIFFchi_p_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
+        patch->getPatchData(DIFFchi_p_idx)));
+
+    const hier::Box& box = DIFFchi_p_pdata->getGhostBox();
+    
+    std::shared_ptr<pdat::CellData<real_t> > DIFFchi_a_pdata(
+       SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
+         patch->getPatchData(DIFFchi_a_idx)));
+
+    std::shared_ptr<pdat::CellData<real_t> > DIFFalpha_p_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
+        patch->getPatchData(DIFFalpha_p_idx)));
+
+    
+    std::shared_ptr<pdat::CellData<real_t> > DIFFalpha_a_pdata(
+      SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
+        patch->getPatchData(DIFFalpha_a_idx)));
+
+    
+    // std::shared_ptr<pdat::CellData<real_t> > chi_f_pdata(
+    //   SAMRAI_SHARED_PTR_CAST<pdat::CellData<real_t>, hier::PatchData>(
+    //     patch->getPatchData(DIFFchi_f_idx)));
+
+
+    arr_t DIFFchi_p =
+      pdat::ArrayDataAccess::access<DIM, real_t>(
+        DIFFchi_p_pdata->getArrayData());
+
+    arr_t DIFFchi_a =
+      pdat::ArrayDataAccess::access<DIM, real_t>(
+        DIFFchi_a_pdata->getArrayData());
+
+    arr_t DIFFalpha_p =
+      pdat::ArrayDataAccess::access<DIM, real_t>(
+        DIFFalpha_p_pdata->getArrayData());
+
+    arr_t DIFFalpha_a =
+      pdat::ArrayDataAccess::access<DIM, real_t>(
+        DIFFalpha_a_pdata->getArrayData());
+
+    
+    const double * domain_lower = &grid_geometry.getXLower()[0];
+    const double * domain_upper = &grid_geometry.getXUpper()[0];
+
+    //const double *dx = &grid_geometry.getDx()[0];
+    const double *dx = &patch_geom->getDx()[0];
+      
+    double L[3];
+
+
+    for(int i = 0 ; i < 3; i++)
+      L[i] = domain_upper[i] - domain_lower[i];
+
+    const int * lower = &box.lower()[0];
+    const int * upper = &box.upper()[0];
+
+    for(int k = lower[2]; k <= upper[2]; k++)
+    {
+      for(int j = lower[1]; j <= upper[1]; j++)
+      {
+        for(int i = lower[0]; i <= upper[0]; i++)
+        {
+
+          DIFFchi_p(i,j,k) = DIFFchi_a(i,j,k)
+            = 1.0/a0 - 1.0;
+
+        }
+      }
+    }
+                
+  }
+  
+}
+
 
 void bssn_ic_static_blackhole(
   const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
