@@ -261,24 +261,26 @@ public:
    // print info in this list
    void print()
    {
-     std::cout.precision(10);
      //     int p_num = p_list.size();
      for (std::list<RKParticle>::iterator it=p_list.begin(); it != p_list.end(); ++it)
      {
        
-       std::cout<<"("<<(*it).x_a[0]<<", "<<(*it).x_a[1]<<", "<<(*it).x_a[2]<<")  ";
-       std::cout<<"("<<(*it).x_a[3]<<", "<<(*it).x_a[4]<<", "<<(*it).x_a[5]<<")\n";
+       tbox::pout<<"("<<(*it).x_a[0]<<", "<<(*it).x_a[1]<<", "<<(*it).x_a[2]<<")  ";
+       tbox::pout<<"("<<(*it).x_a[3]<<", "<<(*it).x_a[4]<<", "<<(*it).x_a[5]<<")\n";
 #if EVOLVE_LAMBDA
-       std::cout<<(*it).x_a[6]<<" ";
+       tbox::pout<<(*it).x_a[6]<<" ";
 #endif
-       std::cout<<sqrt(((*it).x_a[0] - 30) * ((*it).x_a[0] - 30)
+       tbox::pout<<sqrt(((*it).x_a[0] - 30) * ((*it).x_a[0] - 30)
                        + ((*it).x_a[1] - 30) * ((*it).x_a[1] - 30)
                        + ((*it).x_a[2] - 30) * ((*it).x_a[2] - 30))<<" ";
        for(int i = 0; i < PARTICLE_REAL_PROPERTIES; i ++)
-         std::cout<<(*it).rp[i]<<" ";
-       std::cout<<"\n";
+         tbox::pout<<(*it).rp[i]<<" ";
+       for(int i = 0; i < PARTICLE_INT_PROPERTIES; i ++)
+         tbox::pout<<(*it).ip[i]<<" ";
+
+       tbox::pout<<"\n";
      }
-     std::cout<<" ";
+     tbox::pout<<" ";
    }
 
    /* ParticleContainer& operator=(const ParticleContainer& other) // copy assignment */

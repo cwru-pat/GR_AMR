@@ -111,6 +111,8 @@ public:
       const std::shared_ptr<hier::PatchHierarchy>& hierarchy);
   bool hasNaNs(
     const std::shared_ptr<hier::Patch>& patch, idx_t data_id);
+  void computeVectorWeights(
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy);
 
 
   

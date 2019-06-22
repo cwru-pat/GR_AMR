@@ -179,7 +179,7 @@ double Geodesic::evaluate_interpolation(
   
 // initializing all particles
 void Geodesic::initAll(
-  const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN *bssn)
 {
   
   std::string init_type = cosmo_geodesic_db->getStringWithDefault("init_type","");
@@ -193,6 +193,11 @@ void Geodesic::initAll(
   {
     geodesic_ic_face_null_test(
       hierarchy, cosmo_geodesic_db);
+  }
+  else if(init_type == "uniform")
+  {
+    geodesic_ic_set_uniform_rays(
+      hierarchy, bssn);
   }
   else
     TBOX_ERROR("Unsupported null geodesic initial type!");
@@ -967,8 +972,8 @@ void Geodesic::regridPreProcessing(
 
   // coarsen to virtual particle containers
   xfer::CoarsenAlgorithm coarsener(dim);
-    coarsener.registerCoarsen(pc_idx,                  
-                              pc_s_idx,                   
+    coarsener.registerCoarsen(pc_s_idx,                  
+                              pc_idx,                   
                               particle_coarsen_op);
 
   for(int ln = 0; ln < hierarchy->getNumberOfLevels()-1; ln++)
@@ -987,7 +992,7 @@ void Geodesic::regridPreProcessing(
 void Geodesic::regridPostProcessing(
   const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
-  for(int ln = 0; ln < hierarchy->getNumberOfLevels()-1; ln++)
+  for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln++)
   {
     // clear ghost particles and particles covered by finer grid
     clearParticlesCoveredbyFinerLevel(hierarchy, ln);
@@ -1022,7 +1027,7 @@ void Geodesic::regridPostProcessing(
          ParticleContainer * src_p = pc_s_pdata->getItem(*i);
 
 
-         if(src_p!= NULL && fabs(w_cell_data(cell_index)) > 1e-10) // it means it is NOT covered by finer level
+         if(src_p!= NULL && w_cell_data(cell_index) > 1e-10) // it means it is NOT covered by finer level
          {
 
            ParticleContainer *dst_p = pc_pdata->getItem(*i);

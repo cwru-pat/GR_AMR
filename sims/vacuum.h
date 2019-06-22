@@ -91,8 +91,6 @@ public:
 
   bool initLevel(
     const std::shared_ptr<hier::PatchHierarchy>& hierarchy, idx_t ln);
-  void computeVectorWeights(
-    const std::shared_ptr<hier::PatchHierarchy>& hierarchy);
   void addBSSNExtras(
     const std::shared_ptr<hier::PatchLevel> & level);
   void addBSSNExtras(

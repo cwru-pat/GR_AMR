@@ -31,6 +31,14 @@ using namespace SAMRAI;
 namespace cosmo
 {
 
+#define GEODESIC_DOT_COV_VECTORS(v1, v2)                                \
+  (+ v1[0] * v2[0] * gd->mi11 + v1[1] * v2[1] * gd->mi22                \
+   + v1[2] * v2[2] * gd->mi33 + v1[0] * v2[1] * gd->mi12        \
+   + v1[0] * v2[2] * gd->mi13 + v1[1] * v2[2] * gd->mi23        \
+   + v1[1] * v2[0]  * gd->mi12                                  \
+   +  v1[2] * v2[0] * gd->mi13 + v1[2] * v2[1] * gd->mi23)
+
+  
 #define GEODESIC_DEFINE_CRSPLINES_CHI \
   double a_chi[64], f_chi[64];
 
@@ -212,6 +220,28 @@ class Geodesic
   void printAll(
     const std::shared_ptr<hier::PatchHierarchy>& hierarchy, int idx);
 
+  void geodesic_ic_set_bundles(
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    std::vector<real_t> &origins_x, std::vector<real_t> &origins_y, std::vector<real_t> &origins_z,
+    std::vector<std::vector<real_t>> &dirs_x,
+    std::vector<std::vector<real_t>> &dirs_y,
+    std::vector<std::vector<real_t>> &dirs_z,
+    BSSN *bssn);
+
+  void geodesic_ic_set_uniform_rays(
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
+    BSSN *bssn);
+
+  
+  void geodesic_ic_transform_inertial_vectors(
+    const std::shared_ptr<hier::Patch> & patch,
+    BSSN *bssn,
+    real_t ox, real_t oy, real_t oz,
+    std::vector<real_t> &dirx, std::vector<real_t> &diry, std::vector<real_t> &dirz,
+    const real_t dx[], double epsilon, int &p_id);
+
+
+  
   void geodesic_ic_Schwarzchild_test(
     const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
     std::shared_ptr<tbox::Database> cosmo_geodesic_db);
@@ -222,7 +252,7 @@ class Geodesic
 
   
   void initAll(
-    const std::shared_ptr<hier::PatchHierarchy>& hierarchy);
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN *bssn);
   
   void compute_tricubic_coeffs(double *a, double *f);
 
