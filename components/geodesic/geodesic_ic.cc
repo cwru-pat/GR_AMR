@@ -138,16 +138,15 @@ namespace cosmo
         exy * dirx[i] + eyy * diry[i],
         exz * dirx[i] + eyz * diry[i] + ezz * dirz[i]
       };
-      real_t magvhat = vhat[0] * vhat[0] * gd->mi11 + vhat[1] * vhat[1] * gd->mi22
+      real_t magvhat = sqrt(vhat[0] * vhat[0] * gd->mi11 + vhat[1] * vhat[1] * gd->mi22
         + vhat[2] * vhat[2] * gd->mi33 + 2.0 * vhat[0] * vhat[1] * gd->mi12
-        + 2.0 * vhat[0] * vhat[2] * gd->mi13 + 2.0 * vhat[1] * vhat[2] * gd->mi23;
+                            + 2.0 * vhat[0] * vhat[2] * gd->mi13 + 2.0 * vhat[1] * vhat[2] * gd->mi23);
 
       vhat[0] /= magvhat, vhat[1] /= magvhat, vhat[2] /= magvhat;
       p_info_main[3] = vhat[0], p_info_main[4] = vhat[1], p_info_main[5] = vhat[2];
 
       real_t s1[3] = {0, 1, 0};
       real_t s2[3] = {1, 0, 0};
-      
       // special case if in x- or y-direction; or x-y plane
       if(std::abs(vhat[2]) <= 1e-10 && std::abs(vhat[1]) <= 1e-10)
       {
@@ -175,7 +174,7 @@ namespace cosmo
       for(int j = 0; j < DIM; j++)
         s1hat[j] = s1[j] - s1dotvhat * vhat[j];
 
-      real_t mags1hat = GEODESIC_DOT_COV_VECTORS(s1hat, s1hat);
+      real_t mags1hat = sqrt(GEODESIC_DOT_COV_VECTORS(s1hat, s1hat));
 
       for(int j = 0; j < 3; j++)
         s1hat[j] /= mags1hat;
@@ -184,7 +183,7 @@ namespace cosmo
       real_t s2dots1hat = GEODESIC_DOT_COV_VECTORS(s2, s1hat);
       for(int j = 0; j < 3; j++)
         s2hat[j] = s2[j] - s2dotvhat * vhat[j] - s2dots1hat * s1hat[j];
-      real_t mags2hat = GEODESIC_DOT_COV_VECTORS(s2hat, s2hat);
+      real_t mags2hat = sqrt(GEODESIC_DOT_COV_VECTORS(s2hat, s2hat));
       for(int j = 0; j < 3; j++)
         s2hat[j] /= mags2hat;
 
@@ -193,13 +192,14 @@ namespace cosmo
         p_info_ep1[j+3] = vhat[j] + epsilon * s1hat[j];
         p_info_ep2[j+3] = vhat[j] + epsilon * s2hat[j];
       }
+
       id[0] = p_id++;
       RKParticle *main_p = new RKParticle(p_info_main, id);
       id[0] = p_id++;      
       RKParticle *ep1_p = new RKParticle(p_info_ep1, id);
       id[0] = p_id++;      
       RKParticle *ep2_p = new RKParticle(p_info_ep2, id);
-
+      //      if(p_id != 15) continue;
       //      ParticleContainer *pc = new ParticleContainer(*ic);
       cnt++;
       ParticleContainer *pc = pc_pdata->getItem(*ic);
@@ -288,7 +288,7 @@ namespace cosmo
     BSSN *bssn)
   {
     const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
-    double epsilon = cosmo_geodesic_db->getDoubleWithDefault("epsilon", 0.01);
+    double epsilon = cosmo_geodesic_db->getDoubleWithDefault("epsilon", 0.001);
     std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
       SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
         hierarchy->getGridGeometry()));
@@ -340,7 +340,7 @@ namespace cosmo
           int i0 = floor((origins_x[o_idx] - domain_lower[0] ) / dx[0] );
           int j0 = floor((origins_y[o_idx] - domain_lower[1] ) / dx[1] );
           int k0 = floor((origins_z[o_idx] - domain_lower[2] ) / dx[2] );
-          std::cout<<i0<<" "<<j0<<" "<<k0<<"\n";
+
           // have found the patch that covers the starting point
           if( i0 >= lower[0] && i0 <= upper[0]
               && j0 >= lower[1] && j0 <= upper[1]
@@ -353,7 +353,7 @@ namespace cosmo
               geodesic_ic_transform_inertial_vectors(
                 patch, bssn, origins_x[o_idx], origins_y[o_idx], origins_z[o_idx],
                 dirs_x[o_idx], dirs_y[o_idx], dirs_z[o_idx], dx, epsilon, p_id);
-              p_id+=dirs_x[o_idx].size() * 3; 
+              //              p_id+=dirs_x[o_idx].size() * 3; 
             }
             break;
           }
@@ -557,7 +557,6 @@ void Geodesic::geodesic_ic_face_null_test(
           int j0 = floor((input_p[i]->x_a[1] - domain_lower[1] ) / dx[1] );
           int k0 = floor((input_p[i]->x_a[2] - domain_lower[2] ) / dx[2] );
 
-          std::cout<<i0<<" "<<j0<<" "<<k0<<"\n";
           // have found the patch that covers the starting point
           if( i0 >= lower[0] && i0 <= upper[0]
               && j0 >= lower[1] && j0 <= upper[1]

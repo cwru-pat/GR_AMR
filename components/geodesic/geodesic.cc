@@ -201,6 +201,64 @@ void Geodesic::initAll(
   }
   else
     TBOX_ERROR("Unsupported null geodesic initial type!");
+
+  // updating particle properties at step 0
+  for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln++)
+  {
+    std::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+    // loop over patches on level
+    for (hier::PatchLevel::iterator ip(level->begin());
+         ip != level->end(); ++ip)
+    {
+      std::shared_ptr<hier::Patch> patch(*ip);
+
+      initPData(patch);
+      bssn->initPData(patch);
+      bssn->initMDA(patch);
+      const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(  
+        SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+          patch->getPatchGeometry()));
+
+      //initialize dx for each patch
+      const real_t * dx = &(patch_geom->getDx())[0];
+
+      pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iter(*pc_pdata, true);
+      pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iterend(*pc_pdata, false);
+
+      for(;iter != iterend; iter++)
+      {
+        ParticleContainer & id = *iter;
+
+        double shift[3] = {0};
+
+        for(std::list<RKParticle>::iterator it=id.p_list.begin();
+            it != id.p_list.end(); it++)
+        {
+          GeodesicData gd = {0};
+          set_gd_values(patch, (*it).x_a, &gd, bssn, dx, shift);
+
+          if(PARTICLE_REAL_PROPERTIES > 0)
+          {
+            (*it).rp[0] = gd.p0;
+            if(save_metric && PARTICLE_REAL_PROPERTIES > 6)
+            {
+              (*it).rp[1] = gd.m11;
+              (*it).rp[2] = gd.m12;
+              (*it).rp[3] = gd.m13;
+              (*it).rp[4] = gd.m22;
+              (*it).rp[5] = gd.m23;
+              (*it).rp[6] = gd.m33;
+            }
+          }
+
+        }
+      }
+
+    }
+
+  }
+  
+  
 }
   
 void Geodesic::initPData(
@@ -443,14 +501,14 @@ void Geodesic::RKEvolvePatch(
     //    hier::Index idx(*ic);
     ParticleContainer & id = *iter;
 
-    double shift[3] = {0};
-    
 
     for(std::list<RKParticle>::iterator it=id.p_list.begin();
         it != id.p_list.end(); it++)
     {
       GeodesicData gd = {0};
-
+      double shift[3] = {0};
+    
+      
       for(int i = 0 ; i < 3; i ++)
       {
         if(ghost_box_phys_lower[i] > ((*it).x_a[i])) 
@@ -466,7 +524,7 @@ void Geodesic::RKEvolvePatch(
       // if particle is outside the ghost box anytime
       // during the RK advance, do not advance it
       hier::Index temp_idx(i0, j0, k0);
-
+      
       if(!effective_ghost_box.contains(temp_idx))
       {
         for(int i = 0; i < PARTICLE_NUMBER_OF_STATES; i++)
@@ -490,7 +548,6 @@ void Geodesic::RKEvolvePatch(
           }
       set_gd_values(patch, (*it).x_a, &gd, bssn, dx, shift);
       RKEvolveParticle((*it), gd, dt);
-
       if(PARTICLE_REAL_PROPERTIES > 0)
       {
         (*it).rp[0] = gd.p0;

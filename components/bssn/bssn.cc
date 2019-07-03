@@ -214,7 +214,7 @@ void BSSN::set_time_dependent_fields(
       const int * upper = &box.upper()[0];
 
 
-      
+#pragma omp parallel for collapse(2)      
       for(int k = lower[2]; k <= upper[2]; k++)
       {
         for(int j = lower[1]; j <= upper[1]; j++)
@@ -222,7 +222,7 @@ void BSSN::set_time_dependent_fields(
           for(int i = lower[0]; i <= upper[0]; i++)
           {
             //DIFFgamma11_a(i, j, k) = DIFFgamma22_a(i, j, k) = DIFFgamma33_a(i, j, k)
-            DIFFchi_a(i, j, k) = pow(1.5*cur_t + 2.0 * sqrt(2.0), -2.0/3.0) - 1.0;
+            DIFFchi_a(i, j, k) = pow(1.5*cur_t + 1, -2.0/3.0) - 1.0;
           }
         }
       }

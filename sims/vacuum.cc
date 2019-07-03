@@ -160,9 +160,9 @@ void VacuumSim::setICs(
       tag_buffer[ln] = 1;
     }
     
-#if USE_COSMOTRACE
-    ray->regridPreProcessing(hierarchy, particle_coarsen_op);
-#endif
+// #if USE_COSMOTRACE
+//     ray->regridPreProcessing(hierarchy, particle_coarsen_op);
+// #endif
 
     gridding_algorithm->regridAllFinerLevels(
       0,
@@ -170,9 +170,9 @@ void VacuumSim::setICs(
       0,
       cur_t);
 
-#if USE_COSMOTRACE
-    ray->regridPostProcessing(hierarchy);
-#endif
+// #if USE_COSMOTRACE
+//     ray->regridPostProcessing(hierarchy);
+// #endif
     int post_level_num = hierarchy->getNumberOfLevels();
     // no new level is created
     if(post_level_num == pre_level_num) break;
@@ -576,7 +576,7 @@ void VacuumSim::outputVacuumStep(
     bssnSim->cal_Weyl_scalars(hierarchy, weight_idx);
 #endif
 #if USE_COSMOTRACE
-  ray->printAll(hierarchy, ray->pc_idx);
+    ray->printAll(hierarchy, ray->pc_idx);
 #endif
 #if USE_COSMOTRACE
     if(freeze_time_evolution == false)
