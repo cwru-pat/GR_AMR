@@ -4,15 +4,15 @@ Main
   dim = 3
   base_name = "scalar"
   print_precision = 9
-  restart = TRUE
+  restart = FALSE
   restart_basename = "scalar"
   restart_step = 470
   restart_nodes = 1
-  omp_num_threads = 12 //enable maximum threads if equals to 0
+  omp_num_threads = 10 //enable maximum threads if equals to 0
 }
 
 CartesianGridGeometry {
-  domain_boxes = [(0,0,0), (127,127,127)]
+  domain_boxes = [(0,0,0), (63,63,63)]
   x_lo         = 0, 0, 0
   x_up         = 0.01, 0.01, 0.01
   periodic_dimension = 1, 1, 1
@@ -75,7 +75,7 @@ GriddingAlgorithm {
 }
 
 CosmoSim{
-  steps = 800
+  steps = 1
   save_steps = 10
   do_plot = TRUE
   dt_frac = 0.2
@@ -136,16 +136,21 @@ BSSN{
 }
 
 IO{
-  output_list = "DIFFK", "phi"
-  output_interval =  20,  20
+  output_list = "DIFFK", "phi", "DIFFr", "DIFFchi", "DIFFr", "DIFFS"
+  output_interval =  1,  1, 1, 1, 1, 1
   
+}
+
+CosmoStatistic
+{
+
 }
 
 Scalar{
   potential_type = "Quadratic"
   q_coef = 1
-  Lambda = 1
-  delta_phi = 0.2
+  Lambda = 0
+  delta_phi = 0.075
   n_max = 1
   phi_0 = 5
   relaxation_tolerance = 1e-8

@@ -12,7 +12,7 @@ Main
 }
 
 CartesianGridGeometry {
-  domain_boxes = [(0,0,0), (63,63,63)]
+  domain_boxes = [(0,0,0), (255,255,255)]
   x_lo         = 0, 0, 0
   x_up         = 100, 100, 100
   periodic_dimension = 0, 0, 0
@@ -30,6 +30,10 @@ TreeLoadBalancer {
   DEV_barrier_after = FALSE
 }
 
+CosmoStatistic{
+
+}
+
 BergerRigoutsos {
    combine_efficiency = 0.1
    efficiency_tolerance = 0.1
@@ -42,7 +46,7 @@ TimerManager{
 
 
 PatchHierarchy {
-   max_levels = 4
+   max_levels = 1
    proper_nesting_buffer = 3, 3, 3, 3, 3, 3   
    largest_patch_size {
       level_0 = -1, -1, -1
@@ -74,15 +78,15 @@ GriddingAlgorithm {
 }
 
 CosmoSim{
-  steps = 10
+  steps = 5
   save_interval = 2000
   do_plot = TRUE
-  dt_frac = 0.05
+  dt_frac = 0.2
   regridding_interval = 100000
   adaption_threshold = 0.004
-  KO_damping_coefficient = 0.0
-  refine_op_type = "HERMITE_REFINE"
-  coarsen_op_type = "HERMITE_COARSEN"
+  KO_damping_coefficient = 0.05
+  refine_op_type = "QUADRATIC_REFINE"
+  coarsen_op_typ = "CONSERVATIVE_COARSEN"
   use_AHFinder = TRUE
   AHFinder_interval = 1
   AHFinder_iter_limit = 20000
@@ -92,6 +96,8 @@ CosmoSim{
   regridding_step_lower_bound = 20
   regridding_step_upper_bound = 3000
   stop_after_found_horizon = FALSE
+  calculate_Weyl_scalars = FALSE
+  freeze_time_evolution = TRUE
   comments = ""
 }
 
@@ -123,12 +129,12 @@ AHFD{
   sphere_y_center = 50, 49.86, 50
   sphere_z_center = 50, 50, 50.1
   sphere_radius = 0.8, 0.7, 0.9
-  find_after_individual = 0, 0, 0 // will only find horizon after this step (inclusive)
+  find_after_individual = 10, 10, 10 // will only find horizon after this step (inclusive)
   max_Newton_iterations_initial = 50
 }
 
 IO{
-  output_list = "DIFFchi","DIFFK"
-  output_interval = 50, 50
+  output_list = "Gamma1"
+  output_interval = 1
   gd_c = 1
 }
