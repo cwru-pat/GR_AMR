@@ -227,6 +227,8 @@ bool scalar_ic_set_scalar_collapse_sommerfield(
     }
     rank++;
   }
+  else
+    TBOX_ERROR("Setting gaussian sommerfiled but not providing initial data file!");
     
   double r0 = cosmo_scalar_db->getDoubleWithDefault("r0", 0);
   double sigma = cosmo_scalar_db->getDoubleWithDefault("sigma", 1.0);
