@@ -1,12 +1,21 @@
 # GR_AMR
-BSSN code bases on SAMRAI, now doing test for solving wave equation
+MPI version of CosmoGRaPH Code (https://cwru-pat.github.io/cosmograph/) plus more features:
 
-In a cluster environment, the following are needed:
- - module load gcc/4.9.3
- - module load hdf5/1.8.15
- - module load boost
- - module load depends
- - module load cmake
+ - Fully general relativistic BSSN code with block-structured Adaptive Mesh Refinement support powered by SAMRAI (https://github.com/LLNL/SAMRAI/);
+ - Elliptical solver which supports any kind of terms and any number of equations;
+ - Support different matter fields, e.g., vacuum, dust fluid and scalar field;
+ - AHFinderDirect (https://arxiv.org/pdf/gr-qc/0306056.pdf) is included as apparent horizon finder; 
+ - Module that calculates local measurements like spin of black hole is available;
+ - General relativistic ray tracing;
+ - High performance???
+
+### Software dependencies
+ - git
+ - hdf5
+ - cmake
+ - fftw3
+ - a compiler with c++11 support 
+ - SAMRAI with appropriate version is included as sub-module
 
 ## Setting up SAMRAI:
 
@@ -23,7 +32,7 @@ cd obj
 ```
 
 Configure SAMRAI
-`sh ../SAMRAI/configure --with-boost[=/parent/path/of/boost/include] [--with-hdf5=/parent/path/of/hdf5.h] --with-F77=gfortran`
+`sh ../SAMRAI/configure  [--with-hdf5=/parent/path/of/hdf5.h] --with-F77=gfortran`
 
 Build and install SAMRAI
 ```
@@ -47,7 +56,7 @@ cd build
 
 Make the program
 ```
-cmake -DCMAKE_CXX_COMPILER=g++ -DCMAKE_C_COMPILER=gcc ..
+cmake ..
 make
 ```
 
