@@ -11,7 +11,8 @@ typedef struct {
 
   real_t chi;
   real_t d1chi, d2chi, d3chi;
-
+  real_t K;
+  
   real_t beta1, beta2, beta3;
   real_t d1beta1, d1beta2, d1beta3;
   real_t d2beta1, d2beta2, d2beta3;
@@ -26,7 +27,7 @@ typedef struct {
   real_t p0;
   double x, y, z;
   double lambda;
-  
+
 }GeodesicData;
 
  

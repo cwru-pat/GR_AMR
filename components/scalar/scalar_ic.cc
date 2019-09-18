@@ -1489,6 +1489,8 @@ bool scalar_ic_set_scalar_gaussian_random(
   real_t peak_amplitude_frac = cosmo_scalar_db->getDoubleWithDefault("peak_amplitude_frac", 0.0);
   real_t peak_amplitude = peak_amplitude_frac*(1.0e-15); // scaling in arb. units
 
+  real_t q_coef = cosmo_scalar_db->getDoubleWithDefault("q_coef", 0.0);
+  
   real_t ic_spec_cut = cosmo_scalar_db->getDoubleWithDefault("ic_spec_cut", 0.0);
 
   real_t peak_k = 100;
@@ -1548,7 +1550,7 @@ bool scalar_ic_set_scalar_gaussian_random(
         pz = (real_t) k;
 
         // generate the same random modes for all resolutions (up to NMAX)
-        real_t rand_mag = gaussian_distribution(gen);
+        //        real_t rand_mag = gaussian_distribution(gen);
         real_t rand_phase = angular_distribution(gen);
 
         // only store momentum values for relevant bins
@@ -1585,11 +1587,17 @@ bool scalar_ic_set_scalar_gaussian_random(
             1.0 + exp(10.0*(pmag - ic_spec_cut))
           );
           real_t pre = peak_amplitude;
-                    real_t cosmo_power_spectrum =  pre/pow(fabs(pmag)/peak_k, 3.0);
+          real_t cosmo_power_spectrum = 1.0 / (2.0 * sqrt(q_coef + pw2((2.0 * PI / L[0]) * pmag))) ;
+
+          //real_t cosmo_power_spectrum =  pre/pow(fabs(pmag)/peak_k, 3.0);
           //real_t cosmo_power_spectrum =  pre/(1.0 + pow(fabs(pmag)/peak_k, 4.0)/3.0)/pow(fabs(pmag)/peak_k, 3.0);
           //real_t cosmo_power_spectrum =  pre;
 
-          scale = cutoff*sqrt(cosmo_power_spectrum);
+          scale = cutoff;
+          std::weibull_distribution<> d(2, sqrt(2.0 *cosmo_power_spectrum) );
+          //real_t rand_mag = d(gen);    
+          real_t rand_mag = gaussian_distribution(gen) * sqrt(cosmo_power_spectrum);
+
 
           f_field[fft_index][0] = scale*rand_mag*cos(rand_phase);
           f_field[fft_index][1] = scale*rand_mag*sin(rand_phase);

@@ -18,6 +18,7 @@ Geodesic::Geodesic(
   lstream(l_stream_in),
   dim(dim_in),
   weight_idx(weight_idx_in),
+  num_p(0),
   ghost_width(cosmo_geodesic_db->getIntegerWithDefault("ghost_width", 2)),
   p0(cosmo_geodesic_db->getDoubleWithDefault("p0", 1)),
   save_metric(cosmo_geodesic_db->getBoolWithDefault("save_metric", false)),
@@ -181,9 +182,8 @@ double Geodesic::evaluate_interpolation(
 void Geodesic::initAll(
   const std::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN *bssn)
 {
-  
   std::string init_type = cosmo_geodesic_db->getStringWithDefault("init_type","");
-        
+  int num_p_before = num_p;
   if(init_type == "Schwarzchild")
   {
     geodesic_ic_Schwarzchild_test(
@@ -201,7 +201,9 @@ void Geodesic::initAll(
   }
   else
     TBOX_ERROR("Unsupported null geodesic initial type!");
-
+  
+  int num_p_after = num_p;
+ 
   // updating particle properties at step 0
   for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln++)
   {
@@ -222,32 +224,162 @@ void Geodesic::initAll(
       //initialize dx for each patch
       const real_t * dx = &(patch_geom->getDx())[0];
 
+      
       pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iter(*pc_pdata, true);
       pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iterend(*pc_pdata, false);
+      std::vector<pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator> it_vec;
+      for(;iter != iterend; iter++) it_vec.push_back(iter);
 
-      for(;iter != iterend; iter++)
+      for(int ii = 0; ii < it_vec.size(); ii++)
       {
-        ParticleContainer & id = *iter;
+        ParticleContainer & id = *it_vec[ii];
 
         double shift[3] = {0};
 
         for(std::list<RKParticle>::iterator it=id.p_list.begin();
             it != id.p_list.end(); it++)
         {
-          GeodesicData gd = {0};
-          set_gd_values(patch, (*it).x_a, &gd, bssn, dx, shift);
-
-          if(PARTICLE_REAL_PROPERTIES > 0)
+          if((*it).ip[0] < num_p_after * 3 && (*it).ip[0] >= num_p_before * 3)
           {
-            (*it).rp[0] = gd.p0;
-            if(save_metric && PARTICLE_REAL_PROPERTIES > 6)
+            GeodesicData gd = {0};
+            set_gd_values(patch, (*it).x_a, &gd, bssn, dx, shift);
+
+            if(PARTICLE_REAL_PROPERTIES > 0)
             {
-              (*it).rp[1] = gd.m11;
-              (*it).rp[2] = gd.m12;
-              (*it).rp[3] = gd.m13;
-              (*it).rp[4] = gd.m22;
-              (*it).rp[5] = gd.m23;
-              (*it).rp[6] = gd.m33;
+              (*it).rp[0] = gd.p0;
+              if(save_metric && PARTICLE_REAL_PROPERTIES > 6)
+              {
+                (*it).rp[1] = gd.m11;
+                (*it).rp[2] = gd.m12;
+                (*it).rp[3] = gd.m13;
+                (*it).rp[4] = gd.m22;
+                (*it).rp[5] = gd.m23;
+                (*it).rp[6] = gd.m33;
+              }
+            }
+          }
+        }
+      }
+
+    }
+
+  }
+  
+  
+}
+
+
+void Geodesic::initAll(
+  const std::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN *bssn, DustFluid *dustFluidSim)
+{
+  
+  std::string init_type = cosmo_geodesic_db->getStringWithDefault("init_type","");
+  int num_p_before = num_p;        
+  if(init_type == "Schwarzchild")
+  {
+    geodesic_ic_Schwarzchild_test(
+      hierarchy, cosmo_geodesic_db);
+  }
+  else if(init_type == "2rays")
+  {
+    geodesic_ic_face_null_test(
+      hierarchy, cosmo_geodesic_db);
+  }
+  else if(init_type == "uniform")
+  {
+    geodesic_ic_set_uniform_rays(
+      hierarchy, bssn);
+  }
+  else
+    TBOX_ERROR("Unsupported null geodesic initial type!");
+
+  int num_p_after = num_p;        
+  
+  // updating particle properties at step 0
+  for(int ln = 0; ln < hierarchy->getNumberOfLevels(); ln++)
+  {
+    std::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+    // loop over patches on level
+    for (hier::PatchLevel::iterator ip(level->begin());
+         ip != level->end(); ++ip)
+    {
+      std::shared_ptr<hier::Patch> patch(*ip);
+
+      initPData(patch);
+      bssn->initPData(patch);
+      bssn->initMDA(patch);
+      dustFluidSim->initPData(patch);
+      dustFluidSim->initMDA(patch);
+      const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(  
+        SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+          patch->getPatchGeometry()));
+
+      //initialize dx for each patch
+      const real_t * dx = &(patch_geom->getDx())[0];
+
+      pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iter(*pc_pdata, true);
+      pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iterend(*pc_pdata, false);
+
+      std::vector<pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator> it_vec;
+      for(;iter != iterend; iter++) it_vec.push_back(iter);
+
+      #pragma omp parallel for
+      for(int ii = 0; ii < it_vec.size(); ii++)
+      {
+        ParticleContainer & id = *it_vec[ii];
+
+        double shift[3] = {0};
+
+        for(std::list<RKParticle>::iterator it=id.p_list.begin();
+            it != id.p_list.end(); it++)
+        {
+          if((*it).ip[0] < num_p_after * 3 && (*it).ip[0] >= num_p_before * 3)
+          {
+            GeodesicData gd = {0};
+            set_gd_values(patch, (*it).x_a, &gd, bssn, dx, shift);
+
+            if(PARTICLE_REAL_PROPERTIES > 0)
+            {
+              // storing p^0
+              (*it).rp[0] = gd.p0;
+              if(save_metric && PARTICLE_REAL_PROPERTIES > 6)
+              {
+                (*it).rp[1] = gd.m11;
+                (*it).rp[2] = gd.m12;
+                (*it).rp[3] = gd.m13;
+                (*it).rp[4] = gd.m22;
+                (*it).rp[5] = gd.m23;
+                (*it).rp[6] = gd.m33;
+              }
+            }
+            if(PARTICLE_REAL_PROPERTIES > 7)
+            {
+            
+              DustFluidData dd = {0};
+              set_gd_values_for_dust_fluid(patch, (*it).x_a, &gd, &dd, dustFluidSim, dx, shift);
+              // stroing u
+              double v1 = dd.S1 / dd.E, v2 = dd.S2 / dd.E, v3 = dd.S3 / dd.E;
+              double W = dd.E / dd.D;
+              double vi1 = gd.mi11 * v1 + gd.mi12 * v2 + gd.mi13 * v3;
+              double vi2 = gd.mi12 * v1 + gd.mi22 * v2 + gd.mi23 * v3;
+              double vi3 = gd.mi13 * v1 + gd.mi23 * v2 + gd.mi33 * v3;
+
+              (*it).rp[7] = W / gd.alpha;
+              // u^i
+              (*it).rp[8] = (vi1 - gd.beta1 / gd.alpha) * W;
+              (*it).rp[9] = (vi2 - gd.beta2 / gd.alpha) * W;
+              (*it).rp[10] =(vi3 - gd.beta3 / gd.alpha) * W;
+              // u_i
+              (*it).rp[11] = v1 * W;
+              (*it).rp[12] = v2 * W;
+              (*it).rp[13] = v3 * W;
+
+              // storing p_0
+              (*it).rp[14] = -gd.p0 * pw2(gd.alpha) + gd.beta1 * gd.q1 + gd.beta2 * gd.q2 + gd.beta3 * gd.q3;
+            }
+            if(PARTICLE_REAL_PROPERTIES > 15)
+            {
+              (*it).rp[15] = gd.K;
             }
           }
 
@@ -260,7 +392,8 @@ void Geodesic::initAll(
   
   
 }
-  
+
+
 void Geodesic::initPData(
   const std::shared_ptr<hier::Patch> & patch)
 {
@@ -310,11 +443,16 @@ void Geodesic::insertPatchParticles(
   pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iter(*src_pdata, true);
   pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iterend(*src_pdata, false);
 
-  for(; iter != iterend; iter++)
+  std::vector<pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator> it_vec;
+  for(;iter != iterend; iter++) it_vec.push_back(iter);
+
+  //#pragma omp parallel for
+  for(int ii = 0; ii < it_vec.size(); ii++)
   {
+
     // get pointer to this particle at Index
-    ParticleContainer & src_p = *iter;
-    hier::Index ic (iter.getIndex());
+    ParticleContainer & src_p = *it_vec[ii];
+    hier::Index ic (it_vec[ii].getIndex());
     ParticleContainer *dst_p = dst_pdata->getItem(ic);
 
     if(dst_p == NULL)
@@ -322,6 +460,7 @@ void Geodesic::insertPatchParticles(
       ParticleContainer *p = new ParticleContainer(ic);
       dst_pdata->appendItem(ic, *p);
       dst_p = dst_pdata->getItem(ic);
+      delete p;
     }
     dst_p->p_list.insert(dst_p->p_list.end(), src_p.p_list.begin(), src_p.p_list.end());
     
@@ -394,7 +533,6 @@ void Geodesic::clearParticles(
        pit != level->end(); ++pit)
   {
     const std::shared_ptr<hier::Patch> & patch = *pit;
-    //              std::cout<<ln<<" "<<patch->getBox()<<"\n"<<std::flush;
 
     clearParticles(patch, idx);
   }  
@@ -456,10 +594,157 @@ void Geodesic::preAdvance(
    refine_schedule->fillData(0.0);
 
  }
- // std::cout<<"After pre advancing\n";
- // printAll(hierarchy, pc_idx);
 }
+
+
+// RKEvolvePatch WITH dustFluid, need to figure out better way
+// of doing this.
+void Geodesic::RKEvolvePatch(
+  const std::shared_ptr<hier::Patch> & patch, BSSN *bssn, DustFluid * dustFluidSim, real_t dt)
+{
+  initPData(patch);
+  bssn->initPData(patch);
+  bssn->initMDA(patch);
+  dustFluidSim->initPData(patch);
+  dustFluidSim->initMDA(patch);
+
+  const hier::Box& box = patch->getBox();
   
+  const std::shared_ptr<geom::CartesianPatchGeometry> patch_geom(  
+    SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
+      patch->getPatchGeometry()));
+
+  //initialize dx for each patch
+  const real_t * dx = &(patch_geom->getDx())[0];
+
+  hier::Box ghost_box = pc_pdata->getGhostBox();
+  // do not need ghost box to be that wide
+  hier::Box effective_ghost_box = ghost_box;
+  if(ghost_width > 1)
+    effective_ghost_box.grow(hier::Index (1-ghost_width, 1-ghost_width, 1-ghost_width));
+  hier::Box fields_ghost_box = bssn->DIFFchi_a_pdata->getGhostBox();
+  pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iter(*pc_pdata, true);
+  pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iterend(*pc_pdata, false);
+
+  double ghost_box_phys_lower[3], ghost_box_phys_upper[3];
+
+  for(int i = 0; i < 3; i ++)
+  {
+    ghost_box_phys_lower[i] = (effective_ghost_box.lower()[i] * dx[i]);
+    ghost_box_phys_upper[i] = ( (effective_ghost_box.upper()[i] + 1.0) * dx[i]);
+  }
+    
+  // pdat::CellIterator icend(pdat::CellGeometry::end(ghost_box));
+  // for (pdat::CellIterator ic(pdat::CellGeometry::begin(ghost_box));
+  //      ic != icend; ++ic)
+  std::vector<pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator> it_vec;
+  for(;iter != iterend; iter++) it_vec.push_back(iter);
+
+#pragma omp parallel for
+  for(int ii = 0; ii < it_vec.size(); ii++)
+  {
+
+    //    hier::Index idx(*ic);
+    ParticleContainer & id = *it_vec[ii];
+
+
+    for(std::list<RKParticle>::iterator it=id.p_list.begin();
+        it != id.p_list.end(); it++)
+    {
+      GeodesicData gd = {0};
+      double shift[3] = {0};
+    
+      
+      for(int i = 0 ; i < 3; i ++)
+      {
+        if(ghost_box_phys_lower[i] > ((*it).x_a[i])) 
+          shift[i] = ceil( (double)(ghost_box_phys_lower[i] - (*it).x_a[i]) / round(L[i]));
+        if(ghost_box_phys_upper[i] < ((*it).x_a[i])) 
+          shift[i] = -ceil( (double)(-ghost_box_phys_upper[i] + (*it).x_a[i]) / round(L[i]));
+
+      }
+      int i0 = floor(((*it).x_a[0] + shift[0] * L[0] - domain_lower[0] ) / dx[0] );
+      int j0 = floor(((*it).x_a[1] + shift[1] * L[1] - domain_lower[1] ) / dx[1] );
+      int k0 = floor(((*it).x_a[2] + shift[2] * L[2] - domain_lower[2] ) / dx[2] );
+
+      // if particle is outside the ghost box anytime
+      // during the RK advance, do not advance it
+      hier::Index temp_idx(i0, j0, k0);
+      
+      if(!effective_ghost_box.contains(temp_idx))
+      {
+        for(int i = 0; i < PARTICLE_NUMBER_OF_STATES; i++)
+          (*it).x_c[i] = 0;
+        continue;
+      }
+      
+      for(int i = 0; i < 8; i++)
+        for(int j = 0; j < 8; j++)
+          for(int k = 0; k < 8; k++)
+          {
+            int i0 = floor(((*it).x_a[0] + shift[0] * L[0] - domain_lower[0] ) / dx[0] -0.5);
+            int j0 = floor(((*it).x_a[1] + shift[1] * L[1] - domain_lower[1] ) / dx[1] -0.5);
+            int k0 = floor(((*it).x_a[2] + shift[2] * L[2] - domain_lower[2] ) / dx[2] -0.5);
+
+            hier::Index temp_idx(i0-3+i, j0-3+j, k0-3+k);
+            
+            if(!fields_ghost_box.contains(temp_idx))
+              TBOX_ERROR("Particle at "<<hier::Index(i0, j0, k0)
+                         <<"is not contained in the ghostbox "<<fields_ghost_box<<"\n");
+          }
+      set_gd_values(patch, (*it).x_a, &gd, bssn, dx, shift);
+      RKEvolveParticle((*it), gd, dt);
+      if(PARTICLE_REAL_PROPERTIES > 0)
+      {
+        (*it).rp[0] = gd.p0;
+        if(save_metric && PARTICLE_REAL_PROPERTIES > 6)
+        {
+          (*it).rp[1] = gd.m11;
+          (*it).rp[2] = gd.m12;
+          (*it).rp[3] = gd.m13;
+          (*it).rp[4] = gd.m22;
+          (*it).rp[5] = gd.m23;
+          (*it).rp[6] = gd.m33;
+        }
+        // outputing dust fluid info
+        if(PARTICLE_REAL_PROPERTIES > 7)
+        {
+          DustFluidData dd = {0};
+          set_gd_values_for_dust_fluid(patch, (*it).x_a, &gd, &dd, dustFluidSim, dx, shift);
+                      double v1 = dd.S1 / dd.E, v2 = dd.S2 / dd.E, v3 = dd.S3 / dd.E;
+            double W = dd.E / dd.D;
+            double vi1 = gd.mi11 * v1 + gd.mi12 * v2 + gd.mi13 * v3;
+            double vi2 = gd.mi12 * v1 + gd.mi22 * v2 + gd.mi23 * v3;
+            double vi3 = gd.mi13 * v1 + gd.mi23 * v2 + gd.mi33 * v3;
+            
+
+            // u^0
+            (*it).rp[7] = W / gd.alpha;
+            // u^i
+            (*it).rp[8] = (vi1 - gd.beta1 / gd.alpha) * W;
+            (*it).rp[9] = (vi2 - gd.beta2 / gd.alpha) * W;
+            (*it).rp[10] =(vi3 - gd.beta3 / gd.alpha) * W;
+            // u_i
+            (*it).rp[11] = v1 * W;
+            (*it).rp[12] = v2 * W;
+            (*it).rp[13] = v3 * W;
+
+            // storing p_0
+            (*it).rp[14] = -gd.p0 * pw2(gd.alpha) + gd.beta1 * gd.q1 + gd.beta2 * gd.q2 + gd.beta3 * gd.q3;
+        }
+        if(PARTICLE_REAL_PROPERTIES > 15)
+        {
+          (*it).rp[15] = gd.K;
+        }
+
+      }
+    }
+    
+  }
+
+}
+
+// regular RK evolve patch (without dustFluid)
 void Geodesic::RKEvolvePatch(
   const std::shared_ptr<hier::Patch> & patch, BSSN *bssn, real_t dt)
 {
@@ -496,10 +781,14 @@ void Geodesic::RKEvolvePatch(
   // pdat::CellIterator icend(pdat::CellGeometry::end(ghost_box));
   // for (pdat::CellIterator ic(pdat::CellGeometry::begin(ghost_box));
   //      ic != icend; ++ic)
-  for(;iter != iterend; iter++)
+  std::vector<pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator> it_vec;
+  for(;iter != iterend; iter++) it_vec.push_back(iter);
+
+#pragma omp parallel for
+  for(int ii = 0; ii < it_vec.size(); ii++)
   {
     //    hier::Index idx(*ic);
-    ParticleContainer & id = *iter;
+    ParticleContainer & id = *it_vec[ii];
 
 
     for(std::list<RKParticle>::iterator it=id.p_list.begin();
@@ -615,6 +904,55 @@ void Geodesic::registerRKRefiner(
 
 }
 
+void Geodesic::set_gd_values_for_dust_fluid(
+  const std::shared_ptr<hier::Patch> & patch, 
+  double p_info[], GeodesicData *gd, DustFluidData *dd, DustFluid *dustFluid, const real_t dx[], double shift[])
+{
+  
+  int i0 = floor((gd->x - domain_lower[0] ) / dx[0] - 0.5);
+  int j0 = floor((gd->y - domain_lower[1] ) / dx[1] - 0.5);
+  int k0 = floor((gd->z - domain_lower[2] ) / dx[2] - 0.5);
+
+  
+  
+  real_t x0 = domain_lower[0] + (double)i0 * dx[0] + dx[0]/2.0;
+  real_t y0 = domain_lower[1] + (double)j0 * dx[1] + dx[1]/2.0;
+  real_t z0 = domain_lower[2] + (double)k0 * dx[2] + dx[2]/2.0;
+
+  double xd = (gd->x - x0) / dx[0];
+  double yd = (gd->y - y0) / dx[1];
+  double zd = (gd->z - z0) / dx[2];
+
+  GEODESIC_DEFINE_CRSPLINES_DF_D;
+  GEODESIC_DEFINE_CRSPLINES_DF_E;
+  GEODESIC_DEFINE_CRSPLINES_DF_S(1);
+  GEODESIC_DEFINE_CRSPLINES_DF_S(2);
+  GEODESIC_DEFINE_CRSPLINES_DF_S(3);
+
+  for(int i = 0; i < 4; i++)
+    for(int j = 0; j < 4; j++)
+      for(int k = 0; k < 4; k++)
+      {
+        f_D[i*16 + j*4 + k] = dustFluid->DF_D_a(i0-1+i, j0-1+j, k0-1+k);
+        f_E[i*16 + j*4 + k] = dustFluid->DF_E_a(i0-1+i, j0-1+j, k0-1+k);
+        f_S1[i*16 + j*4 + k] = dustFluid->DF_S1_a(i0-1+i, j0-1+j, k0-1+k);
+        f_S2[i*16 + j*4 + k] = dustFluid->DF_S2_a(i0-1+i, j0-1+j, k0-1+k);
+        f_S3[i*16 + j*4 + k] = dustFluid->DF_S3_a(i0-1+i, j0-1+j, k0-1+k);
+
+      }
+  compute_tricubic_coeffs(a_D, f_D);
+  compute_tricubic_coeffs(a_E, f_E);
+  compute_tricubic_coeffs(a_S1, f_S1);
+  compute_tricubic_coeffs(a_S2, f_S2);
+  compute_tricubic_coeffs(a_S3, f_S3);
+
+  dd->D = evaluate_interpolation(a_D, xd, yd, zd);
+  dd->E = evaluate_interpolation(a_E, xd, yd, zd);
+  dd->S1 = evaluate_interpolation(a_S1, xd, yd, zd);
+  dd->S2 = evaluate_interpolation(a_S2, xd, yd, zd);
+  dd->S3 = evaluate_interpolation(a_S3, xd, yd, zd);
+}
+
 // set values needed by evolution equation for null geodesic
 // since the corresponding particle has been living in certain
 // patch, do not need global interpolation any more
@@ -673,7 +1011,10 @@ void Geodesic::set_gd_values(
   COSMO_APPLY_TO_IJ_PERMS(GEODESIC_DEFINE_CRSPLINES_M);
   COSMO_APPLY_TO_IJK_PERMS(GEODESIC_DEFINE_CRSPLINES_DM);
 
-        
+#if PARTICLE_REAL_PROPERTIES > 15
+    GEODESIC_DEFINE_CRSPLINES_K;
+#endif
+
   BSSNData bd = {0};
 
   for(int i = 0; i < 4; i++)
@@ -710,6 +1051,9 @@ void Geodesic::set_gd_values(
 
         COSMO_APPLY_TO_IJ_PERMS(GEODESIC_CRSPLINES_SET_F_M);
         COSMO_APPLY_TO_IJK_PERMS(GEODESIC_CRSPLINES_SET_F_DM);
+#if PARTICLE_REAL_PROPERTIES > 15
+        GEODESIC_CRSPLINES_SET_F_K;
+#endif
       }
 
   GEODESIC_CRSPLINES_CAL_COEF_CHI;
@@ -739,7 +1083,9 @@ void Geodesic::set_gd_values(
 
   COSMO_APPLY_TO_IJ_PERMS(GEODESIC_CRSPLINES_CAL_COEF_M);
   COSMO_APPLY_TO_IJK_PERMS(GEODESIC_CRSPLINES_CAL_COEF_DM);
-
+#if PARTICLE_REAL_PROPERTIES > 15
+  GEODESIC_CRSPLINES_CAL_COEF_K;
+#endif
 
   
   
@@ -771,7 +1117,9 @@ void Geodesic::set_gd_values(
   COSMO_APPLY_TO_IJ_PERMS(GEODESIC_CRSPLINES_EVAL_M);
   COSMO_APPLY_TO_IJK_PERMS(GEODESIC_CRSPLINES_EVAL_DM);
 
-
+#if PARTICLE_REAL_PROPERTIES > 15
+  GEODESIC_CRSPLINES_EVAL_K;
+#endif
 
   
   // calculating derivative to the 3-metric, not conformal one
@@ -804,8 +1152,6 @@ void Geodesic::set_gd_values(
     + gd->q2 * gd->q2 * gd->mi22 + 2.0*gd->q1 * gd->q3 * gd->mi13
     + gd->q3 * gd->q3 * gd->mi33 + 2.0*gd->q2 * gd->q3 * gd->mi23)/ gd->alpha;
 
-  //  std::cout<<"!!! p0 "<<gd->p0<<" "<<gd->mi11<<" "<<gd->mi22<<" "<<gd->m11<<" "<<gd->chi<<"\n";
-  
 }
 
 void Geodesic::K1FinalizePatch(
@@ -825,10 +1171,13 @@ void Geodesic::K1FinalizePatch(
   pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iter(*pc_pdata, true);
   pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iterend(*pc_pdata, false);
 
-  for(;iter != iterend; iter++)
-  {
+  std::vector<pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator> it_vec;
+  for(;iter != iterend; iter++) it_vec.push_back(iter);
 
-    ParticleContainer & id = *iter;
+#pragma omp parallel for
+  for(int ii = 0; ii < it_vec.size(); ii++)
+  {
+    ParticleContainer & id = *it_vec[ii];
 
     for(std::list<RKParticle>::iterator it=id.p_list.begin();
         it != id.p_list.end(); it++)
@@ -838,10 +1187,6 @@ void Geodesic::K1FinalizePatch(
         (*it).x_a[i] = (*it).x_p[i] + (*it).x_c[i] / 2.0;
         (*it).x_f[i] = (*it).x_p[i] + (*it).x_c[i] / 6.0;
       }
-      // if(patch->getBox().getBoxId().getOwnerRank() ==7)
-      //   std::cout<<"haha "<<(*it).x_p[0]<<" "<<(*it).x_p[1]<<" "<<(*it).x_p[2]
-      //            <<" "<<(*it).x_a[0]<<" "<<(*it).x_a[1]<<" "<<(*it).x_a[2]
-      //            <<" "<<(*it).x_c[0]<<" "<<(*it).x_c[1]<<" "<<(*it).x_c[2]<<"\n"<<std::flush;
 
     }
     
@@ -872,10 +1217,13 @@ void Geodesic::K2FinalizePatch(
   pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iter(*pc_pdata, true);
   pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iterend(*pc_pdata, false);
 
-  for(;iter != iterend; iter++)
-  {
+  std::vector<pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator> it_vec;
+  for(;iter != iterend; iter++) it_vec.push_back(iter);
 
-    ParticleContainer & id = *iter;
+#pragma omp parallel for
+  for(int ii = 0; ii < it_vec.size(); ii++)
+  {
+    ParticleContainer & id = *it_vec[ii];
 
     for(std::list<RKParticle>::iterator it=id.p_list.begin();
         it != id.p_list.end(); it++)
@@ -912,11 +1260,14 @@ void Geodesic::K3FinalizePatch(
 
   pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iter(*pc_pdata, true);
   pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iterend(*pc_pdata, false);
+  
+  std::vector<pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator> it_vec;
+  for(;iter != iterend; iter++) it_vec.push_back(iter);
 
-  for(;iter != iterend; iter++)
+#pragma omp parallel for
+  for(int ii = 0; ii < it_vec.size(); ii++)
   {
-
-    ParticleContainer & id = *iter;
+    ParticleContainer & id = *it_vec[ii];
 
     for(std::list<RKParticle>::iterator it=id.p_list.begin();
         it != id.p_list.end(); it++)
@@ -956,10 +1307,14 @@ void Geodesic::K4FinalizePatch(
   pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iter(*pc_pdata, true);
   pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator iterend(*pc_pdata, false);
 
-  for(;iter != iterend; iter++)
+  std::vector<pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator> it_vec;
+  for(;iter != iterend; iter++) it_vec.push_back(iter);
+
+#pragma omp parallel for
+  for(int ii = 0; ii < it_vec.size(); ii++)
   {
 
-    ParticleContainer &id = *iter;
+    ParticleContainer &id = *it_vec[ii];
 
     for(std::list<RKParticle>::iterator it=id.p_list.begin();
         it != id.p_list.end(); it++)
@@ -978,6 +1333,7 @@ void Geodesic::K4FinalizePatch(
 void Geodesic::clearParticlesCoveredbyFinerLevel(
   const std::shared_ptr<hier::PatchHierarchy>& hierarchy, int ln)
 {
+  if( ln == hierarchy->getNumberOfLevels() - 1) return;
   std::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
   {
     std::shared_ptr<hier::PatchLevel> level(
@@ -1094,7 +1450,7 @@ void Geodesic::regridPostProcessing(
              ParticleContainer *p = new ParticleContainer(src_p->idx);
              pc_pdata->appendItem((*i), *p);
              dst_p = pc_pdata->getItem(*i);
-             
+             delete p;
            }
            dst_p->p_list.insert(dst_p->p_list.end(), src_p->p_list.begin(), src_p->p_list.end());
 
@@ -1145,42 +1501,24 @@ void Geodesic::particleRedistribution(
     // pdat::CellIterator icend(pdat::CellGeometry::end(ghost_box));
     // for (pdat::CellIterator ic(pdat::CellGeometry::begin(ghost_box));
     //      ic != icend; ++ic)
-    for(; iter != iterend; iter++)
-    {
-      hier::Index old_idx(iter.getIndex());
+    std::vector<pdat::IndexData<ParticleContainer, pdat::CellGeometry>::iterator> it_vec;
+    for(;iter != iterend; iter++) it_vec.push_back(iter);
 
-      ParticleContainer & id = *iter;
+    // !!!!!!!!!!!!!!!!!!VERY IMPORTANT HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // Can I parallel this?
+    // Answer might be NO!
+    //#pragma omp parallel for
+    for(int ii = 0; ii < it_vec.size(); ii++)
+    {
+      hier::Index old_idx(it_vec[ii].getIndex());
+
+      ParticleContainer & id = *it_vec[ii];
 
 
       // go through all particles
       for(std::list<RKParticle>::iterator it=id.p_list.begin();
           it != id.p_list.end();)
       {
-//         hier::Index temp_new_idx(floor((*it).x_a[0] / dx[0] ),
-//                             floor((*it).x_a[1] / dx[1] ),
-//                             floor((*it).x_a[2] / dx[2] ));
-
-//         for(int i = 0; i < 3 ; i++)
-//         {
-//           if(temp_new_idx[i] > old_idx[i] + 1)
-//             temp_new_idx[i] -= 
-//               round((double)(temp_new_idx[i] - old_idx[i]) / round(L[i] / dx[i]))
-//               * round(L[i] / dx[i]);
-//           else if(temp_new_idx[i] < old_idx[i] - 1)
-//             temp_new_idx[i] += 
-//               round((double)(old_idx[i] - temp_new_idx[i]) / round(L[i] / dx[i]))
-//               * round(L[i] / dx[i]);
-//           if( abs(temp_new_idx[i] - old_idx[i]) > 1 )
-//             TBOX_ERROR("The difference between old and new idx is larger than 1 "
-// <<temp_new_idx<<" "<<old_idx<<"\n");
-//         }
-
-//         // still at the same position, nothing needs to be done
-//         if(old_idx == temp_new_idx)
-//         {
-//           ++it;
-//           continue;
-//         }
 
         double shift[3] = {0};
         // shift new_idx for periodic boundary, VERY IMPORTANT!
@@ -1206,7 +1544,6 @@ void Geodesic::particleRedistribution(
         }
 
 
-        //std::cout<<mpi.getRank()<<" "<<new_idx<<" "<<old_idx<<" "<<(*it).x_a[2]<<"\n";
         // still at the same position, nothing needs to be done
         // if(old_idx == new_idx)
         // {
@@ -1227,6 +1564,7 @@ void Geodesic::particleRedistribution(
             fp = new ParticleContainer(new_idx);
             fp->addParticle(*it);
             pc_s_pdata->appendItem(new_idx, *fp);
+            delete fp;
           }
 
         }
@@ -1241,16 +1579,11 @@ void Geodesic::particleRedistribution(
           }
         }
                 
-        // std::cout<<"!!!!!\n";
-        // std::cout<<(it==id.p_list.begin())<<" "<<(it_bak==id.p_list.begin())<<" "<<(id.p_list.size())<<"\n";
-        // id.print();
         // erase and advance
         it = id.p_list.erase(it);
         
       }
 
-      // if(id.p_list.empty())
-      //   pc_pdata->removeItem(*ic);
     }
     pc_pdata->removeAllItems();
     insertPatchParticles(patch, pc_s_idx, pc_idx);
@@ -1362,12 +1695,10 @@ void Geodesic::particleRedistribution(
         int p_in_buffer_num = 0;
     std::shared_ptr<hier::PatchLevel> level(
       hierarchy->getPatchLevel(ln));
-    //    if(step == 54) std::cout<<"Flag2.0000 "<<pc_d_buffer_idx<<"\n"<<std::flush;      
 
     clearParticles(hierarchy, ln, pc_d_buffer_idx);
 
 
-    //  if(step == 54) std::cout<<"Flag2.0!"<<std::flush;      
     // the CoarseFineBoundary type deals with coarse-fine boundary boxes on certain level
     hier::CoarseFineBoundary cfb(*hierarchy, ln, hier::IntVector(dim, ghost_width));       
     // cfb.printClassData(tbox::pout);
@@ -1388,7 +1719,6 @@ void Geodesic::particleRedistribution(
       const std::vector<hier::BoundaryBox> & codim1_boxes =
         cfb.getBoundaries(patch->getGlobalId(), 1, patch->getBox().getBlockId());
 
-      //  if(step == 54) std::cout<<"Flag2.1!"<<std::flush;  
       const int n_codim1_boxes = static_cast<int>(codim1_boxes.size());
 
       for(int l = 0 ; l < n_codim1_boxes; l++)
@@ -1408,7 +1738,7 @@ void Geodesic::particleRedistribution(
           }
         }
       }
-      //  if(step == 54) std::cout<<"Flag2.2!"<<std::flush;  
+
       const std::vector<hier::BoundaryBox> & codim2_boxes =
         cfb.getBoundaries(patch->getGlobalId(), 2, patch->getBox().getBlockId());
 
@@ -1429,7 +1759,6 @@ void Geodesic::particleRedistribution(
           ParticleContainer *pc = pc_pdata->getItem(*ic);
           if(pc != NULL)
           {
-            //            std::cout<<"Inserting "<<step<<" "<<(*ic)<<"\n"<<std::flush;
 
             pc_d_buffer_pdata->replaceAddItem(*ic, *pc);
           }
@@ -1438,7 +1767,6 @@ void Geodesic::particleRedistribution(
         
       }
 
-      //  if(step == 54) std::cout<<"Flag2.3!"<<std::flush;  
       const std::vector<hier::BoundaryBox> & codim3_boxes =
         cfb.getBoundaries(patch->getGlobalId(), 3, patch->getBox().getBlockId());
 
@@ -1471,7 +1799,6 @@ void Geodesic::particleRedistribution(
     if(mpi.getSize() > 1)
       mpi.AllReduce(&p_in_buffer_num, 1, MPI_SUM);
 
-    //    std::cout<<"Number of particles in buffer is "<<p_in_buffer_num<<"\n"<<std::flush;
 
   }
 
@@ -1521,7 +1848,7 @@ void Geodesic::printAll(
       for(; iter != iterend; iter++){
         ParticleContainer & p = *iter;
         {
-          std::cout<<"\nThere are "<<p.p_list.size()<<" particles at cell "
+          tbox::pout<<"\nThere are "<<p.p_list.size()<<" particles at cell "
                    <<iter.getIndex()<<". Node "<<mpi.getRank()<<", box "<<patch->getBox()
                    <<". Their location and velocity are \n";
           cnt += p.p_list.size();

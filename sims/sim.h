@@ -35,6 +35,7 @@ public:
 
 #if USE_COSMOTRACE
   Geodesic *ray;
+  std::vector<int> ray_insert_step;
 #endif
   
   CosmoSim(

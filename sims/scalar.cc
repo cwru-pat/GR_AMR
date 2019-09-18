@@ -1197,8 +1197,8 @@ void ScalarSim::putToRestart(
 {
   restart_db->putDouble("cur_t", cur_t);
   restart_db->putInteger("step", step);
-  restart_db->putDouble("BSSNK0", step);
-  restart_db->putBool("has_found_horizon", step);
+  restart_db->putDouble("BSSNK0", bssnSim->K0);
+  restart_db->putBool("has_found_horizon", has_found_horizon);
   return;
 }
 

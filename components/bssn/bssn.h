@@ -155,6 +155,8 @@ public:
 #if USE_COSMOTRACE
   void set_bd_values_for_ray_tracing(idx_t i, idx_t j, idx_t k, BSSNData *bd, const real_t dx[]);
 #endif
+
+  void set_bd_values_for_dust_fluid(idx_t i, idx_t j, idx_t k, BSSNData *bd, const real_t dx[], bool cal_derivatives = true);
   
   void set_local_vals(BSSNData *bd);
 

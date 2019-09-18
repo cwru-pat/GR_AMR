@@ -1300,6 +1300,14 @@ inline real_t upwind_derivative(idx_t i, idx_t j, idx_t k, int d,
   else return c * lop_backward_derivative(i,j,k,d,field, dx);
 }
 
+inline real_t pure_upwind_derivative(idx_t i, idx_t j, idx_t k, int d,
+    arr_t & field, const double dx[], real_t c)
+{
+  if( c > 0) return c * forward_derivative(i,j,k,d,field, dx);
+  else return c * backward_derivative(i,j,k,d,field, dx);
+}
+
+
 // directional derivative function for cells on boundary
 inline real_t bd_derivative(
   idx_t i, idx_t j, idx_t k, int d,

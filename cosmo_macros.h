@@ -25,7 +25,7 @@
 #endif
 
 #ifndef GHOST_WIDTH
-  #define GHOST_WIDTH 4
+  #define GHOST_WIDTH 5
 #endif
 
 
@@ -80,7 +80,11 @@
 #endif
 
 #if USE_COSMOTRACE
-  #define EVOLVE_LAMBDA false
+  #define EVOLVE_LAMBDA true
+#endif
+
+#ifndef USE_DUST_FLUID
+  #define USE_DUST_FLUID false
 #endif
 
 //Potential types

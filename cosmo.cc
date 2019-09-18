@@ -1,6 +1,7 @@
 #include "cosmo_includes.h"
 #include "sims/sim.h"
 #include "sims/vacuum.h"
+#include "sims/dust_fluid.h"
 #include "sims/dust.h"
 #include "sims/scalar.h"
 #include "utils/CartesianCellDoubleQuadraticRefine.h"
@@ -238,6 +239,11 @@ int main(int argc, char* argv[])
   else if(simulation_type == "dust")
   {
     cosmoSim = new DustSim(
+      patch_hierarchy, dim, input_db, &tbox::plog, simulation_type, vis_filename);
+  }
+  else if(simulation_type == "dust_fluid")
+  {
+    cosmoSim = new DustFluidSim(
       patch_hierarchy, dim, input_db, &tbox::plog, simulation_type, vis_filename);
   }
   else

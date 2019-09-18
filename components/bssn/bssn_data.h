@@ -281,6 +281,10 @@ typedef struct {
   real_t norm, x, y, z;
 
   real_t Z1, Z2, Z3;
+
+  #if USE_DUST_FLUID
+  real_t dchidt;
+  #endif
   
 } BSSNData;
 

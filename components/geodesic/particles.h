@@ -43,7 +43,9 @@ using namespace SAMRAI::tbox;
 #define PARTICLE_NUMBER_OF_STATES 7
 
 #define PARTICLE_INT_PROPERTIES 1
-#define PARTICLE_REAL_PROPERTIES 7
+
+// p0 1 + metric 6 + DF_D 1 + DF_S 3 + DF_E 1
+#define PARTICLE_REAL_PROPERTIES 16
 
 class RKParticle
 {

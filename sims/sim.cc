@@ -129,6 +129,10 @@ CosmoSim::CosmoSim(
 #if USE_COSMOTRACE
   ray = new Geodesic(
     hierarchy, dim, input_db->getDatabase("Ray"), lstream, KO_damping_coefficient,weight_idx);
+  if(!cosmo_sim_db->keyExists("ray_insert_step"))
+    ray_insert_step.push_back(0);
+  else
+    ray_insert_step = cosmo_sim_db->getIntegerVector("ray_insert_step");
 #endif
   
   

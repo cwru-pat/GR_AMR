@@ -748,6 +748,9 @@ void BSSN::RKEvolvePt(
 {
   set_bd_values(i, j, k, &bd, dx);
   BSSN_RK_EVOLVE_PT;
+#if USE_DUST_FLUID
+  bd.dchidt = DIFFchi_s(bd.i, bd.j, bd.k) / dt;
+#endif
 }
 
 void BSSN::RKEvolvePtBd(
@@ -1307,6 +1310,52 @@ void BSSN::set_bd_values_bd(
   
   if(bd->chi < chi_lower_bd) bd->chi = chi_lower_bd;
 }
+
+void BSSN::set_bd_values_for_dust_fluid(idx_t i, idx_t j, idx_t k, BSSNData *bd, const real_t dx[], bool cal_derivatives)
+{
+  // for(int si = -2; si <= 2; si++)
+  //   for(int sj = -2; sj <= 2; sj++)
+  //     for(int sk = -2; sk <= 2; sk++)
+  //     {
+  //       hier::Index temp_idx(i+si, j+sj, k+sk);
+  //       if(DIFFchi_a_pdata->getGhostBox().contains(temp_idx) == false)
+  //         TBOX_ERROR("EEEEEEEEEEEEEEEEEEEE\n");
+  //     }
+  bd->i = i;
+  bd->j = j;
+  bd->k = k;
+
+  set_local_vals(bd);
+  set_gammai_values(i, j, k, bd);
+  // non-DIFF quantities
+  bd->chi      =   bd->DIFFchi + 1.0;
+  bd->K        =   bd->DIFFK + bd->K_FRW;
+  bd->gamma11  =   bd->DIFFgamma11 + 1.0;
+  bd->gamma12  =   bd->DIFFgamma12;
+  bd->gamma13  =   bd->DIFFgamma13;
+  bd->gamma22  =   bd->DIFFgamma22 + 1.0;
+  bd->gamma23  =   bd->DIFFgamma23;
+  bd->gamma33  =   bd->DIFFgamma33 + 1.0;
+  bd->r        =   bd->DIFFr + bd->rho_FRW;
+  bd->S        =   bd->DIFFS + bd->S_FRW;
+  bd->alpha    =   bd->DIFFalpha + 1.0;
+
+  if(cal_derivatives)
+  {
+    calculate_dgamma(bd,dx);
+    calculate_dalpha_dchi(bd,dx);
+# if USE_BSSN_SHIFT
+    calculate_dbeta(bd,dx);
+# endif
+  }
+  bd->x = (dx[0] * ((real_t)i + 0.5)) - L[0] / 2.0 ;
+  bd->y = (dx[1] * ((real_t)j + 0.5)) - L[1] / 2.0 ;
+  bd->z = (dx[2] * ((real_t)k + 0.5)) - L[2] / 2.0 ;
+          
+  bd->norm = sqrt(bd->x*bd->x + bd->y*bd->y + bd->z*bd->z);
+
+}
+
 
 #if USE_COSMOTRACE
 void BSSN::set_bd_values_for_ray_tracing(idx_t i, idx_t j, idx_t k, BSSNData *bd, const real_t dx[])

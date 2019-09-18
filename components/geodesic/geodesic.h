@@ -8,6 +8,7 @@
 #include "SAMRAI/xfer/RefinePatchStrategy.h"
 #include "SAMRAI/math/HierarchyCellDataOpsReal.h"
 #include "../../components/bssn/bssn.h"
+#include "../../components/dust_fluid/dust_fluid.h"
 
 #include <SAMRAI/xfer/PatchLevelFillPattern.h>
 #include <SAMRAI/xfer/PatchLevelInteriorFillPattern.h>
@@ -63,7 +64,17 @@ namespace cosmo
 #define GEODESIC_DEFINE_CRSPLINES_DM(K,I,J) \
   double a_d##K##m##I##J[64], f_d##K##m##I##J[64];
 
+#define GEODESIC_DEFINE_CRSPLINES_DF_D \
+  double a_D[64], f_D[64];
 
+#define GEODESIC_DEFINE_CRSPLINES_DF_E \
+  double a_E[64], f_E[64];
+
+#define GEODESIC_DEFINE_CRSPLINES_DF_S(I)       \
+  double a_S##I[64], f_S##I[64];
+
+#define GEODESIC_DEFINE_CRSPLINES_K \
+  double a_K[64], f_K[64];
 
 
 #define GEODESIC_CRSPLINES_SET_F_CHI            \
@@ -90,6 +101,10 @@ namespace cosmo
 #define GEODESIC_CRSPLINES_SET_F_DM(K,I,J)      \
   f_d##K##m##I##J[i*16 + j*4 + k] = bd.d##K##g##I##J
 
+#define GEODESIC_CRSPLINES_SET_F_K            \
+  f_K[i*16 + j*4 + k] = bd.K 
+
+  
 
 #define GEODESIC_CRSPLINES_CAL_COEF_CHI            \
   compute_tricubic_coeffs(a_chi, f_chi)
@@ -114,6 +129,9 @@ namespace cosmo
 
 #define GEODESIC_CRSPLINES_CAL_COEF_DM(K,I,J)      \
   compute_tricubic_coeffs(a_d##K##m##I##J, f_d##K##m##I##J)
+
+#define GEODESIC_CRSPLINES_CAL_COEF_K            \
+  compute_tricubic_coeffs(a_K, f_K)
 
 
 
@@ -145,6 +163,8 @@ namespace cosmo
   gd->d##K##m##I##J = -2.0 * gd->d##K##chi * gd->m##I##J / pw3(gd->chi) \
     + gd->d##K##m##I##J / pw2(gd->chi)
   
+#define GEODESIC_CRSPLINES_EVAL_K            \
+  gd->K = evaluate_interpolation(a_K, xd, yd, zd)
 
 
   
@@ -189,6 +209,10 @@ class Geodesic
   void RKEvolvePatch(
     const std::shared_ptr<hier::Patch> & patch, BSSN *bssn, real_t dt);
 
+  void RKEvolvePatch(
+    const std::shared_ptr<hier::Patch> & patch, BSSN *bssn, DustFluid * dustFluid, real_t dt);
+
+  
   void RKEvolveParticle(
     RKParticle &p, GeodesicData &gd, double dt);
 
@@ -209,6 +233,10 @@ class Geodesic
   const std::shared_ptr<hier::Patch> & patch, 
   double p_info[], GeodesicData *gd, BSSN *bssn, const real_t dx[], double shift[]);
 
+  void set_gd_values_for_dust_fluid(
+    const std::shared_ptr<hier::Patch> & patch, 
+    double p_info[], GeodesicData *gd, DustFluidData *dd, DustFluid *dustFluidSim, const real_t dx[], double shift[]);
+
   
   void clearParticlesCoveredbyFinerLevel(
     const std::shared_ptr<hier::PatchHierarchy>& hierarchy, int ln);
@@ -226,7 +254,7 @@ class Geodesic
     std::vector<std::vector<real_t>> &dirs_x,
     std::vector<std::vector<real_t>> &dirs_y,
     std::vector<std::vector<real_t>> &dirs_z,
-    BSSN *bssn);
+    BSSN *bssn, double epsilon, std::vector<std::vector<int>> &ids);
 
   void geodesic_ic_set_uniform_rays(
     const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
@@ -238,7 +266,7 @@ class Geodesic
     BSSN *bssn,
     real_t ox, real_t oy, real_t oz,
     std::vector<real_t> &dirx, std::vector<real_t> &diry, std::vector<real_t> &dirz,
-    const real_t dx[], double epsilon, int &p_id);
+    const real_t dx[], double epsilon, std::vector<int> &ids);
 
 
   
@@ -253,6 +281,10 @@ class Geodesic
   
   void initAll(
     const std::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN *bssn);
+  
+  void initAll(
+    const std::shared_ptr<hier::PatchHierarchy>& hierarchy, BSSN *bssn, DustFluid *dustFluid);
+
   
   void compute_tricubic_coeffs(double *a, double *f);
 
@@ -300,7 +332,7 @@ class Geodesic
   
   double p0;
   bool save_metric;
-  int cur_step;
+  int cur_step, num_p;
 };
 }
 #endif
