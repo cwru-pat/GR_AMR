@@ -112,6 +112,11 @@ BSSN{
   chi_lower_bd = 1e-9
 }
 
+CosmoStatistic{
+
+}
+
+
 AHFD{
   N_horizons = 2
   origin_x = 3.5, 3.5

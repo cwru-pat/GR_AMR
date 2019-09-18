@@ -119,6 +119,11 @@ BSSN{
   chi_lower_bd = 1e-9
 }
 
+CosmoStatistic{
+
+}
+
+
 AHFD{
   find_every = 2
   N_horizons = 3

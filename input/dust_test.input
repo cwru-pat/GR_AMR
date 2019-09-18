@@ -104,6 +104,11 @@ IO{
   gd_c = 1
 }
 
+CosmoStatistic{
+
+}
+
+
 Static{
   peak_amplitude_frac = 5.0
   rho_K_lambda_frac = 0.0

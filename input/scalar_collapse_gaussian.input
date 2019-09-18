@@ -142,6 +142,11 @@ IO{
   
 }
 
+CosmoStatistic{
+
+}
+
+
 Scalar{
   potential_type = "Quadratic"
   initial_type = "gaussian"
