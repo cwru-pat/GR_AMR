@@ -1907,7 +1907,7 @@ void HorizonStatistics::convertToVector(
 
       KillingData kd = {0};
 
-      set_kd_values(hierarchy, theta, phi, theta, phi, getRadius(theta, phi), &kd, bssn);
+      set_kd_values(hierarchy, theta, phi, theta_i*2, phi_i*2, getRadius(theta, phi), &kd, bssn);
       
       k_theta[theta_i][phi_i] = kd.qi11 * k_theta0 + kd.qi12 * k_phi0;
       k_phi[theta_i][phi_i] = kd.qi12 * k_theta0 + kd.qi22 * k_phi0;
