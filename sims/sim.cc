@@ -217,7 +217,7 @@ void CosmoSim::calculateKAvg(
   const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   K_avg = cosmo_statistic->calculate_conformal_avg(
-    hierarchy, bssnSim, weight_idx, bssnSim->DIFFK_a_idx, K_avg_on_the_edge);
+    hierarchy, bssnSim, weight_idx, bssnSim->DIFFK_a_idx, K_avg_on_the_edge, max_horizon_radius);
   // not a very good implementation, may consider it later
   bssnSim->K_avg = K_avg;
 }
@@ -284,8 +284,6 @@ void CosmoSim::runCommonStepTasks(
                 <<"Mass is -999999 irreducible mass (areal) is -999999\n\n";
     }
   }
-  if(calculate_K_avg)
-    calculateKAvg(hierarchy);
   
   if(found_horizon)
     has_found_horizon = true;
@@ -297,6 +295,9 @@ void CosmoSim::runCommonStepTasks(
       if(horizon->state.AH_data_array[i]->BH_diagnostics.mean_radius > max_horizon_radius)
         max_horizon_radius = horizon->state.AH_data_array[i]->BH_diagnostics.mean_radius;
   }
+
+  if(calculate_K_avg)
+    calculateKAvg(hierarchy);
 
   
   // not fully tested!!!!

@@ -43,7 +43,8 @@ real_t CosmoStatistic::calculate_conformal_avg(
   idx_t weight_idx,
   idx_t field_idx,
   //calculating conformal avg only on boundary
-  bool only_on_bd)
+  bool only_on_bd,
+  double min_radius)
 {
   std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
     SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
@@ -205,7 +206,12 @@ real_t CosmoStatistic::calculate_conformal_avg(
 
               continue;
             }
-            if(weight_array(i,j,k) > 0)
+            double xx = (dx[0] * ((real_t)i + 0.5)) - L[0] / 2.0 ;
+            double yy = (dx[1] * ((real_t)j + 0.5)) - L[1] / 2.0 ;
+            double zz = (dx[2] * ((real_t)k + 0.5)) - L[2] / 2.0 ;
+            double r = sqrt(pw2(xx) + pw2(yy) + pw2(zz));
+
+            if(weight_array(i,j,k) > 0 && r > min_radius)
             {
               tot_vol += weight_array(i, j, k) * 1.0 / pw3(DIFFchi_array(i, j, k) + 1.0);
               conformal_avg +=
