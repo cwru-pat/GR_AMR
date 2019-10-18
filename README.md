@@ -1,13 +1,13 @@
 # GR_AMR
 MPI version of CosmoGRaPH Code (https://cwru-pat.github.io/cosmograph/) plus more features:
 
- - Fully general relativistic BSSN code with block-structured Adaptive Mesh Refinement support powered by SAMRAI (https://github.com/LLNL/SAMRAI/);
+ - Fully general relativistic BSSN+z4c code with block-structured adaptive-mesh-refinement support powered by SAMRAI (https://github.com/LLNL/SAMRAI/), which is an infrastructure has been demonstrated to be scalable to million cores.
  - Elliptical solver which supports any kind of terms and any number of equations;
  - Support different matter fields, e.g., vacuum, dust fluid and scalar field;
  - AHFinderDirect (https://arxiv.org/pdf/gr-qc/0306056.pdf) is included as apparent horizon finder; 
- - Module that calculates local measurements like spin of black hole is available;
+ - Module that calculates spin of black hole;
+ - Support calculating Wyel scalars to generate GWs;
  - General relativistic ray tracing;
- - High performance???
 
 ### Software dependencies
  - git
@@ -15,7 +15,7 @@ MPI version of CosmoGRaPH Code (https://cwru-pat.github.io/cosmograph/) plus mor
  - cmake
  - fftw3
  - a compiler with c++11 support 
- - SAMRAI with appropriate version is included as sub-module
+ - SAMRAI, appropriate version is included as sub-module
 
 ## Setting up SAMRAI:
 
