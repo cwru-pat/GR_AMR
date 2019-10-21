@@ -301,7 +301,7 @@ void BSSN::rescale_lapse(
       initPData(patch);
       initMDA(patch);
       
-      const hier::Box& box = DIFFchi_a_pdata->getBox();
+      const hier::Box& box = DIFFchi_a_pdata->getGhostBox();
   
       const int * lower = &box.lower()[0];
       const int * upper = &box.upper()[0];

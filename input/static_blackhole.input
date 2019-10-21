@@ -1,44 +1,73 @@
 Main
 {
-  simulation_type = "vacuum"  
+  // setting up simulation file, now supporting: vacuum, scalar field, dust, dust_fluid.
+  simulation_type = "vacuum"
+  
+  // setting up dimentions, now only suport 3D
   dim = 3
+  
+  // name of this simulation
   base_name = "blackhole"
+  
+  // log_all for SAMRAI component
   log_all = FALSE
+  
+  // print_precision
   print_precision = 9
+
+  // whether this run loads from save point
   restart = FALSE
+  // save file base name, only has effect when restart = TRUE
   restart_basename = "vacuum"
+
+  // restart from which step?
   restart_step = 2
+
+  // restart nodes 
   restart_nodes = 10
 }
 
 CartesianGridGeometry {
+  // box resolution
   domain_boxes = [(0,0,0), (255,255,255)]
+
+  // physics domain lower coordinate
   x_lo         = 0, 0, 0
+
+  // physics domain upper coordinate
   x_up         = 100, 100, 100
+
+  // setting periodic direction, 0 for false and 1 for true
   periodic_dimension = 0, 0, 0
 }
 
 
 StandardTagAndInitialize {
+  // tagging method, only support "GRADIENT_DETECTOR" now
   tagging_method = "GRADIENT_DETECTOR"
 }
 
 
+// load balancing parameters
 TreeLoadBalancer {
   DEV_report_load_balance = TRUE
   DEV_barrier_before = FALSE
   DEV_barrier_after = FALSE
 }
 
+// setting whether to calculate statistic quantities
 CosmoStatistic{
 
 }
 
+// how how aggressive the combing algorithm is 
 BergerRigoutsos {
+   // the closer to 1, easier to be combined
    combine_efficiency = 0.1
    efficiency_tolerance = 0.1
 }
 
+// setting whether to output time for each component
 TimerManager{
     print_exclusive      = TRUE
     timer_list = "loop", "init", "RK_steps"
@@ -46,7 +75,10 @@ TimerManager{
 
 
 PatchHierarchy {
+// maximum level number
    max_levels = 1
+
+// nest buffer when refining mesh
    proper_nesting_buffer = 3, 3, 3, 3, 3, 3   
    largest_patch_size {
       level_0 = -1, -1, -1
@@ -78,43 +110,95 @@ GriddingAlgorithm {
 }
 
 CosmoSim{
+// how many steps it needs to run
   steps = 5
+
+// save at which step, can be multiple steps
   save_interval = 2000
+
+// should do plot 
   do_plot = TRUE
+
+// cfl parameter
   dt_frac = 0.2
+
+// the step interval to do regriding
   regridding_interval = 100000
+
+// when grediant > threshold, tag it
   adaption_threshold = 0.004
+
+// KO coefficient
   KO_damping_coefficient = 0.05
+
+// refine operator, can be: linear, quadratic, hermite
   refine_op_type = "QUADRATIC_REFINE"
+
+// refine operator, can be: CONSERVATIVE, quadratic, hermite
   coarsen_op_typ = "CONSERVATIVE_COARSEN"
+
+// should use AHFinder or not
   use_AHFinder = TRUE
-  AHFinder_interval = 1
-  AHFinder_iter_limit = 20000
-  AHFinder_dt_frac = 0.01
-  surface_move_shreshold = 0
+
+// should use horizon angular momentum finder
   use_anguler_momentum_finder = TRUE
+
+// only do regridding after this step
   regridding_step_lower_bound = 20
+
+// only do regridding before this step 
   regridding_step_upper_bound = 3000
+
+// should we stop after found horizon
   stop_after_found_horizon = FALSE
+
+// should calculate Weyl scalars, experimental!
   calculate_Weyl_scalars = FALSE
+
+// should time evolution be freezed, only for static spacetime
   freeze_time_evolution = TRUE
+
+// should calculate comformal average of K at every step
+  calculate_K_avg = TRUE
   comments = ""
 }
 
 VacuumSim{
+// setting initial condition type, check with run_notes to get
+// all the choises for different matter field
   ic_type = "static_blackhole"
+  
+// boundy type, only support "sommerfield" or periodic, should not conflict
+// with periodic direction in CartesianGridGeometry
   boundary_type = "sommerfield"
 }
 
 BSSN{
+// gauge choice on lapse, see run_notes for options
   lapse = "OnePlusLog"
+
+// gauge choice on shift, see run_notes for options
   Shift = "GammaDriver"
+
+// gauge parameters
   gd_eta = 2
+
+// whether nomalize A_{ij} to make it stay traceless 
   normalize_Aij = TRUE
+
+// wheter nomralize gammaij to make it stay unit det
   normalize_gammaij = FALSE
+
+// z4c parameter
   z4c_k1 = 0.1
+
+// z4c parameter
   z4c_k2 = 0
+
+// when calculating L2 norm, do not calculate region where \alpha < this threshold
   alpha_lower_bd_for_L2 = 0.3
+
+// lowest chi in order to avoid divergence
   chi_lower_bd_type = "static_blackhole"
   chi_lower_bd = 1e-9
 }
@@ -125,21 +209,34 @@ CosmoStatistic{
 
 
 AHFD{
+// try to find horizon every find_every step
   find_every = 2
+
+// number of horizons to find
   N_horizons = 3
+
+// their origins
   origin_x = 50, 50, 50
   origin_y = 50, 50, 50
   origin_z = 50, 50, 50
   sphere_x_center = 50, 50.1, 50
   sphere_y_center = 50, 49.86, 50
   sphere_z_center = 50, 50, 50.1
+
+// initial redius
   sphere_radius = 0.8, 0.7, 0.9
-  find_after_individual = 10, 10, 10 // will only find horizon after this step (inclusive)
+
+// will only find horizon after this step (inclusive)
+  find_after_individual = 10, 10, 10
+
+// maximum allowed number of interations
   max_Newton_iterations_initial = 50
 }
 
 IO{
+// output VisIt fields list, can be multiple
   output_list = "Gamma1"
+
+// output interval
   output_interval = 1
-  gd_c = 1
 }

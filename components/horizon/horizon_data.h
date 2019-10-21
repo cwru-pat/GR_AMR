@@ -15,23 +15,23 @@ typedef struct {
 typedef struct {
 
   // Christoffel symbols
-  real_t Gc111, ///< Conformal christoffel symbol, \f$ \bar{\Gcamma}^{1}_{11} \f$
-         Gc112, ///< Conformal christoffel symbol, \f$ \bar{\Gcamma}^{1}_{12} \f$
-         Gc113, ///< Conformal christoffel symbol, \f$ \bar{\Gcamma}^{1}_{13} \f$
-         Gc122, ///< Conformal christoffel symbol, \f$ \bar{\Gcamma}^{1}_{22} \f$
-         Gc123, ///< Conformal christoffel symbol, \f$ \bar{\Gcamma}^{1}_{23} \f$
-         Gc133, ///< Conformal christoffel symbol, \f$ \bar{\Gcamma}^{1}_{33} \f$
-         Gc211, ///< Conformal christoffel symbol, \f$ \bar{\Gcamma}^{2}_{11} \f$
-         Gc212, ///< Conformal christoffel symbol, \f$ \bar{\Gcamma}^{2}_{12} \f$
-         Gc213, ///< Conformal christoffel symbol, \f$ \bar{\Gcamma}^{2}_{13} \f$
-         Gc222, ///< Conformal christoffel symbol, \f$ \bar{\Gcamma}^{2}_{22} \f$
-         Gc223, ///< Conformal christoffel symbol, \f$ \bar{\Gcamma}^{2}_{23} \f$
-         Gc233, ///< Conformal christoffel symbol, \f$ \bar{\Gcamma}^{2}_{33} \f$
-         Gc311, ///< Conformal christoffel symbol, \f$ \bar{\Gcamma}^{3}_{11} \f$
-         Gc312, ///< Conformal christoffel symbol, \f$ \bar{\Gcamma}^{3}_{12} \f$
-         Gc313, ///< Conformal christoffel symbol, \f$ \bar{\Gcamma}^{3}_{13} \f$
-         Gc322, ///< Conformal christoffel symbol, \f$ \bar{\Gcamma}^{3}_{22} \f$
-         Gc323, ///< Conformal christoffel symbol, \f$ \bar{\Gcamma}^{3}_{23} \f$
+  real_t Gc111, ///< Conformal christoffel symbol, \f$ \bar{\Gamma}^{1}_{11} \f$
+         Gc112, ///< Conformal christoffel symbol, \f$ \bar{\Gamma}^{1}_{12} \f$
+         Gc113, ///< Conformal christoffel symbol, \f$ \bar{\Gamma}^{1}_{13} \f$
+         Gc122, ///< Conformal christoffel symbol, \f$ \bar{\Gamma}^{1}_{22} \f$
+         Gc123, ///< Conformal christoffel symbol, \f$ \bar{\Gamma}^{1}_{23} \f$
+         Gc133, ///< Conformal christoffel symbol, \f$ \bar{\Gamma}^{1}_{33} \f$
+         Gc211, ///< Conformal christoffel symbol, \f$ \bar{\Gamma}^{2}_{11} \f$
+         Gc212, ///< Conformal christoffel symbol, \f$ \bar{\Gamma}^{2}_{12} \f$
+         Gc213, ///< Conformal christoffel symbol, \f$ \bar{\Gamma}^{2}_{13} \f$
+         Gc222, ///< Conformal christoffel symbol, \f$ \bar{\Gamma}^{2}_{22} \f$
+         Gc223, ///< Conformal christoffel symbol, \f$ \bar{\Gamma}^{2}_{23} \f$
+         Gc233, ///< Conformal christoffel symbol, \f$ \bar{\Gamma}^{2}_{33} \f$
+         Gc311, ///< Conformal christoffel symbol, \f$ \bar{\Gamma}^{3}_{11} \f$
+         Gc312, ///< Conformal christoffel symbol, \f$ \bar{\Gamma}^{3}_{12} \f$
+         Gc313, ///< Conformal christoffel symbol, \f$ \bar{\Gamma}^{3}_{13} \f$
+         Gc322, ///< Conformal christoffel symbol, \f$ \bar{\Gamma}^{3}_{22} \f$
+         Gc323, ///< Conformal christoffel symbol, \f$ \bar{\Gamma}^{3}_{23} \f$
          Gc333; ///< Conformal christoffel symbol, \f$ \bar{\Gamma}^{3}_{33} \f$
   
   real_t Gs111,

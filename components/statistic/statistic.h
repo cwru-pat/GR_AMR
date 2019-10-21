@@ -30,7 +30,8 @@ class CosmoStatistic
     BSSN *bssn,
     idx_t weight_idx,
     idx_t field_idx,
-    bool only_on_bd);
+    bool only_on_bd,
+    double min_radius = 0);
   
   void output_conformal_avg(
     const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
