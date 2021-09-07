@@ -93,19 +93,19 @@ const char *Util_StrSep(const char **stringp, const char *delim)
   {
     if(retlength < (end-start)+1)
     {
-      temp = realloc(retval, (end-start+1));
+        temp = (char *)realloc(retval, (end-start+1));
 
-      if(temp)
-      {
-        retval = temp;
-        retlength = end-start+1;
-      }
-      else
-      {
-        free(retval);
-        retval = NULL;
-        retlength = 0;
-      }
+        if(temp)
+        {
+            retval = temp;
+            retlength = end-start+1;
+        }
+        else
+        {
+            free(retval);
+            retval = NULL;
+            retlength = 0;
+        }
     }
 
     if(retval)
@@ -184,33 +184,33 @@ int Util_SplitString(char **before, char **after, const char *string, const char
   char *position;
 
   /* Find location of the seperator */
-  position = strstr(string, sep);
+  position = (char *)strstr(string, sep);
 
   if(position)
   {
-    /*Allocate memory for return strings. */
-    *before = (char *)malloc((size_t)((position-string+1)*sizeof(char)));
-    *after  = (char *)malloc((size_t)((strlen(string)-(position-string)-strlen(sep)+1)*sizeof(char)));
+      /*Allocate memory for return strings. */
+      *before = (char *)malloc((size_t)((position-string+1)*sizeof(char)));
+      *after  = (char *)malloc((size_t)((strlen(string)-(position-string)-strlen(sep)+1)*sizeof(char)));
 
-    /* Check that the allocation succeeded. */
-    if(!*before || !*after)
-    {
-      free(*before);
-      *before = NULL;
-      free(*after);
-      *after = NULL;
-      retval = 2;
-    }
-    else
-    {
-      retval = 3;
-    }
+      /* Check that the allocation succeeded. */
+      if(!*before || !*after)
+      {
+          free(*before);
+          *before = NULL;
+          free(*after);
+          *after = NULL;
+          retval = 2;
+      }
+      else
+      {
+          retval = 3;
+      }
   }
   else
   {
-    *before = NULL;
-    *after = NULL;
-    retval = 1;
+      *before = NULL;
+      *after = NULL;
+      retval = 1;
   }
 
   if(position && *before && *after)
@@ -249,7 +249,7 @@ int Util_SplitString(char **before, char **after, const char *string, const char
 
   @var      dst
   @vdesc    A non-null pointer to the destination buffer.
-  @vtype    char * 
+  @vtype    char *
   @endvar
 
   @var      src
@@ -972,4 +972,3 @@ void nprint(int n_print, const char* buf)
 
 
 #endif /* TEST_UTIL_STRLCAT */
-

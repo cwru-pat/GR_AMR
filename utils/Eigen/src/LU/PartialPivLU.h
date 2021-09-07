@@ -455,17 +455,17 @@ struct partial_lu_impl
 
       // partition the matrix:
       //                          A00 | A01 | A02
-      // lu  = A_0 | A_1 | A_2 =  A10 | AA11 | AA12
-      //                          A20 | AA21 | AA22
+      // lu  = A_0 | A_1 | A_2 =  A10 | A11 | A12
+      //                          A20 | A21 | A22
       BlockType A_0(lu,0,0,rows,k);
       BlockType A_2(lu,0,k+bs,rows,tsize);
-      BlockType AA11(lu,k,k,bs,bs);
-      BlockType AA12(lu,k,k+bs,bs,tsize);
-      BlockType AA21(lu,k+bs,k,trows,bs);
-      BlockType AA22(lu,k+bs,k+bs,trows,tsize);
+      BlockType A11(lu,k,k,bs,bs);
+      BlockType A12(lu,k,k+bs,bs,tsize);
+      BlockType A21(lu,k+bs,k,trows,bs);
+      BlockType A22(lu,k+bs,k+bs,trows,tsize);
 
       PivIndex nb_transpositions_in_panel;
-      // recursively call the blocked LU algorithm on [AA11^T AA21^T]^T
+      // recursively call the blocked LU algorithm on [A11^T A21^T]^T
       // with a very small blocking size:
       Index ret = blocked_lu(trows+bs, bs, &lu.coeffRef(k,k), luStride,
                    row_transpositions+k, nb_transpositions_in_panel, 16);
@@ -486,10 +486,10 @@ struct partial_lu_impl
         for(Index i=k;i<k+bs; ++i)
           A_2.row(i).swap(A_2.row(row_transpositions[i]));
 
-        // AA12 = AA11^-1 AA12
-        AA11.template triangularView<UnitLower>().solveInPlace(AA12);
+        // A12 = A11^-1 A12
+        A11.template triangularView<UnitLower>().solveInPlace(A12);
 
-        AA22.noalias() -= AA21 * AA12;
+        A22.noalias() -= A21 * A12;
       }
     }
     return first_zero_pivot;
@@ -519,7 +519,10 @@ void PartialPivLU<MatrixType>::compute()
   // the row permutation is stored as int indices, so just to be sure:
   eigen_assert(m_lu.rows()<NumTraits<int>::highest());
 
-  m_l1_norm = m_lu.cwiseAbs().colwise().sum().maxCoeff();
+  if(m_lu.cols()>0)
+    m_l1_norm = m_lu.cwiseAbs().colwise().sum().maxCoeff();
+  else
+    m_l1_norm = RealScalar(0);
 
   eigen_assert(m_lu.rows() == m_lu.cols() && "PartialPivLU is only for square (and moreover invertible) matrices");
   const Index size = m_lu.rows();

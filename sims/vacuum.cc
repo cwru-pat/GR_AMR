@@ -11,8 +11,8 @@ namespace cosmo
 
 /**
  * @brief Constructing VacuumSim object
- * 
- * @param hierarchy 
+ *
+ * @param hierarchy
  * @param dimenstion
  * @param input database, which includes ALL sub databases
  * @param IO stream
@@ -36,12 +36,12 @@ VacuumSim::VacuumSim(
 
   std::string bd_type = cosmo_vacuum_db->getString("boundary_type");
   hier::VariableDatabase* variable_db = hier::VariableDatabase::getDatabase();
-  
+
   gradient_indicator_idx =
     variable_db->mapVariableAndContextToIndex(
       variable_db->getVariable(gradient_indicator), variable_db->getContext("ACTIVE"));
 
-  
+
   // setting boundary type
   if(bd_type == "sommerfield")
   {
@@ -56,7 +56,7 @@ VacuumSim::VacuumSim(
 
 
   cosmo_vacuum_db = input_db->getDatabase("VacuumSim");
-    
+
 
   tbox::pout<<"Running 'vacuum' type simulation.\n";
 
@@ -78,8 +78,8 @@ VacuumSim::VacuumSim(
 
   if(tbox::RestartManager::getManager()->isFromRestart())
     getFromRestart();
-  
-  t_init->stop();  
+
+  t_init->stop();
 }
 
 VacuumSim::~VacuumSim() {
@@ -97,7 +97,7 @@ void VacuumSim::getFromRestart()
   }
 
   std::shared_ptr<tbox::Database> db(root_db->getDatabase(simulation_type));
-  
+
   cur_t = db->getDouble("cur_t");
 
   starting_t = cur_t;
@@ -109,7 +109,7 @@ void VacuumSim::getFromRestart()
 }
 void VacuumSim::init()
 {
-  
+
 }
 
 /**
@@ -123,7 +123,7 @@ void VacuumSim::setICs(
   tbox::plog<<"Setting initial conditions (ICs).";
 
   TBOX_ASSERT(gridding_algorithm);
-  
+
   gridding_algorithm->printClassData(tbox::plog);
 
   bool is_from_restart = tbox::RestartManager::getManager()->isFromRestart();
@@ -132,17 +132,18 @@ void VacuumSim::setICs(
   {
     hierarchy->initializeHierarchy();
   }
- 
+
+  tbox::pout<<"Beginning coarsest"<<std::endl;
   // set initial condition by calling function initializeLevelData()
   gridding_algorithm->makeCoarsestLevel(cur_t);
-
+  tbox::pout<<"Finishing coarsest"<<std::endl;
   if(is_from_restart)
   {
     std::vector<int> tag_buffer(hierarchy->getMaxNumberOfLevels());
     for (idx_t ln = 0; ln < static_cast<int>(tag_buffer.size()); ++ln) {
       tag_buffer[ln] = 1;
     }
-    
+
     gridding_algorithm->regridAllFinerLevels(
       0,
       tag_buffer,
@@ -150,7 +151,7 @@ void VacuumSim::setICs(
       cur_t);
 
   }
-  
+
   // regrid initial hierarchy if needed
   while(!is_from_restart && hierarchy->getNumberOfLevels() < hierarchy->getMaxNumberOfLevels())
   {
@@ -159,7 +160,7 @@ void VacuumSim::setICs(
     for (idx_t ln = 0; ln < static_cast<int>(tag_buffer.size()); ++ln) {
       tag_buffer[ln] = 1;
     }
-    
+
 
     gridding_algorithm->regridAllFinerLevels(
       0,
@@ -185,8 +186,8 @@ void VacuumSim::initVacuumStep(
   const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
   bssnSim->stepInit(hierarchy);
-  //  if(step == 54) std::cout<<"here7\n"<<std::flush;  
-    
+  //  if(step == 54) std::cout<<"here7\n"<<std::flush;
+
 #if USE_COSMOTRACE
    ray->clearParticlesLivingInGhostCells(hierarchy);
 #endif
@@ -203,92 +204,95 @@ bool VacuumSim::initLevel(
   const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln)
 {
-  std::string ic_type = cosmo_vacuum_db->getString("ic_type");
 
-  std::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
+    std::string ic_type = cosmo_vacuum_db->getString("ic_type");
 
-  math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
+    std::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
 
-  // zero all fields
-  bssnSim->clearSrc(hierarchy, ln);
-  bssnSim->clearField(hierarchy, ln);
-  bssnSim->clearGen1(hierarchy, ln);
+    math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
+    tbox::pout<<"flg 0"<<std::endl;
+    // zero all fields
+    bssnSim->clearSrc(hierarchy, ln);
+    bssnSim->clearField(hierarchy, ln);
+    bssnSim->clearGen1(hierarchy, ln);
 
-  
-  if(ic_type == "static_blackhole")
-  {
-    if(!USE_BSSN_SHIFT)
-      TBOX_ERROR("Must enable shift for blackhole simulation!\n");
-    bssn_ic_static_blackhole(hierarchy,ln);
-    return true;
-  }
-  else if(ic_type == "static_blackhole_non_const_lapse")
-  {
-    bssn_ic_static_blackhole_non_const_lapse(hierarchy, ln);
-    return true;
-  }
-  else if(ic_type == "kerr_blackhole")
-  {
-    if(!USE_BSSN_SHIFT)
-      TBOX_ERROR("Must enable shift for blackhole simulation!\n");
-    bssn_ic_kerr_blackhole(hierarchy,ln);
-    return true;
-  }
-  else if(ic_type == "EdS")
-  {
-    if(ln > 0) return false;
-    double a0 = cosmo_vacuum_db->getDoubleWithDefault("a0", 1);
-    bssn_ic_FLRW(hierarchy, ln, a0);
-  }
-  else if(ic_type == "kerr_BHL_CTT")
-  {
-    if(ln > 0) return false;
-    double M = cosmo_vacuum_db->getDoubleWithDefault("M", 1);
-    double a = cosmo_vacuum_db->getDoubleWithDefault("spin", 0.5);
-    double K_c = cosmo_vacuum_db->getDoubleWithDefault("K_c", 1);
-    double relaxation_tolerance = cosmo_vacuum_db->getDoubleWithDefault("relaxation_tolerance", 1e-8);
-    int num_vcycles = cosmo_vacuum_db->getIntegerWithDefault("num_vcycles", 4);
-    int max_depth = cosmo_vacuum_db->getIntegerWithDefault("max_depth", 4);
+    tbox::pout<<"flg 1"<<std::endl;
+    if(ic_type == "static_blackhole")
+    {
+        if(!USE_BSSN_SHIFT)
+            TBOX_ERROR("Must enable shift for blackhole simulation!\n");
+        bssn_ic_static_blackhole(hierarchy,ln);
+        tbox::pout<<"flg 2"<<std::endl;
+        return true;
+    }
 
-    double l = cosmo_vacuum_db->getDoubleWithDefault("l", 1);
-    double sigma = cosmo_vacuum_db->getDoubleWithDefault("sigma", 3.5);
+    else if(ic_type == "static_blackhole_non_const_lapse")
+    {
+        bssn_ic_static_blackhole_non_const_lapse(hierarchy, ln);
+        return true;
+    }
+    else if(ic_type == "kerr_blackhole")
+    {
+        if(!USE_BSSN_SHIFT)
+            TBOX_ERROR("Must enable shift for blackhole simulation!\n");
+        bssn_ic_kerr_blackhole(hierarchy,ln);
+        return true;
+    }
+    else if(ic_type == "EdS")
+    {
+        if(ln > 0) return false;
+        double a0 = cosmo_vacuum_db->getDoubleWithDefault("a0", 1);
+        bssn_ic_FLRW(hierarchy, ln, a0);
+    }
+    else if(ic_type == "kerr_BHL_CTT")
+    {
+        if(ln > 0) return false;
+        double M = cosmo_vacuum_db->getDoubleWithDefault("M", 1);
+        double a = cosmo_vacuum_db->getDoubleWithDefault("spin", 0.5);
+        double K_c = cosmo_vacuum_db->getDoubleWithDefault("K_c", 1);
+        double relaxation_tolerance = cosmo_vacuum_db->getDoubleWithDefault("relaxation_tolerance", 1e-8);
+        int num_vcycles = cosmo_vacuum_db->getIntegerWithDefault("num_vcycles", 4);
+        int max_depth = cosmo_vacuum_db->getIntegerWithDefault("max_depth", 4);
 
-    if(!USE_BSSN_SHIFT)
-      TBOX_ERROR("Must enable shift for blackhole simulation!\n");
-    
-    bssn_ic_kerr_BHL_CTT(hierarchy,ln, M, a, K_c, relaxation_tolerance
-                         , num_vcycles, max_depth, l, sigma);
-    return true;
-  }
-  else if(ic_type == "static_BHL_CTT")
-  {
-    if(ln > 0) return false;
-    double M = cosmo_vacuum_db->getDoubleWithDefault("M", 1);
-    double K_c = cosmo_vacuum_db->getDoubleWithDefault("K_c", 1);
-    double relaxation_tolerance = cosmo_vacuum_db->getDoubleWithDefault("relaxation_tolerance", 1e-8);
-    int num_vcycles = cosmo_vacuum_db->getIntegerWithDefault("num_vcycles", 4);
+        double l = cosmo_vacuum_db->getDoubleWithDefault("l", 1);
+        double sigma = cosmo_vacuum_db->getDoubleWithDefault("sigma", 3.5);
 
-    if(!USE_BSSN_SHIFT)
-      TBOX_ERROR("Must enable shift for blackhole simulation!\n");
-    
-    bssn_ic_static_BHL_CTT(hierarchy,ln, M, 0, K_c, relaxation_tolerance, num_vcycles);
-    return true;
-  }
-  else if(ic_type == "ds_blackhole")
-  {
-    if(!USE_BSSN_SHIFT)
-      TBOX_ERROR("Must enable shift for blackhole simulation!\n");
-    bssn_ic_ds_blackhole(hierarchy,ln,bssnSim);
-    return true;
-  }
-  else if(ic_type == "awa_stability")
+        if(!USE_BSSN_SHIFT)
+            TBOX_ERROR("Must enable shift for blackhole simulation!\n");
+
+        bssn_ic_kerr_BHL_CTT(hierarchy,ln, M, a, K_c, relaxation_tolerance
+                             , num_vcycles, max_depth, l, sigma);
+        return true;
+    }
+    else if(ic_type == "static_BHL_CTT")
+    {
+        if(ln > 0) return false;
+        double M = cosmo_vacuum_db->getDoubleWithDefault("M", 1);
+        double K_c = cosmo_vacuum_db->getDoubleWithDefault("K_c", 1);
+        double relaxation_tolerance = cosmo_vacuum_db->getDoubleWithDefault("relaxation_tolerance", 1e-8);
+        int num_vcycles = cosmo_vacuum_db->getIntegerWithDefault("num_vcycles", 4);
+
+        if(!USE_BSSN_SHIFT)
+            TBOX_ERROR("Must enable shift for blackhole simulation!\n");
+
+        bssn_ic_static_BHL_CTT(hierarchy,ln, M, 0, K_c, relaxation_tolerance, num_vcycles);
+        return true;
+    }
+    else if(ic_type == "ds_blackhole")
+    {
+        if(!USE_BSSN_SHIFT)
+            TBOX_ERROR("Must enable shift for blackhole simulation!\n");
+        bssn_ic_ds_blackhole(hierarchy,ln,bssnSim);
+        return true;
+    }
+    else if(ic_type == "awa_stability")
   {
     bssn_ic_awa_stability(hierarchy,ln,1e-10);
     return true;
   }
   else if(ic_type == "awa_linear_wave")
   {
-    
+
     bssn_ic_awa_linear_wave(hierarchy,ln,1e-8,1);
     return true;
   }
@@ -306,14 +310,14 @@ bool VacuumSim::initLevel(
   else
     TBOX_ERROR("Undefined IC type!\n");
 
-  return false;
+    return false;
 }
 
 
 /**
  * @brief initializeLevelData when there is new level created
- * 
- * @param Hierarchy to initialize 
+ *
+ * @param Hierarchy to initialize
  * @param level index
  * @param the time to initialize the level
  * @param whether the level can be refined
@@ -343,7 +347,7 @@ void VacuumSim::initializeLevelData(
     * Reference the level object with the given index from the hierarchy.
     */
    std::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
-   
+
 
    math::HierarchyCellDataOpsReal<double> hcellmath(hierarchy, ln, ln);
 
@@ -363,7 +367,7 @@ void VacuumSim::initializeLevelData(
    // marks whether we have solved initial value for certain level,
    // if so, there is no need to interpolate from coarser level
    bool has_initial = false;
-   
+
    //at beginning, initialize new level
    if(fabs(init_data_time - starting_t)< EPS)
    {
@@ -372,7 +376,8 @@ void VacuumSim::initializeLevelData(
 
      has_initial = initLevel(patch_hierarchy, ln);
    }
-   
+   tbox::pout<<"Finishing setting initial"<<std::endl;
+
    bssnSim->clearSrc(patch_hierarchy, ln);
    bssnSim->clearGen1(patch_hierarchy, ln);
    // if(use_AHFinder)
@@ -380,23 +385,23 @@ void VacuumSim::initializeLevelData(
    /*
     * Refine solution data from coarser level and, if provided, old level.
     */
-   
+   tbox::pout<<"ini0"<<std::endl;
    xfer::RefineAlgorithm refiner;
 
    std::shared_ptr<hier::RefineOperator> accurate_refine_op =
      space_refine_op;
-     
+
    TBOX_ASSERT(accurate_refine_op);
 
    //registering refine variables
    bssnSim->registerRKRefinerActive(refiner, accurate_refine_op);
-
+   tbox::pout<<"ini1"<<std::endl;
 #if USE_COSMOTRACE
    ray->registerRKRefiner(refiner, particle_refine_op);
 #endif
-   
-   std::shared_ptr<xfer::RefineSchedule> refine_schedule;
 
+   std::shared_ptr<xfer::RefineSchedule> refine_schedule;
+   tbox::pout<<"ini2"<<std::endl;
    level->getBoxLevel()->getMPI().Barrier();
    if (ln > 0 && (!has_initial))
    {
@@ -433,8 +438,8 @@ void VacuumSim::initializeLevelData(
      }
    }
    level->getBoxLevel()->getMPI().Barrier();
-     
 
+   tbox::pout<<"ini3"<<std::endl;
    if (refine_schedule)
    {
      refine_schedule->fillData(0.0);
@@ -445,19 +450,20 @@ void VacuumSim::initializeLevelData(
      TBOX_ERROR(
        "Can not get refine schedule, check your code!\n");
    }
- 
+
    bssnSim->copyAToP(hcellmath);
 
    // if(use_AHFinder)
    //   horizon->copyAToP(hcellmath);
-   
+
    level->getBoxLevel()->getMPI().Barrier();
+   tbox::pout<<"ini4"<<std::endl;
 }
 
 /**
  * @brief tag the grids that need to be refined
  *
- */  
+ */
 void VacuumSim::applyGradientDetector(
    const std::shared_ptr<hier::PatchHierarchy>& hierarchy_,
    const int ln,
@@ -466,12 +472,14 @@ void VacuumSim::applyGradientDetector(
    const bool initial_time,
    const bool uses_richardson_extrapolation)
 {
-  // do not tag new grid when restarting
-  if(tbox::RestartManager::getManager()->isFromRestart() && step == starting_step)
+    tbox::pout<<"fdsaf"<<std::endl;
+    // do not tag new grid when restarting
+    if(tbox::RestartManager::getManager()->isFromRestart() && step == starting_step)
     return;
    NULL_USE(uses_richardson_extrapolation);
    NULL_USE(error_data_time);
    NULL_USE(initial_time);
+
 
    if (lstream) {
       *lstream
@@ -507,7 +515,7 @@ void VacuumSim::applyGradientDetector(
       std::shared_ptr<pdat::CellData<int> > tag_pdata(
         SAMRAI_SHARED_PTR_CAST<pdat::CellData<int>, hier::PatchData>(
           patch->getPatchData(tag_index)));
-      
+
       MDA_Access<int, DIM, MDA_OrderColMajor<DIM>>  tag =
       pdat::ArrayDataAccess::access<DIM, int>(
         tag_pdata->getArrayData());
@@ -535,7 +543,7 @@ void VacuumSim::applyGradientDetector(
               tag(i, j, k) = 1;
               ++ntag;
             }
-            
+
           }
         }
       }
@@ -578,9 +586,9 @@ void VacuumSim::outputVacuumStep(
   bssnSim->output_L2_H_constaint(
     hierarchy, weight_idx, cosmoPS, 0.5);
   //  bssnSim->output_max_H_constaint(hierarchy, weight_idx);
- 
+
   cosmo_io->registerVariablesWithPlotter(*visit_writer, step);
-#if !USE_COSMOTRACE  
+#if !USE_COSMOTRACE
   cosmo_io->dumpData(hierarchy, *visit_writer, step, cur_t);
 #else
   cosmo_io->dumpData(hierarchy, *visit_writer, step, cur_t, ray, vis_filename);
@@ -597,11 +605,11 @@ void VacuumSim::outputVacuumStep(
 
 /**
  * @brief advance hierarchy from time "from_t" to "to_t"
- * 
+ *
  * @param hierarchy
  * @param starting time
  * @param ending time
- */  
+ */
 void VacuumSim::runVacuumStep(
   const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   double from_t, double to_t)
@@ -620,7 +628,7 @@ void VacuumSim::runVacuumStep(
 /**
  * @brief  get dt for each step, currently will return the same value
  *
- */  
+ */
 double VacuumSim::getDt(
   const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
@@ -640,7 +648,7 @@ double VacuumSim::getDt(
 /**
  * @brief run each step
  *
- */  
+ */
 void VacuumSim::runStep(
   const std::shared_ptr<hier::PatchHierarchy>& hierarchy)
 {
@@ -669,12 +677,12 @@ void VacuumSim::addBSSNExtras(
 
 /**
  * @brief RK evolve level
- * 
+ *
  * @param hierarchy
  * @param level index
  * @param starting time
  * @param ending time
- */  
+ */
 void VacuumSim::RKEvolveLevel(
   const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t ln,
@@ -686,13 +694,13 @@ void VacuumSim::RKEvolveLevel(
 
   const std::shared_ptr<hier::PatchLevel> coarser_level(
     ((ln>0)?(hierarchy->getPatchLevel(ln-1)):NULL));
-  
-  
+
+
 #if USE_COSMOTRACE
     if(freeze_time_evolution == false)
 #endif
   bssnSim->prepareForK1(coarser_level, to_t);
-  
+
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
@@ -717,7 +725,7 @@ void VacuumSim::RKEvolveLevel(
     bssnSim->RKEvolvePatchBD(patch, to_t - from_t);
   }
 
-  // fill ghost cells 
+  // fill ghost cells
   level->getBoxLevel()->getMPI().Barrier();
   #if USE_COSMOTRACE
     if(freeze_time_evolution == false)
@@ -731,7 +739,7 @@ void VacuumSim::RKEvolveLevel(
 #if USE_COSMOTRACE
     if(freeze_time_evolution == false)
 #endif
-    bssnSim->K1FinalizePatch(patch);    
+    bssnSim->K1FinalizePatch(patch);
     addBSSNExtras(patch);
     //    ray->printAll(hierarchy, ray->pc_idx);
 #if USE_COSMOTRACE
@@ -747,7 +755,7 @@ void VacuumSim::RKEvolveLevel(
     if(freeze_time_evolution == false)
 #endif
   bssnSim->prepareForK2(coarser_level, to_t);
-  
+
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
@@ -771,7 +779,7 @@ void VacuumSim::RKEvolveLevel(
 
   }
 
-  // fill ghost cells 
+  // fill ghost cells
   level->getBoxLevel()->getMPI().Barrier();
   #if USE_COSMOTRACE
     if(freeze_time_evolution == false)
@@ -799,9 +807,9 @@ void VacuumSim::RKEvolveLevel(
     if(freeze_time_evolution == false)
 #endif
   bssnSim->prepareForK3(coarser_level, to_t);
-    
 
-  
+
+
   for( hier::PatchLevel::iterator pit(level->begin());
        pit != level->end(); ++pit)
   {
@@ -823,7 +831,7 @@ void VacuumSim::RKEvolveLevel(
 
   }
 
-  // fill ghost cells 
+  // fill ghost cells
   level->getBoxLevel()->getMPI().Barrier();
   #if USE_COSMOTRACE
     if(freeze_time_evolution == false)
@@ -872,7 +880,7 @@ void VacuumSim::RKEvolveLevel(
 
   }
 
-  // fill ghost cells 
+  // fill ghost cells
   level->getBoxLevel()->getMPI().Barrier();
   #if USE_COSMOTRACE
     if(freeze_time_evolution == false)
@@ -903,7 +911,7 @@ void VacuumSim::RKEvolveLevel(
  *        1. RK evolve this level(including evolve the interior and interpolate the boundary)
  *        2. evolve its son levels recursively
  *        3. doing coarsen operation
- */ 
+ */
 void VacuumSim::advanceLevel(
   const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   int ln,
@@ -912,7 +920,7 @@ void VacuumSim::advanceLevel(
 {
   if( ln >= hierarchy->getNumberOfLevels())
     return;
-  
+
   //double dt = to_t - from_t;
   const std::shared_ptr<hier::PatchLevel> level(
     hierarchy->getPatchLevel(ln));
@@ -936,7 +944,7 @@ void VacuumSim::advanceLevel(
   advanceLevel(hierarchy, ln+1, from_t, from_t + (to_t - from_t)/2.0);
   //  if(step == 54) TBOX_ERROR("HERE2");
   level->getBoxLevel()->getMPI().Barrier();
-  
+
   advanceLevel(hierarchy, ln+1, from_t + (to_t - from_t)/2.0, to_t);
   //  if(step == 54) TBOX_ERROR("HERE3");
   //  TBOX_ERROR("here\n");
@@ -960,13 +968,13 @@ void VacuumSim::advanceLevel(
   if(freeze_time_evolution == true && time_dependent_fields == true)
       bssnSim->set_time_dependent_fields(hierarchy, to_t);
 #endif
-  
+
   // copy _a to _p and set _p time to next timestamp
 
   math::HierarchyCellDataOpsReal<real_t> hcellmath(hierarchy,ln,ln);
 
   bssnSim->set_norm(level);
-  
+
   bssnSim->copyAToP(hcellmath);
 
   bssnSim->setLevelTime(level, to_t, to_t);
@@ -986,8 +994,8 @@ void VacuumSim::resetHierarchyConfiguration(
   coarsen_schedules.resize(finest_level + 1);
 
   xfer::RefineAlgorithm pre_refiner, post_refiner;
-  xfer::CoarsenAlgorithm coarsener(dim);  
-  
+  xfer::CoarsenAlgorithm coarsener(dim);
+
   bssnSim->registerRKRefiner(pre_refiner, space_refine_op);
   bssnSim->registerCoarsenActive(coarsener,space_coarsen_op);
   bssnSim->registerRKRefinerActive(post_refiner, space_refine_op);
@@ -1018,13 +1026,13 @@ void VacuumSim::resetHierarchyConfiguration(
     {
       coarsen_schedules[ln] = coarsener.createSchedule(level, new_hierarchy->getPatchLevel(ln+1));
       post_refine_schedules[ln] = post_refiner.createSchedule(level, NULL);
-      
+
     }
   }
-  
+
   return;
 }
-  
+
 void VacuumSim::putToRestart(
     const std::shared_ptr<tbox::Database>& restart_db) const
 {

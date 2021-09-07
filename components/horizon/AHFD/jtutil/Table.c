@@ -83,11 +83,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <stdbool.h>
 
 /* FIXME: C99 defines <stdbool.h>, we should include that or a fake version */
-typedef int bool;
-#define true    1
-#define false   0
+//typedef int bool;
+//#define true    1
+//#define false   0
 
 #ifndef CCODE
   #define CCODE       /* signal Cactus header files that we're C, not Fortran */
@@ -1295,58 +1296,58 @@ int Util_TableSetFromString(int handle, const char string[])
       /*
        * this block handles string values and arrays
        */
-      q = ((*p == '{') ? "}" : p);            /* q points to delimiter char */
+        q = (char *)((*p == '{') ? "}" : p);            /* q points to delimiter char */
 
-      /* advance to the end of the string or array value */
-      do
-      {
-        /* skip escape character in double-quoted string */
-        if (*q == '\"' && *p == '\\' && p[1] != '\0')
+        /* advance to the end of the string or array value */
+        do
         {
-          p++;
-        }
-        p++;
-      } while (*p && *p != *q);
-
-      if (*p != *q)
-      {
-        status = UTIL_ERROR_BAD_INPUT;   /* no closing delimiter found */
-        break;                           /* in string or array value */
-      }
-
-      /* expand character escape codes in double-quoted string */
-      if (*p == '\"')
-      {
-        while (p > q)
-        {
-          if (*q == '\\')
-          {
-            #define CHARACTER_ESCAPE_CODES  "abfnrtv\\\'\"?"
-            const char *offset = strchr (CHARACTER_ESCAPE_CODES, q[1]);
-            const char character_escape_codes[] =
-            {'\a', '\b', '\f', '\n', '\r', '\t', '\v', '\\', '\'', '\"', '\?'};
-
-            if (offset)
+            /* skip escape character in double-quoted string */
+            if (*q == '\"' && *p == '\\' && p[1] != '\0')
             {
-              memmove (q, q + 1, p - q);
-              q[0] = character_escape_codes[offset - CHARACTER_ESCAPE_CODES];
-              q[p - q - 1] = '\0';
+                p++;
             }
-            else
-            {
-              break;                       /* invalid escape code found */
-            }
-          }
-          q++;
+            p++;
+        } while (*p && *p != *q);
+
+        if (*p != *q)
+        {
+            status = UTIL_ERROR_BAD_INPUT;   /* no closing delimiter found */
+            break;                           /* in string or array value */
         }
 
-        if (p != q)
+        /* expand character escape codes in double-quoted string */
+        if (*p == '\"')
         {
-          status = UTIL_ERROR_BAD_INPUT;   /* invalid escape code found */
-          break;
+            while (p > q)
+            {
+                if (*q == '\\')
+                {
+#define CHARACTER_ESCAPE_CODES  "abfnrtv\\\'\"?"
+                    const char *offset = strchr (CHARACTER_ESCAPE_CODES, q[1]);
+                    const char character_escape_codes[] =
+                        {'\a', '\b', '\f', '\n', '\r', '\t', '\v', '\\', '\'', '\"', '\?'};
+
+                    if (offset)
+                    {
+                        memmove (q, q + 1, p - q);
+                        q[0] = character_escape_codes[offset - CHARACTER_ESCAPE_CODES];
+                        q[p - q - 1] = '\0';
+                    }
+                    else
+                    {
+                        break;                       /* invalid escape code found */
+                    }
+                }
+                q++;
+            }
+
+            if (p != q)
+            {
+                status = UTIL_ERROR_BAD_INPUT;   /* invalid escape code found */
+                break;
+            }
         }
-      }
-      q = value;            /* q points to the opening delimiter char */
+        q = value;            /* q points to the opening delimiter char */
       value++;              /* value skips the delimiter char */
     }
     else
@@ -1459,13 +1460,13 @@ int Util_TableSetFromString(int handle, const char string[])
           {
             /* let's start with an array size of 20 elements */
             arraysize = 20;
-            array = malloc (arraysize * datatypesize);
+            array = (char *)malloc (arraysize * datatypesize);
           }
           else
           {
             /* double the array size once it's filled up */
             arraysize *= 2;
-            array = realloc (array, arraysize * datatypesize);
+            array = (char *)realloc (array, arraysize * datatypesize);
           }
           if (array == NULL)
           {
@@ -5624,10 +5625,10 @@ static
 const int N = *pN;
   void **vp_array = *pvp_array;
   const int new_N = GROW(N);
-  void **new_vp_array = realloc(vp_array, new_N*sizeof(void *));
+  void **new_vp_array = (void **)realloc(vp_array, new_N*sizeof(void *));
   if (new_vp_array == NULL)
   {
-    return UTIL_ERROR_NO_MEMORY;                          /* can't grow array */
+      return UTIL_ERROR_NO_MEMORY;                          /* can't grow array */
   }
 
   /* initialize the new space to NULL pointers */
@@ -5807,7 +5808,7 @@ int Util_TablePrintPretty(FILE *stream, int handle)
     fprintf(stream, "NULL\n");
     return 0;
   }
-  
+
   for (const struct table_entry *tep = thp->head; tep; tep = tep->next)
   {
     if (tep != thp->head)

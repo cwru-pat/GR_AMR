@@ -891,7 +891,7 @@ return InterpLocalUniform(interp_operator_Hermite,
 		entry is set to 1.  Otherwise (i.e. if the interpolator
 		doesn't support computing derivatives, or if the
 		interpolator does support computing derivatives but
-		the interpolation molecule size and shape are independent   
+		the interpolation molecule size and shape are independent
 		of the  operation_code[]  values), it's set to 0.
 		Note that this query tests whether the molecule size
 		and/or shape depend on  operation_codes[]  in general,
@@ -1108,7 +1108,7 @@ if (N_dims > MAX_N_DIMS)
 		   MAX_N_DIMS);
 	return UTIL_ERROR_BAD_INPUT;			/*** ERROR RETURN ***/
 	}
-   
+
 /******************************************************************************/
 
 /*
@@ -1558,27 +1558,28 @@ if (debug > 0)
 	}
   {
 struct molecule_structure_flags molecule_structure_flags;
-const int return_code
-	= (*p_interp_fn)(coord_origin, coord_delta,
-			 N_interp_points,
-			    interp_coords_type_code, interp_coords,
-			    N_boundary_points_to_omit,
-			    boundary_off_centering_tolerance,
-			    boundary_extrapolation_tolerance,
-			 N_input_arrays,
-			    input_array_offsets, input_array_strides,
-			    input_array_min_subscripts,
-			    input_array_max_subscripts,
-			    input_array_type_codes, input_arrays,
-			 N_output_arrays,
-			    output_array_type_codes, output_arrays,
-			    operand_indices, operation_codes,
-			 debug, (false ? NULL : NULL),
-			 &error_info,
-			 &molecule_structure_flags,
-			 p_molecule_min_max_m_info,
-			 p_molecule_positions,
-			 p_Jacobian_info);
+const int return_code = 0;
+/* const int return_code */
+/* 	= (*p_interp_fn)(coord_origin, coord_delta, */
+/* 			 N_interp_points, */
+/* 			    interp_coords_type_code, interp_coords, */
+/* 			    N_boundary_points_to_omit, */
+/* 			    boundary_off_centering_tolerance, */
+/* 			    boundary_extrapolation_tolerance, */
+/* 			 N_input_arrays, */
+/* 			    input_array_offsets, input_array_strides, */
+/* 			    input_array_min_subscripts, */
+/* 			    input_array_max_subscripts, */
+/* 			    input_array_type_codes, input_arrays, */
+/* 			 N_output_arrays, */
+/* 			    output_array_type_codes, output_arrays, */
+/* 			    operand_indices, operation_codes, */
+/* 			 debug, (false ? NULL : NULL), */
+/* 			 &error_info, */
+/* 			 &molecule_structure_flags, */
+/* 			 p_molecule_min_max_m_info, */
+/* 			 p_molecule_positions, */
+/* 			 p_Jacobian_info); */
 if (debug > 0)
    then {
 	printf("AEILocalInterp::InterpLocalUniform.c: back from interpolator fn with return_code=%d\n", return_code);
@@ -2071,7 +2072,7 @@ if (p_error_info->found_per_point_status)
 "        error setting \"error_point_status\" in parameter table!"
 "        error status=%d"
 			   ,
-			   status);				
+			   status);
 		return status;				/*** ERROR RETURN ***/
 		}
 	}

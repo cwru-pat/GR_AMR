@@ -3,13 +3,13 @@
 #include "../../utils/math.h"
 #include "../bssn/bssn_data.h"
 #include <complex.h>
-#include "../../utils/Eigen/Dense"
+//#include "../../utils/Eigen/Dense"
 
 using namespace SAMRAI;
 
 namespace cosmo
 {
-  
+
 HorizonStatistics::HorizonStatistics(
   const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   const tbox::Dimension& dim_in,
@@ -44,13 +44,13 @@ HorizonStatistics::HorizonStatistics(
 
   for(int i = 0; i < 3; i ++)
     coord_origin[i] = (upper[i] - lower[i]) / 2.0;
-  
+
   patch_work_i = patch_work_j = patch_work_k = -1;
-  
+
 }
 HorizonStatistics::~HorizonStatistics()
 {
-  
+
 }
 
 void HorizonStatistics::compute_tricubic_coeffs(double *a, double *f)
@@ -145,7 +145,7 @@ double HorizonStatistics::evaluate_interpolation(
     + a[61]*P3(x)*P3(y)*z + a[62]*P3(x)*P3(y)*P2(z) + a[63]*P3(x)*P3(y)*P3(z);
 }
 
-  
+
   // doing derivatives to ONLY level function:
   // r - h(\theta, \phi)
 real_t HorizonStatistics::dF(int theta_i, int phi_i, int d, double x, double y, double z, double r)
@@ -153,10 +153,10 @@ real_t HorizonStatistics::dF(int theta_i, int phi_i, int d, double x, double y, 
   double res;
   if(theta_i + 1 >= 2 * n_theta || theta_i < 0)
     TBOX_ERROR("Theta_i is out of the range!\b");
-  
+
   double dphi = 2.0 * PI / (double) n_phi / 2.0;
   double dtheta = PI / (double) n_theta / 2.0;
-  
+
   double dtheta_dh = (ah_radius[theta_i + 1][phi_i] - ah_radius[theta_i][phi_i]) / (dtheta);
   double dphi_dh = (ah_radius[theta_i][(phi_i+1)%(2*n_phi)]
                     - ah_radius[theta_i][(phi_i)%(2*n_phi)]) / (dphi);
@@ -170,7 +170,7 @@ real_t HorizonStatistics::dF(int theta_i, int phi_i, int d, double x, double y, 
     TBOX_ERROR("Direction "<<d<< "is not recognized\n");
   return res;
 }
-  
+
 real_t HorizonStatistics::findRadius(
   const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   double theta_0, double phi_0)
@@ -189,7 +189,7 @@ void HorizonStatistics::set_G_values(
   real_t x = r * cos(phi) * sin(theta);
   real_t y = r * sin(phi) * sin(theta);
   real_t z = r * cos(theta);
-        
+
 
   real_t st = sin(theta);
   real_t ct = cos(theta);
@@ -208,7 +208,7 @@ void HorizonStatistics::set_G_values(
 
       const int * lower = &box.lower()[0];
       const int * upper = &box.upper()[0];
-      
+
       std::shared_ptr<geom::CartesianPatchGeometry> patch_geometry(
         SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
           patch->getPatchGeometry()));
@@ -225,15 +225,15 @@ void HorizonStatistics::set_G_values(
       {
         cur_mpi_rank = mpi.getRank();
         cur_mpi_level = ln;
-        
+
         G111[theta_i][phi_i] = G112[theta_i][phi_i] = G122[theta_i][phi_i]
           = G211[theta_i][phi_i] = G212[theta_i][phi_i] = G222[theta_i][phi_i] = 0;
 
 
-        
+
         bssn->initPData(patch);
         bssn->initMDA(patch);
-        
+
         BSSNData bd = {0};
 
         real_t x0 = domain_lower[0] + (double)i0 * dx[0] + dx[0]/2.0 - coord_origin[0];
@@ -244,7 +244,7 @@ void HorizonStatistics::set_G_values(
         double yd = (y - y0) / dx[1];
         double zd = (z - z0) / dx[2];
 
-        
+
         COSMO_APPLY_TO_IJK_PERMS(HORIZON_DEFINE_CRSPLINES_G);
         COSMO_APPLY_TO_IJ_PERMS(HORIZON_DEFINE_CRSPLINES_M);
         HORIZON_DEFINE_CRSPLINES_DCHI(1);
@@ -254,7 +254,7 @@ void HorizonStatistics::set_G_values(
         double a_chi[64], f_chi[64];
 
         double d1chi, d2chi, d3chi;
-        
+
         for(int i = 0; i < 4; i++)
           for(int j = 0; j < 4; j++)
             for(int k = 0; k < 4; k++)
@@ -276,7 +276,7 @@ void HorizonStatistics::set_G_values(
         HORIZON_CRSPLINES_CAL_COEF_DCHI(3);
         compute_tricubic_coeffs(a_R, f_R);
         compute_tricubic_coeffs(a_chi, f_chi);
-        
+
         COSMO_APPLY_TO_IJK_PERMS(HORIZON_CRSPLINES_EVAL_G);
         COSMO_APPLY_TO_IJ_PERMS(HORIZON_CRSPLINES_EVAL_M);
         HORIZON_CRSPLINES_EVAL_DCHI(1);
@@ -291,120 +291,120 @@ void HorizonStatistics::set_G_values(
         real_t det = kd->m11 * kd->m22 * kd->m33 + kd->m12 * kd->m23 * kd->m13
           + kd->m12 * kd->m23 * kd->m13 - kd->m13 * kd->m22 * kd->m13
           - kd->m12 * kd->m12 * kd->m33 - kd->m23 * kd->m23 * kd->m11;
-  
+
         kd->mi11 = (kd->m22 * kd->m33 - pw2(kd->m23)) / det;
         kd->mi22 = (kd->m11 * kd->m33 - pw2(kd->m13)) / det;
         kd->mi33 = (kd->m11 * kd->m22 - pw2(kd->m12)) / det;
         kd->mi12 = (kd->m13*kd->m23 - kd->m12*(kd->m33)) / det;
         kd->mi13 = (kd->m12*kd->m23 - kd->m13*(kd->m22)) / det;
         kd->mi23 = (kd->m12*kd->m13 - kd->m23*(kd->m11)) / det;
-        
+
         COSMO_APPLY_TO_IJK_PERMS(HORIZON_CRSPLINES_CAL_G);
 
-          
-        G111[theta_i][phi_i] = ((pw2(x) + pw2(y))*z*(5*(pw2(x) + pw2(y)) - 
-                                                     pw2(z))*cos(2*theta) + 
-                                (pw2(x) + pw2(y))*(-(z*(3*(pw2(x) + pw2(y)) + 
-                                                        pw2(z))) + 4*(cp*x + sp*y)*(pw2(x) + pw2(y) - 
-                                                                                    pw2(z))*sin(2*theta)) + 
-                                2*pw2(ct)*z*(3*(pw2(x) + pw2(y)) + pw2(z))*((x - 
-                                                                             y)*(x + y)*cos(2*phi) + 2*x*y*sin(2*phi)) + 
-                                pw2(r)*(pw2(x) + 
-                                        pw2(y))*(4*pw2(cp)*pw2(ct)*x*z*kd->Gc111 + x*z*kd->Gc122 
-                                                 + x*z*cos(2*theta)*kd->Gc122 + 2*x*z*kd->Gc133 - 
-                                                 2*x*z*cos(2*theta)*kd->Gc133 + y*z*kd->Gc211 + 
-                                                 y*z*cos(2*theta)*kd->Gc211 + y*z*kd->Gc222 + 
-                                                 y*z*cos(2*theta)*kd->Gc222 + 2*y*z*kd->Gc233 - 
-                                                 2*y*z*cos(2*theta)*kd->Gc233 - pw2(x)*kd->Gc311 - 
-                                                 pw2(y)*kd->Gc311 - pw2(x)*cos(2*theta)*kd->Gc311 - 
-                                                 pw2(y)*cos(2*theta)*kd->Gc311 + 
-                                                 4*pw2(ct)*sin(2*phi)*(x*z*kd->Gc112 + y*z*kd->Gc212 - (pw2(x) 
-                                                                                                        + pw2(y))*kd->Gc312) + 
-                                                 4*cp*sin(2*theta)*(-(z*(x*kd->Gc113 + y*kd->Gc213)) + 
-                                                                    (pw2(x) + pw2(y))*kd->Gc313) - pw2(x)*kd->Gc322 - 
-                                                 pw2(y)*kd->Gc322 - pw2(x)*cos(2*theta)*kd->Gc322 - 
-                                                 pw2(y)*cos(2*theta)*kd->Gc322 - 
-                                                 2*pw2(ct)*cos(2*phi)*(x*z*kd->Gc122 - y*z*kd->Gc211 + 
-                                                                       y*z*kd->Gc222 + pw2(x)*kd->Gc311 + pw2(y)*kd->Gc311 - 
-                                                                       (pw2(x) + pw2(y))*kd->Gc322) + 
-                                                 4*sp*sin(2*theta)*(-(z*(x*kd->Gc123 + y*kd->Gc223)) + 
-                                                                    (pw2(x) + pw2(y))*kd->Gc323) - 4*pw2(st)*(pw2(x) + 
-                                                                                                              pw2(y))*kd->Gc333))/
-          (4.*pow(pw2(r),2.5)*pow((pw2(x) + 
-                                   pw2(y))/pw2(r),1.5));
- 
-        G122[theta_i][phi_i] = (pw2(st)*(z*((pw2(x) + pw2(y))*(pw2(x) + pw2(y) - 
-                                                               pw2(z)) - (3*(pw2(x) + pw2(y)) + pw2(z))*((x - y)*(x 
-                                                                                                                  + y)*cos(2*phi) + 2*x*y*sin(2*phi))) + 
-                                         pw2(r)*(pw2(x) + 
-                                                 pw2(y))*(2*pw2(sp)*x*z*kd->Gc111 + x*z*kd->Gc122 + 
-                                                          y*z*kd->Gc211 + y*z*kd->Gc222 - pw2(x)*kd->Gc311 - 
-                                                          pw2(y)*kd->Gc311 + 
-                                                          2*sin(2*phi)*(-(z*(x*kd->Gc112 + y*kd->Gc212)) + 
-                                                                        (pw2(x) + pw2(y))*kd->Gc312) - pw2(x)*kd->Gc322 - 
-                                                          pw2(y)*kd->Gc322 + 
-                                                          cos(2*phi)*(x*z*kd->Gc122 - y*z*kd->Gc211 + y*z*kd->Gc222 + 
-                                                                      pw2(x)*kd->Gc311 + pw2(y)*kd->Gc311 - (pw2(x) + 
-                                                                                                             pw2(y))*kd->Gc322))))/
-          (2.*pow(pw2(r),2.5)*pow((pw2(x) + 
-                                   pw2(y))/pw2(r),1.5));
-  
 
-        G112[theta_i][phi_i] = (2*(-(sp*x) + cp*y)*(pw2(x) + pw2(y))*(pw2(x) + 
-                                                                      pw2(y) - pw2(z)) + 2*(sp*x - cp*y)*(pw2(x) + 
-                                                                                                          pw2(y))*(pw2(x) + pw2(y) - pw2(z))*cos(2*theta) + 
-                                z*(3*(pw2(x) + pw2(y)) + 
-                                   pw2(z))*sin(2*theta)*(2*x*y*cos(2*phi) + (-pw2(x) + 
-                                                                             pw2(y))*sin(2*phi)) + 
-                                pw2(r)*(pw2(x) + 
-                                        pw2(y))*(2*cos(2*phi)*sin(2*theta)*(x*z*kd->Gc112 + y*z*kd->Gc212 
-                                                                            - (pw2(x) + pw2(y))*kd->Gc312) + 
-                                                 4*sp*pw2(st)*(x*z*kd->Gc113 + y*z*kd->Gc213 - (pw2(x) 
-                                                                                                + pw2(y))*kd->Gc313) + 
-                                                 sin(2*theta)*sin(2*phi)*(-(x*z*kd->Gc111) + x*z*kd->Gc122 - 
-                                                                          y*z*kd->Gc211 + y*z*kd->Gc222 + pw2(x)*kd->Gc311 + 
-                                                                          pw2(y)*kd->Gc311 - (pw2(x) + pw2(y))*kd->Gc322) + 
-                                                 4*cp*pw2(st)*(-(z*(x*kd->Gc123 + y*kd->Gc223)) + 
-                                                               (pw2(x) + 
-                                                                pw2(y))*kd->Gc323)))/(4.*pow(pw2(r),2.5)*pow((pw2(x) 
+        G111[theta_i][phi_i] = ((pw2(x) + pw2(y))*z*(5*(pw2(x) + pw2(y)) -
+                                                     pw2(z))*cos(2*theta) +
+                                (pw2(x) + pw2(y))*(-(z*(3*(pw2(x) + pw2(y)) +
+                                                        pw2(z))) + 4*(cp*x + sp*y)*(pw2(x) + pw2(y) -
+                                                                                    pw2(z))*sin(2*theta)) +
+                                2*pw2(ct)*z*(3*(pw2(x) + pw2(y)) + pw2(z))*((x -
+                                                                             y)*(x + y)*cos(2*phi) + 2*x*y*sin(2*phi)) +
+                                pw2(r)*(pw2(x) +
+                                        pw2(y))*(4*pw2(cp)*pw2(ct)*x*z*kd->Gc111 + x*z*kd->Gc122
+                                                 + x*z*cos(2*theta)*kd->Gc122 + 2*x*z*kd->Gc133 -
+                                                 2*x*z*cos(2*theta)*kd->Gc133 + y*z*kd->Gc211 +
+                                                 y*z*cos(2*theta)*kd->Gc211 + y*z*kd->Gc222 +
+                                                 y*z*cos(2*theta)*kd->Gc222 + 2*y*z*kd->Gc233 -
+                                                 2*y*z*cos(2*theta)*kd->Gc233 - pw2(x)*kd->Gc311 -
+                                                 pw2(y)*kd->Gc311 - pw2(x)*cos(2*theta)*kd->Gc311 -
+                                                 pw2(y)*cos(2*theta)*kd->Gc311 +
+                                                 4*pw2(ct)*sin(2*phi)*(x*z*kd->Gc112 + y*z*kd->Gc212 - (pw2(x)
+                                                                                                        + pw2(y))*kd->Gc312) +
+                                                 4*cp*sin(2*theta)*(-(z*(x*kd->Gc113 + y*kd->Gc213)) +
+                                                                    (pw2(x) + pw2(y))*kd->Gc313) - pw2(x)*kd->Gc322 -
+                                                 pw2(y)*kd->Gc322 - pw2(x)*cos(2*theta)*kd->Gc322 -
+                                                 pw2(y)*cos(2*theta)*kd->Gc322 -
+                                                 2*pw2(ct)*cos(2*phi)*(x*z*kd->Gc122 - y*z*kd->Gc211 +
+                                                                       y*z*kd->Gc222 + pw2(x)*kd->Gc311 + pw2(y)*kd->Gc311 -
+                                                                       (pw2(x) + pw2(y))*kd->Gc322) +
+                                                 4*sp*sin(2*theta)*(-(z*(x*kd->Gc123 + y*kd->Gc223)) +
+                                                                    (pw2(x) + pw2(y))*kd->Gc323) - 4*pw2(st)*(pw2(x) +
+                                                                                                              pw2(y))*kd->Gc333))/
+          (4.*pow(pw2(r),2.5)*pow((pw2(x) +
+                                   pw2(y))/pw2(r),1.5));
+
+        G122[theta_i][phi_i] = (pw2(st)*(z*((pw2(x) + pw2(y))*(pw2(x) + pw2(y) -
+                                                               pw2(z)) - (3*(pw2(x) + pw2(y)) + pw2(z))*((x - y)*(x
+                                                                                                                  + y)*cos(2*phi) + 2*x*y*sin(2*phi))) +
+                                         pw2(r)*(pw2(x) +
+                                                 pw2(y))*(2*pw2(sp)*x*z*kd->Gc111 + x*z*kd->Gc122 +
+                                                          y*z*kd->Gc211 + y*z*kd->Gc222 - pw2(x)*kd->Gc311 -
+                                                          pw2(y)*kd->Gc311 +
+                                                          2*sin(2*phi)*(-(z*(x*kd->Gc112 + y*kd->Gc212)) +
+                                                                        (pw2(x) + pw2(y))*kd->Gc312) - pw2(x)*kd->Gc322 -
+                                                          pw2(y)*kd->Gc322 +
+                                                          cos(2*phi)*(x*z*kd->Gc122 - y*z*kd->Gc211 + y*z*kd->Gc222 +
+                                                                      pw2(x)*kd->Gc311 + pw2(y)*kd->Gc311 - (pw2(x) +
+                                                                                                             pw2(y))*kd->Gc322))))/
+          (2.*pow(pw2(r),2.5)*pow((pw2(x) +
+                                   pw2(y))/pw2(r),1.5));
+
+
+        G112[theta_i][phi_i] = (2*(-(sp*x) + cp*y)*(pw2(x) + pw2(y))*(pw2(x) +
+                                                                      pw2(y) - pw2(z)) + 2*(sp*x - cp*y)*(pw2(x) +
+                                                                                                          pw2(y))*(pw2(x) + pw2(y) - pw2(z))*cos(2*theta) +
+                                z*(3*(pw2(x) + pw2(y)) +
+                                   pw2(z))*sin(2*theta)*(2*x*y*cos(2*phi) + (-pw2(x) +
+                                                                             pw2(y))*sin(2*phi)) +
+                                pw2(r)*(pw2(x) +
+                                        pw2(y))*(2*cos(2*phi)*sin(2*theta)*(x*z*kd->Gc112 + y*z*kd->Gc212
+                                                                            - (pw2(x) + pw2(y))*kd->Gc312) +
+                                                 4*sp*pw2(st)*(x*z*kd->Gc113 + y*z*kd->Gc213 - (pw2(x)
+                                                                                                + pw2(y))*kd->Gc313) +
+                                                 sin(2*theta)*sin(2*phi)*(-(x*z*kd->Gc111) + x*z*kd->Gc122 -
+                                                                          y*z*kd->Gc211 + y*z*kd->Gc222 + pw2(x)*kd->Gc311 +
+                                                                          pw2(y)*kd->Gc311 - (pw2(x) + pw2(y))*kd->Gc322) +
+                                                 4*cp*pw2(st)*(-(z*(x*kd->Gc123 + y*kd->Gc223)) +
+                                                               (pw2(x) +
+                                                                pw2(y))*kd->Gc323)))/(4.*pow(pw2(r),2.5)*pow((pw2(x)
                                                                                                               + pw2(y))/pw2(r),1.5));
 
 
-        G211[theta_i][phi_i] = (pw2(r)*(4*pw2(ct)*(-2*x*y*cos(2*phi) + (x - y)*(x + 
+        G211[theta_i][phi_i] = (pw2(r)*(4*pw2(ct)*(-2*x*y*cos(2*phi) + (x - y)*(x +
                                                                                 y)*sin(2*phi)) + (pw2(x) + pw2(y))*
-                                        (-4*pw2(cp)*pw2(ct)*y*kd->Gc111 - y*kd->Gc122 - 
-                                         y*cos(2*theta)*kd->Gc122 - 2*y*kd->Gc133 + 2*y*cos(2*theta)*kd->Gc133 
-                                         + x*kd->Gc211 + x*cos(2*theta)*kd->Gc211 + 
-                                         4*pw2(ct)*sin(2*phi)*(-(y*kd->Gc112) + x*kd->Gc212) + 
-                                         4*cp*sin(2*theta)*(y*kd->Gc113 - x*kd->Gc213) + 
-                                         2*pw2(ct)*cos(2*phi)*(y*kd->Gc122 + x*(kd->Gc211 - kd->Gc222)) + 
-                                         x*kd->Gc222 + 
-                                         x*cos(2*theta)*kd->Gc222 + 4*sp*sin(2*theta)*(y*kd->Gc123 - 
-                                                                                       x*kd->Gc223) + 2*x*kd->Gc233 - 
+                                        (-4*pw2(cp)*pw2(ct)*y*kd->Gc111 - y*kd->Gc122 -
+                                         y*cos(2*theta)*kd->Gc122 - 2*y*kd->Gc133 + 2*y*cos(2*theta)*kd->Gc133
+                                         + x*kd->Gc211 + x*cos(2*theta)*kd->Gc211 +
+                                         4*pw2(ct)*sin(2*phi)*(-(y*kd->Gc112) + x*kd->Gc212) +
+                                         4*cp*sin(2*theta)*(y*kd->Gc113 - x*kd->Gc213) +
+                                         2*pw2(ct)*cos(2*phi)*(y*kd->Gc122 + x*(kd->Gc211 - kd->Gc222)) +
+                                         x*kd->Gc222 +
+                                         x*cos(2*theta)*kd->Gc222 + 4*sp*sin(2*theta)*(y*kd->Gc123 -
+                                                                                       x*kd->Gc223) + 2*x*kd->Gc233 -
                                          2*x*cos(2*theta)*kd->Gc233)))/(4.*pow(pw2(x) + pw2(y),2));
 
 
-        G212[theta_i][phi_i] = (pw2(r)*(2*sin(2*theta)*((x - y)*(x + y)*cos(2*phi) + 
+        G212[theta_i][phi_i] = (pw2(r)*(2*sin(2*theta)*((x - y)*(x + y)*cos(2*phi) +
                                                         2*x*y*sin(2*phi)) + (pw2(x) + pw2(y))*
-                                        (2*cos(2*phi)*sin(2*theta)*(-(y*kd->Gc112) + x*kd->Gc212) + 
-                                         4*sp*pw2(st)*(-(y*kd->Gc113) + x*kd->Gc213) + 
-                                         sin(2*theta)*sin(2*phi)*(y*kd->Gc111 - y*kd->Gc122 + x*(-kd->Gc211 + 
-                                                                                                 kd->Gc222)) + 
-                                         4*cp*pw2(st)*(y*kd->Gc123 - 
+                                        (2*cos(2*phi)*sin(2*theta)*(-(y*kd->Gc112) + x*kd->Gc212) +
+                                         4*sp*pw2(st)*(-(y*kd->Gc113) + x*kd->Gc213) +
+                                         sin(2*theta)*sin(2*phi)*(y*kd->Gc111 - y*kd->Gc122 + x*(-kd->Gc211 +
+                                                                                                 kd->Gc222)) +
+                                         4*cp*pw2(st)*(y*kd->Gc123 -
                                                        x*kd->Gc223))))/(4.*pow(pw2(x) + pw2(y),2));
-  
 
-        G222[theta_i][phi_i] = (pw2(r)*pw2(st)*(4*x*y*cos(2*phi) + 2*(-pw2(x) + 
-                                                                      pw2(y))*sin(2*phi) - 
-                                                (pw2(x) + pw2(y))*(2*pw2(sp)*y*kd->Gc111 - 
-                                                                   2*y*sin(2*phi)*kd->Gc112 + y*kd->Gc122 + y*cos(2*phi)*kd->Gc122 - 
-                                                                   x*kd->Gc211 + x*cos(2*phi)*kd->Gc211 + 2*x*sin(2*phi)*kd->Gc212 - 
-                                                                   2*pw2(cp)*x*kd->Gc222)))/(2.*pow(pw2(x) + 
+
+        G222[theta_i][phi_i] = (pw2(r)*pw2(st)*(4*x*y*cos(2*phi) + 2*(-pw2(x) +
+                                                                      pw2(y))*sin(2*phi) -
+                                                (pw2(x) + pw2(y))*(2*pw2(sp)*y*kd->Gc111 -
+                                                                   2*y*sin(2*phi)*kd->Gc112 + y*kd->Gc122 + y*cos(2*phi)*kd->Gc122 -
+                                                                   x*kd->Gc211 + x*cos(2*phi)*kd->Gc211 + 2*x*sin(2*phi)*kd->Gc212 -
+                                                                   2*pw2(cp)*x*kd->Gc222)))/(2.*pow(pw2(x) +
                                                                                                     pw2(y),2));
 
         break;
       }
-    }  
+    }
     if(p != level->end())
       break;
 
@@ -430,10 +430,10 @@ void HorizonStatistics::set_G_values(
     mpi.AllReduce(&cur_mpi_rank, 1, MPI_MAX);
   }
   mpi.Barrier();
-  
+
   if(cur_mpi_rank == -1)
     TBOX_ERROR("Cannot find patch cover the cell\n");
-  
+
   mpi.Barrier();
   if (mpi.getSize() > 1 ) {
     mpi.Bcast(&G111[theta_i][phi_i], 1, MPI_DOUBLE, cur_mpi_rank);
@@ -462,7 +462,7 @@ void HorizonStatistics::set_kd_values(
   real_t x = r * cos(phi) * sin(theta);
   real_t y = r * sin(phi) * sin(theta);
   real_t z = r * cos(theta);
-        
+
   real_t st = sin(theta);
   real_t ct = cos(theta);
   real_t sp = sin(phi);
@@ -470,7 +470,7 @@ void HorizonStatistics::set_kd_values(
 
   double dphi = 2.0 * PI / (double) n_phi / 2.0;
   double dtheta = PI / (double) n_theta / 2.0;
-  
+
   double dtheta_dh = (ah_radius[theta_i + 1][phi_i] - ah_radius[theta_i][phi_i]) / (dtheta);
   double dphi_dh = (ah_radius[theta_i][(phi_i+1)%(2*n_phi)]
                     - ah_radius[theta_i][(phi_i)%(2*n_phi)]) / (dphi);
@@ -484,7 +484,7 @@ void HorizonStatistics::set_kd_values(
   double d1h = (x*z/(pw3(r)*sqrt(1-pw2(z/r))))*dtheta_dh - (y/(pw2(x)+pw2(y)))*dphi_dh;
   double d2h = (y*z/(pw3(r)*sqrt(1-pw2(z/r))))*dtheta_dh + (x/(pw2(x)+pw2(y)))*dphi_dh;
   double d3h = sqrt(pw2(x)+pw2(y)) / pw2(r) * dtheta_dh;
-  
+
   Theta[0] = l[0] * l[2] * (1 + l[0] * d1h + l[1] * d2h) / sqrt(1 - pw2(l[2]))
     - l[0] * sqrt(1 - l[2] * l[2]) * d3h;
 
@@ -499,7 +499,7 @@ void HorizonStatistics::set_kd_values(
   Phi[1] = (l[1] * (l[0]*d2h - l[1] * d1h) + l[0]) / sqrt(1 - l[2] * l[2]);
 
   Phi[2] = l[2] * (l[0] * d2h - l[1] * d1h)  / sqrt(1 - l[2] * l[2]);
-  
+
   for (ln = ln_num - 1; ln >= 0; ln--)
   {
     std::shared_ptr<hier::PatchLevel> level(hierarchy->getPatchLevel(ln));
@@ -511,7 +511,7 @@ void HorizonStatistics::set_kd_values(
 
       const int * lower = &box.lower()[0];
       const int * upper = &box.upper()[0];
-      
+
       std::shared_ptr<geom::CartesianPatchGeometry> patch_geometry(
         SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
           patch->getPatchGeometry()));
@@ -522,7 +522,7 @@ void HorizonStatistics::set_kd_values(
       int j0 = floor((y + coord_origin[1] - domain_lower[1] ) / dx[1] - 0.5);
       int k0 = floor((z + coord_origin[2] - domain_lower[2] ) / dx[2] - 0.5);
 
-      
+
       if( i0 >= lower[0] && i0 <= upper[0]
           && j0 >= lower[1] && j0 <= upper[1]
           && k0 >= lower[2] && k0 <= upper[2])
@@ -530,14 +530,14 @@ void HorizonStatistics::set_kd_values(
         cur_mpi_rank = mpi.getRank();
 
         cur_mpi_level = ln;
-        
+
 
         bssn->initPData(patch);
         bssn->initMDA(patch);
-        
+
         BSSNData bd = {0};
-        
-        
+
+
         real_t x0 = domain_lower[0] + (double)i0 * dx[0] + dx[0]/2.0 - coord_origin[0];
         real_t y0 = domain_lower[1] + (double)j0 * dx[1] + dx[1]/2.0 - coord_origin[1];
         real_t z0 = domain_lower[2] + (double)k0 * dx[2] + dx[2]/2.0 - coord_origin[2];
@@ -555,7 +555,7 @@ void HorizonStatistics::set_kd_values(
         double a_chi[64], f_chi[64];
 
         double d1chi, d2chi, d3chi;
-        
+
         for(int i = 0; i < 4; i++)
           for(int j = 0; j < 4; j++)
             for(int k = 0; k < 4; k++)
@@ -577,7 +577,7 @@ void HorizonStatistics::set_kd_values(
         HORIZON_CRSPLINES_CAL_COEF_DCHI(3);
         compute_tricubic_coeffs(a_R, f_R);
         compute_tricubic_coeffs(a_chi, f_chi);
-        
+
         COSMO_APPLY_TO_IJK_PERMS(HORIZON_CRSPLINES_EVAL_G);
         COSMO_APPLY_TO_IJ_PERMS(HORIZON_CRSPLINES_EVAL_M);
         HORIZON_CRSPLINES_EVAL_DCHI(1);
@@ -586,23 +586,23 @@ void HorizonStatistics::set_kd_values(
         kd->R = evaluate_interpolation(a_R, xd, yd, zd);
         kd->chi = evaluate_interpolation(a_chi, xd, yd, zd);
 
-        
+
         COSMO_APPLY_TO_IJ_PERMS(HORIZON_CRSPLINES_CAL_M);
 
         real_t det = kd->m11 * kd->m22 * kd->m33 + kd->m12 * kd->m23 * kd->m13
           + kd->m12 * kd->m23 * kd->m13 - kd->m13 * kd->m22 * kd->m13
           - kd->m12 * kd->m12 * kd->m33 - kd->m23 * kd->m23 * kd->m11;
-  
+
         kd->mi11 = (kd->m22 * kd->m33 - pw2(kd->m23)) / det;
         kd->mi22 = (kd->m11 * kd->m33 - pw2(kd->m13)) / det;
         kd->mi33 = (kd->m11 * kd->m22 - pw2(kd->m12)) / det;
         kd->mi12 = (kd->m13*kd->m23 - kd->m12*(kd->m33)) / det;
         kd->mi13 = (kd->m12*kd->m23 - kd->m13*(kd->m22)) / det;
         kd->mi23 = (kd->m12*kd->m13 - kd->m23*(kd->m11)) / det;
-        
+
         COSMO_APPLY_TO_IJK_PERMS(HORIZON_CRSPLINES_CAL_G);
-        
-        
+
+
         kd->q11 = pw2(r) * (
           kd->m11 * Theta[0] * Theta[0] + 2.0 * kd->m12 * Theta[0] * Theta[1]
           + 2.0 * kd->m13 * Theta[0] * Theta[2] + kd->m22 * Theta[1] * Theta[1]
@@ -619,13 +619,13 @@ void HorizonStatistics::set_kd_values(
           kd->m11 * Phi[0] * Phi[0] + 2.0 * kd->m12 * Phi[0] * Phi[1]
           + 2.0 * kd->m13 * Phi[0] * Phi[2] + kd->m22 * Phi[1] * Phi[1]
           + 2.0 * kd->m23 * Phi[1] * Phi[2] + kd->m33 * Phi[2] * Phi[2]);
-        
+
         // kd->q11 = pw2(r)*(ct*(pw2(cp)*ct*kd->m11
         //                       + ct*sin(2*phi)*kd->m12
         //                       + ct*pw2(sp)*kd->m22
         //                       - 2*st*(cp*kd->m13 + sp*kd->m23)) + pw2(st)*kd->m33);
 
-  
+
         // kd->q12 = pw2(r)*st*(ct*cos(2*phi)*kd->m12
         //                      + sp*st*kd->m13
         //                      + cp*ct*sp*(-kd->m11 + kd->m22) - cp*st*kd->m23);
@@ -637,107 +637,107 @@ void HorizonStatistics::set_kd_values(
         //          <<- cp*st*kd->m23<<"\n";
         //        std::cout<<fabs(kd->q11 - q11) / q11<<" "<<q12<<" "<<kd->q12
         //       <<" "<<fabs(kd->q22 - q22) / q22<<"\n";
-        
-        kd->Gs111 = ((pw2(x) + pw2(y))*z*(5*(pw2(x) + pw2(y)) - 
-                                          pw2(z))*cos(2*theta) + 
-                     (pw2(x) + pw2(y))*(-(z*(3*(pw2(x) + pw2(y)) + 
-                                             pw2(z))) + 4*(cp*x + sp*y)*(pw2(x) + pw2(y) - 
-                                                                         pw2(z))*sin(2*theta)) + 
-                     2*pw2(ct)*z*(3*(pw2(x) + pw2(y)) + pw2(z))*((x - 
-                                                                  y)*(x + y)*cos(2*phi) + 2*x*y*sin(2*phi)) + 
-                     pw2(r)*(pw2(x) + 
-                             pw2(y))*(4*pw2(cp)*pw2(ct)*x*z*kd->Gc111 + x*z*kd->Gc122 
-                                      + x*z*cos(2*theta)*kd->Gc122 + 2*x*z*kd->Gc133 - 
-                                      2*x*z*cos(2*theta)*kd->Gc133 + y*z*kd->Gc211 + 
-                                      y*z*cos(2*theta)*kd->Gc211 + y*z*kd->Gc222 + 
-                                      y*z*cos(2*theta)*kd->Gc222 + 2*y*z*kd->Gc233 - 
-                                      2*y*z*cos(2*theta)*kd->Gc233 - pw2(x)*kd->Gc311 - 
-                                      pw2(y)*kd->Gc311 - pw2(x)*cos(2*theta)*kd->Gc311 - 
-                                      pw2(y)*cos(2*theta)*kd->Gc311 + 
-                                      4*pw2(ct)*sin(2*phi)*(x*z*kd->Gc112 + y*z*kd->Gc212 - (pw2(x) 
-                                                                                             + pw2(y))*kd->Gc312) + 
-                                      4*cp*sin(2*theta)*(-(z*(x*kd->Gc113 + y*kd->Gc213)) + 
-                                                         (pw2(x) + pw2(y))*kd->Gc313) - pw2(x)*kd->Gc322 - 
-                                      pw2(y)*kd->Gc322 - pw2(x)*cos(2*theta)*kd->Gc322 - 
-                                      pw2(y)*cos(2*theta)*kd->Gc322 - 
-                                      2*pw2(ct)*cos(2*phi)*(x*z*kd->Gc122 - y*z*kd->Gc211 + 
-                                                            y*z*kd->Gc222 + pw2(x)*kd->Gc311 + pw2(y)*kd->Gc311 - 
-                                                            (pw2(x) + pw2(y))*kd->Gc322) + 
-                                      4*sp*sin(2*theta)*(-(z*(x*kd->Gc123 + y*kd->Gc223)) + 
-                                                         (pw2(x) + pw2(y))*kd->Gc323) - 4*pw2(st)*(pw2(x) + 
-                                                                                                   pw2(y))*kd->Gc333))/
-          (4.*pow(pw2(r),2.5)*pow((pw2(x) + 
-                                   pw2(y))/pw2(r),1.5));
- 
-        kd->Gs122 = (pw2(st)*(z*((pw2(x) + pw2(y))*(pw2(x) + pw2(y) - 
-                                                    pw2(z)) - (3*(pw2(x) + pw2(y)) + pw2(z))*((x - y)*(x 
-                                                                                                       + y)*cos(2*phi) + 2*x*y*sin(2*phi))) + 
-                              pw2(r)*(pw2(x) + 
-                                      pw2(y))*(2*pw2(sp)*x*z*kd->Gc111 + x*z*kd->Gc122 + 
-                                               y*z*kd->Gc211 + y*z*kd->Gc222 - pw2(x)*kd->Gc311 - 
-                                               pw2(y)*kd->Gc311 + 
-                                               2*sin(2*phi)*(-(z*(x*kd->Gc112 + y*kd->Gc212)) + 
-                                                             (pw2(x) + pw2(y))*kd->Gc312) - pw2(x)*kd->Gc322 - 
-                                               pw2(y)*kd->Gc322 + 
-                                               cos(2*phi)*(x*z*kd->Gc122 - y*z*kd->Gc211 + y*z*kd->Gc222 + 
-                                                           pw2(x)*kd->Gc311 + pw2(y)*kd->Gc311 - (pw2(x) + 
-                                                                                                  pw2(y))*kd->Gc322))))/
-          (2.*pow(pw2(r),2.5)*pow((pw2(x) + 
-                                   pw2(y))/pw2(r),1.5));
-  
 
-        kd->Gs112 = (2*(-(sp*x) + cp*y)*(pw2(x) + pw2(y))*(pw2(x) + 
-                                                           pw2(y) - pw2(z)) + 2*(sp*x - cp*y)*(pw2(x) + 
-                                                                                               pw2(y))*(pw2(x) + pw2(y) - pw2(z))*cos(2*theta) + 
-                     z*(3*(pw2(x) + pw2(y)) + 
-                        pw2(z))*sin(2*theta)*(2*x*y*cos(2*phi) + (-pw2(x) + 
-                                                                  pw2(y))*sin(2*phi)) + 
-                     pw2(r)*(pw2(x) + 
-                             pw2(y))*(2*cos(2*phi)*sin(2*theta)*(x*z*kd->Gc112 + y*z*kd->Gc212 
-                                                                 - (pw2(x) + pw2(y))*kd->Gc312) + 
-                                      4*sp*pw2(st)*(x*z*kd->Gc113 + y*z*kd->Gc213 - (pw2(x) 
-                                                                                     + pw2(y))*kd->Gc313) + 
-                                      sin(2*theta)*sin(2*phi)*(-(x*z*kd->Gc111) + x*z*kd->Gc122 - 
-                                                               y*z*kd->Gc211 + y*z*kd->Gc222 + pw2(x)*kd->Gc311 + 
-                                                               pw2(y)*kd->Gc311 - (pw2(x) + pw2(y))*kd->Gc322) + 
-                                      4*cp*pw2(st)*(-(z*(x*kd->Gc123 + y*kd->Gc223)) + 
-                                                    (pw2(x) + 
-                                                     pw2(y))*kd->Gc323)))/(4.*pow(pw2(r),2.5)*pow((pw2(x) 
+        kd->Gs111 = ((pw2(x) + pw2(y))*z*(5*(pw2(x) + pw2(y)) -
+                                          pw2(z))*cos(2*theta) +
+                     (pw2(x) + pw2(y))*(-(z*(3*(pw2(x) + pw2(y)) +
+                                             pw2(z))) + 4*(cp*x + sp*y)*(pw2(x) + pw2(y) -
+                                                                         pw2(z))*sin(2*theta)) +
+                     2*pw2(ct)*z*(3*(pw2(x) + pw2(y)) + pw2(z))*((x -
+                                                                  y)*(x + y)*cos(2*phi) + 2*x*y*sin(2*phi)) +
+                     pw2(r)*(pw2(x) +
+                             pw2(y))*(4*pw2(cp)*pw2(ct)*x*z*kd->Gc111 + x*z*kd->Gc122
+                                      + x*z*cos(2*theta)*kd->Gc122 + 2*x*z*kd->Gc133 -
+                                      2*x*z*cos(2*theta)*kd->Gc133 + y*z*kd->Gc211 +
+                                      y*z*cos(2*theta)*kd->Gc211 + y*z*kd->Gc222 +
+                                      y*z*cos(2*theta)*kd->Gc222 + 2*y*z*kd->Gc233 -
+                                      2*y*z*cos(2*theta)*kd->Gc233 - pw2(x)*kd->Gc311 -
+                                      pw2(y)*kd->Gc311 - pw2(x)*cos(2*theta)*kd->Gc311 -
+                                      pw2(y)*cos(2*theta)*kd->Gc311 +
+                                      4*pw2(ct)*sin(2*phi)*(x*z*kd->Gc112 + y*z*kd->Gc212 - (pw2(x)
+                                                                                             + pw2(y))*kd->Gc312) +
+                                      4*cp*sin(2*theta)*(-(z*(x*kd->Gc113 + y*kd->Gc213)) +
+                                                         (pw2(x) + pw2(y))*kd->Gc313) - pw2(x)*kd->Gc322 -
+                                      pw2(y)*kd->Gc322 - pw2(x)*cos(2*theta)*kd->Gc322 -
+                                      pw2(y)*cos(2*theta)*kd->Gc322 -
+                                      2*pw2(ct)*cos(2*phi)*(x*z*kd->Gc122 - y*z*kd->Gc211 +
+                                                            y*z*kd->Gc222 + pw2(x)*kd->Gc311 + pw2(y)*kd->Gc311 -
+                                                            (pw2(x) + pw2(y))*kd->Gc322) +
+                                      4*sp*sin(2*theta)*(-(z*(x*kd->Gc123 + y*kd->Gc223)) +
+                                                         (pw2(x) + pw2(y))*kd->Gc323) - 4*pw2(st)*(pw2(x) +
+                                                                                                   pw2(y))*kd->Gc333))/
+          (4.*pow(pw2(r),2.5)*pow((pw2(x) +
+                                   pw2(y))/pw2(r),1.5));
+
+        kd->Gs122 = (pw2(st)*(z*((pw2(x) + pw2(y))*(pw2(x) + pw2(y) -
+                                                    pw2(z)) - (3*(pw2(x) + pw2(y)) + pw2(z))*((x - y)*(x
+                                                                                                       + y)*cos(2*phi) + 2*x*y*sin(2*phi))) +
+                              pw2(r)*(pw2(x) +
+                                      pw2(y))*(2*pw2(sp)*x*z*kd->Gc111 + x*z*kd->Gc122 +
+                                               y*z*kd->Gc211 + y*z*kd->Gc222 - pw2(x)*kd->Gc311 -
+                                               pw2(y)*kd->Gc311 +
+                                               2*sin(2*phi)*(-(z*(x*kd->Gc112 + y*kd->Gc212)) +
+                                                             (pw2(x) + pw2(y))*kd->Gc312) - pw2(x)*kd->Gc322 -
+                                               pw2(y)*kd->Gc322 +
+                                               cos(2*phi)*(x*z*kd->Gc122 - y*z*kd->Gc211 + y*z*kd->Gc222 +
+                                                           pw2(x)*kd->Gc311 + pw2(y)*kd->Gc311 - (pw2(x) +
+                                                                                                  pw2(y))*kd->Gc322))))/
+          (2.*pow(pw2(r),2.5)*pow((pw2(x) +
+                                   pw2(y))/pw2(r),1.5));
+
+
+        kd->Gs112 = (2*(-(sp*x) + cp*y)*(pw2(x) + pw2(y))*(pw2(x) +
+                                                           pw2(y) - pw2(z)) + 2*(sp*x - cp*y)*(pw2(x) +
+                                                                                               pw2(y))*(pw2(x) + pw2(y) - pw2(z))*cos(2*theta) +
+                     z*(3*(pw2(x) + pw2(y)) +
+                        pw2(z))*sin(2*theta)*(2*x*y*cos(2*phi) + (-pw2(x) +
+                                                                  pw2(y))*sin(2*phi)) +
+                     pw2(r)*(pw2(x) +
+                             pw2(y))*(2*cos(2*phi)*sin(2*theta)*(x*z*kd->Gc112 + y*z*kd->Gc212
+                                                                 - (pw2(x) + pw2(y))*kd->Gc312) +
+                                      4*sp*pw2(st)*(x*z*kd->Gc113 + y*z*kd->Gc213 - (pw2(x)
+                                                                                     + pw2(y))*kd->Gc313) +
+                                      sin(2*theta)*sin(2*phi)*(-(x*z*kd->Gc111) + x*z*kd->Gc122 -
+                                                               y*z*kd->Gc211 + y*z*kd->Gc222 + pw2(x)*kd->Gc311 +
+                                                               pw2(y)*kd->Gc311 - (pw2(x) + pw2(y))*kd->Gc322) +
+                                      4*cp*pw2(st)*(-(z*(x*kd->Gc123 + y*kd->Gc223)) +
+                                                    (pw2(x) +
+                                                     pw2(y))*kd->Gc323)))/(4.*pow(pw2(r),2.5)*pow((pw2(x)
                                                                                                    + pw2(y))/pw2(r),1.5));
 
 
-        kd->Gs211 = (pw2(r)*(4*pw2(ct)*(-2*x*y*cos(2*phi) + (x - y)*(x + 
+        kd->Gs211 = (pw2(r)*(4*pw2(ct)*(-2*x*y*cos(2*phi) + (x - y)*(x +
                                                                      y)*sin(2*phi)) + (pw2(x) + pw2(y))*
-                             (-4*pw2(cp)*pw2(ct)*y*kd->Gc111 - y*kd->Gc122 - 
-                              y*cos(2*theta)*kd->Gc122 - 2*y*kd->Gc133 + 2*y*cos(2*theta)*kd->Gc133 
-                              + x*kd->Gc211 + x*cos(2*theta)*kd->Gc211 + 
-                              4*pw2(ct)*sin(2*phi)*(-(y*kd->Gc112) + x*kd->Gc212) + 
-                              4*cp*sin(2*theta)*(y*kd->Gc113 - x*kd->Gc213) + 
-                              2*pw2(ct)*cos(2*phi)*(y*kd->Gc122 + x*(kd->Gc211 - kd->Gc222)) + 
-                              x*kd->Gc222 + 
-                              x*cos(2*theta)*kd->Gc222 + 4*sp*sin(2*theta)*(y*kd->Gc123 - 
-                                                                            x*kd->Gc223) + 2*x*kd->Gc233 - 
+                             (-4*pw2(cp)*pw2(ct)*y*kd->Gc111 - y*kd->Gc122 -
+                              y*cos(2*theta)*kd->Gc122 - 2*y*kd->Gc133 + 2*y*cos(2*theta)*kd->Gc133
+                              + x*kd->Gc211 + x*cos(2*theta)*kd->Gc211 +
+                              4*pw2(ct)*sin(2*phi)*(-(y*kd->Gc112) + x*kd->Gc212) +
+                              4*cp*sin(2*theta)*(y*kd->Gc113 - x*kd->Gc213) +
+                              2*pw2(ct)*cos(2*phi)*(y*kd->Gc122 + x*(kd->Gc211 - kd->Gc222)) +
+                              x*kd->Gc222 +
+                              x*cos(2*theta)*kd->Gc222 + 4*sp*sin(2*theta)*(y*kd->Gc123 -
+                                                                            x*kd->Gc223) + 2*x*kd->Gc233 -
                               2*x*cos(2*theta)*kd->Gc233)))/(4.*pow(pw2(x) + pw2(y),2));
 
 
-        kd->Gs212 = (pw2(r)*(2*sin(2*theta)*((x - y)*(x + y)*cos(2*phi) + 
+        kd->Gs212 = (pw2(r)*(2*sin(2*theta)*((x - y)*(x + y)*cos(2*phi) +
                                              2*x*y*sin(2*phi)) + (pw2(x) + pw2(y))*
-                             (2*cos(2*phi)*sin(2*theta)*(-(y*kd->Gc112) + x*kd->Gc212) + 
-                              4*sp*pw2(st)*(-(y*kd->Gc113) + x*kd->Gc213) + 
-                              sin(2*theta)*sin(2*phi)*(y*kd->Gc111 - y*kd->Gc122 + x*(-kd->Gc211 + 
-                                                                                      kd->Gc222)) + 
-                              4*cp*pw2(st)*(y*kd->Gc123 - 
+                             (2*cos(2*phi)*sin(2*theta)*(-(y*kd->Gc112) + x*kd->Gc212) +
+                              4*sp*pw2(st)*(-(y*kd->Gc113) + x*kd->Gc213) +
+                              sin(2*theta)*sin(2*phi)*(y*kd->Gc111 - y*kd->Gc122 + x*(-kd->Gc211 +
+                                                                                      kd->Gc222)) +
+                              4*cp*pw2(st)*(y*kd->Gc123 -
                                             x*kd->Gc223))))/(4.*pow(pw2(x) + pw2(y),2));
-  
 
-        kd->Gs222 = (pw2(r)*pw2(st)*(4*x*y*cos(2*phi) + 2*(-pw2(x) + 
-                                                           pw2(y))*sin(2*phi) - 
-                                     (pw2(x) + pw2(y))*(2*pw2(sp)*y*kd->Gc111 - 
-                                                        2*y*sin(2*phi)*kd->Gc112 + y*kd->Gc122 + y*cos(2*phi)*kd->Gc122 - 
-                                                        x*kd->Gc211 + x*cos(2*phi)*kd->Gc211 + 2*x*sin(2*phi)*kd->Gc212 - 
-                                                        2*pw2(cp)*x*kd->Gc222)))/(2.*pow(pw2(x) + 
+
+        kd->Gs222 = (pw2(r)*pw2(st)*(4*x*y*cos(2*phi) + 2*(-pw2(x) +
+                                                           pw2(y))*sin(2*phi) -
+                                     (pw2(x) + pw2(y))*(2*pw2(sp)*y*kd->Gc111 -
+                                                        2*y*sin(2*phi)*kd->Gc112 + y*kd->Gc122 + y*cos(2*phi)*kd->Gc122 -
+                                                        x*kd->Gc211 + x*cos(2*phi)*kd->Gc211 + 2*x*sin(2*phi)*kd->Gc212 -
+                                                        2*pw2(cp)*x*kd->Gc222)))/(2.*pow(pw2(x) +
                                                                                          pw2(y),2));
-  
+
         det = kd->q11 * kd->q22 - kd->q12 * kd->q12;
 
 
@@ -754,7 +754,7 @@ void HorizonStatistics::set_kd_values(
              + kd->Gs112 * kd->Gs211 + kd->Gs222 * kd->Gs211)
           - (kd->Gs111 * kd->Gs111 + kd->Gs112 * kd->Gs211
              + kd->Gs211 * kd->Gs121 + kd->Gs212 * kd->Gs221);
-  
+
         kd->R12 = HORIZON_CALCULATE_D1G(1,1,2)
           + HORIZON_CALCULATE_D2G(2,1,2)
           - HORIZON_CALCULATE_D2G(1,1,1)
@@ -797,7 +797,7 @@ void HorizonStatistics::set_kd_values(
     cur_mpi_rank = -1;
   }
 
-  
+
   mpi.Barrier();
 
   if (mpi.getSize() > 1)
@@ -805,7 +805,7 @@ void HorizonStatistics::set_kd_values(
     mpi.AllReduce(&cur_mpi_rank, 1, MPI_MAX);
   }
   mpi.Barrier();
-  
+
   if(cur_mpi_rank == -1)
     TBOX_ERROR("Cannot find proper patch in set bd values\n");
 
@@ -858,7 +858,7 @@ real_t HorizonStatistics::getRadius(double theta_i, double phi_i)
   return res;
 
 }
-  
+
 void HorizonStatistics::transportKillingTheta(
   const std::shared_ptr<hier::PatchHierarchy>& hierarchy,
   idx_t phi_i, double k_theta_0, double k_phi_0, double k_L_0, BSSN * bssn)
@@ -882,7 +882,7 @@ void HorizonStatistics::transportKillingTheta(
   int mpi_bak = patch_work_mpi_rank;
   int local_id_bak = local_id;
   int level_bak = patch_work_level;
-  
+
   // transporting theta_i to theta_i + 1
   for(int theta_i = n_theta/2; theta_i < n_theta - 1; theta_i++)
   {
@@ -890,14 +890,14 @@ void HorizonStatistics::transportKillingTheta(
     real_t k_theta_0 = k_theta[theta_i][phi_i];
     real_t k_L_0 = k_L[theta_i][phi_i];
     kd = {0};
-    
+
     /********Doing K1 ******************************************/
     double theta =  PI * ((double) theta_i +0.5) / (double)n_theta;
     //    real_t r = ah_radius[theta_i*2][phi_i*2];
     real_t r = getRadius(theta, phi);
-    
+
     set_kd_values(hierarchy, theta, phi, theta_i*2, phi_i*2, r, &kd, bssn);
-    
+
     real_t k1_theta = ev_k_theta_dtheta(&kd, theta_i, phi_i);
     real_t k1_phi = ev_k_phi_dtheta(&kd, theta_i, phi_i);
     real_t k1_L = ev_k_L_dtheta(&kd, theta_i, phi_i);
@@ -914,7 +914,7 @@ void HorizonStatistics::transportKillingTheta(
     theta += dtheta / 2.0;
 
     k_theta[theta_i][phi_i] = k_theta_0 + dtheta * k1_theta / 2.0;
-    k_phi[theta_i][phi_i] = k_phi_0 + dtheta * k1_phi / 2.0;    
+    k_phi[theta_i][phi_i] = k_phi_0 + dtheta * k1_phi / 2.0;
     k_L[theta_i][phi_i] = k_L_0 + dtheta * k1_L / 2.0;
 
 
@@ -922,9 +922,9 @@ void HorizonStatistics::transportKillingTheta(
     //    r =  findRadius(hierarchy, theta, phi);
     //    r = ah_radius[theta_i * 2 + 1][phi_i*2];
     r = getRadius(theta, phi);
-    
+
     mpi.Barrier();
-    
+
     set_kd_values(hierarchy, theta, phi, (theta_i*2 +1)%(2*n_theta), phi_i*2, r, &kd, bssn);
 
     real_t k2_theta = ev_k_theta_dtheta(&kd, theta_i, phi_i);
@@ -940,11 +940,11 @@ void HorizonStatistics::transportKillingTheta(
     mpi.Barrier();
     /********Doing K3 ******************************************/
     k_theta[theta_i][phi_i] = k_theta_0 + dtheta * k2_theta / 2.0;
-    k_phi[theta_i][phi_i] = k_phi_0 + dtheta * k2_phi / 2.0;    
+    k_phi[theta_i][phi_i] = k_phi_0 + dtheta * k2_phi / 2.0;
     k_L[theta_i][phi_i] = k_L_0 + dtheta * k2_L / 2.0;
 
 
-    
+
     real_t k3_theta = ev_k_theta_dtheta(&kd, theta_i, phi_i);
     real_t k3_phi = ev_k_phi_dtheta(&kd, theta_i, phi_i);
     real_t k3_L = ev_k_L_dtheta(&kd, theta_i, phi_i);
@@ -962,7 +962,7 @@ void HorizonStatistics::transportKillingTheta(
     theta += dtheta / 2.0;
 
     k_theta[theta_i][phi_i] = k_theta_0 + dtheta * k3_theta;
-    k_phi[theta_i][phi_i] = k_phi_0 + dtheta * k3_phi;    
+    k_phi[theta_i][phi_i] = k_phi_0 + dtheta * k3_phi;
     k_L[theta_i][phi_i] = k_L_0 + dtheta * k3_L;
     mpi.Barrier();
     //    r =  findRadius(hierarchy, theta, phi);
@@ -972,7 +972,7 @@ void HorizonStatistics::transportKillingTheta(
     set_kd_values(hierarchy, theta, phi, (theta_i*2 +2)%(2*n_theta), phi_i*2, r, &kd, bssn);
 
 
-    
+
     real_t k4_theta = ev_k_theta_dtheta(&kd, theta_i, phi_i);
     real_t k4_phi = ev_k_phi_dtheta(&kd, theta_i, phi_i);
     real_t k4_L = ev_k_L_dtheta(&kd, theta_i, phi_i);
@@ -984,7 +984,7 @@ void HorizonStatistics::transportKillingTheta(
       mpi.Bcast(&k4_L, 1, MPI_DOUBLE, cur_mpi_rank);
     }
     mpi.Barrier();
-    
+
     k_theta[(theta_i+1)%n_theta][phi_i] = k_theta_0 + dtheta /6.0 *
       ( k1_theta + 2.0 * k2_theta + 2.0 * k3_theta + k4_theta);
     k_phi[(theta_i+1)%n_theta][phi_i] = k_phi_0 + dtheta /6.0 *
@@ -1008,8 +1008,8 @@ void HorizonStatistics::transportKillingTheta(
   local_id = local_id_bak;
   patch_work_level = level_bak;
 
-  
-  
+
+
   dtheta = - dtheta;
   // transporting theta_i to theta_i - 1
   for(int theta_i = n_theta/2; theta_i > 0; theta_i--)
@@ -1026,7 +1026,7 @@ void HorizonStatistics::transportKillingTheta(
 
     mpi.Barrier();
     set_kd_values(hierarchy, theta, phi, theta_i*2, phi_i*2, r, &kd, bssn);
-    
+
     real_t k1_theta = ev_k_theta_dtheta(&kd, theta_i, phi_i);
     real_t k1_phi = ev_k_phi_dtheta(&kd, theta_i, phi_i);
     real_t k1_L = ev_k_L_dtheta(&kd, theta_i, phi_i);
@@ -1044,7 +1044,7 @@ void HorizonStatistics::transportKillingTheta(
     theta += dtheta / 2.0;
 
     k_theta[theta_i][phi_i] = k_theta_0 + dtheta * k1_theta / 2.0;
-    k_phi[theta_i][phi_i] = k_phi_0 + dtheta * k1_phi / 2.0;    
+    k_phi[theta_i][phi_i] = k_phi_0 + dtheta * k1_phi / 2.0;
     k_L[theta_i][phi_i] = k_L_0 + dtheta * k1_L / 2.0;
 
 
@@ -1066,14 +1066,14 @@ void HorizonStatistics::transportKillingTheta(
       mpi.Bcast(&k2_L, 1, MPI_DOUBLE, cur_mpi_rank);
     }
     mpi.Barrier();
-        
+
     /********Doing K3 ******************************************/
     k_theta[theta_i][phi_i] = k_theta_0 + dtheta * k2_theta / 2.0;
-    k_phi[theta_i][phi_i] = k_phi_0 + dtheta * k2_phi / 2.0;    
+    k_phi[theta_i][phi_i] = k_phi_0 + dtheta * k2_phi / 2.0;
     k_L[theta_i][phi_i] = k_L_0 + dtheta * k2_L / 2.0;
 
 
-    
+
     real_t k3_theta = ev_k_theta_dtheta(&kd, theta_i, phi_i);
     real_t k3_phi = ev_k_phi_dtheta(&kd, theta_i, phi_i);
     real_t k3_L = ev_k_L_dtheta(&kd, theta_i, phi_i);
@@ -1092,7 +1092,7 @@ void HorizonStatistics::transportKillingTheta(
     theta += dtheta / 2.0;
 
     k_theta[theta_i][phi_i] = k_theta_0 + dtheta * k3_theta;
-    k_phi[theta_i][phi_i] = k_phi_0 + dtheta * k3_phi;    
+    k_phi[theta_i][phi_i] = k_phi_0 + dtheta * k3_phi;
     k_L[theta_i][phi_i] = k_L_0 + dtheta * k3_L;
     mpi.Barrier();
     //    r =  findRadius(hierarchy, theta, phi);
@@ -1102,7 +1102,7 @@ void HorizonStatistics::transportKillingTheta(
     set_kd_values(hierarchy, theta, phi, (theta_i*2 +2)%(2*n_theta), phi_i*2, r, &kd, bssn);
 
 
-    
+
     real_t k4_theta = ev_k_theta_dtheta(&kd, theta_i, phi_i);
     real_t k4_phi = ev_k_phi_dtheta(&kd, theta_i, phi_i);
     real_t k4_L = ev_k_L_dtheta(&kd, theta_i, phi_i);
@@ -1114,7 +1114,7 @@ void HorizonStatistics::transportKillingTheta(
       mpi.Bcast(&k4_L, 1, MPI_DOUBLE, cur_mpi_rank);
     }
     mpi.Barrier();
-    
+
     k_theta[(theta_i-1+n_theta)%n_theta][phi_i] = k_theta_0 + dtheta /6.0 *
       ( k1_theta + 2.0 * k2_theta + 2.0 * k3_theta + k4_theta);
     k_phi[(theta_i-1+n_theta)%n_theta][phi_i] = k_phi_0 + dtheta /6.0 *
@@ -1137,7 +1137,7 @@ void HorizonStatistics::transportKillingTheta(
   patch_work_mpi_rank = mpi_bak;
   local_id = local_id_bak;
   patch_work_level = level_bak;
-  
+
 }
 
 void HorizonStatistics::transportKillingPhi(
@@ -1163,13 +1163,13 @@ void HorizonStatistics::transportKillingPhi(
     real_t k_theta_0 = k_theta[theta_i][phi_i];
     real_t k_L_0 = k_L[theta_i][phi_i];
     kd = {0};
-    
+
     /********Doing K1 ******************************************/
     double phi = 2.0 * PI * ((double) phi_i +0.5) / (double)n_phi;
 
     //    real_t r = ah_radius[theta_i*2][phi_i*2];
     real_t r = getRadius(theta, phi);
-    
+
     set_kd_values(hierarchy, theta, phi, theta_i*2 , phi_i*2, r, &kd, bssn);
 
 
@@ -1178,7 +1178,7 @@ void HorizonStatistics::transportKillingPhi(
     real_t k1_L = ev_k_L_dphi(&kd, theta_i, phi_i);
 
     mpi.Barrier();
-        
+
     if (mpi.getSize() > 1) {
       mpi.Bcast(&k1_theta, 1, MPI_DOUBLE, cur_mpi_rank);
       mpi.Bcast(&k1_phi, 1, MPI_DOUBLE, cur_mpi_rank);
@@ -1192,7 +1192,7 @@ void HorizonStatistics::transportKillingPhi(
     phi += dphi / 2.0;
 
     k_theta[theta_i][phi_i] = k_theta_0 + dphi * k1_theta / 2.0;
-    k_phi[theta_i][phi_i] = k_phi_0 + dphi * k1_phi / 2.0;    
+    k_phi[theta_i][phi_i] = k_phi_0 + dphi * k1_phi / 2.0;
     k_L[theta_i][phi_i] = k_L_0 + dphi * k1_L / 2.0;
 
     mpi.Barrier();
@@ -1216,10 +1216,10 @@ void HorizonStatistics::transportKillingPhi(
     mpi.Barrier();
 
 
-    //kd = {0};    
+    //kd = {0};
     /********Doing K3 ******************************************/
     k_theta[theta_i][phi_i] = k_theta_0 + dphi * k2_theta / 2.0;
-    k_phi[theta_i][phi_i] = k_phi_0 + dphi * k2_phi / 2.0;    
+    k_phi[theta_i][phi_i] = k_phi_0 + dphi * k2_phi / 2.0;
     k_L[theta_i][phi_i] = k_L_0 + dphi * k2_L / 2.0;
 
 
@@ -1241,7 +1241,7 @@ void HorizonStatistics::transportKillingPhi(
     phi += dphi / 2.0;
 
     k_theta[theta_i][phi_i] = k_theta_0 + dphi * k3_theta;
-    k_phi[theta_i][phi_i] = k_phi_0 + dphi * k3_phi;    
+    k_phi[theta_i][phi_i] = k_phi_0 + dphi * k3_phi;
     k_L[theta_i][phi_i] = k_L_0 + dphi * k3_L;
 
     mpi.Barrier();
@@ -1252,7 +1252,7 @@ void HorizonStatistics::transportKillingPhi(
     mpi.Barrier();
 
     set_kd_values(hierarchy, theta, phi, theta_i*2, (phi_i*2+2)%(2*n_phi), r, &kd, bssn);
-    
+
     real_t k4_theta = ev_k_theta_dphi(&kd, theta_i, phi_i);
     real_t k4_phi = ev_k_phi_dphi(&kd, theta_i, phi_i);
     real_t k4_L = ev_k_L_dphi(&kd, theta_i, phi_i);
@@ -1264,7 +1264,7 @@ void HorizonStatistics::transportKillingPhi(
       mpi.Bcast(&k4_L, 1, MPI_DOUBLE, cur_mpi_rank);
     }
     mpi.Barrier();
-    
+
     k_theta[theta_i][(phi_i+1)%n_phi] = k_theta_0 + dphi /6.0 *
       ( k1_theta + 2.0 * k2_theta + 2.0 * k3_theta + k4_theta);
     k_phi[theta_i][(phi_i+1)%n_phi] = k_phi_0 + dphi /6.0 *
@@ -1289,7 +1289,7 @@ void HorizonStatistics::initG(
   const tbox::SAMRAI_MPI& mpi(hierarchy->getMPI());
 
   double min_d0 = min_d;
-  
+
   int theta_i = n_theta, phi_i = 0;
 
   double phi, theta;
@@ -1325,7 +1325,7 @@ void HorizonStatistics::initG(
 
       kd = {0};
 
-      
+
       set_G_values(hierarchy, theta, phi, theta_i, phi_i, r, &kd, bssn);
       mpi.Barrier();
       ah_radius[theta_i][phi_i] = r;
@@ -1333,7 +1333,7 @@ void HorizonStatistics::initG(
 
     patch_work_i = patch_work_i_bak, patch_work_j = patch_work_j_bak, patch_work_k = patch_work_k_bak;
     patch_work_level = patch_work_level_bak, local_id = local_id_bak, patch_work_mpi_rank = patch_work_mpi_rank_bak;
-    
+
     for(theta_i = n_theta - 1; theta_i >= 0; theta_i--)
     {
       theta =  PI * ((double) theta_i + 0.5) / (double)n_theta / 2.0;
@@ -1382,7 +1382,7 @@ void HorizonStatistics::initGridding(
   //real_t max_r = findMaxHorizonRadius(hierarchy, PI / 2.0, 0);
 
   real_t max_r = findRadius(hierarchy, PI/2.0, 0);
-   
+
   std::shared_ptr<geom::CartesianGridGeometry> grid_geometry_(
     SAMRAI_SHARED_PTR_CAST<geom::CartesianGridGeometry, hier::BaseGridGeometry>(
       hierarchy->getGridGeometry()));
@@ -1396,14 +1396,14 @@ void HorizonStatistics::initGridding(
 
   //  n_theta = PI * max_r / dx * 2;
 
-  //n_phi = 2.0 * PI * max_r / dx *2; 
+  //n_phi = 2.0 * PI * max_r / dx *2;
 
   //if(n_theta % 2 == 1) n_theta += 1;
 
   //if(n_phi % 2 == 1) n_phi += 1;
 
   n_theta = n_phi/2;
-  
+
   tbox::pout<<"Dividing the space into n_theta = "<<n_theta
             <<" and n_phi = "<<n_phi<<"\n";
 
@@ -1411,7 +1411,7 @@ void HorizonStatistics::initGridding(
   k_theta.resize(n_theta);
   k_phi.resize(n_theta);
   k_L.resize(n_theta);
-  
+
   G111.resize(n_theta*2);
   G112.resize(n_theta*2);
   G122.resize(n_theta*2);
@@ -1419,7 +1419,7 @@ void HorizonStatistics::initGridding(
   G212.resize(n_theta*2);
   G222.resize(n_theta*2);
   ah_radius.resize(n_theta*2);
-  
+
   for(int i = 0; i < 2*n_theta; i++)
   {
     if(i < n_theta)
@@ -1446,62 +1446,62 @@ void HorizonStatistics::findM(
 
   transportKillingPhi(hierarchy, n_theta/2, n_phi, 1, 0, 0, bssn);
 
-  Eigen::Matrix3d M;
-  
-  M(0, 0) = k_theta[n_theta/2][0];
-  M(1, 0) = k_phi[n_theta/2][0];
-  M(2, 0) = k_L[n_theta/2][0];
+  // Eigen::Matrix3d M;
+
+  // M(0, 0) = k_theta[n_theta/2][0];
+  // M(1, 0) = k_phi[n_theta/2][0];
+  // M(2, 0) = k_L[n_theta/2][0];
 
 
-  transportKillingPhi(hierarchy, n_theta/2, n_phi, 0, 1, 0, bssn);
+  // transportKillingPhi(hierarchy, n_theta/2, n_phi, 0, 1, 0, bssn);
 
-  M(0, 1) = k_theta[n_theta/2][0];
-  M(1, 1) = k_phi[n_theta/2][0];
-  M(2, 1) = k_L[n_theta/2][0];
-
-
-  
-  transportKillingPhi(hierarchy, n_theta/2, n_phi, 0, 0, 1, bssn);
-
-  M(0, 2) = k_theta[n_theta/2][0]; 
-  M(1, 2) = k_phi[n_theta/2][0];
-  M(2, 2) = k_L[n_theta/2][0];
+  // M(0, 1) = k_theta[n_theta/2][0];
+  // M(1, 1) = k_phi[n_theta/2][0];
+  // M(2, 1) = k_L[n_theta/2][0];
 
 
 
-   tbox::pout<<"\n";
-  tbox::pout << "Here is the matrix m:\n" << M << "\n";
+  // transportKillingPhi(hierarchy, n_theta/2, n_phi, 0, 0, 1, bssn);
 
-  // solve the eigenvalue equation to get 3 eigenvalues;
+  // M(0, 2) = k_theta[n_theta/2][0];
+  // M(1, 2) = k_phi[n_theta/2][0];
+  // M(2, 2) = k_L[n_theta/2][0];
 
-  Eigen::EigenSolver<Eigen::Matrix3d> eigensolver(M);
 
-  if (eigensolver.info() != Eigen::Success)
-    TBOX_ERROR("Matrix does not have solution with identity eigenvalue!\n");
 
-  Eigen::EigenSolver< Eigen::Matrix3d >::EigenvalueType e_val = eigensolver.eigenvalues();
-  Eigen::EigenSolver< Eigen::Matrix3d >::EigenvectorsType e_vec = eigensolver.eigenvectors();
+  //  tbox::pout<<"\n";
+  // tbox::pout << "Here is the matrix m:\n" << M << "\n";
 
-   tbox::pout<<"\n Eigenvalues are "<<e_val<<"\n";
-  
-  double dis_to_I = INF;
-  int identity_idx=-1;
-  for(int i = 0; i < 3; i++)
-    if(pw2((e_val(i).real() - 1.0)) + pw2(e_val(i).imag()) < dis_to_I)
-    {
-      dis_to_I = pw2(e_val(i).real() - 1.0) + pw2(e_val(i).imag());
-      identity_idx = i;
-    }
+  // // solve the eigenvalue equation to get 3 eigenvalues;
 
-  x[0] = e_vec(0, identity_idx).real();
-  x[1] = e_vec(1, identity_idx).real();
-  x[2] = e_vec(2, identity_idx).real();
-  
+  // Eigen::EigenSolver<Eigen::Matrix3d> eigensolver(M);
 
-   tbox::pout<<"Solution with identity eigenvalue is ("
-         << x[0]<<" "<<x[1]<<" "<<x[2]<<")\n";
-  
-  
+  // if (eigensolver.info() != Eigen::Success)
+  //   TBOX_ERROR("Matrix does not have solution with identity eigenvalue!\n");
+
+  // Eigen::EigenSolver< Eigen::Matrix3d >::EigenvalueType e_val = eigensolver.eigenvalues();
+  // Eigen::EigenSolver< Eigen::Matrix3d >::EigenvectorsType e_vec = eigensolver.eigenvectors();
+
+  //  tbox::pout<<"\n Eigenvalues are "<<e_val<<"\n";
+
+  // double dis_to_I = INF;
+  // int identity_idx=-1;
+  // for(int i = 0; i < 3; i++)
+  //   if(pw2((e_val(i).real() - 1.0)) + pw2(e_val(i).imag()) < dis_to_I)
+  //   {
+  //     dis_to_I = pw2(e_val(i).real() - 1.0) + pw2(e_val(i).imag());
+  //     identity_idx = i;
+  //   }
+
+  // x[0] = e_vec(0, identity_idx).real();
+  // x[1] = e_vec(1, identity_idx).real();
+  // x[2] = e_vec(2, identity_idx).real();
+
+
+  //  tbox::pout<<"Solution with identity eigenvalue is ("
+  //        << x[0]<<" "<<x[1]<<" "<<x[2]<<")\n";
+
+
 }
 
 void HorizonStatistics::set_norm_values(
@@ -1533,7 +1533,7 @@ void HorizonStatistics::set_norm_values(
 
       const int * lower = &box.lower()[0];
       const int * upper = &box.upper()[0];
-      
+
       std::shared_ptr<geom::CartesianPatchGeometry> patch_geometry(
         SAMRAI_SHARED_PTR_CAST<geom::CartesianPatchGeometry, hier::PatchGeometry>(
           patch->getPatchGeometry()));
@@ -1551,7 +1551,7 @@ void HorizonStatistics::set_norm_values(
         cur_mpi_rank = mpi.getRank();
 
         cur_mpi_level = ln;
-        
+
 
         bssn->initPData(patch);
         bssn->initMDA(patch);
@@ -1598,7 +1598,7 @@ void HorizonStatistics::set_norm_values(
         COSMO_APPLY_TO_IJ_PERMS(HORIZON_CRSPLINES_CAL_K);
         COSMO_APPLY_TO_IJ_PERMS(HORIZON_CRSPLINES_CAL_M);
 
-        
+
         break;
       }
     }
@@ -1610,7 +1610,7 @@ void HorizonStatistics::set_norm_values(
   real_t det = kd->m11 * kd->m22 * kd->m33 + kd->m12 * kd->m23 * kd->m13
     + kd->m12 * kd->m23 * kd->m13 - kd->m13 * kd->m22 * kd->m13
     - kd->m12 * kd->m12 * kd->m33 - kd->m23 * kd->m23 * kd->m11;
-  
+
   kd->mi11 = (kd->m22 * kd->m33 - pw2(kd->m23)) / det;
   kd->mi22 = (kd->m11 * kd->m33 - pw2(kd->m13)) / det;
   kd->mi33 = (kd->m11 * kd->m22 - pw2(kd->m12)) / det;
@@ -1618,7 +1618,7 @@ void HorizonStatistics::set_norm_values(
   kd->mi13 = (kd->m12*kd->m23 - kd->m13*(kd->m22)) / det;
   kd->mi23 = (kd->m12*kd->m13 - kd->m23*(kd->m11)) / det;
 
-  
+
   mpi.Barrier();
 
   if (mpi.getSize() > 1)
@@ -1632,7 +1632,7 @@ void HorizonStatistics::set_norm_values(
     cur_mpi_rank = -1;
   }
 
-  
+
   mpi.Barrier();
 
   if (mpi.getSize() > 1)
@@ -1640,10 +1640,10 @@ void HorizonStatistics::set_norm_values(
     mpi.AllReduce(&cur_mpi_rank, 1, MPI_MAX);
   }
   mpi.Barrier();
-  
+
   if(cur_mpi_rank == -1)
     TBOX_ERROR("Cannot find proper patch in set bd values\n");
-  
+
 }
 
 real_t HorizonStatistics::interp_k_theta(
@@ -1684,13 +1684,13 @@ real_t HorizonStatistics::interp_k_theta(
         phi_dist += 2.0 * PI;
       if(phi_dist > d_phi + EPS || phi_dist < -d_phi - EPS)
         TBOX_ERROR("Error in calculating phi_dist "<<phi0<<" "<<phi<<" "<<phi_dist<<" "<<d_phi<<"\n");
-      temp += k_theta[theta_i][phi_i] *        
+      temp += k_theta[theta_i][phi_i] *
         ( (d_phi - (phi_dist ) * (2.0 * ( (phi_i - phi_i0 + n_phi)%n_phi ) -1.0)) / d_phi);
     }
     res += temp *
       ( (d_theta - (theta0 - theta ) * (2.0 * (theta_i - theta_i0) -1.0)) / d_theta);
   }
-  
+
   return res;
 }
 
@@ -1709,7 +1709,7 @@ real_t HorizonStatistics::interp_k_phi(
   int phi_i0 = floor((phi) / d_phi - 0.5);
 
   phi_i0 = (phi_i0 + n_phi)%n_phi;
-  
+
   if(phi_i0 > n_phi || phi_i0 < 0 || theta_i0 > n_theta || theta_i0 < 0)
   {
     TBOX_ERROR("EEEE "<<theta<<" "<<phi<<" "<<theta_i0<<" "<<phi_i0<<"\n");
@@ -1732,14 +1732,14 @@ real_t HorizonStatistics::interp_k_phi(
         phi_dist += 2.0 * PI;
       if(phi_dist > d_phi + EPS || phi_dist < -d_phi - EPS)
         TBOX_ERROR("Error in calculating phi_dist "<<phi0<<" "<<phi<<" "<<phi_dist<<" "<<d_phi<<"\n");
-      temp += k_phi[theta_i][phi_i] *        
+      temp += k_phi[theta_i][phi_i] *
         ( (d_phi - (phi_dist ) * (2.0 * ( (phi_i - phi_i0 + n_phi)%n_phi ) -1.0)) / d_phi);
 
     }
     res += temp *
       ( (d_theta - (theta0 - theta ) * (2.0 * (theta_i - theta_i0) -1.0)) / d_theta);
   }
-  
+
   return res;
 
 }
@@ -1769,25 +1769,25 @@ real_t HorizonStatistics::getNormFactor()
   for(int i = 0; i < n_theta; i ++)
     for(int j = 0; j < n_phi; j ++)
       max_abs = std::max(max_abs, std::max(fabs(k_phi[i][j]), fabs(k_theta[i][j])));
-  
+
   real_t dt = 0.01 * dtheta / max_abs;
 
   tbox::pout<<"Time interval for process of getting norm factor is "
             <<dt<<"\n";
 
-  
+
   real_t t = 0;
   int cnt = 0;
   // advance theta and phi
   while( (SIGN(pre_phi) * SIGN(phi) >= 0)
          && (SIGN(2.0 * PI - pre_phi) * SIGN(2.0 * PI - phi) >= 0 )
-         &&(SIGN(-2.0 * PI - pre_phi) * SIGN(-2.0 * PI - phi) >= 0 )) 
+         &&(SIGN(-2.0 * PI - pre_phi) * SIGN(-2.0 * PI - phi) >= 0 ))
   {
     pre_phi = phi;
 
     double theta_0 = theta;
     double phi_0 = phi;
-    
+
     real_t k1_theta = interp_k_theta(theta, phi);
     real_t k1_phi = interp_k_phi(theta, phi);
 
@@ -1838,14 +1838,14 @@ real_t HorizonStatistics::angularMomentum(
       real_t ct = cos(theta);
       real_t sp = sin(phi);
       real_t cp = cos(phi);
-      
+
       real_t r = getRadius(theta, phi);
-      
+
       KillingData kd = {0};
 
       set_norm_values(hierarchy, theta, phi, theta_i, phi_i,
                       getRadius(theta, phi), &kd, bssn);
-      
+
 
       real_t k1 = r * (k_theta[theta_i][phi_i] * ct * cp
                                                    - k_phi[theta_i][phi_i] * sp * st);
@@ -1853,7 +1853,7 @@ real_t HorizonStatistics::angularMomentum(
                                                    + k_phi[theta_i][phi_i] * cp * st);
       real_t k3 = - r * k_theta[theta_i][phi_i] * st;
 
-      
+
       real_t s1 = (kd.mi11 * kd.d1F + kd.mi12 * kd.d2F + kd.mi13 * kd.d3F)
         / (sqrt((kd.mi11 * kd.d1F * kd.d1F + kd.mi22 * kd.d2F * kd.d2F + kd.mi33 * kd.d3F *kd.d3F
                  + 2.0 * (kd.mi12 * kd.d1F * kd.d2F + kd.mi13 * kd.d1F * kd.d3F + kd.mi23 * kd.d2F * kd.d3F))));
@@ -1864,11 +1864,11 @@ real_t HorizonStatistics::angularMomentum(
         / (sqrt((kd.mi11 * kd.d1F * kd.d1F + kd.mi22 * kd.d2F * kd.d2F + kd.mi33 * kd.d3F *kd.d3F
                  + 2.0 * (kd.mi12 * kd.d1F * kd.d2F + kd.mi13 * kd.d1F * kd.d3F + kd.mi23 * kd.d2F * kd.d3F))));
 
-      
+
       real_t K11 = kd.K11, K12 = kd.K12, K13 = kd.K13;
       real_t K22 = kd.K22, K23 = kd.K23, K33 = kd.K33;
 
-      
+
       kd = {0};
 
       set_kd_values(hierarchy, theta, phi, theta_i*2, phi_i*2,
@@ -1880,7 +1880,7 @@ real_t HorizonStatistics::angularMomentum(
         + k1 * s2 * K12 + k1 * s3 * K13 + k2 * s3 * K23
               + k2 * s1 * K12 + k3 * s1 * K13 + k3 * s2 * K23) * sqrt(det) * dtheta * dphi;
 
-      
+
       mpi.Barrier();
       if (mpi.getSize() > 1 ) {
         mpi.Bcast(&res, 1, MPI_DOUBLE, cur_mpi_rank);
@@ -1908,10 +1908,10 @@ void HorizonStatistics::convertToVector(
       KillingData kd = {0};
 
       set_kd_values(hierarchy, theta, phi, theta_i*2, phi_i*2, getRadius(theta, phi), &kd, bssn);
-      
+
       k_theta[theta_i][phi_i] = kd.qi11 * k_theta0 + kd.qi12 * k_phi0;
       k_phi[theta_i][phi_i] = kd.qi12 * k_theta0 + kd.qi22 * k_phi0;
-      
+
       mpi.Barrier();
       if (mpi.getSize() > 1 ) {
         mpi.Bcast(&k_theta[theta_i][phi_i], 1, MPI_DOUBLE, cur_mpi_rank);
@@ -1941,7 +1941,7 @@ real_t HorizonStatistics::area(
       double phi = 2.0 * PI * ((double) phi_i +0.5) / (double)n_phi;
 
       real_t r = getRadius(theta, phi);
-      
+
       KillingData kd = {0};
 
       set_kd_values(hierarchy, theta, phi, theta_i*2, phi_i*2,
@@ -1972,7 +1972,7 @@ void HorizonStatistics::findKilling(
 
   horizon->AHFinderDirect_local_coordinate_origin(
     horizon_id, &origin[0],&origin[1],&origin[2]);
-  
+
   tbox::pout<<"Starting the process of finding Killing vectors for horions: "<<horizon_id<<"\n!";
 
   initGridding(hierarchy);
@@ -1981,13 +1981,13 @@ void HorizonStatistics::findKilling(
 
   double angular_m = 0;
 
-  
+
   if(non_zero_angular_momentum)
   {
     double x[3] = {0};
     // Finding transport matrix and initializing eigen vector
     findM(hierarchy, x, bssn);
-  
+
     transportKillingPhi(hierarchy, n_theta/2, n_phi - 1, x[0], x[1], x[2], bssn);
 
     for(int i = 0; i < n_phi; i++)
@@ -2003,15 +2003,15 @@ void HorizonStatistics::findKilling(
     //   transportKillingPhi(
     //     hierarchy, i, n_phi-1, k_theta[i][0], k_phi[i][0], k_L[i][0], bssn);
     // }
-  
+
     convertToVector(hierarchy, bssn);
 
     normKilling();
-    
+
     angular_m = angularMomentum(hierarchy, bssn);
     tbox::pout<<"Angular momentum is "<<angular_m<<"\n";
   }
-  
+
   double a = area(hierarchy, bssn);
 
   double R_Delta = sqrt(a / (4.0 * PI));
@@ -2020,7 +2020,7 @@ void HorizonStatistics::findKilling(
   double mass = sqrt(pw2(pw2(R_Delta)) + 4.0 * pw2(angular_m)) / (2.0 * R_Delta);
 
   tbox::pout<<"Mass is "<<mass<<" irreducible mass (areal) is "<<bare_mass<<"\n";
-  
+
 }
-  
+
 }
